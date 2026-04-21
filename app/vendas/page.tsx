@@ -3,6 +3,14 @@ import { useState, useEffect } from 'react'
 import { createClient } from '../supabase'
 import { useRouter } from 'next/navigation'
 
+function Toast({ mensagem, tipo }: { mensagem: string, tipo: 'sucesso' | 'erro' }) {
+  return (
+    <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-xl text-white font-semibold shadow-lg transition ${tipo === 'sucesso' ? 'bg-green-600' : 'bg-red-600'}`}>
+      {mensagem}
+    </div>
+  )
+}
+
 export default function Vendas() {
   const [produtos, setProdutos] = useState<any[]>([])
   const [vendas, setVendas] = useState<any[]>([])
@@ -11,6 +19,7 @@ export default function Vendas() {
   const [quantidade, setQuantidade] = useState('1')
   const [pagamento, setPagamento] = useState('Dinheiro')
   const [loading, setLoading] = useState(false)
+  const [toast, setToast] = useState<{ mensagem: string, tipo: 'sucesso' | 'erro' } | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -28,14 +37,19 @@ export default function Vendas() {
     setVendas(vendaData || [])
   }
 
+  function mostrarToast(mensagem: string, tipo: 'sucesso' | 'erro') {
+    setToast({ mensagem, tipo })
+    setTimeout(() => setToast(null), 3000)
+  }
+
   const qtd = parseInt(quantidade) || 0
   const valorTotal = produtoSelecionado ? produtoSelecionado.preco_venda * qtd : 0
   const lucro = produtoSelecionado ? (produtoSelecionado.preco_venda - produtoSelecionado.custo) * qtd : 0
 
   async function registrarVenda() {
-    if (!produtoSelecionado) return alert('Selecione um produto!')
-    if (qtd <= 0) return alert('Quantidade inválida!')
-    if (qtd > produtoSelecionado.quantidade) return alert('Estoque insuficiente!')
+    if (!produtoSelecionado) return mostrarToast('Selecione um produto!', 'erro')
+    if (qtd <= 0) return mostrarToast('Quantidade inválida!', 'erro')
+    if (qtd > produtoSelecionado.quantidade) return mostrarToast('Estoque insuficiente!', 'erro')
     setLoading(true)
 
     await supabase.from('vendas').insert({
@@ -51,6 +65,7 @@ export default function Vendas() {
       quantidade: produtoSelecionado.quantidade - qtd
     }).eq('id', produtoSelecionado.id)
 
+    mostrarToast(`✓ Venda de ${produtoSelecionado.nome} registrada!`, 'sucesso')
     setProdutoSelecionado(null)
     setQuantidade('1')
     setLoading(false)
@@ -58,7 +73,8 @@ export default function Vendas() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-950 p-6">
+    <main className="min-h-screen bg-gray-950 p-4 md:p-6">
+      {toast && <Toast mensagem={toast.mensagem} tipo={toast.tipo} />}
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <button onClick={() => router.push('/dashboard')} className="text-gray-400 text-sm mb-1 hover:text-white">← Dashboard</button>
@@ -67,7 +83,6 @@ export default function Vendas() {
 
         <div className="bg-gray-900 rounded-2xl p-6 mb-6">
           <h2 className="text-white font-semibold mb-4">Registrar venda</h2>
-
           <div className="flex flex-col gap-4">
             <select
               value={produtoSelecionado?.id || ''}
@@ -91,11 +106,8 @@ export default function Vendas() {
 
             <div className="flex gap-3">
               {['Dinheiro', 'Pix', 'Cartão'].map(f => (
-                <button
-                  key={f}
-                  onClick={() => setPagamento(f)}
-                  className={`flex-1 py-3 rounded-xl font-semibold transition ${pagamento === f ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
-                >
+                <button key={f} onClick={() => setPagamento(f)}
+                  className={`flex-1 py-3 rounded-xl font-semibold transition ${pagamento === f ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
                   {f}
                 </button>
               ))}
@@ -118,11 +130,8 @@ export default function Vendas() {
               </div>
             )}
 
-            <button
-              onClick={registrarVenda}
-              disabled={loading}
-              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition"
-            >
+            <button onClick={registrarVenda} disabled={loading}
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition">
               {loading ? 'Registrando...' : 'Confirmar venda'}
             </button>
           </div>
@@ -134,7 +143,7 @@ export default function Vendas() {
             <p className="text-gray-500 text-center py-8">Nenhuma venda ainda</p>
           ) : (
             <div className="flex flex-col gap-3">
-              {vendas.map((v, i) => (
+              {vendas.map(v => (
                 <div key={v.id} className="flex items-center justify-between border-b border-gray-800 pb-3">
                   <div>
                     <p className="text-white font-medium">{v.produtos?.nome}</p>
