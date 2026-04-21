@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '../supabase'
 import { useRouter } from 'next/navigation'
 
@@ -10,6 +10,18 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) router.push('/dashboard')
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) router.push('/dashboard')
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   async function entrar() {
     setLoading(true)
@@ -51,19 +63,11 @@ export default function Login() {
             className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
           />
 
-          <button
-            onClick={entrar}
-            disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition"
-          >
+          <button onClick={entrar} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition">
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
 
-          <button
-            onClick={cadastrar}
-            disabled={loading}
-            className="bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-xl transition"
-          >
+          <button onClick={cadastrar} disabled={loading} className="bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-xl transition">
             {loading ? 'Cadastrando...' : 'Criar conta'}
           </button>
         </div>
