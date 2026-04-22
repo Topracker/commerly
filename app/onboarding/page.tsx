@@ -90,7 +90,15 @@ export default function Onboarding() {
       user_id: user?.id,
       nome, tipo, documento, localizacao, telefone, instagram, horario
     })
-    if (error) { alert('Erro ao salvar!'); setLoading(false); return }
+    if (error) {
+      if (error.code === '23505') {
+        alert('Este CPF/CNPJ já está cadastrado no Commerly!')
+      } else {
+        alert('Erro ao salvar!')
+      }
+      setLoading(false)
+      return
+    }
     router.push('/dashboard')
   }
 
