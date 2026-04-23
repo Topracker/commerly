@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '../supabase'
 import { useRouter } from 'next/navigation'
-import { Package, ShoppingCart, TrendingDown, Clock, Users, MessageSquare, Settings, LogOut, Menu, X } from 'lucide-react'
+import { Package, ShoppingCart, TrendingDown, Clock, Users, MessageSquare, Settings, LogOut, Menu, X, Wallet } from 'lucide-react'
 
 export default function Dashboard() {
   const [loja, setLoja] = useState<any>(null)
@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [estoqueBaixo, setEstoqueBaixo] = useState<any[]>([])
   const [ultimasVendas, setUltimasVendas] = useState<any[]>([])
   const [topProdutos, setTopProdutos] = useState<any[]>([])
+  const [totalFiado, setTotalFiado] = useState(0)
   const [periodo, setPeriodo] = useState('mes')
   const [loading, setLoading] = useState(true)
   const [menuAberto, setMenuAberto] = useState(false)
@@ -55,6 +56,9 @@ export default function Dashboard() {
     const { data: recentes } = await supabase.from('vendas').select('*, produtos(nome)').eq('loja_id', lojaData.id).order('created_at', { ascending: false }).limit(5)
     setUltimasVendas(recentes || [])
 
+    const { data: fiadoData } = await supabase.from('fiado').select('*').eq('loja_id', lojaData.id).eq('pago', false)
+    setTotalFiado(fiadoData?.reduce((a, f) => a + f.valor, 0) || 0)
+
     setLoading(false)
   }
 
@@ -77,6 +81,7 @@ export default function Dashboard() {
   const menuItems = [
     { label: 'Produtos', sub: 'Gerenciar estoque', path: '/produtos', icon: Package },
     { label: 'Vendas', sub: 'Registrar vendas', path: '/vendas', icon: ShoppingCart },
+    { label: 'Fiado', sub: 'Controlar fiados', path: '/fiado', icon: Wallet },
     { label: 'Gastos', sub: 'Controlar despesas', path: '/gastos', icon: TrendingDown },
     { label: 'Histórico', sub: 'Ver todas as vendas', path: '/historico', icon: Clock },
     { label: 'Funcionários', sub: 'Gerenciar equipe', path: '/funcionarios', icon: Users },
@@ -111,12 +116,10 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-950 flex">
-      {/* Sidebar desktop */}
       <aside className="hidden md:flex w-56 bg-gray-900 flex-col fixed h-full">
         <Sidebar />
       </aside>
 
-      {/* Menu mobile overlay */}
       {menuAberto && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="w-64 bg-gray-900 h-full overflow-y-auto">
@@ -131,22 +134,19 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Conteúdo principal */}
       <main className="md:ml-56 flex-1 p-4 md:p-6">
         <div className="max-w-3xl mx-auto">
 
-          {/* Header mobile */}
           <div className="flex items-center justify-between mb-6 md:hidden">
             <button onClick={() => setMenuAberto(true)} className="text-white">
               <Menu size={24} />
             </button>
-            <h1 className="text-xl font-bold text-white">Dashboard</h1>
+            <h1 className="text-xl font-bold text-white">Dashboard 🏪</h1>
             <div className="w-6" />
           </div>
 
-          {/* Header desktop */}
           <div className="hidden md:block mb-6">
-            <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+            <h1 className="text-3xl font-bold text-white">Dashboard 🏪</h1>
           </div>
 
           <div className="flex gap-2 mb-6">
@@ -158,7 +158,7 @@ export default function Dashboard() {
             ))}
           </div>
 
-          <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             <div className="bg-gray-900 rounded-2xl p-4">
               <p className="text-gray-400 text-xs mb-1">Faturamento</p>
               <p className="text-lg font-bold text-white">R$ {faturamento.toFixed(2)}</p>
@@ -170,6 +170,10 @@ export default function Dashboard() {
             <div className="bg-gray-900 rounded-2xl p-4">
               <p className="text-gray-400 text-xs mb-1">Gastos</p>
               <p className="text-lg font-bold text-red-400">R$ {gastos.toFixed(2)}</p>
+            </div>
+            <div className="bg-gray-900 rounded-2xl p-4 cursor-pointer hover:bg-gray-800 transition" onClick={() => router.push('/fiado')}>
+              <p className="text-gray-400 text-xs mb-1">Fiado pendente</p>
+              <p className="text-lg font-bold text-yellow-400">R$ {totalFiado.toFixed(2)}</p>
             </div>
           </div>
 
