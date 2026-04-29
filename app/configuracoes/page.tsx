@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
@@ -55,6 +56,8 @@ function formatarDocumento(valor: string) {
 export default function Configuracoes() {
   const { loja, loading, supabase, sair } = useAuth()
   const { toast, mostrarToast } = useToast()
+  const searchParams = useSearchParams()
+
   const [nome, setNome] = useState('')
   const [tipo, setTipo] = useState('')
   const [documento, setDocumento] = useState('')
@@ -65,6 +68,10 @@ export default function Configuracoes() {
   const [erroDoc, setErroDoc] = useState('')
   const [salvando, setSalvando] = useState(false)
 
+  const [mpConectado, setMpConectado] = useState(false)
+  const [mpUserId, setMpUserId] = useState<string | null>(null)
+  const [desconectando, setDesconectando] = useState(false)
+
   useEffect(() => {
     if (loja) {
       setNome(loja.nome)
@@ -74,8 +81,27 @@ export default function Configuracoes() {
       setTelefone(loja.telefone || '')
       setInstagram(loja.instagram || '')
       setHorario(loja.horario || '')
+      carregarStatusMP()
     }
   }, [loja])
+
+  useEffect(() => {
+    const param = searchParams.get('mp')
+    if (param === 'conectado') mostrarToast('Mercado Pago conectado com sucesso!', 'sucesso')
+    else if (param === 'erro') mostrarToast('Erro ao conectar Mercado Pago. Tente novamente.', 'erro')
+  }, [searchParams])
+
+  async function carregarStatusMP() {
+    const { data } = await supabase
+      .from('mercadopago_conexoes')
+      .select('mp_user_id')
+      .eq('loja_id', loja.id)
+      .maybeSingle()
+    if (data) {
+      setMpConectado(true)
+      setMpUserId(data.mp_user_id)
+    }
+  }
 
   function handleDocumento(valor: string) {
     const formatado = formatarDocumento(valor)
@@ -98,6 +124,19 @@ export default function Configuracoes() {
     setSalvando(false)
   }
 
+  async function desconectarMP() {
+    setDesconectando(true)
+    const res = await fetch('/api/mercadopago/disconnect', { method: 'POST' })
+    if (res.ok) {
+      setMpConectado(false)
+      setMpUserId(null)
+      mostrarToast('Mercado Pago desconectado.', 'sucesso')
+    } else {
+      mostrarToast('Erro ao desconectar. Tente novamente.', 'erro')
+    }
+    setDesconectando(false)
+  }
+
   if (loading) return (
     <main className="min-h-screen bg-gray-950 flex items-center justify-center">
       <p className="text-gray-400">Carregando...</p>
@@ -109,7 +148,7 @@ export default function Configuracoes() {
     <AppLayout loja={loja} sair={sair} titulo="Configurações" maxWidth="max-w-2xl">
       <Toast toast={toast} />
 
-      <div className="bg-gray-900 rounded-2xl p-6 flex flex-col gap-4">
+      <div className="bg-gray-900 rounded-2xl p-6 flex flex-col gap-4 mb-6">
         <input placeholder="Nome da loja *" value={nome} onChange={e => setNome(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
 
         <select value={tipo} onChange={e => setTipo(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500">
@@ -135,6 +174,42 @@ export default function Configuracoes() {
         <button onClick={salvar} disabled={salvando || !!erroDoc} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
           {salvando ? 'Salvando...' : 'Salvar alterações'}
         </button>
+      </div>
+
+      {/* Mercado Pago */}
+      <div className="bg-gray-900 rounded-2xl p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm">MP</div>
+          <h2 className="text-white font-semibold">Mercado Pago</h2>
+        </div>
+
+        {mpConectado ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2 bg-green-950 border border-green-800 rounded-xl px-4 py-3">
+              <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
+              <p className="text-green-300 text-sm">Maquininha conectada</p>
+              {mpUserId && <p className="text-green-500 text-xs ml-auto">ID: {mpUserId}</p>}
+            </div>
+            <p className="text-gray-400 text-xs">Pagamentos feitos na maquininha serão registrados automaticamente nas suas vendas.</p>
+            <button
+              onClick={desconectarMP}
+              disabled={desconectando}
+              className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 font-semibold py-3 rounded-xl transition text-sm"
+            >
+              {desconectando ? 'Desconectando...' : 'Desconectar Mercado Pago'}
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <p className="text-gray-400 text-sm">Conecte sua conta do Mercado Pago para registrar automaticamente os pagamentos da maquininha nas suas vendas.</p>
+            <a
+              href="/api/mercadopago/connect"
+              className="block text-center bg-blue-500 hover:bg-blue-400 text-white font-semibold py-3 rounded-xl transition"
+            >
+              Conectar Mercado Pago
+            </a>
+          </div>
+        )}
       </div>
     </AppLayout>
   )

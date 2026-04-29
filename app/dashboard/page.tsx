@@ -17,9 +17,18 @@ export default function Dashboard() {
   const [totalFiado, setTotalFiado] = useState(0)
   const [periodo, setPeriodo] = useState('mes')
   const [carregando, setCarregando] = useState(false)
+  const [mpConectado, setMpConectado] = useState(false)
 
   useEffect(() => {
-    if (loja) carregarDados()
+    if (loja) {
+      carregarDados()
+      supabase
+        .from('mercadopago_conexoes')
+        .select('id')
+        .eq('loja_id', loja.id)
+        .maybeSingle()
+        .then(({ data }) => setMpConectado(!!data))
+    }
   }, [loja, periodo])
 
   async function carregarDados() {
@@ -116,6 +125,20 @@ export default function Dashboard() {
             </p>
           </div>
 
+          {mpConectado && (
+            <div
+              className="flex items-center gap-3 bg-blue-950 border border-blue-800 rounded-2xl p-4 mb-3 cursor-pointer hover:bg-blue-900 transition"
+              onClick={() => window.location.href = '/configuracoes'}
+            >
+              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">MP</div>
+              <div>
+                <p className="text-blue-200 font-semibold text-sm">Maquininha conectada</p>
+                <p className="text-blue-400 text-xs">Pagamentos registrados automaticamente</p>
+              </div>
+              <span className="ml-auto w-2 h-2 rounded-full bg-green-400" />
+            </div>
+          )}
+
           {estoqueBaixo.length > 0 && (
             <div className="bg-red-950 border border-red-800 rounded-2xl p-4 mb-6">
               <p className="text-red-300 font-semibold mb-2">⚠️ Estoque baixo</p>
@@ -152,7 +175,7 @@ export default function Dashboard() {
                 {ultimasVendas.map(v => (
                   <div key={v.id} className="flex justify-between border-b border-gray-800 pb-3">
                     <div>
-                      <p className="text-white text-sm">{v.produtos?.nome}</p>
+                      <p className="text-white text-sm">{v.produtos?.nome || v.descricao || '—'}</p>
                       <p className="text-gray-400 text-xs">{v.quantidade}x — {v.forma_pagamento}</p>
                     </div>
                     <div className="text-right">

@@ -197,7 +197,7 @@ export default function Vendas() {
             {ultimasVendas.map(v => (
               <div key={v.id} className="flex items-center justify-between border-b border-gray-800 pb-3">
                 <div>
-                  <p className="text-white font-medium">{v.produtos?.nome}</p>
+                  <p className="text-white font-medium">{v.produtos?.nome || v.descricao || '—'}</p>
                   <p className="text-gray-400 text-sm">{v.quantidade}x — {v.forma_pagamento} — {new Date(v.created_at).toLocaleDateString('pt-BR')}</p>
                 </div>
                 <div className="text-right">
