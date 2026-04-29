@@ -1,11 +1,13 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { createClient } from '../supabase'
-import { useRouter } from 'next/navigation'
-import { Package, ShoppingCart, TrendingDown, Clock, Users, MessageSquare, Settings, LogOut, Menu, X, Wallet } from 'lucide-react'
+import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../hooks/useToast'
+import { AppLayout } from '../components/AppLayout'
+import { Toast } from '../components/Toast'
 
 export default function Dashboard() {
-  const [loja, setLoja] = useState<any>(null)
+  const { loja, loading, supabase, sair } = useAuth()
+  const { toast, mostrarToast } = useToast()
   const [faturamento, setFaturamento] = useState(0)
   const [lucro, setLucro] = useState(0)
   const [gastos, setGastos] = useState(0)
@@ -14,32 +16,40 @@ export default function Dashboard() {
   const [topProdutos, setTopProdutos] = useState<any[]>([])
   const [totalFiado, setTotalFiado] = useState(0)
   const [periodo, setPeriodo] = useState('mes')
-  const [loading, setLoading] = useState(true)
-  const [menuAberto, setMenuAberto] = useState(false)
-  const router = useRouter()
-  const supabase = createClient()
+  const [carregando, setCarregando] = useState(false)
 
-  useEffect(() => { carregar() }, [periodo])
+  useEffect(() => {
+    if (loja) carregarDados()
+  }, [loja, periodo])
 
-  async function carregar() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/login'); return }
-    const { data: lojaData } = await supabase.from('lojas').select('*').eq('user_id', user.id).single()
-    if (!lojaData) { router.push('/onboarding'); return }
-    setLoja(lojaData)
-
+  async function carregarDados() {
+    setCarregando(true)
     const agora = new Date()
     let desde = new Date()
-    if (periodo === 'hoje') desde.setHours(0,0,0,0)
+    if (periodo === 'hoje') desde.setHours(0, 0, 0, 0)
     else if (periodo === 'semana') desde.setDate(agora.getDate() - 7)
     else desde.setDate(1)
 
-    const { data: vendas } = await supabase.from('vendas').select('*, produtos(nome)').eq('loja_id', lojaData.id).gte('created_at', desde.toISOString())
-    setFaturamento(vendas?.reduce((a, v) => a + v.valor_total, 0) || 0)
-    setLucro(vendas?.reduce((a, v) => a + v.lucro, 0) || 0)
+    const [vendasRes, gastosRes, produtosRes, recentesRes, fiadoRes] = await Promise.all([
+      supabase.from('vendas').select('*, produtos(nome)').eq('loja_id', loja.id).gte('created_at', desde.toISOString()),
+      supabase.from('gastos').select('*').eq('loja_id', loja.id).gte('created_at', desde.toISOString()),
+      supabase.from('produtos').select('*').eq('loja_id', loja.id),
+      supabase.from('vendas').select('*, produtos(nome)').eq('loja_id', loja.id).order('created_at', { ascending: false }).limit(5),
+      supabase.from('fiado').select('*').eq('loja_id', loja.id).eq('pago', false),
+    ])
+
+    if (vendasRes.error) { mostrarToast('Erro ao carregar vendas', 'erro') }
+    if (gastosRes.error) { mostrarToast('Erro ao carregar gastos', 'erro') }
+
+    const vendas = vendasRes.data || []
+    const gastosData = gastosRes.data || []
+
+    setFaturamento(vendas.reduce((a: number, v: any) => a + v.valor_total, 0))
+    setLucro(vendas.reduce((a: number, v: any) => a + v.lucro, 0))
+    setGastos(gastosData.reduce((a: number, g: any) => a + g.valor, 0))
 
     const topMap: any = {}
-    vendas?.forEach(v => {
+    vendas.forEach((v: any) => {
       const nome = v.produtos?.nome || 'Desconhecido'
       if (!topMap[nome]) topMap[nome] = { nome, quantidade: 0, lucro: 0 }
       topMap[nome].quantidade += v.quantidade
@@ -47,29 +57,10 @@ export default function Dashboard() {
     })
     setTopProdutos(Object.values(topMap).sort((a: any, b: any) => b.quantidade - a.quantidade).slice(0, 3))
 
-    const { data: gastosData } = await supabase.from('gastos').select('*').eq('loja_id', lojaData.id).gte('created_at', desde.toISOString())
-    setGastos(gastosData?.reduce((a, g) => a + g.valor, 0) || 0)
-
-    const { data: produtos } = await supabase.from('produtos').select('*').eq('loja_id', lojaData.id)
-    setEstoqueBaixo(produtos?.filter(p => p.quantidade <= p.quantidade_minima) || [])
-
-    const { data: recentes } = await supabase.from('vendas').select('*, produtos(nome)').eq('loja_id', lojaData.id).order('created_at', { ascending: false }).limit(5)
-    setUltimasVendas(recentes || [])
-
-    const { data: fiadoData } = await supabase.from('fiado').select('*').eq('loja_id', lojaData.id).eq('pago', false)
-    setTotalFiado(fiadoData?.reduce((a, f) => a + f.valor, 0) || 0)
-
-    setLoading(false)
-  }
-
-  async function sair() {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
-
-  function navegar(path: string) {
-    setMenuAberto(false)
-    router.push(path)
+    setEstoqueBaixo((produtosRes.data || []).filter((p: any) => p.quantidade <= p.quantidade_minima))
+    setUltimasVendas(recentesRes.data || [])
+    setTotalFiado((fiadoRes.data || []).reduce((a: number, f: any) => a + f.valor, 0))
+    setCarregando(false)
   }
 
   if (loading) return (
@@ -77,104 +68,52 @@ export default function Dashboard() {
       <p className="text-gray-400">Carregando...</p>
     </main>
   )
+  if (!loja) return null
 
-  const menuItems = [
-    { label: 'Produtos', sub: 'Gerenciar estoque', path: '/produtos', icon: Package },
-    { label: 'Vendas', sub: 'Registrar vendas', path: '/vendas', icon: ShoppingCart },
-    { label: 'Fiado', sub: 'Controlar fiados', path: '/fiado', icon: Wallet },
-    { label: 'Gastos', sub: 'Controlar despesas', path: '/gastos', icon: TrendingDown },
-    { label: 'Histórico', sub: 'Ver todas as vendas', path: '/historico', icon: Clock },
-    { label: 'Funcionários', sub: 'Gerenciar equipe', path: '/funcionarios', icon: Users },
-    { label: 'Feedback', sub: 'Enviar sugestão', path: '/feedback', icon: MessageSquare },
-    { label: 'Configurações', sub: 'Editar dados da loja', path: '/configuracoes', icon: Settings },
-  ]
-
-  const Sidebar = () => (
-    <div className="flex flex-col h-full p-4 gap-1">
-      <div className="mb-4 px-2">
-        <p className="text-white font-bold text-lg">{loja.nome}</p>
-        <p className="text-gray-400 text-xs">{loja.tipo}</p>
-      </div>
-      {menuItems.map(item => (
-        <button key={item.path} onClick={() => navegar(item.path)}
-          className="text-left px-3 py-2.5 rounded-xl hover:bg-gray-800 transition flex items-center gap-3">
-          <item.icon size={16} className="text-gray-400 shrink-0" />
-          <div>
-            <p className="text-white text-sm font-medium">{item.label}</p>
-            <p className="text-gray-500 text-xs">{item.sub}</p>
-          </div>
-        </button>
-      ))}
-      <div className="mt-auto">
-        <button onClick={sair} className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-gray-800 transition flex items-center gap-3 text-gray-400 text-sm">
-          <LogOut size={16} />
-          Sair
-        </button>
-      </div>
-    </div>
-  )
+  const resultadoLiquido = lucro - gastos
 
   return (
-    <div className="min-h-screen bg-gray-950 flex">
-      <aside className="hidden md:flex w-56 bg-gray-900 flex-col fixed h-full">
-        <Sidebar />
-      </aside>
+    <AppLayout loja={loja} sair={sair} titulo="Dashboard" maxWidth="max-w-3xl">
+      <Toast toast={toast} />
 
-      {menuAberto && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="w-64 bg-gray-900 h-full overflow-y-auto">
-            <div className="flex justify-end p-3">
-              <button onClick={() => setMenuAberto(false)} className="text-gray-400 hover:text-white">
-                <X size={24} />
-              </button>
-            </div>
-            <Sidebar />
-          </div>
-          <div className="flex-1 bg-black bg-opacity-50" onClick={() => setMenuAberto(false)} />
-        </div>
-      )}
+      <div className="flex gap-2 mb-6">
+        {[['hoje', 'Hoje'], ['semana', 'Semana'], ['mes', 'Mês']].map(([val, label]) => (
+          <button key={val} onClick={() => setPeriodo(val)}
+            className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${periodo === val ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
 
-      <main className="md:ml-56 flex-1 p-4 md:p-6">
-        <div className="max-w-3xl mx-auto">
-
-          <div className="flex items-center justify-between mb-6 md:hidden">
-            <button onClick={() => setMenuAberto(true)} className="text-white">
-              <Menu size={24} />
-            </button>
-            <h1 className="text-xl font-bold text-white">Dashboard 🏪</h1>
-            <div className="w-6" />
-          </div>
-
-          <div className="hidden md:block mb-6">
-            <h1 className="text-3xl font-bold text-white">Dashboard 🏪</h1>
-          </div>
-
-          <div className="flex gap-2 mb-6">
-            {[['hoje','Hoje'],['semana','Semana'],['mes','Mês']].map(([val, label]) => (
-              <button key={val} onClick={() => setPeriodo(val)}
-                className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${periodo === val ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      {carregando ? (
+        <div className="text-center py-12 text-gray-500">Atualizando...</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="bg-gray-900 rounded-2xl p-4">
               <p className="text-gray-400 text-xs mb-1">Faturamento</p>
               <p className="text-lg font-bold text-white">R$ {faturamento.toFixed(2)}</p>
             </div>
             <div className="bg-gray-900 rounded-2xl p-4">
-              <p className="text-gray-400 text-xs mb-1">Lucro</p>
+              <p className="text-gray-400 text-xs mb-1">Lucro bruto</p>
               <p className="text-lg font-bold text-green-400">R$ {lucro.toFixed(2)}</p>
             </div>
             <div className="bg-gray-900 rounded-2xl p-4">
               <p className="text-gray-400 text-xs mb-1">Gastos</p>
               <p className="text-lg font-bold text-red-400">R$ {gastos.toFixed(2)}</p>
             </div>
-            <div className="bg-gray-900 rounded-2xl p-4 cursor-pointer hover:bg-gray-800 transition" onClick={() => router.push('/fiado')}>
+            <div className="bg-gray-900 rounded-2xl p-4 cursor-pointer hover:bg-gray-800 transition"
+              onClick={() => window.location.href = '/fiado'}>
               <p className="text-gray-400 text-xs mb-1">Fiado pendente</p>
               <p className="text-lg font-bold text-yellow-400">R$ {totalFiado.toFixed(2)}</p>
             </div>
+          </div>
+
+          <div className={`rounded-2xl p-4 mb-6 ${resultadoLiquido >= 0 ? 'bg-green-950 border border-green-800' : 'bg-red-950 border border-red-800'}`}>
+            <p className="text-gray-300 text-xs mb-1">Resultado líquido (lucro - gastos)</p>
+            <p className={`text-2xl font-bold ${resultadoLiquido >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {resultadoLiquido >= 0 ? '+' : ''}R$ {resultadoLiquido.toFixed(2)}
+            </p>
           </div>
 
           {estoqueBaixo.length > 0 && (
@@ -193,7 +132,7 @@ export default function Dashboard() {
                 {topProdutos.map((p, i) => (
                   <div key={p.nome} className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
-                      <span className="text-gray-500 text-sm">#{i+1}</span>
+                      <span className="text-gray-500 text-sm">#{i + 1}</span>
                       <p className="text-white text-sm">{p.nome}</p>
                     </div>
                     <div className="flex gap-3">
@@ -225,8 +164,8 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-        </div>
-      </main>
-    </div>
+        </>
+      )}
+    </AppLayout>
   )
 }
