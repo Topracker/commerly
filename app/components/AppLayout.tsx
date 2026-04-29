@@ -1,9 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { createClient } from '../supabase'
 import {
   Package, ShoppingCart, TrendingDown, Clock, Users,
-  MessageSquare, Settings, LogOut, Menu, X, Wallet, Home, Truck
+  MessageSquare, Settings, LogOut, Menu, X, Wallet, Home, Truck, MessageCircle
 } from 'lucide-react'
 
 const MENU = [
@@ -15,6 +16,7 @@ const MENU = [
   { label: 'Histórico', sub: 'Ver todas as vendas', path: '/historico', icon: Clock },
   { label: 'Funcionários', sub: 'Gerenciar equipe', path: '/funcionarios', icon: Users },
   { label: 'Fornecedores', sub: 'Buscar fornecedores', path: '/fornecedores', icon: Truck },
+  { label: 'Mensagens', sub: 'Chat com fornecedores', path: '/mensagens', icon: MessageCircle },
   { label: 'Feedback', sub: 'Enviar sugestão', path: '/feedback', icon: MessageSquare },
   { label: 'Configurações', sub: 'Editar dados da loja', path: '/configuracoes', icon: Settings },
 ]
@@ -29,8 +31,21 @@ type Props = {
 
 export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl' }: Props) {
   const [menuAberto, setMenuAberto] = useState(false)
+  const [naoLidas, setNaoLidas] = useState(0)
   const router = useRouter()
   const pathname = usePathname()
+  const supabase = createClient()
+
+  useEffect(() => {
+    if (!loja?.id) return
+    supabase
+      .from('mensagens')
+      .select('id', { count: 'exact', head: true })
+      .eq('loja_id', loja.id)
+      .eq('remetente', 'fornecedor')
+      .eq('lida', false)
+      .then(({ count }) => setNaoLidas(count || 0))
+  }, [loja?.id, pathname])
 
   function navegar(path: string) {
     setMenuAberto(false)
@@ -44,7 +59,7 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
         <p className="text-gray-400 text-xs">{loja.tipo}</p>
       </div>
       {MENU.map(item => {
-        const ativo = pathname === item.path
+        const ativo = pathname === item.path || (item.path === '/mensagens' && pathname.startsWith('/mensagens'))
         return (
           <button
             key={item.path}
@@ -52,10 +67,15 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
             className={`text-left px-3 py-2.5 rounded-xl transition flex items-center gap-3 ${ativo ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
           >
             <item.icon size={16} className={ativo ? 'text-white shrink-0' : 'text-gray-400 shrink-0'} />
-            <div>
-              <p className={`text-sm font-medium ${ativo ? 'text-white' : 'text-white'}`}>{item.label}</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white">{item.label}</p>
               {'sub' in item && <p className="text-gray-400 text-xs">{(item as any).sub}</p>}
             </div>
+            {item.label === 'Mensagens' && naoLidas > 0 && (
+              <span className="bg-blue-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
+                {naoLidas}
+              </span>
+            )}
           </button>
         )
       })}

@@ -1,11 +1,13 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { LayoutDashboard, Package, LogOut, Menu, X } from 'lucide-react'
+import { createClient } from '../supabase'
+import { LayoutDashboard, Package, LogOut, Menu, X, MessageCircle } from 'lucide-react'
 
 const MENU = [
   { label: 'Dashboard', path: '/fornecedor/dashboard', icon: LayoutDashboard },
   { label: 'Produtos', path: '/fornecedor/produtos', icon: Package },
+  { label: 'Mensagens', path: '/fornecedor/mensagens', icon: MessageCircle },
 ]
 
 type Props = {
@@ -17,8 +19,21 @@ type Props = {
 
 export function FornecedorLayout({ fornecedor, sair, titulo, children }: Props) {
   const [menuAberto, setMenuAberto] = useState(false)
+  const [naoLidas, setNaoLidas] = useState(0)
   const router = useRouter()
   const pathname = usePathname()
+  const supabase = createClient()
+
+  useEffect(() => {
+    if (!fornecedor?.id) return
+    supabase
+      .from('mensagens')
+      .select('id', { count: 'exact', head: true })
+      .eq('fornecedor_id', fornecedor.id)
+      .eq('remetente', 'loja')
+      .eq('lida', false)
+      .then(({ count }) => setNaoLidas(count || 0))
+  }, [fornecedor?.id, pathname])
 
   function navegar(path: string) {
     setMenuAberto(false)
@@ -33,7 +48,7 @@ export function FornecedorLayout({ fornecedor, sair, titulo, children }: Props) 
         <p className="text-gray-400 text-xs">{fornecedor.categoria}</p>
       </div>
       {MENU.map(item => {
-        const ativo = pathname === item.path
+        const ativo = pathname === item.path || (item.path === '/fornecedor/mensagens' && pathname.startsWith('/fornecedor/mensagens'))
         return (
           <button
             key={item.path}
@@ -41,7 +56,12 @@ export function FornecedorLayout({ fornecedor, sair, titulo, children }: Props) 
             className={`text-left px-3 py-2.5 rounded-xl transition flex items-center gap-3 ${ativo ? 'bg-purple-600' : 'hover:bg-gray-800'}`}
           >
             <item.icon size={16} className={ativo ? 'text-white shrink-0' : 'text-gray-400 shrink-0'} />
-            <p className="text-white text-sm font-medium">{item.label}</p>
+            <p className="text-white text-sm font-medium flex-1">{item.label}</p>
+            {item.label === 'Mensagens' && naoLidas > 0 && (
+              <span className="bg-purple-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
+                {naoLidas}
+              </span>
+            )}
           </button>
         )
       })}

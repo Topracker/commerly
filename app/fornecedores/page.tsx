@@ -21,7 +21,7 @@ export default function BuscarFornecedores() {
     setBuscando(true)
     let query = supabase
       .from('fornecedores')
-      .select('id, nome, categoria, localizacao, telefone, instagram, descricao')
+      .select('id, nome, categoria, localizacao, descricao, avaliacoes_fornecedores(nota)')
       .order('created_at', { ascending: false })
       .limit(50)
 
@@ -80,25 +80,37 @@ export default function BuscarFornecedores() {
         <div className="text-center py-12 text-gray-500">Nenhum fornecedor encontrado.</div>
       ) : (
         <div className="flex flex-col gap-3">
-          {fornecedores.map(f => (
-            <button
-              key={f.id}
-              onClick={() => router.push(`/fornecedor/${f.id}`)}
-              className="bg-gray-900 rounded-2xl p-4 text-left hover:bg-gray-800 transition"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-semibold">{f.nome}</p>
-                  <span className="inline-block text-xs bg-purple-900 text-purple-300 px-2 py-0.5 rounded-full mt-1 mb-2">{f.categoria}</span>
-                  {f.descricao && <p className="text-gray-400 text-sm line-clamp-2">{f.descricao}</p>}
-                  {f.localizacao && (
-                    <p className="text-gray-500 text-xs flex items-center gap-1 mt-1"><MapPin size={11} />{f.localizacao}</p>
-                  )}
+          {fornecedores.map(f => {
+            const notas: any[] = f.avaliacoes_fornecedores || []
+            const media = notas.length > 0 ? notas.reduce((s: number, a: any) => s + a.nota, 0) / notas.length : 0
+            return (
+              <button
+                key={f.id}
+                onClick={() => router.push(`/fornecedor/${f.id}`)}
+                className="bg-gray-900 rounded-2xl p-4 text-left hover:bg-gray-800 transition"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-semibold">{f.nome}</p>
+                    <span className="inline-block text-xs bg-purple-900 text-purple-300 px-2 py-0.5 rounded-full mt-1 mb-2">{f.categoria}</span>
+                    {f.descricao && <p className="text-gray-400 text-sm line-clamp-2 mb-1">{f.descricao}</p>}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {f.localizacao && (
+                        <p className="text-gray-500 text-xs flex items-center gap-1"><MapPin size={11} />{f.localizacao}</p>
+                      )}
+                      {notas.length > 0 && (
+                        <p className="text-yellow-400 text-xs flex items-center gap-1 font-medium">
+                          <Star size={11} fill="currentColor" />
+                          {media.toFixed(1)} ({notas.length})
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-purple-400 text-sm font-medium shrink-0 mt-1">Ver →</span>
                 </div>
-                <span className="text-purple-400 text-sm font-medium shrink-0">Ver →</span>
-              </div>
-            </button>
-          ))}
+              </button>
+            )
+          })}
         </div>
       )}
     </AppLayout>

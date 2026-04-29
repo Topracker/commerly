@@ -19,6 +19,7 @@ export default function FornecedorPerfil() {
   const [comentario, setComentario] = useState('')
   const [enviandoAval, setEnviandoAval] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [lojaId, setLojaId] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(true)
   const viewRegistered = useRef(false)
   const supabase = createClient()
@@ -34,14 +35,16 @@ export default function FornecedorPerfil() {
     if (!user) { router.push('/'); return }
     setUserId(user.id)
 
-    const [fornRes, prodRes, avalRes] = await Promise.all([
+    const [fornRes, prodRes, avalRes, lojaRes] = await Promise.all([
       supabase.from('fornecedores').select('*').eq('id', id).single(),
       supabase.from('fornecedor_produtos').select('*').eq('fornecedor_id', id).order('created_at', { ascending: false }),
       supabase.from('avaliacoes_fornecedores').select('nota, comentario, created_at, user_id').eq('fornecedor_id', id).order('created_at', { ascending: false }),
+      supabase.from('lojas').select('id').eq('user_id', user.id).maybeSingle(),
     ])
 
     if (fornRes.error || !fornRes.data) { router.push('/'); return }
     setFornecedor(fornRes.data)
+    setLojaId(lojaRes.data?.id ?? null)
     setProdutos(prodRes.data || [])
 
     const avals = avalRes.data || []
@@ -132,15 +135,26 @@ export default function FornecedorPerfil() {
             )}
           </div>
 
-          {fornecedor.telefone && (
-            <button
-              onClick={registrarContato}
-              className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
-            >
-              <MessageCircle size={18} />
-              Falar no WhatsApp
-            </button>
-          )}
+          <div className="mt-4 flex flex-col gap-2">
+            {fornecedor.telefone && (
+              <button
+                onClick={registrarContato}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+              >
+                <MessageCircle size={18} />
+                Falar no WhatsApp
+              </button>
+            )}
+            {lojaId && !isProprietario && (
+              <button
+                onClick={() => router.push(`/mensagens/${id}`)}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+              >
+                <MessageCircle size={18} />
+                Enviar mensagem
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Produtos */}
