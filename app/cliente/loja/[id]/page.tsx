@@ -5,7 +5,7 @@ import { useCliente } from '../../../hooks/useCliente'
 import { Estrelas } from '../../../components/Estrelas'
 import { useToast } from '../../../hooks/useToast'
 import { Toast } from '../../../components/Toast'
-import { Phone, Instagram, MapPin, Clock, MessageCircle, ArrowLeft } from 'lucide-react'
+import { Phone, AtSign, MapPin, Clock, MessageCircle, ArrowLeft } from 'lucide-react'
 
 export default function ClienteLoja() {
   const { id } = useParams<{ id: string }>()
@@ -106,7 +106,7 @@ export default function ClienteLoja() {
               <p className="text-gray-400 flex items-center gap-2"><Clock size={14} className="text-gray-500" />{loja.horario}</p>
             )}
             {loja.instagram && (
-              <p className="text-gray-400 flex items-center gap-2"><Instagram size={14} className="text-gray-500" />{loja.instagram}</p>
+              <p className="text-gray-400 flex items-center gap-2"><AtSign size={14} className="text-gray-500" />{loja.instagram}</p>
             )}
           </div>
 

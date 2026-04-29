@@ -5,7 +5,7 @@ import { createClient } from '../../supabase'
 import { Estrelas } from '../../components/Estrelas'
 import { useToast } from '../../hooks/useToast'
 import { Toast } from '../../components/Toast'
-import { Phone, Instagram, MapPin, MessageCircle, ArrowLeft, Package } from 'lucide-react'
+import { Phone, AtSign, MapPin, MessageCircle, ArrowLeft, Package } from 'lucide-react'
 
 export default function FornecedorPerfil() {
   const { id } = useParams<{ id: string }>()
@@ -128,7 +128,7 @@ export default function FornecedorPerfil() {
               <p className="text-gray-400 flex items-center gap-2"><MapPin size={14} className="text-gray-500" />{fornecedor.localizacao}</p>
             )}
             {fornecedor.instagram && (
-              <p className="text-gray-400 flex items-center gap-2"><Instagram size={14} className="text-gray-500" />{fornecedor.instagram}</p>
+              <p className="text-gray-400 flex items-center gap-2"><AtSign size={14} className="text-gray-500" />{fornecedor.instagram}</p>
             )}
           </div>
 
