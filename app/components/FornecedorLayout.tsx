@@ -1,33 +1,21 @@
 'use client'
 import { useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import {
-  Package, ShoppingCart, TrendingDown, Clock, Users,
-  MessageSquare, Settings, LogOut, Menu, X, Wallet, Home, Truck
-} from 'lucide-react'
+import { LayoutDashboard, Package, LogOut, Menu, X } from 'lucide-react'
 
 const MENU = [
-  { label: 'Dashboard', path: '/dashboard', icon: Home },
-  { label: 'Produtos', sub: 'Gerenciar estoque', path: '/produtos', icon: Package },
-  { label: 'Vendas', sub: 'Registrar vendas', path: '/vendas', icon: ShoppingCart },
-  { label: 'Fiado', sub: 'Controlar fiados', path: '/fiado', icon: Wallet },
-  { label: 'Gastos', sub: 'Controlar despesas', path: '/gastos', icon: TrendingDown },
-  { label: 'Histórico', sub: 'Ver todas as vendas', path: '/historico', icon: Clock },
-  { label: 'Funcionários', sub: 'Gerenciar equipe', path: '/funcionarios', icon: Users },
-  { label: 'Fornecedores', sub: 'Buscar fornecedores', path: '/fornecedores', icon: Truck },
-  { label: 'Feedback', sub: 'Enviar sugestão', path: '/feedback', icon: MessageSquare },
-  { label: 'Configurações', sub: 'Editar dados da loja', path: '/configuracoes', icon: Settings },
+  { label: 'Dashboard', path: '/fornecedor/dashboard', icon: LayoutDashboard },
+  { label: 'Produtos', path: '/fornecedor/produtos', icon: Package },
 ]
 
 type Props = {
-  loja: any
+  fornecedor: any
   sair: () => Promise<void>
   titulo: string
   children: React.ReactNode
-  maxWidth?: string
 }
 
-export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl' }: Props) {
+export function FornecedorLayout({ fornecedor, sair, titulo, children }: Props) {
   const [menuAberto, setMenuAberto] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
@@ -40,8 +28,9 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
   const SidebarConteudo = () => (
     <div className="flex flex-col h-full p-4 gap-0.5">
       <div className="mb-4 px-2">
-        <p className="text-white font-bold text-lg truncate">{loja.nome}</p>
-        <p className="text-gray-400 text-xs">{loja.tipo}</p>
+        <p className="text-xs text-purple-400 font-semibold uppercase tracking-wide mb-1">Fornecedor</p>
+        <p className="text-white font-bold text-lg truncate">{fornecedor.nome}</p>
+        <p className="text-gray-400 text-xs">{fornecedor.categoria}</p>
       </div>
       {MENU.map(item => {
         const ativo = pathname === item.path
@@ -49,13 +38,10 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
           <button
             key={item.path}
             onClick={() => navegar(item.path)}
-            className={`text-left px-3 py-2.5 rounded-xl transition flex items-center gap-3 ${ativo ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
+            className={`text-left px-3 py-2.5 rounded-xl transition flex items-center gap-3 ${ativo ? 'bg-purple-600' : 'hover:bg-gray-800'}`}
           >
             <item.icon size={16} className={ativo ? 'text-white shrink-0' : 'text-gray-400 shrink-0'} />
-            <div>
-              <p className={`text-sm font-medium ${ativo ? 'text-white' : 'text-white'}`}>{item.label}</p>
-              {'sub' in item && <p className="text-gray-400 text-xs">{(item as any).sub}</p>}
-            </div>
+            <p className="text-white text-sm font-medium">{item.label}</p>
           </button>
         )
       })}
@@ -92,7 +78,7 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
       )}
 
       <main className="md:ml-56 flex-1 p-4 md:p-6">
-        <div className={`${maxWidth} mx-auto`}>
+        <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-6 md:hidden">
             <button onClick={() => setMenuAberto(true)} className="text-white">
               <Menu size={24} />
