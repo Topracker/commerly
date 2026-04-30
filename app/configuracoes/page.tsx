@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
@@ -56,8 +55,6 @@ function formatarDocumento(valor: string) {
 export default function Configuracoes() {
   const { loja, loading, supabase, sair } = useAuth()
   const { toast, mostrarToast } = useToast()
-  const searchParams = useSearchParams()
-
   const [nome, setNome] = useState('')
   const [tipo, setTipo] = useState('')
   const [documento, setDocumento] = useState('')
@@ -86,10 +83,10 @@ export default function Configuracoes() {
   }, [loja])
 
   useEffect(() => {
-    const param = searchParams.get('mp')
-    if (param === 'conectado') mostrarToast('Mercado Pago conectado com sucesso!', 'sucesso')
-    else if (param === 'erro') mostrarToast('Erro ao conectar Mercado Pago. Tente novamente.', 'erro')
-  }, [searchParams])
+    const mp = new URLSearchParams(window.location.search).get('mp')
+    if (mp === 'conectado') mostrarToast('Mercado Pago conectado com sucesso!', 'sucesso')
+    else if (mp === 'erro') mostrarToast('Erro ao conectar Mercado Pago. Tente novamente.', 'erro')
+  }, [])
 
   async function carregarStatusMP() {
     const { data } = await supabase
