@@ -108,8 +108,8 @@ export default function Assistente() {
   const alturaChat = 'calc(100vh - 160px)'
 
   return (
-    <AppLayout loja={loja} sair={sair} titulo="Assistente IA" maxWidth="max-w-5xl">
-      <div className="flex gap-4" style={{ height: alturaChat }}>
+    <AppLayout loja={loja} sair={sair} titulo="Assistente IA" noPadding>
+      <div className="flex" style={{ height: alturaChat }}>
 
         {/* Sidebar de histórico */}
         <aside className="hidden md:flex flex-col w-56 shrink-0 bg-gray-900 rounded-2xl overflow-hidden">
@@ -161,7 +161,7 @@ export default function Assistente() {
         </aside>
 
         {/* Área principal do chat */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 px-4 md:px-6 pb-4 md:pb-6">
           {mensagens.length === 0 ? (
             <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center gap-6 px-2">
               <div className="text-center">

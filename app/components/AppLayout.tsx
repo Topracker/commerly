@@ -28,9 +28,10 @@ type Props = {
   titulo: string
   children: React.ReactNode
   maxWidth?: string
+  noPadding?: boolean
 }
 
-export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl' }: Props) {
+export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl', noPadding = false }: Props) {
   const [menuAberto, setMenuAberto] = useState(false)
   const [naoLidas, setNaoLidas] = useState(0)
   const router = useRouter()
@@ -112,16 +113,16 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
         </div>
       )}
 
-      <main className="md:ml-56 flex-1 p-4 md:p-6">
-        <div className={`${maxWidth} mx-auto`}>
-          <div className="flex items-center justify-between mb-6 md:hidden">
+      <main className={`md:ml-56 flex-1 ${noPadding ? '' : 'p-4 md:p-6'}`}>
+        <div className={noPadding ? 'w-full' : `${maxWidth} mx-auto`}>
+          <div className={`flex items-center justify-between mb-6 md:hidden ${noPadding ? 'px-4 pt-4' : ''}`}>
             <button onClick={() => setMenuAberto(true)} className="text-white">
               <Menu size={24} />
             </button>
             <h1 className="text-xl font-bold text-white">{titulo}</h1>
             <div className="w-6" />
           </div>
-          <div className="hidden md:block mb-6">
+          <div className={`hidden md:block mb-6 ${noPadding ? 'px-6 pt-6' : ''}`}>
             <h1 className="text-3xl font-bold text-white">{titulo}</h1>
           </div>
           {children}
