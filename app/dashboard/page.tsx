@@ -4,6 +4,9 @@ import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+
+type GraficoDia = { dia: string; faturamento: number }
 
 export default function Dashboard() {
   const { loja, loading, supabase, sair } = useAuth()
@@ -18,6 +21,7 @@ export default function Dashboard() {
   const [periodo, setPeriodo] = useState('mes')
   const [carregando, setCarregando] = useState(false)
   const [mpConectado, setMpConectado] = useState(false)
+  const [graficoData, setGraficoData] = useState<GraficoDia[]>([])
 
   useEffect(() => {
     if (loja) {
@@ -39,12 +43,17 @@ export default function Dashboard() {
     else if (periodo === 'semana') desde.setDate(agora.getDate() - 7)
     else desde.setDate(1)
 
-    const [vendasRes, gastosRes, produtosRes, recentesRes, fiadoRes] = await Promise.all([
+    const seteAtras = new Date()
+    seteAtras.setDate(agora.getDate() - 6)
+    seteAtras.setHours(0, 0, 0, 0)
+
+    const [vendasRes, gastosRes, produtosRes, recentesRes, fiadoRes, vendasSemanaRes] = await Promise.all([
       supabase.from('vendas').select('*, produtos(nome)').eq('loja_id', loja.id).gte('created_at', desde.toISOString()),
       supabase.from('gastos').select('*').eq('loja_id', loja.id).gte('created_at', desde.toISOString()),
       supabase.from('produtos').select('*').eq('loja_id', loja.id),
       supabase.from('vendas').select('*, produtos(nome)').eq('loja_id', loja.id).order('created_at', { ascending: false }).limit(5),
       supabase.from('fiado').select('*').eq('loja_id', loja.id).eq('pago', false),
+      supabase.from('vendas').select('valor_total, created_at').eq('loja_id', loja.id).gte('created_at', seteAtras.toISOString()),
     ])
 
     if (vendasRes.error) { mostrarToast('Erro ao carregar vendas', 'erro') }
@@ -69,6 +78,22 @@ export default function Dashboard() {
     setEstoqueBaixo((produtosRes.data || []).filter((p: any) => p.quantidade <= p.quantidade_minima))
     setUltimasVendas(recentesRes.data || [])
     setTotalFiado((fiadoRes.data || []).reduce((a: number, f: any) => a + f.valor, 0))
+
+    // Monta array dos últimos 7 dias para o gráfico
+    const diasMap: Record<string, GraficoDia> = {}
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const isoKey = d.toISOString().slice(0, 10)
+      const label = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+      diasMap[isoKey] = { dia: label, faturamento: 0 }
+    }
+    for (const v of (vendasSemanaRes.data || [])) {
+      const isoKey = (v.created_at as string).slice(0, 10)
+      if (diasMap[isoKey]) diasMap[isoKey].faturamento += v.valor_total
+    }
+    setGraficoData(Object.values(diasMap))
+
     setCarregando(false)
   }
 
@@ -98,6 +123,26 @@ export default function Dashboard() {
         <div className="text-center py-12 text-gray-500">Atualizando...</div>
       ) : (
         <>
+          {/* Gráfico de faturamento — sempre últimos 7 dias */}
+          <div className="bg-gray-900 rounded-2xl p-5 mb-6">
+            <p className="text-white font-semibold mb-4">Faturamento — últimos 7 dias</p>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={graficoData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+                <XAxis dataKey="dia" tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false}
+                  tickFormatter={(v) => `R$${v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v}`} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: 8 }}
+                  labelStyle={{ color: '#e5e7eb', fontSize: 12 }}
+                  formatter={(value) => [`R$ ${Number(value).toFixed(2)}`, 'Faturamento']}
+                  cursor={{ fill: '#1f2937' }}
+                />
+                <Bar dataKey="faturamento" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="bg-gray-900 rounded-2xl p-4">
               <p className="text-gray-400 text-xs mb-1">Faturamento</p>
