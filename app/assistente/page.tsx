@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { AppLayout } from '../components/AppLayout'
-import { Send, Sparkles, Clock, ChevronDown, ChevronUp, Plus } from 'lucide-react'
+import { Send, Sparkles, Plus, MessageSquare } from 'lucide-react'
 
 type Mensagem = {
   papel: 'usuario' | 'assistente'
@@ -29,11 +29,10 @@ function tempoAtras(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
   const min = Math.floor(diff / 60000)
   if (min < 1) return 'agora'
-  if (min < 60) return `${min}min atrás`
+  if (min < 60) return `${min}min`
   const h = Math.floor(min / 60)
-  if (h < 24) return `${h}h atrás`
-  const d = Math.floor(h / 24)
-  return `${d}d atrás`
+  if (h < 24) return `${h}h`
+  return `${Math.floor(h / 24)}d`
 }
 
 export default function Assistente() {
@@ -42,7 +41,7 @@ export default function Assistente() {
   const [pergunta, setPergunta] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [historico, setHistorico] = useState<Conversa[]>([])
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const fimRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -59,14 +58,29 @@ export default function Assistente() {
       .select('id, pergunta, resposta, created_at')
       .eq('loja_id', loja.id)
       .order('created_at', { ascending: false })
-      .limit(20)
+      .limit(30)
     setHistorico(data || [])
+  }
+
+  function novaConversa() {
+    setMensagens([])
+    setSelectedId(null)
+    setPergunta('')
+  }
+
+  function abrirConversa(c: Conversa) {
+    setSelectedId(c.id)
+    setMensagens([
+      { papel: 'usuario', texto: c.pergunta },
+      { papel: 'assistente', texto: c.resposta },
+    ])
   }
 
   async function enviar(texto?: string) {
     const q = (texto || pergunta).trim()
     if (!q || enviando) return
     setPergunta('')
+    setSelectedId(null)
     setMensagens(prev => [...prev, { papel: 'usuario', texto: q }])
     setEnviando(true)
     try {
@@ -76,8 +90,7 @@ export default function Assistente() {
         body: JSON.stringify({ pergunta: q }),
       })
       const data = await res.json()
-      const resposta = data.resposta || data.erro || 'Erro ao gerar resposta.'
-      setMensagens(prev => [...prev, { papel: 'assistente', texto: resposta }])
+      setMensagens(prev => [...prev, { papel: 'assistente', texto: data.resposta || data.erro || 'Erro ao gerar resposta.' }])
       carregarHistorico()
     } catch {
       setMensagens(prev => [...prev, { papel: 'assistente', texto: 'Erro de conexão. Tente novamente.' }])
@@ -92,14 +105,65 @@ export default function Assistente() {
   )
   if (!loja) return null
 
-  return (
-    <AppLayout loja={loja} sair={sair} titulo="Assistente IA" maxWidth="max-w-2xl">
-      <div className="flex flex-col" style={{ height: 'calc(100vh - 160px)' }}>
+  const alturaChat = 'calc(100vh - 160px)'
 
-        {mensagens.length === 0 ? (
-          <div className="flex-1 overflow-y-auto">
-            {/* Boas-vindas + sugestões */}
-            <div className="flex flex-col items-center gap-6 px-2 pt-4 pb-6">
+  return (
+    <AppLayout loja={loja} sair={sair} titulo="Assistente IA" maxWidth="max-w-5xl">
+      <div className="flex gap-4" style={{ height: alturaChat }}>
+
+        {/* Sidebar de histórico */}
+        <aside className="hidden md:flex flex-col w-56 shrink-0 bg-gray-900 rounded-2xl overflow-hidden">
+          {/* Botão nova conversa */}
+          <div className="p-3 border-b border-gray-800 shrink-0">
+            <button
+              onClick={novaConversa}
+              className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold py-2.5 rounded-xl transition"
+            >
+              <Plus size={15} />
+              Nova conversa
+            </button>
+          </div>
+
+          {/* Lista de conversas */}
+          <div className="flex-1 overflow-y-auto p-2">
+            {historico.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full gap-2 px-3 text-center">
+                <MessageSquare size={24} className="text-gray-700" />
+                <p className="text-gray-600 text-xs">Nenhuma conversa ainda</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {historico.map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => abrirConversa(c)}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl transition group ${
+                      selectedId === c.id
+                        ? 'bg-purple-600'
+                        : 'hover:bg-gray-800'
+                    }`}
+                  >
+                    <p className={`text-xs font-medium truncate leading-snug ${
+                      selectedId === c.id ? 'text-white' : 'text-gray-300'
+                    }`}>
+                      {c.pergunta}
+                    </p>
+                    <p className={`text-xs mt-0.5 ${
+                      selectedId === c.id ? 'text-purple-200' : 'text-gray-600'
+                    }`}>
+                      {tempoAtras(c.created_at)} atrás
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* Área principal do chat */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {mensagens.length === 0 ? (
+            <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center gap-6 px-2">
               <div className="text-center">
                 <div className="w-16 h-16 rounded-full bg-purple-600 flex items-center justify-center mx-auto mb-4">
                   <Sparkles size={32} className="text-white" />
@@ -107,7 +171,7 @@ export default function Assistente() {
                 <h2 className="text-white text-xl font-bold mb-2">Olá! Como posso ajudar?</h2>
                 <p className="text-gray-400 text-sm">Pergunte sobre suas vendas, estoque, gastos ou fiado.</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
                 {SUGESTOES.map(s => (
                   <button
                     key={s}
@@ -118,117 +182,72 @@ export default function Assistente() {
                   </button>
                 ))}
               </div>
-            </div>
 
-            {/* Histórico */}
-            {historico.length > 0 && (
-              <div className="px-0 pb-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Clock size={14} className="text-gray-500" />
-                  <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Conversas anteriores</p>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {historico.map(c => (
-                    <div key={c.id} className="bg-gray-900 rounded-xl overflow-hidden">
-                      <button
-                        onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
-                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-800 transition text-left gap-3"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-gray-200 text-sm truncate">{c.pergunta}</p>
-                          <p className="text-gray-500 text-xs mt-0.5">{tempoAtras(c.created_at)}</p>
-                        </div>
-                        {expandedId === c.id
-                          ? <ChevronUp size={16} className="text-gray-500 shrink-0" />
-                          : <ChevronDown size={16} className="text-gray-500 shrink-0" />
-                        }
-                      </button>
-                      {expandedId === c.id && (
-                        <div className="px-4 pb-4 flex flex-col gap-3 border-t border-gray-800 pt-3">
-                          <div className="flex justify-end">
-                            <div className="bg-blue-600 text-white text-sm px-4 py-2 rounded-2xl rounded-br-sm max-w-[85%] whitespace-pre-wrap leading-relaxed">
-                              {c.pergunta}
-                            </div>
-                          </div>
-                          <div className="flex justify-start gap-2">
-                            <div className="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center shrink-0 mt-1">
-                              <Sparkles size={12} className="text-white" />
-                            </div>
-                            <div className="bg-gray-800 text-gray-100 text-sm px-4 py-2 rounded-2xl rounded-bl-sm max-w-[85%] whitespace-pre-wrap leading-relaxed">
-                              {c.resposta}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex-1 overflow-y-auto flex flex-col gap-4 pb-4 pr-1">
-            <div className="flex justify-end">
+              {/* Botão nova conversa mobile */}
               <button
-                onClick={() => setMensagens([])}
-                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition mb-1"
+                onClick={novaConversa}
+                className="md:hidden flex items-center gap-2 text-gray-500 hover:text-gray-300 text-sm transition"
               >
-                <Plus size={13} /> Nova conversa
+                <Plus size={14} /> Nova conversa
               </button>
             </div>
-            {mensagens.map((m, i) => (
-              <div key={i} className={`flex ${m.papel === 'usuario' ? 'justify-end' : 'justify-start'}`}>
-                {m.papel === 'assistente' && (
-                  <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center mr-2 shrink-0 mt-1">
+          ) : (
+            <div className="flex-1 overflow-y-auto flex flex-col gap-4 pb-4 pr-1">
+              {mensagens.map((m, i) => (
+                <div key={i} className={`flex ${m.papel === 'usuario' ? 'justify-end' : 'justify-start'}`}>
+                  {m.papel === 'assistente' && (
+                    <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center mr-2 shrink-0 mt-1">
+                      <Sparkles size={14} className="text-white" />
+                    </div>
+                  )}
+                  <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${
+                    m.papel === 'usuario'
+                      ? 'bg-blue-600 text-white rounded-br-sm'
+                      : 'bg-gray-900 text-gray-100 rounded-bl-sm'
+                  }`}>
+                    {m.texto}
+                  </div>
+                </div>
+              ))}
+              {enviando && (
+                <div className="flex justify-start">
+                  <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center mr-2 shrink-0">
                     <Sparkles size={14} className="text-white" />
                   </div>
-                )}
-                <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${
-                  m.papel === 'usuario'
-                    ? 'bg-blue-600 text-white rounded-br-sm'
-                    : 'bg-gray-900 text-gray-100 rounded-bl-sm'
-                }`}>
-                  {m.texto}
-                </div>
-              </div>
-            ))}
-            {enviando && (
-              <div className="flex justify-start">
-                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center mr-2 shrink-0">
-                  <Sparkles size={14} className="text-white" />
-                </div>
-                <div className="bg-gray-900 px-4 py-3 rounded-2xl rounded-bl-sm">
-                  <div className="flex gap-1 items-center h-5">
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="bg-gray-900 px-4 py-3 rounded-2xl rounded-bl-sm">
+                    <div className="flex gap-1 items-center h-5">
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-            <div ref={fimRef} />
-          </div>
-        )}
+              )}
+              <div ref={fimRef} />
+            </div>
+          )}
 
-        <div className="pt-4 border-t border-gray-800 shrink-0">
-          <div className="flex gap-2">
-            <input
-              value={pergunta}
-              onChange={e => setPergunta(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar() } }}
-              placeholder="Pergunte sobre sua loja..."
-              disabled={enviando}
-              className="flex-1 bg-gray-900 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500 text-sm disabled:opacity-50"
-            />
-            <button
-              onClick={() => enviar()}
-              disabled={!pergunta.trim() || enviando}
-              className="bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white p-3 rounded-xl transition shrink-0"
-            >
-              <Send size={18} />
-            </button>
+          <div className="pt-4 border-t border-gray-800 shrink-0">
+            <div className="flex gap-2">
+              <input
+                value={pergunta}
+                onChange={e => setPergunta(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar() } }}
+                placeholder="Pergunte sobre sua loja..."
+                disabled={enviando}
+                className="flex-1 bg-gray-900 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500 text-sm disabled:opacity-50"
+              />
+              <button
+                onClick={() => enviar()}
+                disabled={!pergunta.trim() || enviando}
+                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white p-3 rounded-xl transition shrink-0"
+              >
+                <Send size={18} />
+              </button>
+            </div>
           </div>
         </div>
+
       </div>
     </AppLayout>
   )
