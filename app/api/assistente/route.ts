@@ -90,7 +90,7 @@ Pergunta do comerciante: ${pergunta}`
   if (!geminiApiKey) return NextResponse.json({ erro: 'Assistente não configurado (GEMINI_API_KEY ausente)' }, { status: 500 })
 
   const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${geminiApiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${geminiApiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
