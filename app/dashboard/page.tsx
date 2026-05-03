@@ -8,9 +8,31 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 
 type GraficoDia = { dia: string; faturamento: number }
 
+const BADGES = [
+  {
+    tipo: 'ascensao',
+    nome: 'Comerciante em Ascensão',
+    emoji: '🏆',
+    threshold: 5000,
+    bg: 'bg-yellow-950',
+    border: 'border-yellow-800',
+    label: 'text-yellow-300',
+  },
+  {
+    tipo: 'elite',
+    nome: 'Comerciante de Elite',
+    emoji: '💎',
+    threshold: 10000,
+    bg: 'bg-purple-950',
+    border: 'border-purple-800',
+    label: 'text-purple-300',
+  },
+] as const
+
 export default function Dashboard() {
   const { loja, loading, supabase, sair } = useAuth()
   const { toast, mostrarToast } = useToast()
+
   const [faturamento, setFaturamento] = useState(0)
   const [lucro, setLucro] = useState(0)
   const [gastos, setGastos] = useState(0)
@@ -23,8 +45,15 @@ export default function Dashboard() {
   const [mpConectado, setMpConectado] = useState(false)
   const [graficoData, setGraficoData] = useState<GraficoDia[]>([])
 
+  // Metas e conquistas
+  const [faturamentoMes, setFaturamentoMes] = useState(0)
+  const [metaMensal, setMetaMensal] = useState(5000)
+  const [conquistas, setConquistas] = useState<string[]>([])
+  const [novosBadges, setNovosBadges] = useState<string[]>([])
+
   useEffect(() => {
     if (loja) {
+      setMetaMensal(Number(loja.meta_mensal) || 5000)
       carregarDados()
       supabase
         .from('mercadopago_conexoes')
@@ -35,9 +64,17 @@ export default function Dashboard() {
     }
   }, [loja, periodo])
 
+  // Limpa animação dos badges novos após 3s
+  useEffect(() => {
+    if (novosBadges.length === 0) return
+    const t = setTimeout(() => setNovosBadges([]), 3000)
+    return () => clearTimeout(t)
+  }, [novosBadges])
+
   async function carregarDados() {
     setCarregando(true)
     const agora = new Date()
+
     let desde = new Date()
     if (periodo === 'hoje') desde.setHours(0, 0, 0, 0)
     else if (periodo === 'semana') desde.setDate(agora.getDate() - 7)
@@ -47,17 +84,21 @@ export default function Dashboard() {
     seteAtras.setDate(agora.getDate() - 6)
     seteAtras.setHours(0, 0, 0, 0)
 
-    const [vendasRes, gastosRes, produtosRes, recentesRes, fiadoRes, vendasSemanaRes] = await Promise.all([
+    const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1)
+
+    const [vendasRes, gastosRes, produtosRes, recentesRes, fiadoRes, vendasSemanaRes, vendasMesRes, conquistasRes] = await Promise.all([
       supabase.from('vendas').select('*, produtos(nome)').eq('loja_id', loja.id).gte('created_at', desde.toISOString()),
       supabase.from('gastos').select('*').eq('loja_id', loja.id).gte('created_at', desde.toISOString()),
       supabase.from('produtos').select('*').eq('loja_id', loja.id),
       supabase.from('vendas').select('*, produtos(nome)').eq('loja_id', loja.id).order('created_at', { ascending: false }).limit(5),
       supabase.from('fiado').select('*').eq('loja_id', loja.id).eq('pago', false),
       supabase.from('vendas').select('valor_total, created_at').eq('loja_id', loja.id).gte('created_at', seteAtras.toISOString()),
+      supabase.from('vendas').select('valor_total').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()),
+      supabase.from('conquistas').select('tipo').eq('loja_id', loja.id),
     ])
 
-    if (vendasRes.error) { mostrarToast('Erro ao carregar vendas', 'erro') }
-    if (gastosRes.error) { mostrarToast('Erro ao carregar gastos', 'erro') }
+    if (vendasRes.error) mostrarToast('Erro ao carregar vendas', 'erro')
+    if (gastosRes.error) mostrarToast('Erro ao carregar gastos', 'erro')
 
     const vendas = vendasRes.data || []
     const gastosData = gastosRes.data || []
@@ -74,19 +115,17 @@ export default function Dashboard() {
       topMap[nome].lucro += v.lucro
     })
     setTopProdutos(Object.values(topMap).sort((a: any, b: any) => b.quantidade - a.quantidade).slice(0, 3))
-
     setEstoqueBaixo((produtosRes.data || []).filter((p: any) => p.quantidade <= p.quantidade_minima))
     setUltimasVendas(recentesRes.data || [])
     setTotalFiado((fiadoRes.data || []).reduce((a: number, f: any) => a + f.valor, 0))
 
-    // Monta array dos últimos 7 dias para o gráfico
+    // Gráfico 7 dias
     const diasMap: Record<string, GraficoDia> = {}
     for (let i = 6; i >= 0; i--) {
       const d = new Date()
       d.setDate(d.getDate() - i)
       const isoKey = d.toISOString().slice(0, 10)
-      const label = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-      diasMap[isoKey] = { dia: label, faturamento: 0 }
+      diasMap[isoKey] = { dia: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), faturamento: 0 }
     }
     for (const v of (vendasSemanaRes.data || [])) {
       const isoKey = (v.created_at as string).slice(0, 10)
@@ -94,6 +133,31 @@ export default function Dashboard() {
     }
     setGraficoData(Object.values(diasMap))
 
+    // Progresso da meta mensal
+    const fatMes = (vendasMesRes.data || []).reduce((a: number, v: any) => a + v.valor_total, 0)
+    setFaturamentoMes(fatMes)
+
+    // Conquistas
+    const conquistasExistentes = (conquistasRes.data || []).map((c: any) => c.tipo)
+    const meta = Number(loja.meta_mensal) || 5000
+    const novos: string[] = []
+
+    for (const badge of BADGES) {
+      if (fatMes >= badge.threshold && !conquistasExistentes.includes(badge.tipo)) {
+        const { error } = await supabase
+          .from('conquistas')
+          .insert({ loja_id: loja.id, tipo: badge.tipo })
+        if (!error) {
+          novos.push(badge.tipo)
+          conquistasExistentes.push(badge.tipo)
+          mostrarToast(`🎉 Conquista desbloqueada: ${badge.nome}!`, 'sucesso')
+        }
+      }
+    }
+
+    setConquistas(conquistasExistentes)
+    setNovosBadges(novos)
+    setMetaMensal(meta)
     setCarregando(false)
   }
 
@@ -105,6 +169,8 @@ export default function Dashboard() {
   if (!loja) return null
 
   const resultadoLiquido = lucro - gastos
+  const pctMeta = Math.min(Math.round((faturamentoMes / metaMensal) * 100), 100)
+  const corBarra = pctMeta >= 100 ? 'bg-green-500' : pctMeta >= 70 ? 'bg-yellow-400' : 'bg-blue-500'
 
   return (
     <AppLayout loja={loja} sair={sair} titulo="Dashboard" maxWidth="max-w-3xl">
@@ -123,8 +189,26 @@ export default function Dashboard() {
         <div className="text-center py-12 text-gray-500">Atualizando...</div>
       ) : (
         <>
-          {/* Gráfico de faturamento — sempre últimos 7 dias */}
-          <div className="bg-gray-900 rounded-2xl p-5 mb-6">
+          {/* Meta mensal */}
+          <div className="bg-gray-900 rounded-2xl p-5 mb-3">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-white font-semibold text-sm">🎯 Meta do mês</p>
+              <p className={`text-sm font-bold ${pctMeta >= 100 ? 'text-green-400' : 'text-gray-300'}`}>{pctMeta}%</p>
+            </div>
+            <div className="w-full bg-gray-800 rounded-full h-3 mb-2 overflow-hidden">
+              <div
+                className={`h-3 rounded-full transition-all duration-700 ${corBarra}`}
+                style={{ width: `${pctMeta}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>R$ {faturamentoMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              <span>Meta: R$ {metaMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+            </div>
+          </div>
+
+          {/* Gráfico 7 dias */}
+          <div className="bg-gray-900 rounded-2xl p-5 mb-3">
             <p className="text-white font-semibold mb-4">Faturamento — últimos 7 dias</p>
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={graficoData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -143,6 +227,7 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
 
+          {/* Cards de resumo */}
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="bg-gray-900 rounded-2xl p-4">
               <p className="text-gray-400 text-xs mb-1">Faturamento</p>
@@ -163,11 +248,41 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className={`rounded-2xl p-4 mb-6 ${resultadoLiquido >= 0 ? 'bg-green-950 border border-green-800' : 'bg-red-950 border border-red-800'}`}>
+          {/* Resultado líquido */}
+          <div className={`rounded-2xl p-4 mb-3 ${resultadoLiquido >= 0 ? 'bg-green-950 border border-green-800' : 'bg-red-950 border border-red-800'}`}>
             <p className="text-gray-300 text-xs mb-1">Resultado líquido (lucro - gastos)</p>
             <p className={`text-2xl font-bold ${resultadoLiquido >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               {resultadoLiquido >= 0 ? '+' : ''}R$ {resultadoLiquido.toFixed(2)}
             </p>
+          </div>
+
+          {/* Conquistas */}
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            {BADGES.map(badge => {
+              const earned = conquistas.includes(badge.tipo)
+              const isNew = novosBadges.includes(badge.tipo)
+              return (
+                <div
+                  key={badge.tipo}
+                  className={`rounded-2xl p-4 flex flex-col items-center gap-1.5 border transition-all ${
+                    earned
+                      ? `${badge.bg} ${badge.border} ${isNew ? 'badge-pop' : ''}`
+                      : 'bg-gray-900 border-gray-800 opacity-40'
+                  }`}
+                >
+                  <span className="text-2xl">{badge.emoji}</span>
+                  <p className={`text-xs font-semibold text-center leading-tight ${earned ? badge.label : 'text-gray-500'}`}>
+                    {badge.nome}
+                  </p>
+                  <p className="text-gray-600 text-xs">
+                    R$ {badge.threshold.toLocaleString('pt-BR')}
+                  </p>
+                  {earned && (
+                    <span className="text-green-400 text-xs font-medium">✓ Conquistado</span>
+                  )}
+                </div>
+              )
+            })}
           </div>
 
           {mpConectado && (

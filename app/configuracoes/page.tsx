@@ -62,6 +62,7 @@ export default function Configuracoes() {
   const [telefone, setTelefone] = useState('')
   const [instagram, setInstagram] = useState('')
   const [horario, setHorario] = useState('')
+  const [metaMensal, setMetaMensal] = useState(5000)
   const [erroDoc, setErroDoc] = useState('')
   const [salvando, setSalvando] = useState(false)
 
@@ -86,6 +87,7 @@ export default function Configuracoes() {
       setTelefone(loja.telefone || '')
       setInstagram(loja.instagram || '')
       setHorario(loja.horario || '')
+      setMetaMensal(Number(loja.meta_mensal) || 5000)
       carregarStatusMP()
       carregarStatusPB()
     }
@@ -182,7 +184,7 @@ export default function Configuracoes() {
     if (nums.length === 11 && !validarCPF(nums)) { mostrarToast('CPF inválido!', 'erro'); return }
     if (nums.length === 14 && !validarCNPJ(nums)) { mostrarToast('CNPJ inválido!', 'erro'); return }
     setSalvando(true)
-    const { error } = await supabase.from('lojas').update({ nome, tipo, documento, localizacao, telefone, instagram, horario }).eq('id', loja.id)
+    const { error } = await supabase.from('lojas').update({ nome, tipo, documento, localizacao, telefone, instagram, horario, meta_mensal: metaMensal }).eq('id', loja.id)
     if (error) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
     mostrarToast('Configurações salvas!', 'sucesso')
     setSalvando(false)
@@ -234,6 +236,19 @@ export default function Configuracoes() {
         <input placeholder="Telefone" value={telefone} onChange={e => setTelefone(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
         <input placeholder="Instagram (ex: @minha_loja)" value={instagram} onChange={e => setInstagram(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
         <input placeholder="Horário de funcionamento" value={horario} onChange={e => setHorario(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
+
+        <div>
+          <label className="block text-gray-400 text-xs mb-1.5">🎯 Meta mensal de faturamento (R$)</label>
+          <input
+            type="number"
+            min={0}
+            step={100}
+            value={metaMensal}
+            onChange={e => setMetaMensal(Math.max(0, Number(e.target.value)))}
+            className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-gray-600 text-xs mt-1">Padrão: R$ 5.000. Aparece como barra de progresso no dashboard.</p>
+        </div>
 
         <button onClick={salvar} disabled={salvando || !!erroDoc} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
           {salvando ? 'Salvando...' : 'Salvar alterações'}
