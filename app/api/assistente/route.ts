@@ -90,7 +90,7 @@ Pergunta do comerciante: ${pergunta}`
   if (!geminiApiKey) return NextResponse.json({ erro: 'Assistente não configurado (GEMINI_API_KEY ausente)' }, { status: 500 })
 
   const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -102,6 +102,8 @@ Pergunta do comerciante: ${pergunta}`
   )
 
   if (!geminiRes.ok) {
+    const errBody = await geminiRes.text()
+    console.error('Gemini API error:', geminiRes.status, errBody)
     return NextResponse.json({ erro: 'Erro ao consultar o assistente. Tente novamente.' }, { status: 500 })
   }
 
