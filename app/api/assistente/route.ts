@@ -87,23 +87,35 @@ ${gastos.slice(0, 10).map(g => `- ${g.descricao}: R$ ${(g.valor || 0).toFixed(2)
 Pergunta do comerciante: ${pergunta}`
 
   const geminiApiKey = process.env.GEMINI_API_KEY
-  if (!geminiApiKey) return NextResponse.json({ erro: 'Assistente não configurado (GEMINI_API_KEY ausente)' }, { status: 500 })
+  if (!geminiApiKey) {
+    console.error('[assistente] GEMINI_API_KEY ausente')
+    return NextResponse.json({ erro: 'Assistente não configurado (GEMINI_API_KEY ausente)' }, { status: 500 })
+  }
+  console.log('[assistente] key prefix:', geminiApiKey.slice(0, 8), '| contexto chars:', contexto.length)
 
-  const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: contexto }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
-      }),
-    }
-  )
+  let geminiRes: Response
+  try {
+    geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: contexto }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+        }),
+      }
+    )
+  } catch (fetchErr) {
+    console.error('[assistente] fetch exception:', fetchErr)
+    return NextResponse.json({ erro: 'Erro de rede ao contactar o assistente.' }, { status: 500 })
+  }
+
+  console.log('[assistente] gemini status:', geminiRes.status)
 
   if (!geminiRes.ok) {
     const errBody = await geminiRes.text()
-    console.error('Gemini API error:', geminiRes.status, errBody)
+    console.error('[assistente] gemini error body:', errBody)
     const msg = geminiRes.status === 429
       ? 'Limite de consultas atingido. Tente novamente em alguns minutos.'
       : 'Erro ao consultar o assistente. Tente novamente.'
@@ -111,6 +123,7 @@ Pergunta do comerciante: ${pergunta}`
   }
 
   const geminiData = await geminiRes.json()
+  console.log('[assistente] gemini ok, candidates:', geminiData.candidates?.length ?? 0)
   const resposta = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 'Não foi possível gerar uma resposta.'
 
   return NextResponse.json({ resposta })
