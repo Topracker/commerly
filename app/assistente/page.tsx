@@ -2,11 +2,18 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { AppLayout } from '../components/AppLayout'
-import { Send, Sparkles } from 'lucide-react'
+import { Send, Sparkles, Clock, ChevronDown, ChevronUp, Plus } from 'lucide-react'
 
 type Mensagem = {
   papel: 'usuario' | 'assistente'
   texto: string
+}
+
+type Conversa = {
+  id: string
+  pergunta: string
+  resposta: string
+  created_at: string
 }
 
 const SUGESTOES = [
@@ -18,16 +25,43 @@ const SUGESTOES = [
   'Quais clientes têm mais fiado?',
 ]
 
+function tempoAtras(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return 'agora'
+  if (min < 60) return `${min}min atrás`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `${h}h atrás`
+  const d = Math.floor(h / 24)
+  return `${d}d atrás`
+}
+
 export default function Assistente() {
-  const { loja, loading, sair } = useAuth()
+  const { loja, loading, sair, supabase } = useAuth()
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
   const [pergunta, setPergunta] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [historico, setHistorico] = useState<Conversa[]>([])
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const fimRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fimRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [mensagens, enviando])
+
+  useEffect(() => {
+    if (loja) carregarHistorico()
+  }, [loja])
+
+  async function carregarHistorico() {
+    const { data } = await supabase
+      .from('assistente_conversas')
+      .select('id, pergunta, resposta, created_at')
+      .eq('loja_id', loja.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
+    setHistorico(data || [])
+  }
 
   async function enviar(texto?: string) {
     const q = (texto || pergunta).trim()
@@ -42,7 +76,9 @@ export default function Assistente() {
         body: JSON.stringify({ pergunta: q }),
       })
       const data = await res.json()
-      setMensagens(prev => [...prev, { papel: 'assistente', texto: data.resposta || data.erro || 'Erro ao gerar resposta.' }])
+      const resposta = data.resposta || data.erro || 'Erro ao gerar resposta.'
+      setMensagens(prev => [...prev, { papel: 'assistente', texto: resposta }])
+      carregarHistorico()
     } catch {
       setMensagens(prev => [...prev, { papel: 'assistente', texto: 'Erro de conexão. Tente novamente.' }])
     }
@@ -61,28 +97,85 @@ export default function Assistente() {
       <div className="flex flex-col" style={{ height: 'calc(100vh - 160px)' }}>
 
         {mensagens.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-6 px-2">
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-purple-600 flex items-center justify-center mx-auto mb-4">
-                <Sparkles size={32} className="text-white" />
+          <div className="flex-1 overflow-y-auto">
+            {/* Boas-vindas + sugestões */}
+            <div className="flex flex-col items-center gap-6 px-2 pt-4 pb-6">
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-full bg-purple-600 flex items-center justify-center mx-auto mb-4">
+                  <Sparkles size={32} className="text-white" />
+                </div>
+                <h2 className="text-white text-xl font-bold mb-2">Olá! Como posso ajudar?</h2>
+                <p className="text-gray-400 text-sm">Pergunte sobre suas vendas, estoque, gastos ou fiado.</p>
               </div>
-              <h2 className="text-white text-xl font-bold mb-2">Olá! Como posso ajudar?</h2>
-              <p className="text-gray-400 text-sm">Pergunte sobre suas vendas, estoque, gastos ou fiado.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+                {SUGESTOES.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => enviar(s)}
+                    className="text-left bg-gray-900 hover:bg-gray-800 text-gray-300 text-sm px-4 py-3 rounded-xl transition"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
-              {SUGESTOES.map(s => (
-                <button
-                  key={s}
-                  onClick={() => enviar(s)}
-                  className="text-left bg-gray-900 hover:bg-gray-800 text-gray-300 text-sm px-4 py-3 rounded-xl transition"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+
+            {/* Histórico */}
+            {historico.length > 0 && (
+              <div className="px-0 pb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock size={14} className="text-gray-500" />
+                  <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Conversas anteriores</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {historico.map(c => (
+                    <div key={c.id} className="bg-gray-900 rounded-xl overflow-hidden">
+                      <button
+                        onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-800 transition text-left gap-3"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-gray-200 text-sm truncate">{c.pergunta}</p>
+                          <p className="text-gray-500 text-xs mt-0.5">{tempoAtras(c.created_at)}</p>
+                        </div>
+                        {expandedId === c.id
+                          ? <ChevronUp size={16} className="text-gray-500 shrink-0" />
+                          : <ChevronDown size={16} className="text-gray-500 shrink-0" />
+                        }
+                      </button>
+                      {expandedId === c.id && (
+                        <div className="px-4 pb-4 flex flex-col gap-3 border-t border-gray-800 pt-3">
+                          <div className="flex justify-end">
+                            <div className="bg-blue-600 text-white text-sm px-4 py-2 rounded-2xl rounded-br-sm max-w-[85%] whitespace-pre-wrap leading-relaxed">
+                              {c.pergunta}
+                            </div>
+                          </div>
+                          <div className="flex justify-start gap-2">
+                            <div className="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center shrink-0 mt-1">
+                              <Sparkles size={12} className="text-white" />
+                            </div>
+                            <div className="bg-gray-800 text-gray-100 text-sm px-4 py-2 rounded-2xl rounded-bl-sm max-w-[85%] whitespace-pre-wrap leading-relaxed">
+                              {c.resposta}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto flex flex-col gap-4 pb-4 pr-1">
+            <div className="flex justify-end">
+              <button
+                onClick={() => setMensagens([])}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition mb-1"
+              >
+                <Plus size={13} /> Nova conversa
+              </button>
+            </div>
             {mensagens.map((m, i) => (
               <div key={i} className={`flex ${m.papel === 'usuario' ? 'justify-end' : 'justify-start'}`}>
                 {m.papel === 'assistente' && (

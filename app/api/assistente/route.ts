@@ -126,5 +126,7 @@ Pergunta do comerciante: ${pergunta}`
   console.log('[assistente] gemini ok, candidates:', geminiData.candidates?.length ?? 0)
   const resposta = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 'Não foi possível gerar uma resposta.'
 
+  await supabase.from('assistente_conversas').insert({ loja_id: loja.id, pergunta, resposta })
+
   return NextResponse.json({ resposta })
 }
