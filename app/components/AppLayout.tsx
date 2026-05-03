@@ -4,11 +4,12 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
 import {
   Package, ShoppingCart, TrendingDown, Clock, Users,
-  MessageSquare, Settings, LogOut, Menu, X, Wallet, Home, Truck, MessageCircle
+  MessageSquare, Settings, LogOut, Menu, X, Wallet, Home, Truck, MessageCircle, Sparkles
 } from 'lucide-react'
 
 const MENU = [
   { label: 'Dashboard', path: '/dashboard', icon: Home },
+  { label: 'Assistente IA', sub: 'Perguntas sobre a loja', path: '/assistente', icon: Sparkles },
   { label: 'Produtos', sub: 'Gerenciar estoque', path: '/produtos', icon: Package },
   { label: 'Vendas', sub: 'Registrar vendas', path: '/vendas', icon: ShoppingCart },
   { label: 'Fiado', sub: 'Controlar fiados', path: '/fiado', icon: Wallet },
