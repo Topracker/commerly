@@ -23,7 +23,7 @@ export default function Login() {
     setLoading(true)
     setErro('')
     const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })
-    if (error) { setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
+    if (error) { console.error('[OTP] signInWithOtp error:', error); setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
     setEtapa('otp')
     setLoading(false)
   }
