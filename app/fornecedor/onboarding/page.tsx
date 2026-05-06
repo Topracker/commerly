@@ -27,6 +27,14 @@ export default function FornecedorOnboarding() {
     if (!nome.trim() || !categoria) { setErro('Nome e categoria são obrigatórios!'); return }
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
+
+    const [{ data: lojaExiste }, { data: clienteExiste }] = await Promise.all([
+      supabase.from('lojas').select('id').eq('user_id', user!.id).maybeSingle(),
+      supabase.from('clientes').select('id').eq('user_id', user!.id).maybeSingle(),
+    ])
+    if (lojaExiste) { setErro('Este e-mail já está cadastrado como comerciante. Faça login para acessar sua conta.'); setLoading(false); return }
+    if (clienteExiste) { setErro('Este e-mail já está cadastrado como cliente. Faça login para acessar sua conta.'); setLoading(false); return }
+
     const { error } = await supabase.from('fornecedores').insert({
       user_id: user!.id,
       nome: nome.trim(),

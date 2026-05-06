@@ -180,6 +180,14 @@ export default function Onboarding() {
 
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
+
+    const [{ data: clienteExiste }, { data: fornecedorExiste }] = await Promise.all([
+      supabase.from('clientes').select('id').eq('user_id', user!.id).maybeSingle(),
+      supabase.from('fornecedores').select('id').eq('user_id', user!.id).maybeSingle(),
+    ])
+    if (clienteExiste) { alert('Este e-mail já está cadastrado como cliente. Faça login para acessar sua conta.'); setLoading(false); return }
+    if (fornecedorExiste) { alert('Este e-mail já está cadastrado como fornecedor. Faça login para acessar sua conta.'); setLoading(false); return }
+
     const { error } = await supabase.from('lojas').insert({
       user_id: user?.id,
       nome, tipo, documento, localizacao, telefone, instagram, horario,

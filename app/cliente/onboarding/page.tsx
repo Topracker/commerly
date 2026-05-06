@@ -20,6 +20,14 @@ export default function ClienteOnboarding() {
     if (!nome.trim()) { setErro('Informe seu nome!'); return }
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
+
+    const [{ data: lojaExiste }, { data: fornecedorExiste }] = await Promise.all([
+      supabase.from('lojas').select('id').eq('user_id', user!.id).maybeSingle(),
+      supabase.from('fornecedores').select('id').eq('user_id', user!.id).maybeSingle(),
+    ])
+    if (lojaExiste) { setErro('Este e-mail já está cadastrado como comerciante. Faça login para acessar sua conta.'); setLoading(false); return }
+    if (fornecedorExiste) { setErro('Este e-mail já está cadastrado como fornecedor. Faça login para acessar sua conta.'); setLoading(false); return }
+
     const { error } = await supabase.from('clientes').insert({ user_id: user!.id, nome: nome.trim() })
     if (error) { setErro('Erro ao salvar. Tente novamente.'); setLoading(false); return }
     router.push('/cliente/buscar')
