@@ -4,8 +4,21 @@ import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
+import { Eye, EyeOff } from 'lucide-react'
 
-const tipos = ['Barbearia', 'Distribuidora de bebidas', 'Mercado', 'Loja de roupas', 'Lanchonete', 'Salão de beleza', 'Eletrônicos', 'Outro']
+const TIPOS = [
+  'Açougue', 'Barbearia', 'Delivery', 'Distribuidora de bebidas',
+  'Eletrônicos', 'Farmácia', 'Hamburgueria', 'Hortifruti',
+  'Lanchonete', 'Loja de roupas', 'Mercadinho', 'Mercado',
+  'Padaria', 'Pet Shop', 'Pizzaria', 'Restaurante',
+  'Salão de Beleza', 'Sorveteria', 'Outro',
+]
+
+const HORAS = Array.from({ length: 48 }, (_, i) => {
+  const h = Math.floor(i / 2).toString().padStart(2, '0')
+  const m = i % 2 === 0 ? '00' : '30'
+  return `${h}:${m}`
+})
 
 function validarCPF(cpf: string) {
   cpf = cpf.replace(/\D/g, '')
@@ -39,37 +52,74 @@ function validarCNPJ(cnpj: string) {
 function formatarDocumento(valor: string) {
   const nums = valor.replace(/\D/g, '')
   if (nums.length <= 11) {
-    return nums.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+    return nums
+      .replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
       .replace(/(\d{3})(\d{3})(\d{3})/, '$1.$2.$3')
       .replace(/(\d{3})(\d{3})/, '$1.$2')
-      .replace(/(\d{3})/, '$1')
   } else {
-    return nums.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+    return nums
+      .replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
       .replace(/(\d{2})(\d{3})(\d{3})(\d{4})/, '$1.$2.$3/$4')
       .replace(/(\d{2})(\d{3})(\d{3})/, '$1.$2.$3')
       .replace(/(\d{2})(\d{3})/, '$1.$2')
-      .replace(/(\d{2})/, '$1')
   }
+}
+
+function formatarTelefone(valor: string): string {
+  const nums = valor.replace(/\D/g, '').slice(0, 11)
+  if (nums.length <= 2) return nums ? `(${nums}` : ''
+  if (nums.length <= 6) return `(${nums.slice(0, 2)}) ${nums.slice(2)}`
+  if (nums.length <= 10) return `(${nums.slice(0, 2)}) ${nums.slice(2, 6)}-${nums.slice(6)}`
+  return `(${nums.slice(0, 2)}) ${nums.slice(2, 7)}-${nums.slice(7)}`
+}
+
+function erroTelefone(valor: string): string {
+  const nums = valor.replace(/\D/g, '')
+  if (!nums) return ''
+  const ddd = parseInt(nums.slice(0, 2))
+  if (ddd < 11 || ddd > 99) return 'DDD inválido'
+  if (nums.length < 10 || nums.length > 11) return 'Número incompleto'
+  return ''
+}
+
+function erroInstagram(valor: string): string {
+  if (!valor) return ''
+  if (!/^@[\w.]{1,30}$/.test(valor)) return 'Use o formato @usuario'
+  return ''
+}
+
+function parseHorario(horario: string): [string, string] {
+  const match = horario?.match(/^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/)
+  return match ? [match[1], match[2]] : ['08:00', '18:00']
 }
 
 export default function Configuracoes() {
   const { loja, loading, supabase, sair } = useAuth()
   const { toast, mostrarToast } = useToast()
+
   const [nome, setNome] = useState('')
   const [tipo, setTipo] = useState('')
   const [documento, setDocumento] = useState('')
   const [localizacao, setLocalizacao] = useState('')
   const [telefone, setTelefone] = useState('')
   const [instagram, setInstagram] = useState('')
-  const [horario, setHorario] = useState('')
+  const [horarioAbertura, setHorarioAbertura] = useState('08:00')
+  const [horarioFechamento, setHorarioFechamento] = useState('18:00')
   const [metaMensal, setMetaMensal] = useState(5000)
+
   const [erroDoc, setErroDoc] = useState('')
+  const [erroTel, setErroTel] = useState('')
+  const [erroIG, setErroIG] = useState('')
   const [salvando, setSalvando] = useState(false)
 
+  // Blur/reveal
+  const [mostrarDoc, setMostrarDoc] = useState(false)
+  const [mostrarTel, setMostrarTel] = useState(false)
+
+  // Integrações
   const [mpConectado, setMpConectado] = useState(false)
   const [mpUserId, setMpUserId] = useState<string | null>(null)
   const [desconectando, setDesconectando] = useState(false)
-
   const [pbConectado, setPbConectado] = useState(false)
   const [pbEmail, setPbEmail] = useState('')
   const [pbEmailInput, setPbEmailInput] = useState('')
@@ -82,11 +132,13 @@ export default function Configuracoes() {
     if (loja) {
       setNome(loja.nome)
       setTipo(loja.tipo)
-      setDocumento(loja.documento || '')
+      setDocumento(formatarDocumento(loja.documento || ''))
       setLocalizacao(loja.localizacao || '')
-      setTelefone(loja.telefone || '')
+      setTelefone(formatarTelefone(loja.telefone || ''))
       setInstagram(loja.instagram || '')
-      setHorario(loja.horario || '')
+      const [ab, fe] = parseHorario(loja.horario || '')
+      setHorarioAbertura(ab)
+      setHorarioFechamento(fe)
       setMetaMensal(Number(loja.meta_mensal) || 5000)
       carregarStatusMP()
       carregarStatusPB()
@@ -99,16 +151,60 @@ export default function Configuracoes() {
     else if (mp === 'erro') mostrarToast('Erro ao conectar Mercado Pago. Tente novamente.', 'erro')
   }, [])
 
+  async function carregarStatusMP() {
+    const { data } = await supabase.from('mercadopago_conexoes').select('mp_user_id').eq('loja_id', loja.id).maybeSingle()
+    if (data) { setMpConectado(true); setMpUserId(data.mp_user_id) }
+  }
+
   async function carregarStatusPB() {
-    const { data } = await supabase
-      .from('pagbank_conexoes')
-      .select('email')
-      .eq('loja_id', loja.id)
-      .maybeSingle()
-    if (data) {
-      setPbConectado(true)
-      setPbEmail(data.email)
-    }
+    const { data } = await supabase.from('pagbank_conexoes').select('email').eq('loja_id', loja.id).maybeSingle()
+    if (data) { setPbConectado(true); setPbEmail(data.email) }
+  }
+
+  function handleDocumento(valor: string) {
+    const formatado = formatarDocumento(valor)
+    setDocumento(formatado)
+    const nums = valor.replace(/\D/g, '')
+    if (nums.length === 11) setErroDoc(validarCPF(nums) ? '' : 'CPF inválido')
+    else if (nums.length === 14) setErroDoc(validarCNPJ(nums) ? '' : 'CNPJ inválido')
+    else setErroDoc('')
+  }
+
+  function handleTelefone(valor: string) {
+    const formatado = formatarTelefone(valor)
+    setTelefone(formatado)
+    setErroTel(erroTelefone(formatado))
+  }
+
+  function handleInstagram(valor: string) {
+    setInstagram(valor)
+    setErroIG(erroInstagram(valor))
+  }
+
+  async function salvar() {
+    if (!nome || !tipo) { mostrarToast('Nome e tipo são obrigatórios!', 'erro'); return }
+    const nums = documento.replace(/\D/g, '')
+    if (nums.length === 11 && !validarCPF(nums)) { mostrarToast('CPF inválido!', 'erro'); return }
+    if (nums.length === 14 && !validarCNPJ(nums)) { mostrarToast('CNPJ inválido!', 'erro'); return }
+    if (erroTel) { mostrarToast('Telefone inválido!', 'erro'); return }
+    if (erroIG) { mostrarToast('Formato de Instagram inválido!', 'erro'); return }
+
+    const horario = `${horarioAbertura} - ${horarioFechamento}`
+    setSalvando(true)
+    const { error } = await supabase.from('lojas').update({
+      nome, tipo, documento, localizacao, telefone, instagram, horario, meta_mensal: metaMensal,
+    }).eq('id', loja.id)
+    if (error) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
+    mostrarToast('Configurações salvas!', 'sucesso')
+    setSalvando(false)
+  }
+
+  async function desconectarMP() {
+    setDesconectando(true)
+    const res = await fetch('/api/mercadopago/disconnect', { method: 'POST' })
+    if (res.ok) { setMpConectado(false); setMpUserId(null); mostrarToast('Mercado Pago desconectado.', 'sucesso') }
+    else mostrarToast('Erro ao desconectar. Tente novamente.', 'erro')
+    setDesconectando(false)
   }
 
   async function conectarPB() {
@@ -120,10 +216,8 @@ export default function Configuracoes() {
       body: JSON.stringify({ email: pbEmailInput, token: pbTokenInput }),
     })
     if (res.ok) {
-      setPbConectado(true)
-      setPbEmail(pbEmailInput)
-      setPbEmailInput('')
-      setPbTokenInput('')
+      setPbConectado(true); setPbEmail(pbEmailInput)
+      setPbEmailInput(''); setPbTokenInput('')
       mostrarToast('PagBank conectado com sucesso!', 'sucesso')
     } else {
       const { error } = await res.json().catch(() => ({ error: 'Erro desconhecido' }))
@@ -135,13 +229,8 @@ export default function Configuracoes() {
   async function desconectarPB() {
     setPbDesconectando(true)
     const res = await fetch('/api/pagbank/disconnect', { method: 'POST' })
-    if (res.ok) {
-      setPbConectado(false)
-      setPbEmail('')
-      mostrarToast('PagBank desconectado.', 'sucesso')
-    } else {
-      mostrarToast('Erro ao desconectar. Tente novamente.', 'erro')
-    }
+    if (res.ok) { setPbConectado(false); setPbEmail(''); mostrarToast('PagBank desconectado.', 'sucesso') }
+    else mostrarToast('Erro ao desconectar. Tente novamente.', 'erro')
     setPbDesconectando(false)
   }
 
@@ -151,56 +240,8 @@ export default function Configuracoes() {
     if (res.ok) {
       const { importadas } = await res.json()
       mostrarToast(`Sincronização concluída: ${importadas} venda(s) importada(s)`, 'sucesso')
-    } else {
-      mostrarToast('Erro ao sincronizar. Tente novamente.', 'erro')
-    }
+    } else mostrarToast('Erro ao sincronizar. Tente novamente.', 'erro')
     setPbSincronizando(false)
-  }
-
-  async function carregarStatusMP() {
-    const { data } = await supabase
-      .from('mercadopago_conexoes')
-      .select('mp_user_id')
-      .eq('loja_id', loja.id)
-      .maybeSingle()
-    if (data) {
-      setMpConectado(true)
-      setMpUserId(data.mp_user_id)
-    }
-  }
-
-  function handleDocumento(valor: string) {
-    const formatado = formatarDocumento(valor)
-    setDocumento(formatado)
-    const nums = valor.replace(/\D/g, '')
-    if (nums.length === 11) setErroDoc(validarCPF(nums) ? '' : 'CPF inválido!')
-    else if (nums.length === 14) setErroDoc(validarCNPJ(nums) ? '' : 'CNPJ inválido!')
-    else setErroDoc('')
-  }
-
-  async function salvar() {
-    if (!nome || !tipo) { mostrarToast('Nome e tipo são obrigatórios!', 'erro'); return }
-    const nums = documento.replace(/\D/g, '')
-    if (nums.length === 11 && !validarCPF(nums)) { mostrarToast('CPF inválido!', 'erro'); return }
-    if (nums.length === 14 && !validarCNPJ(nums)) { mostrarToast('CNPJ inválido!', 'erro'); return }
-    setSalvando(true)
-    const { error } = await supabase.from('lojas').update({ nome, tipo, documento, localizacao, telefone, instagram, horario, meta_mensal: metaMensal }).eq('id', loja.id)
-    if (error) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
-    mostrarToast('Configurações salvas!', 'sucesso')
-    setSalvando(false)
-  }
-
-  async function desconectarMP() {
-    setDesconectando(true)
-    const res = await fetch('/api/mercadopago/disconnect', { method: 'POST' })
-    if (res.ok) {
-      setMpConectado(false)
-      setMpUserId(null)
-      mostrarToast('Mercado Pago desconectado.', 'sucesso')
-    } else {
-      mostrarToast('Erro ao desconectar. Tente novamente.', 'erro')
-    }
-    setDesconectando(false)
   }
 
   if (loading) return (
@@ -210,33 +251,100 @@ export default function Configuracoes() {
   )
   if (!loja) return null
 
+  const inputClass = 'bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500'
+  const selectClass = 'bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500'
+
   return (
     <AppLayout loja={loja} sair={sair} titulo="Configurações" maxWidth="max-w-2xl">
       <Toast toast={toast} />
 
       <div className="bg-gray-900 rounded-2xl p-6 flex flex-col gap-4 mb-6">
-        <input placeholder="Nome da loja *" value={nome} onChange={e => setNome(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
+        <input placeholder="Nome da loja *" value={nome} onChange={e => setNome(e.target.value)} className={inputClass} />
 
-        <select value={tipo} onChange={e => setTipo(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500">
-          {tipos.map(t => <option key={t} value={t}>{t}</option>)}
+        <select value={tipo} onChange={e => setTipo(e.target.value)} className={selectClass}>
+          {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
 
+        {/* CPF / CNPJ com olhinho */}
         <div>
-          <input
-            placeholder="CPF ou CNPJ"
-            value={documento}
-            onChange={e => handleDocumento(e.target.value)}
-            maxLength={18}
-            className={`w-full bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 ${erroDoc ? 'focus:ring-red-500 ring-2 ring-red-500' : 'focus:ring-blue-500'}`}
-          />
+          <div className="relative flex items-center">
+            {mostrarDoc ? (
+              <input
+                value={documento}
+                onChange={e => handleDocumento(e.target.value)}
+                maxLength={18}
+                className={`w-full pr-10 ${inputClass} ${erroDoc ? 'ring-2 ring-red-500 focus:ring-red-500' : ''}`}
+              />
+            ) : (
+              <div className={`w-full pr-10 ${inputClass} cursor-pointer select-none`} style={{ filter: 'blur(5px)' }}>
+                {documento || '—'}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setMostrarDoc(v => !v)}
+              className="absolute right-3 text-gray-400 hover:text-white transition"
+            >
+              {mostrarDoc ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
           {erroDoc && <p className="text-red-400 text-sm mt-1">{erroDoc}</p>}
         </div>
 
-        <input placeholder="Localização" value={localizacao} onChange={e => setLocalizacao(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
-        <input placeholder="Telefone" value={telefone} onChange={e => setTelefone(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
-        <input placeholder="Instagram (ex: @minha_loja)" value={instagram} onChange={e => setInstagram(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
-        <input placeholder="Horário de funcionamento" value={horario} onChange={e => setHorario(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
+        <input placeholder="Localização" value={localizacao} onChange={e => setLocalizacao(e.target.value)} className={inputClass} />
 
+        {/* Telefone com olhinho */}
+        <div>
+          <div className="relative flex items-center">
+            {mostrarTel ? (
+              <input
+                value={telefone}
+                onChange={e => handleTelefone(e.target.value)}
+                placeholder="(11) 98765-4321"
+                className={`w-full pr-10 ${inputClass} ${erroTel ? 'ring-2 ring-red-500 focus:ring-red-500' : ''}`}
+              />
+            ) : (
+              <div className={`w-full pr-10 ${inputClass} cursor-pointer select-none`} style={{ filter: 'blur(5px)' }}>
+                {telefone || '—'}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setMostrarTel(v => !v)}
+              className="absolute right-3 text-gray-400 hover:text-white transition"
+            >
+              {mostrarTel ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          {erroTel && <p className="text-red-400 text-sm mt-1">{erroTel}</p>}
+        </div>
+
+        {/* Instagram */}
+        <div>
+          <input
+            placeholder="Instagram (ex: @minha_loja)"
+            value={instagram}
+            onChange={e => handleInstagram(e.target.value)}
+            className={`w-full ${inputClass} ${erroIG ? 'ring-2 ring-red-500 focus:ring-red-500' : ''}`}
+          />
+          {erroIG && <p className="text-red-400 text-sm mt-1">{erroIG}</p>}
+        </div>
+
+        {/* Horário de funcionamento */}
+        <div>
+          <p className="text-gray-400 text-xs mb-2">Horário de funcionamento</p>
+          <div className="flex items-center gap-3">
+            <select value={horarioAbertura} onChange={e => setHorarioAbertura(e.target.value)} className={`flex-1 ${selectClass}`}>
+              {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
+            </select>
+            <span className="text-gray-500 text-sm shrink-0">até</span>
+            <select value={horarioFechamento} onChange={e => setHorarioFechamento(e.target.value)} className={`flex-1 ${selectClass}`}>
+              {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Meta mensal */}
         <div>
           <label className="block text-gray-400 text-xs mb-1.5">🎯 Meta mensal de faturamento (R$)</label>
           <input
@@ -245,23 +353,26 @@ export default function Configuracoes() {
             step={100}
             value={metaMensal}
             onChange={e => setMetaMensal(Math.max(0, Number(e.target.value)))}
-            className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+            className={`w-full ${inputClass}`}
           />
           <p className="text-gray-600 text-xs mt-1">Padrão: R$ 5.000. Aparece como barra de progresso no dashboard.</p>
         </div>
 
-        <button onClick={salvar} disabled={salvando || !!erroDoc} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
+        <button
+          onClick={salvar}
+          disabled={salvando || !!erroDoc || !!erroTel || !!erroIG}
+          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition"
+        >
           {salvando ? 'Salvando...' : 'Salvar alterações'}
         </button>
       </div>
 
       {/* Mercado Pago */}
-      <div className="bg-gray-900 rounded-2xl p-6">
+      <div className="bg-gray-900 rounded-2xl p-6 mb-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm">MP</div>
           <h2 className="text-white font-semibold">Mercado Pago</h2>
         </div>
-
         {mpConectado ? (
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2 bg-green-950 border border-green-800 rounded-xl px-4 py-3">
@@ -270,21 +381,14 @@ export default function Configuracoes() {
               {mpUserId && <p className="text-green-500 text-xs ml-auto">ID: {mpUserId}</p>}
             </div>
             <p className="text-gray-400 text-xs">Pagamentos feitos na maquininha serão registrados automaticamente nas suas vendas.</p>
-            <button
-              onClick={desconectarMP}
-              disabled={desconectando}
-              className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 font-semibold py-3 rounded-xl transition text-sm"
-            >
+            <button onClick={desconectarMP} disabled={desconectando} className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 font-semibold py-3 rounded-xl transition text-sm">
               {desconectando ? 'Desconectando...' : 'Desconectar Mercado Pago'}
             </button>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
             <p className="text-gray-400 text-sm">Conecte sua conta do Mercado Pago para registrar automaticamente os pagamentos da maquininha nas suas vendas.</p>
-            <a
-              href="/api/mercadopago/connect"
-              className="block text-center bg-blue-500 hover:bg-blue-400 text-white font-semibold py-3 rounded-xl transition"
-            >
+            <a href="/api/mercadopago/connect" className="block text-center bg-blue-500 hover:bg-blue-400 text-white font-semibold py-3 rounded-xl transition">
               Conectar Mercado Pago
             </a>
           </div>
@@ -292,12 +396,11 @@ export default function Configuracoes() {
       </div>
 
       {/* PagBank */}
-      <div className="bg-gray-900 rounded-2xl p-6 mt-6">
+      <div className="bg-gray-900 rounded-2xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-xs">PB</div>
           <h2 className="text-white font-semibold">PagBank</h2>
         </div>
-
         {pbConectado ? (
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2 bg-green-950 border border-green-800 rounded-xl px-4 py-3">
@@ -309,44 +412,20 @@ export default function Configuracoes() {
               Configure seu webhook no painel do PagBank com a URL:<br />
               <span className="text-gray-300 font-mono break-all">{typeof window !== 'undefined' ? window.location.origin : ''}/api/pagbank/webhook/{loja.id}</span>
             </p>
-            <button
-              onClick={sincronizarPB}
-              disabled={pbSincronizando}
-              className="bg-green-800 hover:bg-green-700 disabled:opacity-50 text-green-100 font-semibold py-3 rounded-xl transition text-sm"
-            >
+            <button onClick={sincronizarPB} disabled={pbSincronizando} className="bg-green-800 hover:bg-green-700 disabled:opacity-50 text-green-100 font-semibold py-3 rounded-xl transition text-sm">
               {pbSincronizando ? 'Sincronizando...' : 'Sincronizar últimos 7 dias'}
             </button>
-            <button
-              onClick={desconectarPB}
-              disabled={pbDesconectando}
-              className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 font-semibold py-3 rounded-xl transition text-sm"
-            >
+            <button onClick={desconectarPB} disabled={pbDesconectando} className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 font-semibold py-3 rounded-xl transition text-sm">
               {pbDesconectando ? 'Desconectando...' : 'Desconectar PagBank'}
             </button>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
             <p className="text-gray-400 text-sm">Informe as credenciais da sua conta PagBank para registrar pagamentos automaticamente.</p>
-            <input
-              placeholder="E-mail da conta PagBank"
-              type="email"
-              value={pbEmailInput}
-              onChange={e => setPbEmailInput(e.target.value)}
-              className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
-            />
-            <input
-              placeholder="Token Bearer do PagBank"
-              type="password"
-              value={pbTokenInput}
-              onChange={e => setPbTokenInput(e.target.value)}
-              className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
-            />
+            <input placeholder="E-mail da conta PagBank" type="email" value={pbEmailInput} onChange={e => setPbEmailInput(e.target.value)} className={inputClass} />
+            <input placeholder="Token Bearer do PagBank" type="password" value={pbTokenInput} onChange={e => setPbTokenInput(e.target.value)} className={inputClass} />
             <p className="text-gray-500 text-xs">Encontre o token em: PagBank → Sua conta → Perfil → Credenciais</p>
-            <button
-              onClick={conectarPB}
-              disabled={pbSalvando}
-              className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition"
-            >
+            <button onClick={conectarPB} disabled={pbSalvando} className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
               {pbSalvando ? 'Conectando...' : 'Conectar PagBank'}
             </button>
           </div>

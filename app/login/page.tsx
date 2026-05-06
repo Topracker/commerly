@@ -8,6 +8,7 @@ export default function Login() {
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
   const [loading, setLoading] = useState(false)
+  const [enviado, setEnviado] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -32,11 +33,13 @@ export default function Login() {
   }
 
   async function cadastrar() {
+    if (!email || !senha) { setErro('Preencha email e senha'); return }
     setLoading(true)
     setErro('')
     const { error } = await supabase.auth.signUp({ email, password: senha })
     if (error) { setErro('Erro ao cadastrar. Tente outro email.'); setLoading(false); return }
-    router.push('/onboarding')
+    setEnviado(true)
+    setLoading(false)
   }
 
   return (
@@ -45,32 +48,44 @@ export default function Login() {
         <h1 className="text-3xl font-bold text-white mb-1">Commerly</h1>
         <p className="text-gray-400 mb-8">Acesse sua conta</p>
 
-        {erro && <p className="text-red-400 text-sm mb-4">{erro}</p>}
+        {enviado ? (
+          <div className="bg-blue-950 border border-blue-800 rounded-2xl p-5 text-center">
+            <p className="text-blue-200 text-2xl mb-3">📧</p>
+            <p className="text-blue-100 font-semibold mb-2">Verifique seu e-mail</p>
+            <p className="text-blue-300 text-sm">Clique no link que enviamos para <strong>{email}</strong> para acessar sua conta.</p>
+          </div>
+        ) : (
+          <>
+            {erro && <p className="text-red-400 text-sm mb-4">{erro}</p>}
 
-        <div className="flex flex-col gap-4">
-          <input
-            type="email"
-            placeholder="Seu email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="password"
-            placeholder="Sua senha"
-            value={senha}
-            onChange={e => setSenha(e.target.value)}
-            className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-          />
+            <div className="flex flex-col gap-4">
+              <input
+                type="email"
+                placeholder="Seu email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && entrar()}
+                className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <input
+                type="password"
+                placeholder="Sua senha"
+                value={senha}
+                onChange={e => setSenha(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && entrar()}
+                className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              />
 
-          <button onClick={entrar} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition">
-            {loading ? 'Entrando...' : 'Entrar'}
-          </button>
+              <button onClick={entrar} disabled={loading} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
+                {loading ? 'Entrando...' : 'Entrar'}
+              </button>
 
-          <button onClick={cadastrar} disabled={loading} className="bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-xl transition">
-            {loading ? 'Cadastrando...' : 'Criar conta'}
-          </button>
-        </div>
+              <button onClick={cadastrar} disabled={loading} className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
+                {loading ? 'Cadastrando...' : 'Criar conta'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </main>
   )
