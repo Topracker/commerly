@@ -28,7 +28,18 @@ export default function ClienteLogin() {
     if (!email) { setErro('Informe seu email!'); return }
     setLoading(true)
     setErro('')
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })
+
+    // Pré-cria o usuário via Admin API com e-mail já confirmado para que
+    // o signInWithOtp use o template "Magic Link" (código numérico) em vez
+    // do template "Confirm Signup" (magic link) que é disparado para novos usuários.
+    const preRes = await fetch('/api/auth/pre-cadastro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    if (!preRes.ok) { setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
+
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
     if (error) { console.error('[OTP] signInWithOtp error:', error); setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
     setTela('cadastro-otp')
     setLoading(false)
