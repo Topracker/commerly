@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCliente } from '../../hooks/useCliente'
-import { Search, MapPin, Phone, LogOut } from 'lucide-react'
+import { Search, MapPin, Phone, LogOut, User } from 'lucide-react'
 
 const TIPOS = ['Todos', 'Barbearia', 'Distribuidora de bebidas', 'Mercado', 'Loja de roupas', 'Lanchonete', 'Salão de beleza', 'Eletrônicos', 'Outro']
 
@@ -53,9 +53,18 @@ export default function ClienteBuscar() {
           <p className="text-xs text-green-400 font-semibold">Área do Cliente</p>
           <p className="text-white font-bold">Olá, {cliente.nome}!</p>
         </div>
-        <button onClick={sair} className="text-gray-400 hover:text-white transition">
-          <LogOut size={20} />
-        </button>
+        <div className="flex gap-2 items-center">
+          <button
+            onClick={() => router.push('/cliente/dashboard')}
+            className="text-gray-400 hover:text-white transition"
+            title="Minha conta"
+          >
+            <User size={20} />
+          </button>
+          <button onClick={sair} className="text-gray-400 hover:text-white transition" title="Sair">
+            <LogOut size={20} />
+          </button>
+        </div>
       </header>
 
       <div className="max-w-2xl mx-auto p-4">

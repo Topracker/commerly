@@ -2,12 +2,14 @@
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
-import { LayoutDashboard, Package, LogOut, Menu, X, MessageCircle } from 'lucide-react'
+import { LayoutDashboard, Package, LogOut, Menu, X, MessageCircle, Settings, Star } from 'lucide-react'
 
 const MENU = [
   { label: 'Dashboard', path: '/fornecedor/dashboard', icon: LayoutDashboard },
   { label: 'Produtos', path: '/fornecedor/produtos', icon: Package },
+  { label: 'Avaliações', path: '/fornecedor/avaliacoes', icon: Star },
   { label: 'Mensagens', path: '/fornecedor/mensagens', icon: MessageCircle },
+  { label: 'Configurações', path: '/fornecedor/configuracoes', icon: Settings },
 ]
 
 type Props = {
