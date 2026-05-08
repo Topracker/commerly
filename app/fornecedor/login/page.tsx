@@ -38,7 +38,13 @@ export default function FornecedorLogin() {
     if (!email) { setErro('Informe seu email!'); return }
     setLoading(true)
     setErro('')
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })
+    const preRes = await fetch('/api/auth/pre-cadastro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    if (!preRes.ok) { setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
     if (error) { console.error('[OTP] signInWithOtp error:', error); setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
     setTela('cadastro-otp')
     setLoading(false)
