@@ -87,7 +87,15 @@ export default function ClienteLogin() {
     if (error) { console.error('[OTP] verifyOtp error:', error); setErro('Código inválido ou expirado'); setLoading(false); return }
     const { data: { user } } = await supabase.auth.getUser()
     const { data } = await supabase.from('clientes').select('id').eq('user_id', user!.id).maybeSingle()
-    router.push(data ? '/cliente/buscar' : '/cliente/onboarding')
+    if (!data) {
+      await supabase.auth.signOut()
+      setErro('Conta não encontrada. Use "Criar conta" para se cadastrar.')
+      setTela('escolha')
+      setCodigo('')
+      setLoading(false)
+      return
+    }
+    router.push('/cliente/buscar')
   }
 
   const inp = 'bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-green-500'
