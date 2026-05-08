@@ -10,6 +10,7 @@ export default function ClienteLogin() {
   const [email, setEmail] = useState('')
   const [codigo, setCodigo] = useState('')
   const [nome, setNome] = useState('')
+  const [cpf, setCpf] = useState('')
   const [erro, setErro] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -78,7 +79,12 @@ export default function ClienteLogin() {
     const { data: clienteExiste } = await supabase.from('clientes').select('id').eq('user_id', user!.id).maybeSingle()
     if (clienteExiste) { router.push('/cliente/buscar'); return }
 
-    const { error: insertError } = await supabase.from('clientes').insert({ user_id: user!.id, nome: nome.trim() })
+    const cpfDigits = cpf.replace(/\D/g, '')
+    const { error: insertError } = await supabase.from('clientes').insert({
+      user_id: user!.id,
+      nome: nome.trim(),
+      ...(cpfDigits.length === 11 ? { cpf: cpf } : {}),
+    })
     if (insertError) { setErro('Erro ao criar conta. Tente novamente.'); setLoading(false); return }
     router.push('/cliente/buscar')
   }
@@ -110,6 +116,14 @@ export default function ClienteLogin() {
       return
     }
     router.push('/cliente/buscar')
+  }
+
+  function formatarCPF(v: string) {
+    const d = v.replace(/\D/g, '').slice(0, 11)
+    if (d.length <= 3) return d
+    if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`
+    if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
+    return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
   }
 
   const inp = 'bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-green-500'
@@ -145,6 +159,9 @@ export default function ClienteLogin() {
             <input type="text" autoComplete="name" placeholder="Seu nome *" value={nome} onChange={e => setNome(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && avancarCadastro()} className={inp} />
             <input type="email" autoComplete="email" placeholder="Seu email *" value={email} onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && avancarCadastro()} className={inp} />
+            <input type="text" autoComplete="off" inputMode="numeric" placeholder="CPF (opcional)" value={cpf}
+              onChange={e => setCpf(formatarCPF(e.target.value))}
               onKeyDown={e => e.key === 'Enter' && avancarCadastro()} className={inp} />
             <button onClick={avancarCadastro} disabled={loading}
               className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
