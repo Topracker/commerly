@@ -44,6 +44,8 @@ export default function ClienteOnboarding() {
 
         <div className="flex flex-col gap-4">
           <input
+            type="text"
+            autoComplete="name"
             placeholder="Seu nome *"
             value={nome}
             onChange={e => setNome(e.target.value)}

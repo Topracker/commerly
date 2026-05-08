@@ -18,8 +18,22 @@ export default function ClienteLogin() {
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) return
-      const { data } = await supabase.from('clientes').select('id').eq('user_id', session.user.id).maybeSingle()
-      router.push(data ? '/cliente/buscar' : '/cliente/onboarding')
+      const userId = session.user.id
+
+      const { data: clienteData } = await supabase.from('clientes').select('id').eq('user_id', userId).maybeSingle()
+      if (clienteData) { router.push('/cliente/buscar'); return }
+
+      const [{ data: lojaData }, { data: fornecedorData }] = await Promise.all([
+        supabase.from('lojas').select('id').eq('user_id', userId).maybeSingle(),
+        supabase.from('fornecedores').select('id').eq('user_id', userId).maybeSingle(),
+      ])
+      if (lojaData || fornecedorData) {
+        await supabase.auth.signOut()
+        setErro('Este e-mail está cadastrado como ' + (lojaData ? 'comerciante' : 'fornecedor') + '. Use a área correta para fazer login.')
+        return
+      }
+
+      router.push('/cliente/onboarding')
     })
   }, [])
 
@@ -128,9 +142,9 @@ export default function ClienteLogin() {
 
         {tela === 'cadastro' && (
           <div className="flex flex-col gap-4">
-            <input placeholder="Seu nome *" value={nome} onChange={e => setNome(e.target.value)}
+            <input type="text" autoComplete="name" placeholder="Seu nome *" value={nome} onChange={e => setNome(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && avancarCadastro()} className={inp} />
-            <input type="email" placeholder="Seu email *" value={email} onChange={e => setEmail(e.target.value)}
+            <input type="email" autoComplete="email" placeholder="Seu email *" value={email} onChange={e => setEmail(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && avancarCadastro()} className={inp} />
             <button onClick={avancarCadastro} disabled={loading}
               className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
@@ -164,7 +178,7 @@ export default function ClienteLogin() {
 
         {tela === 'login-email' && (
           <div className="flex flex-col gap-4">
-            <input type="email" placeholder="Seu email" value={email} onChange={e => setEmail(e.target.value)}
+            <input type="email" autoComplete="email" placeholder="Seu email" value={email} onChange={e => setEmail(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && enviarCodigoLogin()} className={inp} />
             <button onClick={enviarCodigoLogin} disabled={loading}
               className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
