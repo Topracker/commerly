@@ -110,15 +110,24 @@ export default function ClienteLoja() {
             )}
           </div>
 
-          {loja.telefone && (
+          <div className={`mt-4 flex gap-2 ${loja.telefone ? '' : ''}`}>
             <button
-              onClick={abrirWhatsApp}
-              className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+              onClick={() => router.push(`/cliente/mensagens/${id}`)}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
             >
               <MessageCircle size={18} />
-              Falar no WhatsApp
+              Enviar mensagem
             </button>
-          )}
+            {loja.telefone && (
+              <button
+                onClick={abrirWhatsApp}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+              >
+                <Phone size={18} />
+                WhatsApp
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Produtos */}
