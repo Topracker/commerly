@@ -2,11 +2,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useCliente } from '../../../hooks/useCliente'
+import { ClienteLayout } from '../../../components/ClienteLayout'
 import { Send, ArrowLeft } from 'lucide-react'
 
 export default function ChatCliente_Loja() {
   const { loja_id } = useParams<{ loja_id: string }>()
-  const { cliente, loading, supabase } = useCliente()
+  const { cliente, loading, supabase, sair } = useCliente()
   const [loja, setLoja] = useState<any>(null)
   const [mensagens, setMensagens] = useState<any[]>([])
   const [texto, setTexto] = useState('')
@@ -71,22 +72,22 @@ export default function ChatCliente_Loja() {
     setEnviando(false)
   }
 
-  if (loading || carregando) return (
+  if (loading || (carregando && !loja)) return (
     <main className="min-h-screen bg-gray-950 flex items-center justify-center">
       <p className="text-gray-400">Carregando...</p>
     </main>
   )
-  if (!cliente || !loja) return null
+  if (!cliente) return null
 
   return (
-    <main className="h-screen bg-gray-950 flex flex-col">
+    <ClienteLayout cliente={cliente} sair={sair} fullHeight noPadding>
       <header className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center gap-3 shrink-0">
         <button onClick={() => router.back()} className="text-gray-400 hover:text-white">
           <ArrowLeft size={20} />
         </button>
         <div>
-          <p className="text-white font-bold">{loja.nome}</p>
-          <p className="text-xs text-green-400">{loja.tipo}</p>
+          <p className="text-white font-bold">{loja?.nome}</p>
+          <p className="text-xs text-green-400">{loja?.tipo}</p>
         </div>
       </header>
 
@@ -129,6 +130,6 @@ export default function ChatCliente_Loja() {
           </button>
         </div>
       </div>
-    </main>
+    </ClienteLayout>
   )
 }

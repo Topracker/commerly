@@ -3,15 +3,14 @@ import { useState, useEffect } from 'react'
 import { useCliente } from '../../hooks/useCliente'
 import { useToast } from '../../hooks/useToast'
 import { Toast } from '../../components/Toast'
-import { User, AlertCircle, ShoppingBag, Search, LogOut } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { ClienteLayout } from '../../components/ClienteLayout'
+import { User, AlertCircle, ShoppingBag } from 'lucide-react'
 
 type Aba = 'perfil' | 'dividas' | 'historico'
 
 export default function ClienteDashboard() {
   const { cliente, loading, supabase, sair } = useCliente()
   const { toast, mostrarToast } = useToast()
-  const router = useRouter()
   const [aba, setAba] = useState<Aba>('perfil')
 
   const [nome, setNome] = useState('')
@@ -86,31 +85,8 @@ export default function ClienteDashboard() {
   if (!cliente) return null
 
   return (
-    <main className="min-h-screen bg-gray-950">
+    <ClienteLayout cliente={cliente} sair={sair} noPadding>
       <Toast toast={toast} />
-
-      <header className="bg-gray-900 border-b border-gray-800 px-4 py-4 flex items-center justify-between">
-        <div>
-          <p className="text-green-400 text-xs font-semibold uppercase tracking-wide mb-0.5">Cliente</p>
-          <p className="text-white font-bold truncate max-w-[180px]">{cliente.nome}</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => router.push('/cliente/buscar')}
-            className="flex items-center gap-1.5 bg-green-700 hover:bg-green-600 text-white px-3 py-2 rounded-xl text-sm transition"
-          >
-            <Search size={14} />
-            Buscar lojas
-          </button>
-          <button
-            onClick={sair}
-            title="Sair"
-            className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-gray-800 transition"
-          >
-            <LogOut size={18} />
-          </button>
-        </div>
-      </header>
 
       <div className="flex border-b border-gray-800 bg-gray-900 px-2">
         {([
@@ -238,6 +214,6 @@ export default function ClienteDashboard() {
         )}
 
       </div>
-    </main>
+    </ClienteLayout>
   )
 }

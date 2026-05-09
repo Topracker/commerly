@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useCliente } from '../../../hooks/useCliente'
+import { ClienteLayout } from '../../../components/ClienteLayout'
 import { Estrelas } from '../../../components/Estrelas'
 import { useToast } from '../../../hooks/useToast'
 import { Toast } from '../../../components/Toast'
@@ -9,7 +10,7 @@ import { Phone, AtSign, MapPin, Clock, MessageCircle, ArrowLeft } from 'lucide-r
 
 export default function ClienteLoja() {
   const { id } = useParams<{ id: string }>()
-  const { cliente, loading, supabase } = useCliente()
+  const { cliente, loading, supabase, sair } = useCliente()
   const { toast, mostrarToast } = useToast()
   const [loja, setLoja] = useState<any>(null)
   const [produtos, setProdutos] = useState<any[]>([])
@@ -63,14 +64,23 @@ export default function ClienteLoja() {
     window.open(`https://wa.me/55${num}?text=Olá! Vi seu comércio no Commerly.`, '_blank')
   }
 
-  if (loading || !loja) return (
+  if (loading) return (
     <main className="min-h-screen bg-gray-950 flex items-center justify-center">
       <p className="text-gray-400">Carregando...</p>
     </main>
   )
+  if (!cliente) return null
+
+  if (!loja) return (
+    <ClienteLayout cliente={cliente} sair={sair}>
+      <div className="flex items-center justify-center py-24">
+        <p className="text-gray-400">Carregando...</p>
+      </div>
+    </ClienteLayout>
+  )
 
   return (
-    <main className="min-h-screen bg-gray-950">
+    <ClienteLayout cliente={cliente} sair={sair} noPadding>
       <Toast toast={toast} />
       <header className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <button onClick={() => router.push('/cliente/buscar')} className="text-gray-400 hover:text-white">
@@ -80,7 +90,6 @@ export default function ClienteLoja() {
       </header>
 
       <div className="max-w-2xl mx-auto p-4">
-        {/* Info da loja */}
         <div className="bg-gray-900 rounded-2xl p-5 mb-4">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div>
@@ -110,7 +119,7 @@ export default function ClienteLoja() {
             )}
           </div>
 
-          <div className={`mt-4 flex gap-2 ${loja.telefone ? '' : ''}`}>
+          <div className="mt-4 flex gap-2">
             <button
               onClick={() => router.push(`/cliente/mensagens/${id}`)}
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
@@ -130,7 +139,6 @@ export default function ClienteLoja() {
           </div>
         </div>
 
-        {/* Produtos */}
         {produtos.length > 0 && (
           <div className="mb-4">
             <h2 className="text-white font-semibold text-lg mb-3">Produtos disponíveis</h2>
@@ -153,7 +161,6 @@ export default function ClienteLoja() {
           </div>
         )}
 
-        {/* Avaliar */}
         <div className="bg-gray-900 rounded-2xl p-5 mb-4">
           <h2 className="text-white font-semibold text-lg mb-4">
             {minhaAvaliacao ? 'Sua avaliação' : 'Avaliar este comércio'}
@@ -177,7 +184,6 @@ export default function ClienteLoja() {
           </div>
         </div>
 
-        {/* Avaliações */}
         {avaliacoes.length > 0 && (
           <div>
             <h2 className="text-white font-semibold text-lg mb-3">Avaliações ({avaliacoes.length})</h2>
@@ -195,6 +201,6 @@ export default function ClienteLoja() {
           </div>
         )}
       </div>
-    </main>
+    </ClienteLayout>
   )
 }
