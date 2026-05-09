@@ -3,8 +3,8 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 
-function getPagBankBaseUrl(token: string): string {
-  return token.startsWith('sandbox_')
+function getPagBankBaseUrl(ambiente: string): string {
+  return ambiente === 'sandbox'
     ? 'https://sandbox.api.pagseguro.com'
     : 'https://api.pagseguro.com'
 }
@@ -30,11 +30,12 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null)
   const email: string = body?.email?.trim() ?? ''
   const token: string = body?.token?.trim() ?? ''
+  const ambiente: string = body?.ambiente === 'sandbox' ? 'sandbox' : 'producao'
   if (!email || !token) {
     return NextResponse.json({ error: 'Email e token são obrigatórios' }, { status: 400 })
   }
 
-  const pbRes = await fetch(`${getPagBankBaseUrl(token)}/orders?page_size=1`, {
+  const pbRes = await fetch(`${getPagBankBaseUrl(ambiente)}/orders?page_size=1`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!pbRes.ok) {
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
   const admin = createAdminClient()
   const { error } = await admin
     .from('pagbank_conexoes')
-    .upsert({ loja_id: loja.id, email, token }, { onConflict: 'loja_id' })
+    .upsert({ loja_id: loja.id, email, token, ambiente }, { onConflict: 'loja_id' })
 
   if (error) {
     console.error('[PagBank connect] upsert error:', error)

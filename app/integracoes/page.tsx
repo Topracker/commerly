@@ -15,8 +15,10 @@ export default function Integracoes() {
 
   const [pbConectado, setPbConectado] = useState(false)
   const [pbEmail, setPbEmail] = useState('')
+  const [pbAmbiente, setPbAmbiente] = useState<'producao' | 'sandbox'>('producao')
   const [pbEmailInput, setPbEmailInput] = useState('')
   const [pbTokenInput, setPbTokenInput] = useState('')
+  const [pbAmbienteInput, setPbAmbienteInput] = useState<'producao' | 'sandbox'>('producao')
   const [pbSalvando, setPbSalvando] = useState(false)
   const [pbDesconectando, setPbDesconectando] = useState(false)
   const [pbSincronizando, setPbSincronizando] = useState(false)
@@ -40,8 +42,8 @@ export default function Integracoes() {
   }
 
   async function carregarStatusPB() {
-    const { data } = await supabase.from('pagbank_conexoes').select('email').eq('loja_id', loja.id).maybeSingle()
-    if (data) { setPbConectado(true); setPbEmail(data.email) }
+    const { data } = await supabase.from('pagbank_conexoes').select('email, ambiente').eq('loja_id', loja.id).maybeSingle()
+    if (data) { setPbConectado(true); setPbEmail(data.email); setPbAmbiente(data.ambiente ?? 'producao') }
   }
 
   async function desconectarMP() {
@@ -58,10 +60,10 @@ export default function Integracoes() {
     const res = await fetch('/api/pagbank/connect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: pbEmailInput, token: pbTokenInput }),
+      body: JSON.stringify({ email: pbEmailInput, token: pbTokenInput, ambiente: pbAmbienteInput }),
     })
     if (res.ok) {
-      setPbConectado(true); setPbEmail(pbEmailInput)
+      setPbConectado(true); setPbEmail(pbEmailInput); setPbAmbiente(pbAmbienteInput)
       setPbEmailInput(''); setPbTokenInput('')
       mostrarToast('PagBank conectado com sucesso!', 'sucesso')
     } else {
@@ -141,7 +143,12 @@ export default function Integracoes() {
             <div className="flex items-center gap-2 bg-green-950 border border-green-800 rounded-xl px-4 py-3">
               <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
               <p className="text-green-300 text-sm">Conta conectada</p>
-              <p className="text-green-500 text-xs ml-auto">{pbEmail}</p>
+              <div className="ml-auto flex items-center gap-2">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${pbAmbiente === 'sandbox' ? 'bg-yellow-900 text-yellow-300' : 'bg-green-900 text-green-300'}`}>
+                  {pbAmbiente === 'sandbox' ? 'Sandbox' : 'Produção'}
+                </span>
+                <p className="text-green-500 text-xs">{pbEmail}</p>
+              </div>
             </div>
             <p className="text-gray-400 text-xs">
               Configure seu webhook no painel do PagBank com a URL:<br />
@@ -160,6 +167,14 @@ export default function Integracoes() {
             <input placeholder="E-mail da conta PagBank" type="email" value={pbEmailInput} onChange={e => setPbEmailInput(e.target.value)} className={inputClass} />
             <input placeholder="Token Bearer do PagBank" type="password" value={pbTokenInput} onChange={e => setPbTokenInput(e.target.value)} className={inputClass} />
             <p className="text-gray-500 text-xs">Encontre o token em: PagBank → Sua conta → Perfil → Credenciais</p>
+            <select
+              value={pbAmbienteInput}
+              onChange={e => setPbAmbienteInput(e.target.value as 'producao' | 'sandbox')}
+              className={inputClass}
+            >
+              <option value="producao">Produção</option>
+              <option value="sandbox">Sandbox</option>
+            </select>
             <button onClick={conectarPB} disabled={pbSalvando} className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
               {pbSalvando ? 'Conectando...' : 'Conectar PagBank'}
             </button>

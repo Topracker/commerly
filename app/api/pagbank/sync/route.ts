@@ -3,8 +3,8 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 
-function getPagBankBaseUrl(token: string): string {
-  return token.startsWith('sandbox_')
+function getPagBankBaseUrl(ambiente: string): string {
+  return ambiente === 'sandbox'
     ? 'https://sandbox.api.pagseguro.com'
     : 'https://api.pagseguro.com'
 }
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   const admin = createAdminClient()
   const { data: conexao } = await admin
     .from('pagbank_conexoes')
-    .select('token')
+    .select('token, ambiente')
     .eq('loja_id', loja.id)
     .single()
 
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   const desde = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
   const pbRes = await fetch(
-    `${getPagBankBaseUrl(conexao.token)}/orders?created_at_gte=${encodeURIComponent(desde)}&page_size=100`,
+    `${getPagBankBaseUrl(conexao.ambiente ?? 'producao')}/orders?created_at_gte=${encodeURIComponent(desde)}&page_size=100`,
     { headers: { Authorization: `Bearer ${conexao.token}` } }
   )
 
