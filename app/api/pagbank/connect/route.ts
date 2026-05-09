@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!pbRes.ok) {
+    const pbBody = await pbRes.text().catch(() => '')
+    console.error('[PagBank connect] token validation failed', { status: pbRes.status, body: pbBody, ambiente })
     return NextResponse.json({ error: 'Token inválido ou sem permissão na API do PagBank' }, { status: 400 })
   }
 
