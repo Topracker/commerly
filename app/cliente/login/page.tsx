@@ -41,6 +41,7 @@ export default function ClienteLogin() {
   async function avancarCadastro() {
     if (!nome.trim()) { setErro('Informe seu nome!'); return }
     if (!email) { setErro('Informe seu email!'); return }
+    if (cpf.replace(/\D/g, '').length > 0 && !validarCPF(cpf)) { setErro('CPF inválido. Verifique o número digitado.'); return }
     setLoading(true)
     setErro('')
 
@@ -116,6 +117,19 @@ export default function ClienteLogin() {
       return
     }
     router.push('/cliente/buscar')
+  }
+
+  function validarCPF(v: string): boolean {
+    const d = v.replace(/\D/g, '')
+    if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false
+    let s = 0
+    for (let i = 0; i < 9; i++) s += +d[i] * (10 - i)
+    let r = 11 - (s % 11); if (r >= 10) r = 0
+    if (r !== +d[9]) return false
+    s = 0
+    for (let i = 0; i < 10; i++) s += +d[i] * (11 - i)
+    r = 11 - (s % 11); if (r >= 10) r = 0
+    return r === +d[10]
   }
 
   function formatarCPF(v: string) {
