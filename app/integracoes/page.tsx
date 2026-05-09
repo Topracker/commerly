@@ -56,14 +56,11 @@ export default function Integracoes() {
 
   async function conectarPB() {
     if (!pbEmailInput || !pbTokenInput) { mostrarToast('Preencha email e token', 'erro'); return }
-    console.log('[PagBank] pbAmbienteInput no momento do envio:', pbAmbienteInput)
-    const payload = { email: pbEmailInput, token: pbTokenInput, ambiente: pbAmbienteInput }
-    console.log('[PagBank] payload completo:', JSON.stringify(payload))
     setPbSalvando(true)
     const res = await fetch('/api/pagbank/connect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ email: pbEmailInput, token: pbTokenInput, ambiente: pbAmbienteInput }),
     })
     if (res.ok) {
       setPbConectado(true); setPbEmail(pbEmailInput); setPbAmbiente(pbAmbienteInput)
