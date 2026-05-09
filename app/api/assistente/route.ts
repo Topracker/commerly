@@ -91,7 +91,7 @@ Pergunta do comerciante: ${pergunta}`
     console.error('[assistente] GEMINI_API_KEY ausente')
     return NextResponse.json({ erro: 'Assistente não configurado (GEMINI_API_KEY ausente)' }, { status: 500 })
   }
-  console.log('[assistente] key prefix:', geminiApiKey.slice(0, 8), '| contexto chars:', contexto.length)
+  console.log('[assistente] contexto chars:', contexto.length)
 
   let geminiRes: Response
   try {

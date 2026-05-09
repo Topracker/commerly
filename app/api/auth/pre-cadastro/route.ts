@@ -4,7 +4,8 @@ import { createAdminClient } from '../../../lib/supabase-admin'
 export async function POST(req: NextRequest) {
   try {
     const { email } = await req.json()
-    if (!email) return NextResponse.json({ erro: 'Email obrigatório' }, { status: 400 })
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!email || !emailRegex.test(email)) return NextResponse.json({ erro: 'Email inválido' }, { status: 400 })
 
     const admin = createAdminClient()
     const { error } = await admin.auth.admin.createUser({

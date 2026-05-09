@@ -5,14 +5,15 @@ import { createAdminClient } from '../../../lib/supabase-admin'
 export async function POST(request: NextRequest) {
   const rawBody = await request.text()
 
-  // Verify signature when MP_WEBHOOK_SECRET is configured
   const webhookSecret = process.env.MP_WEBHOOK_SECRET
-  if (webhookSecret) {
-    const signature = request.headers.get('x-signature') ?? ''
-    const requestId = request.headers.get('x-request-id') ?? ''
-    if (!verificarAssinatura(rawBody, signature, requestId, webhookSecret)) {
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-    }
+  if (!webhookSecret) {
+    console.error('[MP webhook] MP_WEBHOOK_SECRET não configurada — requisição recusada')
+    return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 })
+  }
+  const signature = request.headers.get('x-signature') ?? ''
+  const requestId = request.headers.get('x-request-id') ?? ''
+  if (!verificarAssinatura(rawBody, signature, requestId, webhookSecret)) {
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
   let notification: any
