@@ -3,6 +3,12 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 
+function getPagBankBaseUrl(token: string): string {
+  return token.startsWith('sandbox_')
+    ? 'https://sandbox.api.pagseguro.com'
+    : 'https://api.pagseguro.com'
+}
+
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -32,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   const desde = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
   const pbRes = await fetch(
-    `https://api.pagseguro.com/orders?created_at_gte=${encodeURIComponent(desde)}&page_size=100`,
+    `${getPagBankBaseUrl(conexao.token)}/orders?created_at_gte=${encodeURIComponent(desde)}&page_size=100`,
     { headers: { Authorization: `Bearer ${conexao.token}` } }
   )
 

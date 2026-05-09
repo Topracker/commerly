@@ -3,6 +3,12 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 
+function getPagBankBaseUrl(token: string): string {
+  return token.startsWith('sandbox_')
+    ? 'https://sandbox.api.pagseguro.com'
+    : 'https://api.pagseguro.com'
+}
+
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -28,7 +34,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Email e token são obrigatórios' }, { status: 400 })
   }
 
-  const pbRes = await fetch('https://api.pagseguro.com/orders?page_size=1', {
+  const pbRes = await fetch(`${getPagBankBaseUrl(token)}/orders?page_size=1`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!pbRes.ok) {
