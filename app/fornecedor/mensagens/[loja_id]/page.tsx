@@ -26,7 +26,7 @@ export default function ChatFornecedorLoja() {
   }, [fornecedor?.id, loja_id])
 
   async function init() {
-    const { data: l } = await supabase.from('lojas').select('id, nome, tipo').eq('id', loja_id).single()
+    const { data: l } = await supabase.from('lojas_publicas').select('id, nome, tipo').eq('id', loja_id).single()
     if (!l) { router.push('/fornecedor/mensagens'); return }
     setLoja(l)
     await fetchMsgs(fornecedor!.id)

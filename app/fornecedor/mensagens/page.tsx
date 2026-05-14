@@ -33,7 +33,7 @@ export default function FornecedorMensagens() {
     }
 
     const lojaIds = Object.keys(mapaConversas)
-    const { data: lojas } = await supabase.from('lojas').select('id, nome, tipo').in('id', lojaIds)
+    const { data: lojas } = await supabase.from('lojas_publicas').select('id, nome, tipo').in('id', lojaIds)
 
     const lista = lojaIds
       .map(id => ({ ...mapaConversas[id], loja: lojas?.find(l => l.id === id) || { nome: 'Loja', tipo: '' } }))

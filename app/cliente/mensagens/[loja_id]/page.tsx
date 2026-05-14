@@ -27,7 +27,7 @@ export default function ChatCliente_Loja() {
   }, [cliente?.id, loja_id])
 
   async function init() {
-    const { data: l } = await supabase.from('lojas').select('id, nome, tipo').eq('id', loja_id).single()
+    const { data: l } = await supabase.from('lojas_publicas').select('id, nome, tipo').eq('id', loja_id).single()
     if (!l) { router.push('/cliente/buscar'); return }
     setLoja(l)
     await fetchMsgs(cliente!.id)

@@ -22,7 +22,7 @@ export default function ClienteBuscar() {
   async function buscarLojas() {
     setBuscando(true)
     let query = supabase
-      .from('lojas')
+      .from('lojas_publicas')
       .select('id, nome, tipo, localizacao, telefone, instagram, horario')
       .order('created_at', { ascending: false })
       .limit(50)
