@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '../../../../lib/supabase-admin'
 
+function getPagBankBaseUrl(ambiente: string): string {
+  return ambiente === 'sandbox'
+    ? 'https://sandbox.api.pagseguro.com'
+    : 'https://api.pagseguro.com'
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ loja_id: string }> }
@@ -19,19 +25,32 @@ export async function POST(
     return NextResponse.json({ ok: true })
   }
 
-  const charge = body.data ?? {}
-  const chargeId = String(charge.id ?? '')
+  const chargeId = String(body.data?.id ?? '')
   if (!chargeId) return NextResponse.json({ ok: true })
 
   const supabase = createAdminClient()
 
   const { data: conexao } = await supabase
     .from('pagbank_conexoes')
-    .select('token')
+    .select('token, ambiente')
     .eq('loja_id', loja_id)
     .single()
 
   if (!conexao) return NextResponse.json({ ok: true })
+
+  // Verify charge against PagBank API — prevents fake webhook injection
+  const pbVerify = await fetch(
+    `${getPagBankBaseUrl(conexao.ambiente ?? 'producao')}/charges/${chargeId}`,
+    { headers: { Authorization: `Bearer ${conexao.token}` } }
+  )
+
+  if (!pbVerify.ok) {
+    console.error('[PagBank webhook] charge verification failed:', chargeId)
+    return NextResponse.json({ ok: true })
+  }
+
+  const verifiedCharge = await pbVerify.json()
+  if (verifiedCharge.status !== 'PAID') return NextResponse.json({ ok: true })
 
   const { data: existente } = await supabase
     .from('vendas')
@@ -41,13 +60,13 @@ export async function POST(
 
   if (existente) return NextResponse.json({ ok: true })
 
-  const valor = (charge.amount?.value ?? 0) / 100
-  const formaPagamento = resolverForma(charge.payment_method?.type ?? '')
+  const valor = (verifiedCharge.amount?.value ?? 0) / 100
+  const formaPagamento = resolverForma(verifiedCharge.payment_method?.type ?? '')
 
   const { error } = await supabase.from('vendas').insert({
     loja_id,
     produto_id: null,
-    descricao: charge.description || 'Pagamento PagBank',
+    descricao: verifiedCharge.description || 'Pagamento PagBank',
     quantidade: 1,
     valor_total: valor,
     lucro: 0,

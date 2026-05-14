@@ -96,10 +96,13 @@ Pergunta do comerciante: ${pergunta}`
   let geminiRes: Response
   try {
     geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': geminiApiKey,
+        },
         body: JSON.stringify({
           contents: [{ parts: [{ text: contexto }] }],
           generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
