@@ -167,14 +167,6 @@ export default function Integracoes() {
             <input placeholder="E-mail da conta PagBank" type="email" value={pbEmailInput} onChange={e => setPbEmailInput(e.target.value)} className={inputClass} />
             <input placeholder="Token Bearer do PagBank" type="password" value={pbTokenInput} onChange={e => setPbTokenInput(e.target.value)} className={inputClass} />
             <p className="text-gray-500 text-xs">Encontre o token em: PagBank → Sua conta → Perfil → Credenciais</p>
-            <select
-              value={pbAmbienteInput}
-              onChange={e => setPbAmbienteInput(e.target.value as 'producao' | 'sandbox')}
-              className={inputClass}
-            >
-              <option value="producao">Produção</option>
-              <option value="sandbox">Sandbox</option>
-            </select>
             <button onClick={conectarPB} disabled={pbSalvando} className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
               {pbSalvando ? 'Conectando...' : 'Conectar PagBank'}
             </button>
