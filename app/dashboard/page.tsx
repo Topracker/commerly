@@ -86,14 +86,16 @@ export default function Dashboard() {
 
     const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1)
 
+    const origens = ['mercadopago', 'pagbank'] as const
+
     const [vendasRes, gastosRes, produtosRes, recentesRes, fiadoRes, vendasSemanaRes, vendasMesRes, conquistasRes] = await Promise.all([
-      supabase.from('vendas').select('*, produtos(nome)').eq('loja_id', loja.id).gte('created_at', desde.toISOString()),
+      supabase.from('vendas').select('*, produtos(nome)').eq('loja_id', loja.id).gte('created_at', desde.toISOString()).in('origem', origens),
       supabase.from('gastos').select('*').eq('loja_id', loja.id).gte('created_at', desde.toISOString()),
       supabase.from('produtos').select('*').eq('loja_id', loja.id),
       supabase.from('vendas').select('*, produtos(nome)').eq('loja_id', loja.id).order('created_at', { ascending: false }).limit(5),
       supabase.from('fiado').select('*').eq('loja_id', loja.id).eq('pago', false),
-      supabase.from('vendas').select('valor_total, created_at').eq('loja_id', loja.id).gte('created_at', seteAtras.toISOString()),
-      supabase.from('vendas').select('valor_total').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()),
+      supabase.from('vendas').select('valor_total, created_at').eq('loja_id', loja.id).gte('created_at', seteAtras.toISOString()).in('origem', origens),
+      supabase.from('vendas').select('valor_total').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()).in('origem', origens),
       supabase.from('conquistas').select('tipo').eq('loja_id', loja.id),
     ])
 

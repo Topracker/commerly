@@ -75,6 +75,7 @@ export default function Vendas() {
       valor_total: item.produto.preco_venda * item.quantidade,
       lucro: (item.produto.preco_venda - item.produto.custo) * item.quantidade,
       forma_pagamento: pagamento,
+      origem: 'manual',
     }))
 
     const { error } = await supabase.from('vendas').insert(inserts)
