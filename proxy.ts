@@ -1,6 +1,22 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const ROTAS_COMERCIANTE = [
+  '/dashboard',
+  '/vendas',
+  '/produtos',
+  '/fiado',
+  '/gastos',
+  '/historico',
+  '/funcionarios',
+  '/fornecedores',
+  '/mensagens',
+  '/configuracoes',
+  '/feedback',
+  '/assistente',
+  '/integracoes',
+]
+
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
 
@@ -22,20 +38,39 @@ export async function proxy(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-
-  if (user) return response
-
   const { pathname } = request.nextUrl
 
-  if (pathname.startsWith('/cliente/')) {
-    return NextResponse.redirect(new URL('/cliente/login', request.url))
+  if (!user) {
+    if (pathname.startsWith('/cliente/')) return NextResponse.redirect(new URL('/cliente/login', request.url))
+    if (pathname.startsWith('/fornecedor/')) return NextResponse.redirect(new URL('/fornecedor/login', request.url))
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  if (pathname.startsWith('/fornecedor/')) {
-    return NextResponse.redirect(new URL('/fornecedor/login', request.url))
+  // Verifica plano para rotas principais do comerciante (exclui onboarding)
+  const rotaComerciantePrincipal = ROTAS_COMERCIANTE.some(
+    r => pathname === r || pathname.startsWith(r + '/')
+  )
+
+  if (rotaComerciantePrincipal) {
+    const { data: loja } = await supabase
+      .from('lojas')
+      .select('plano, trial_expira_em')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (loja) {
+      const agora = new Date()
+      const temAcesso =
+        loja.plano === 'ativo' ||
+        (loja.plano === 'trial' && loja.trial_expira_em && new Date(loja.trial_expira_em) > agora)
+
+      if (!temAcesso) {
+        return NextResponse.redirect(new URL('/planos', request.url))
+      }
+    }
   }
 
-  return NextResponse.redirect(new URL('/login', request.url))
+  return response
 }
 
 export const config = {
