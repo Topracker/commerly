@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { createAdminClient } from '../../../lib/supabase-admin'
 import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
@@ -23,12 +22,14 @@ export async function GET(request: NextRequest) {
 
   const { data: loja } = await supabase
     .from('lojas')
-    .select('id, fundador, mp_assinatura_id')
+    .select('id, fundador, plano')
     .eq('user_id', user.id)
     .single()
 
   if (!loja) return NextResponse.redirect(new URL('/onboarding', request.url))
-  if (loja.mp_assinatura_id) return NextResponse.redirect(new URL('/planos', request.url))
+
+  // Já tem plano ativo — não cria nova assinatura
+  if (loja.plano === 'ativo') return NextResponse.redirect(new URL('/planos', request.url))
 
   const preco = loja.fundador ? 29.90 : 54.99
 
@@ -61,11 +62,7 @@ export async function GET(request: NextRequest) {
 
   const preapproval = await res.json()
 
-  const admin = createAdminClient()
-  await admin
-    .from('lojas')
-    .update({ mp_assinatura_id: preapproval.id })
-    .eq('id', loja.id)
-
+  // Não salva nada no banco aqui — o acesso só é liberado após
+  // o webhook confirmar o pagamento aprovado
   return NextResponse.redirect(preapproval.init_point)
 }

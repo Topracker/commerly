@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   const { type, data } = body
   const supabase = createAdminClient()
 
-  // Mudança de status da assinatura (ex: cancelamento pelo usuário no painel MP)
+  // Cancelamento via painel do Mercado Pago
   if (type === 'subscription_preapproval' && data?.id) {
     const subRes = await fetch(`https://api.mercadopago.com/preapproval/${data.id}`, {
       headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` },
@@ -36,9 +36,9 @@ export async function POST(request: NextRequest) {
   if (!pagRes.ok) return NextResponse.json({ ok: false }, { status: 502 })
 
   const pagamento = await pagRes.json()
-  if (pagamento.status !== 'approved') return NextResponse.json({ ok: true })
 
-  // Ignora pagamentos avulsos (sem subscription_id)
+  // Só processa pagamentos aprovados de assinaturas recorrentes
+  if (pagamento.status !== 'approved') return NextResponse.json({ ok: true })
   if (!pagamento.subscription_id) return NextResponse.json({ ok: true })
 
   const lojaId = pagamento.external_reference
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
   const { data: loja } = await supabase
     .from('lojas')
-    .select('fundador, assinatura_ciclos, mp_assinatura_id')
+    .select('fundador, assinatura_ciclos')
     .eq('id', lojaId)
     .single()
 
@@ -54,14 +54,19 @@ export async function POST(request: NextRequest) {
 
   const novosCiclos = (loja.assinatura_ciclos || 0) + 1
 
+  // Ativa o plano e salva o ID da assinatura — apenas aqui, após pagamento confirmado
   await supabase
     .from('lojas')
-    .update({ plano: 'ativo', assinatura_ciclos: novosCiclos })
+    .update({
+      plano: 'ativo',
+      mp_assinatura_id: pagamento.subscription_id,
+      assinatura_ciclos: novosCiclos,
+    })
     .eq('id', lojaId)
 
-  // Fundador: após 2 ciclos promocionais, atualiza para o preço normal
-  if (loja.fundador && novosCiclos >= CICLOS_PROMO && loja.mp_assinatura_id) {
-    await fetch(`https://api.mercadopago.com/preapproval/${loja.mp_assinatura_id}`, {
+  // Fundador: após 2 ciclos promocionais, atualiza o preapproval para o preço normal
+  if (loja.fundador && novosCiclos >= CICLOS_PROMO) {
+    await fetch(`https://api.mercadopago.com/preapproval/${pagamento.subscription_id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
