@@ -57,33 +57,35 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
   }
 
   const SidebarConteudo = () => (
-    <div className="flex flex-col h-full p-4 gap-0.5">
-      <div className="mb-4 px-2">
+    <div className="flex flex-col h-full p-4">
+      <div className="mb-4 px-2 shrink-0">
         <p className="text-white font-bold text-lg truncate">{loja.nome}</p>
         <p className="text-gray-400 text-xs">{loja.tipo}</p>
       </div>
-      {MENU.map(item => {
-        const ativo = pathname === item.path || (item.path === '/mensagens' && pathname.startsWith('/mensagens'))
-        return (
-          <button
-            key={item.path}
-            onClick={() => navegar(item.path)}
-            className={`text-left px-3 py-2.5 rounded-xl transition flex items-center gap-3 ${ativo ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
-          >
-            <item.icon size={16} className={ativo ? 'text-white shrink-0' : 'text-gray-400 shrink-0'} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white">{item.label}</p>
-              {'sub' in item && <p className="text-gray-400 text-xs">{(item as any).sub}</p>}
-            </div>
-            {item.label === 'Mensagens' && naoLidas > 0 && (
-              <span className="bg-blue-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
-                {naoLidas}
-              </span>
-            )}
-          </button>
-        )
-      })}
-      <div className="mt-auto pt-2">
+      <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-0.5">
+        {MENU.map(item => {
+          const ativo = pathname === item.path || (item.path === '/mensagens' && pathname.startsWith('/mensagens'))
+          return (
+            <button
+              key={item.path}
+              onClick={() => navegar(item.path)}
+              className={`text-left px-3 py-2.5 rounded-xl transition flex items-center gap-3 ${ativo ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
+            >
+              <item.icon size={16} className={ativo ? 'text-white shrink-0' : 'text-gray-400 shrink-0'} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white">{item.label}</p>
+                {'sub' in item && <p className="text-gray-400 text-xs">{(item as any).sub}</p>}
+              </div>
+              {item.label === 'Mensagens' && naoLidas > 0 && (
+                <span className="bg-blue-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
+                  {naoLidas}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+      <div className="pt-2 shrink-0">
         <button
           onClick={sair}
           className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-gray-800 transition flex items-center gap-3 text-gray-400 text-sm"
