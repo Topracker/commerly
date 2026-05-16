@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
 import {
   Package, ShoppingCart, TrendingDown, Clock, Users,
-  MessageSquare, Settings, LogOut, Menu, X, Wallet, Home, Truck, MessageCircle, Sparkles, Plug
+  MessageSquare, Settings, LogOut, Menu, X, Wallet, Home, Truck, MessageCircle, Sparkles, Plug, Crown
 } from 'lucide-react'
 
 const MENU = [
@@ -21,6 +21,7 @@ const MENU = [
   { label: 'Feedback', sub: 'Enviar sugestão', path: '/feedback', icon: MessageSquare },
   { label: 'Integrações', sub: 'MP e PagBank', path: '/integracoes', icon: Plug },
   { label: 'Configurações', sub: 'Editar dados da loja', path: '/configuracoes', icon: Settings },
+  { label: 'Meu Plano', sub: 'Assinatura', path: '/planos', icon: Crown },
 ]
 
 type Props = {

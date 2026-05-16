@@ -188,9 +188,12 @@ export default function Onboarding() {
     if (clienteExiste) { alert('Este e-mail já está cadastrado como cliente. Faça login para acessar sua conta.'); setLoading(false); return }
     if (fornecedorExiste) { alert('Este e-mail já está cadastrado como fornecedor. Faça login para acessar sua conta.'); setLoading(false); return }
 
+    const trialExpira = new Date()
+    trialExpira.setDate(trialExpira.getDate() + 30)
     const { error } = await supabase.from('lojas').insert({
       user_id: user?.id,
       nome, tipo, documento, localizacao, telefone, instagram, horario,
+      trial_expira_em: trialExpira.toISOString(),
     })
     if (error) {
       if (error.code === '23505') alert('Este CPF/CNPJ já está cadastrado no Commerly!')

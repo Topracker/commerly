@@ -1,0 +1,162 @@
+'use client'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { createClient } from '../supabase'
+import { CheckCircle, Clock, Zap } from 'lucide-react'
+
+function PlanosConteudo() {
+  const router = useRouter()
+  const params = useSearchParams()
+  const supabase = createClient()
+
+  const [loja, setLoja] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [assinando, setAssinando] = useState(false)
+
+  const status = params.get('status')
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { setLoading(false); return }
+      const { data } = await supabase
+        .from('lojas')
+        .select('id, nome, plano, trial_expira_em')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      setLoja(data)
+      setLoading(false)
+    })
+  }, [])
+
+  function diasRestantes(): number | null {
+    if (!loja?.trial_expira_em) return null
+    const diff = new Date(loja.trial_expira_em).getTime() - Date.now()
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
+  }
+
+  const dias = diasRestantes()
+  const planoAtivo = loja?.plano === 'ativo'
+  const trialValido = loja?.plano === 'trial' && dias !== null && dias > 0
+
+  return (
+    <main className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-md flex flex-col gap-5">
+
+        <div className="text-center mb-2">
+          <h1 className="text-3xl font-bold text-white mb-1">Planos Commerly</h1>
+          <p className="text-gray-400 text-sm">Gerencie sua loja com tudo que precisa</p>
+        </div>
+
+        {status === 'sucesso' && (
+          <div className="bg-green-950 border border-green-800 rounded-2xl p-4 flex items-center gap-3">
+            <CheckCircle size={20} className="text-green-400 shrink-0" />
+            <p className="text-green-300 text-sm font-semibold">Pagamento confirmado! Seu plano foi ativado.</p>
+          </div>
+        )}
+        {status === 'erro' && (
+          <div className="bg-red-950 border border-red-800 rounded-2xl p-4">
+            <p className="text-red-300 text-sm font-semibold">Houve um problema com o pagamento. Tente novamente.</p>
+          </div>
+        )}
+        {status === 'pendente' && (
+          <div className="bg-yellow-950 border border-yellow-800 rounded-2xl p-4 flex items-center gap-3">
+            <Clock size={20} className="text-yellow-400 shrink-0" />
+            <p className="text-yellow-300 text-sm font-semibold">Pagamento pendente. Você será notificado assim que confirmado.</p>
+          </div>
+        )}
+
+        {!loading && loja && (
+          <div className={`rounded-2xl p-4 border ${planoAtivo ? 'bg-green-950 border-green-800' : trialValido ? 'bg-blue-950 border-blue-800' : 'bg-red-950 border-red-800'}`}>
+            <p className={`text-sm font-semibold ${planoAtivo ? 'text-green-300' : trialValido ? 'text-blue-300' : 'text-red-300'}`}>
+              {planoAtivo
+                ? '✓ Plano ativo'
+                : trialValido
+                ? `⏳ Trial — ${dias} dia${dias !== 1 ? 's' : ''} restante${dias !== 1 ? 's' : ''}`
+                : '⚠️ Seu período de trial expirou'}
+            </p>
+            <p className="text-gray-500 text-xs mt-1">{loja.nome}</p>
+          </div>
+        )}
+
+        {/* Plano Trial */}
+        <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock size={18} className="text-gray-400" />
+            <h2 className="text-white font-bold">Trial Gratuito</h2>
+          </div>
+          <p className="text-gray-400 text-sm mb-4">30 dias de acesso completo, sem custo.</p>
+          <ul className="flex flex-col gap-2">
+            {['Dashboard completo', 'Controle de vendas e estoque', 'Integração MercadoPago e PagBank', 'Fiado, gastos e histórico'].map(f => (
+              <li key={f} className="flex items-center gap-2 text-gray-300 text-sm">
+                <CheckCircle size={14} className="text-gray-500 shrink-0" />
+                {f}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Plano Mensal */}
+        <div className="bg-gray-900 rounded-2xl p-5 border-2 border-blue-600 relative">
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+            RECOMENDADO
+          </div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Zap size={18} className="text-blue-400" />
+              <h2 className="text-white font-bold">Plano Mensal</h2>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-white">R$ 29,90</p>
+              <p className="text-gray-400 text-xs">/mês</p>
+            </div>
+          </div>
+          <ul className="flex flex-col gap-2 mb-5">
+            {['Tudo do trial', 'Acesso ilimitado sem interrupção', 'Suporte prioritário', 'Novas funcionalidades em primeira mão'].map(f => (
+              <li key={f} className="flex items-center gap-2 text-gray-300 text-sm">
+                <CheckCircle size={14} className="text-blue-400 shrink-0" />
+                {f}
+              </li>
+            ))}
+          </ul>
+
+          {planoAtivo ? (
+            <div className="w-full bg-green-900 text-green-300 font-semibold py-3 rounded-xl text-center text-sm">
+              ✓ Plano já ativo
+            </div>
+          ) : (
+            <button
+              onClick={() => { setAssinando(true); window.location.href = '/api/mercadopago/assinar' }}
+              disabled={assinando}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl transition text-sm"
+            >
+              {assinando ? 'Redirecionando...' : 'Assinar via Mercado Pago'}
+            </button>
+          )}
+        </div>
+
+        {loja && (
+          <button onClick={() => router.push('/dashboard')} className="text-gray-500 text-sm hover:text-gray-400 transition text-center">
+            ← Voltar ao dashboard
+          </button>
+        )}
+        {!loja && !loading && (
+          <button onClick={() => router.push('/login')} className="text-gray-500 text-sm hover:text-gray-400 transition text-center">
+            ← Fazer login
+          </button>
+        )}
+      </div>
+    </main>
+  )
+}
+
+export default function Planos() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <p className="text-gray-400">Carregando...</p>
+      </main>
+    }>
+      <PlanosConteudo />
+    </Suspense>
+  )
+}
