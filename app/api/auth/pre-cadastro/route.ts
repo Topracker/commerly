@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '../../../lib/supabase-admin'
+import { rateLimit } from '../../../lib/rate-limit'
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+  if (!rateLimit(`pre-cadastro:${ip}`, 5, 60_000)) {
+    return NextResponse.json({ erro: 'Muitas tentativas. Aguarde alguns minutos.' }, { status: 429 })
+  }
+
   try {
     const { email } = await req.json()
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

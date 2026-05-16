@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { rateLimit } from '../../lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   const { pergunta } = await request.json()
@@ -20,6 +21,10 @@ export async function POST(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 })
+
+  if (!rateLimit(`assistente:${user.id}`, 20, 60 * 60_000)) {
+    return NextResponse.json({ erro: 'Limite de perguntas atingido. Tente novamente em uma hora.' }, { status: 429 })
+  }
 
   const { data: loja } = await supabase.from('lojas').select('*').eq('user_id', user.id).single()
   if (!loja) return NextResponse.json({ erro: 'Loja não encontrada' }, { status: 404 })
