@@ -87,7 +87,6 @@ export default function Integracoes() {
   const [pbAmbienteInput, setPbAmbienteInput] = useState<'producao' | 'sandbox'>('producao')
   const [pbSalvando, setPbSalvando] = useState(false)
   const [pbDesconectando, setPbDesconectando] = useState(false)
-  const [pbSincronizando, setPbSincronizando] = useState(false)
   const [modalTokenAberto, setModalTokenAberto] = useState(false)
 
   useEffect(() => {
@@ -146,16 +145,6 @@ export default function Integracoes() {
     if (res.ok) { setPbConectado(false); setPbEmail(''); mostrarToast('PagBank desconectado.', 'sucesso') }
     else mostrarToast('Erro ao desconectar. Tente novamente.', 'erro')
     setPbDesconectando(false)
-  }
-
-  async function sincronizarPB() {
-    setPbSincronizando(true)
-    const res = await fetch('/api/pagbank/sync', { method: 'POST' })
-    if (res.ok) {
-      const { importadas } = await res.json()
-      mostrarToast(`Sincronização concluída: ${importadas} venda(s) importada(s)`, 'sucesso')
-    } else mostrarToast('Erro ao sincronizar. Tente novamente.', 'erro')
-    setPbSincronizando(false)
   }
 
   if (loading) return (
@@ -222,9 +211,6 @@ export default function Integracoes() {
               Configure seu webhook no painel do PagBank com a URL:<br />
               <span className="text-gray-300 font-mono break-all">{typeof window !== 'undefined' ? window.location.origin : ''}/api/pagbank/webhook/{loja.id}</span>
             </p>
-            <button onClick={sincronizarPB} disabled={pbSincronizando} className="bg-green-800 hover:bg-green-700 disabled:opacity-50 text-green-100 font-semibold py-3 rounded-xl transition text-sm">
-              {pbSincronizando ? 'Sincronizando...' : 'Sincronizar últimos 7 dias'}
-            </button>
             <button onClick={desconectarPB} disabled={pbDesconectando} className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 font-semibold py-3 rounded-xl transition text-sm">
               {pbDesconectando ? 'Desconectando...' : 'Desconectar PagBank'}
             </button>
