@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { createAdminClient } from '../../../lib/supabase-admin'
 import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
@@ -22,48 +23,49 @@ export async function GET(request: NextRequest) {
 
   const { data: loja } = await supabase
     .from('lojas')
-    .select('id, nome')
+    .select('id, fundador, mp_assinatura_id')
     .eq('user_id', user.id)
     .single()
 
   if (!loja) return NextResponse.redirect(new URL('/onboarding', request.url))
+  if (loja.mp_assinatura_id) return NextResponse.redirect(new URL('/planos', request.url))
 
-  const preferencia = {
-    items: [
-      {
-        title: 'Commerly — Plano Mensal',
-        description: 'Acesso completo ao painel de gestão Commerly',
-        quantity: 1,
-        unit_price: 29.9,
-        currency_id: 'BRL',
-      },
-    ],
-    payer: { email: user.email },
-    external_reference: loja.id,
-    back_urls: {
-      success: `${origin}/planos?status=sucesso`,
-      failure: `${origin}/planos?status=erro`,
-      pending: `${origin}/planos?status=pendente`,
-    },
-    auto_return: 'approved',
-    notification_url: `${origin}/api/mercadopago/assinatura-webhook`,
-    statement_descriptor: 'COMMERLY',
-  }
+  const preco = loja.fundador ? 29.90 : 54.99
 
-  const res = await fetch('https://api.mercadopago.com/checkout/preferences', {
+  const res = await fetch('https://api.mercadopago.com/preapproval', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
     },
-    body: JSON.stringify(preferencia),
+    body: JSON.stringify({
+      reason: 'Commerly — Plano Mensal',
+      payer_email: user.email,
+      auto_recurring: {
+        frequency: 1,
+        frequency_type: 'months',
+        transaction_amount: preco,
+        currency_id: 'BRL',
+      },
+      back_url: `${origin}/planos?status=sucesso`,
+      external_reference: loja.id,
+      status: 'pending',
+      notification_url: `${origin}/api/mercadopago/assinatura-webhook`,
+    }),
   })
 
   if (!res.ok) {
-    console.error('[assinar] MP preference error:', await res.text())
+    console.error('[assinar] MP preapproval error:', await res.text())
     return NextResponse.redirect(new URL('/planos?status=erro', request.url))
   }
 
-  const { init_point } = await res.json()
-  return NextResponse.redirect(init_point)
+  const preapproval = await res.json()
+
+  const admin = createAdminClient()
+  await admin
+    .from('lojas')
+    .update({ mp_assinatura_id: preapproval.id })
+    .eq('id', loja.id)
+
+  return NextResponse.redirect(preapproval.init_point)
 }
