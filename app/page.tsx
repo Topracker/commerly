@@ -6,7 +6,7 @@ export default function Home() {
     <main className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-6">
       <div className="mb-10 text-center">
         <h1 className="text-5xl font-bold text-white mb-2">Commerly</h1>
-        <p className="text-gray-400 text-lg">Conectando comércios, clientes e fornecedores</p>
+        <p className="text-gray-400 text-lg">Gestão completa para o seu comércio</p>
       </div>
 
       <div className="flex flex-col gap-4 w-full max-w-sm">
