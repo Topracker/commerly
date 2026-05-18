@@ -21,11 +21,6 @@ export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request })
   const { pathname } = request.nextUrl
 
-  // Áreas de cliente e fornecedor temporariamente desativadas
-  if (pathname.startsWith('/cliente/') || pathname.startsWith('/fornecedor/')) {
-    return NextResponse.redirect(new URL('/', request.url))
-  }
-
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -49,7 +44,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Verifica plano para rotas principais do comerciante (exclui onboarding)
   const rotaComerciantePrincipal = ROTAS_COMERCIANTE.some(
     r => pathname === r || pathname.startsWith(r + '/')
   )
@@ -78,7 +72,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Comerciante
     '/dashboard/:path*',
     '/vendas/:path*',
     '/produtos/:path*',
@@ -93,8 +86,5 @@ export const config = {
     '/assistente/:path*',
     '/integracoes/:path*',
     '/onboarding/:path*',
-    // Cliente e Fornecedor — bloqueados temporariamente, redireciona para /
-    '/cliente/:path*',
-    '/fornecedor/:path*',
   ],
 }

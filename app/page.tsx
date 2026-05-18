@@ -22,26 +22,34 @@ export default function Home() {
           </div>
         </Link>
 
-        <div className="w-full bg-gray-800 text-gray-500 font-semibold py-4 px-6 rounded-2xl flex items-center gap-4 cursor-not-allowed select-none">
-          <div className="w-10 h-10 bg-gray-700 rounded-xl flex items-center justify-center shrink-0">
-            <User size={20} />
+        <div className="relative opacity-50 cursor-not-allowed select-none">
+          <div className="w-full bg-green-600 text-white font-semibold py-4 px-6 rounded-2xl flex items-center gap-4 pointer-events-none">
+            <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center shrink-0">
+              <User size={20} />
+            </div>
+            <div>
+              <p className="text-lg font-bold">Sou Cliente</p>
+              <p className="text-green-200 text-sm">Descobrir comércios locais</p>
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="text-lg font-bold text-gray-400">Sou Cliente</p>
-            <p className="text-gray-600 text-sm">Descobrir comércios locais</p>
-          </div>
-          <span className="text-xs font-bold bg-gray-700 text-gray-400 px-2 py-1 rounded-lg shrink-0">Em breve</span>
+          <span className="absolute top-2 right-3 text-xs font-bold bg-black/40 text-white px-2 py-0.5 rounded-full">
+            Em breve
+          </span>
         </div>
 
-        <div className="w-full bg-gray-800 text-gray-500 font-semibold py-4 px-6 rounded-2xl flex items-center gap-4 cursor-not-allowed select-none">
-          <div className="w-10 h-10 bg-gray-700 rounded-xl flex items-center justify-center shrink-0">
-            <Truck size={20} />
+        <div className="relative opacity-50 cursor-not-allowed select-none">
+          <div className="w-full bg-purple-600 text-white font-semibold py-4 px-6 rounded-2xl flex items-center gap-4 pointer-events-none">
+            <div className="w-10 h-10 bg-purple-500 rounded-xl flex items-center justify-center shrink-0">
+              <Truck size={20} />
+            </div>
+            <div>
+              <p className="text-lg font-bold">Sou Fornecedor</p>
+              <p className="text-purple-200 text-sm">Oferecer produtos e serviços</p>
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="text-lg font-bold text-gray-400">Sou Fornecedor</p>
-            <p className="text-gray-600 text-sm">Oferecer produtos e serviços</p>
-          </div>
-          <span className="text-xs font-bold bg-gray-700 text-gray-400 px-2 py-1 rounded-lg shrink-0">Em breve</span>
+          <span className="absolute top-2 right-3 text-xs font-bold bg-black/40 text-white px-2 py-0.5 rounded-full">
+            Em breve
+          </span>
         </div>
       </div>
     </main>
