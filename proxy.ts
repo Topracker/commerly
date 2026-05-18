@@ -19,6 +19,12 @@ const ROTAS_COMERCIANTE = [
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
+  const { pathname } = request.nextUrl
+
+  // Áreas de cliente e fornecedor temporariamente desativadas
+  if (pathname.startsWith('/cliente/') || pathname.startsWith('/fornecedor/')) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,7 +44,6 @@ export async function proxy(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  const { pathname } = request.nextUrl
 
   if (!user) {
     if (pathname.startsWith('/cliente/')) return NextResponse.redirect(new URL('/cliente/login', request.url))
@@ -90,18 +95,8 @@ export const config = {
     '/assistente/:path*',
     '/integracoes/:path*',
     '/onboarding/:path*',
-    // Cliente
-    '/cliente/buscar/:path*',
-    '/cliente/dashboard/:path*',
-    '/cliente/loja/:path*',
-    '/cliente/mensagens/:path*',
-    '/cliente/onboarding/:path*',
-    // Fornecedor
-    '/fornecedor/dashboard/:path*',
-    '/fornecedor/produtos/:path*',
-    '/fornecedor/mensagens/:path*',
-    '/fornecedor/configuracoes/:path*',
-    '/fornecedor/avaliacoes/:path*',
-    '/fornecedor/onboarding/:path*',
+    // Cliente e Fornecedor — bloqueados temporariamente, redireciona para /
+    '/cliente/:path*',
+    '/fornecedor/:path*',
   ],
 }
