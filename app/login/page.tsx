@@ -256,12 +256,12 @@ export default function Login() {
 
         {tela === 'escolha' && (
           <div className="flex flex-col gap-3">
-            <button onClick={() => { setTela('cadastro'); setErro('') }}
+            <button onClick={() => { setTela('cadastro'); setErro(''); setEmail('') }}
               className="bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl transition text-left px-5">
               <p className="font-bold">Criar conta</p>
               <p className="text-blue-200 text-sm">Cadastre sua loja no Commerly</p>
             </button>
-            <button onClick={() => { setTela('login-email'); setErro('') }}
+            <button onClick={() => { setTela('login-email'); setErro(''); setEmail('') }}
               className="bg-gray-800 hover:bg-gray-700 text-white py-4 rounded-xl transition text-left px-5">
               <p className="font-bold">Fazer login</p>
               <p className="text-gray-400 text-sm">Acessar minha conta existente</p>
@@ -335,7 +335,7 @@ export default function Login() {
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition mt-2">
               {loading ? 'Enviando código...' : 'Continuar'}
             </button>
-            <button onClick={() => { setTela('escolha'); setErro('') }} className="text-gray-500 text-sm hover:text-gray-400 transition">
+            <button onClick={() => { setTela('escolha'); setErro(''); setEmail('') }} className="text-gray-500 text-sm hover:text-gray-400 transition">
               ← Voltar
             </button>
           </div>
@@ -364,12 +364,12 @@ export default function Login() {
         {tela === 'login-email' && (
           <div className="flex flex-col gap-4">
             <input type="email" placeholder="Seu email" value={email} onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && enviarCodigoLogin()} className={inp} />
+              onKeyDown={e => e.key === 'Enter' && enviarCodigoLogin()} autoComplete="off" className={inp} />
             <button onClick={enviarCodigoLogin} disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
               {loading ? 'Enviando...' : 'Enviar código'}
             </button>
-            <button onClick={() => { setTela('escolha'); setErro('') }} className="text-gray-500 text-sm hover:text-gray-400 transition">
+            <button onClick={() => { setTela('escolha'); setErro(''); setEmail('') }} className="text-gray-500 text-sm hover:text-gray-400 transition">
               ← Voltar
             </button>
           </div>
