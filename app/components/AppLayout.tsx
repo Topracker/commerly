@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
 import {
   Package, ShoppingCart, TrendingDown, Clock, Users,
-  MessageSquare, Settings, LogOut, Menu, X, Wallet, Home, Truck, MessageCircle, Sparkles, Plug, Crown
+  MessageSquare, Settings, LogOut, Menu, X, Wallet, Home, Sparkles, Plug, Crown
 } from 'lucide-react'
 
 const MENU = [
@@ -16,8 +16,6 @@ const MENU = [
   { label: 'Gastos', sub: 'Controlar despesas', path: '/gastos', icon: TrendingDown },
   { label: 'Histórico', sub: 'Ver todas as vendas', path: '/historico', icon: Clock },
   { label: 'Funcionários', sub: 'Gerenciar equipe', path: '/funcionarios', icon: Users },
-  { label: 'Fornecedores', sub: 'Buscar fornecedores', path: '/fornecedores', icon: Truck },
-  { label: 'Mensagens', sub: 'Chat com fornecedores', path: '/mensagens', icon: MessageCircle },
   { label: 'Feedback', sub: 'Enviar sugestão', path: '/feedback', icon: MessageSquare },
   { label: 'Integrações', sub: 'MP e PagBank', path: '/integracoes', icon: Plug },
   { label: 'Configurações', sub: 'Editar dados da loja', path: '/configuracoes', icon: Settings },
