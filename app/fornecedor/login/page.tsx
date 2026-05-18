@@ -28,8 +28,22 @@ export default function FornecedorLogin() {
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) return
-      const { data } = await supabase.from('fornecedores').select('id').eq('user_id', session.user.id).maybeSingle()
-      router.push(data ? '/fornecedor/dashboard' : '/fornecedor/onboarding')
+      const userId = session.user.id
+
+      const { data: fornecedorData } = await supabase.from('fornecedores').select('id').eq('user_id', userId).maybeSingle()
+      if (fornecedorData) { router.push('/fornecedor/dashboard'); return }
+
+      const [{ data: lojaData }, { data: clienteData }] = await Promise.all([
+        supabase.from('lojas').select('id').eq('user_id', userId).maybeSingle(),
+        supabase.from('clientes').select('id').eq('user_id', userId).maybeSingle(),
+      ])
+      if (lojaData || clienteData) {
+        await supabase.auth.signOut()
+        setErro('Esta conta está cadastrada como ' + (lojaData ? 'comerciante' : 'cliente') + '. Use a área correta para fazer login.')
+        return
+      }
+
+      router.push('/fornecedor/onboarding')
     })
   }, [])
 

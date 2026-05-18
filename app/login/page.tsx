@@ -119,8 +119,24 @@ export default function Login() {
   const supabase = createClient()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.push('/dashboard')
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return
+      const userId = session.user.id
+
+      const { data: lojaData } = await supabase.from('lojas').select('id').eq('user_id', userId).maybeSingle()
+      if (lojaData) { router.push('/dashboard'); return }
+
+      const [{ data: clienteData }, { data: fornecedorData }] = await Promise.all([
+        supabase.from('clientes').select('id').eq('user_id', userId).maybeSingle(),
+        supabase.from('fornecedores').select('id').eq('user_id', userId).maybeSingle(),
+      ])
+      if (clienteData || fornecedorData) {
+        await supabase.auth.signOut()
+        setErro('Esta conta está cadastrada como ' + (clienteData ? 'cliente' : 'fornecedor') + '. Use a área correta para fazer login.')
+        return
+      }
+
+      router.push('/onboarding')
     })
   }, [])
 
