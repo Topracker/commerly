@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createHmac } from 'crypto'
+import { rateLimit } from '../../../lib/rate-limit'
 
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies()
@@ -19,6 +20,10 @@ export async function GET(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.redirect(new URL('/login', request.url))
+
+  if (!rateLimit(`mp-connect:${user.id}`, 5, 60_000)) {
+    return NextResponse.redirect(new URL('/configuracoes?mp=erro', request.url))
+  }
 
   const { data: loja } = await supabase
     .from('lojas')

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { cookies } from 'next/headers'
+import { rateLimit } from '../../../lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
@@ -19,6 +20,10 @@ export async function POST(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+
+  if (!rateLimit(`mp-cancelar:${user.id}`, 3, 60_000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
 
   const { data: loja } = await supabase
     .from('lojas')

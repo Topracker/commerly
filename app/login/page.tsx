@@ -236,7 +236,7 @@ export default function Login() {
       setLoading(false)
       return
     }
-    router.push('/dashboard')
+    router.push('/planos')
   }
 
   async function enviarCodigoLogin() {
