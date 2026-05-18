@@ -1,12 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createHmac } from 'crypto'
 import { createAdminClient } from '../../../lib/supabase-admin'
 
 const PRECO_NORMAL = 54.99
 const CICLOS_PROMO = 2
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null)
-  if (!body) return NextResponse.json({ ok: false }, { status: 400 })
+  const rawBody = await request.text()
+
+  const webhookSecret = process.env.MP_WEBHOOK_SECRET
+  if (!webhookSecret) {
+    console.error('[assinatura-webhook] MP_WEBHOOK_SECRET não configurada — requisição recusada')
+    return NextResponse.json({ ok: false }, { status: 500 })
+  }
+
+  const signature = request.headers.get('x-signature') ?? ''
+  const requestId = request.headers.get('x-request-id') ?? ''
+  if (!verificarAssinatura(rawBody, signature, requestId, webhookSecret)) {
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+  }
+
+  let body: any
+  try {
+    body = JSON.parse(rawBody)
+  } catch {
+    return NextResponse.json({ ok: false }, { status: 400 })
+  }
 
   const { type, data } = body
   const supabase = createAdminClient()
@@ -75,8 +94,30 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         auto_recurring: { transaction_amount: PRECO_NORMAL },
       }),
-    }).catch(e => console.error('[webhook] upgrade preço error:', e))
+    }).catch(e => console.error('[assinatura-webhook] upgrade preço error:', e))
   }
 
   return NextResponse.json({ ok: true })
+}
+
+function verificarAssinatura(
+  body: string,
+  signature: string,
+  requestId: string,
+  secret: string
+): boolean {
+  try {
+    const parts = Object.fromEntries(
+      signature.split(',').map(p => p.split('=') as [string, string])
+    )
+    const ts = parts['ts']
+    const v1 = parts['v1']
+    if (!ts || !v1) return false
+    const dataId = JSON.parse(body)?.data?.id ?? ''
+    const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`
+    const computed = createHmac('sha256', secret).update(manifest).digest('hex')
+    return computed === v1
+  } catch {
+    return false
+  }
 }
