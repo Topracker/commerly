@@ -1,0 +1,10 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e4]
+  - main [ref=e5]:
+    - generic [ref=e6]:
+      - paragraph [ref=e7]: Área do Cliente
+      - heading "Commerly" [level=1] [ref=e8]
+      - generic [ref=e17]:
+        - textbox "Seu email" [ref=e18]
+        - button "Enviar código" [ref=e19]
+        - button "← Voltar" [ref=e20]

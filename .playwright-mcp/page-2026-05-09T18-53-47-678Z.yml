@@ -1,0 +1,16 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - paragraph [ref=e4]: Área do Cliente
+      - heading "Commerly" [level=1] [ref=e5]
+      - generic [ref=e31]:
+        - button "Criar conta Descubra comércios locais" [ref=e32]:
+          - paragraph [ref=e33]: Criar conta
+          - paragraph [ref=e34]: Descubra comércios locais
+        - button "Fazer login Acessar minha conta existente" [ref=e35]:
+          - paragraph [ref=e36]: Fazer login
+          - paragraph [ref=e37]: Acessar minha conta existente
+        - button "← Voltar" [ref=e38]
+  - button "Open Next.js Dev Tools" [ref=e25] [cursor=pointer]:
+    - img [ref=e26]
+  - alert [ref=e29]

@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
   const { error } = await supabase.from('vendas').insert({
     loja_id: conexao.loja_id,
     produto_id: null,
-    descricao: pag.description || 'Pagamento Mercado Pago',
+    descricao: formaPagamento,
     quantidade: 1,
     valor_total: pag.transaction_amount,
     lucro: 0,

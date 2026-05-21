@@ -1,0 +1,12 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - paragraph [ref=e4]: Área do Cliente
+    - heading "Commerly" [level=1] [ref=e5]
+    - generic [ref=e6]:
+      - button "Criar conta Descubra comércios locais" [ref=e7]:
+        - paragraph [ref=e8]: Criar conta
+        - paragraph [ref=e9]: Descubra comércios locais
+      - button "Fazer login Acessar minha conta existente" [ref=e10]:
+        - paragraph [ref=e11]: Fazer login
+        - paragraph [ref=e12]: Acessar minha conta existente
+      - button "← Voltar" [ref=e13]

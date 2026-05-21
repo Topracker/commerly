@@ -113,7 +113,9 @@ export default function Dashboard() {
 
     const topMap: any = {}
     vendas.forEach((v: any) => {
-      const nome = v.produtos?.nome || 'Desconhecido'
+      const nome = v.produtos?.nome
+      // Ignora vendas sem produto vinculado (ex: pagamentos via integração) no ranking
+      if (!nome) return
       if (!topMap[nome]) topMap[nome] = { nome, quantidade: 0, lucro: 0 }
       topMap[nome].quantidade += v.quantidade
       topMap[nome].lucro += v.lucro

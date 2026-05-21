@@ -1,0 +1,15 @@
+- generic [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - paragraph [ref=e4]: Área do Cliente
+      - heading "Commerly" [level=1] [ref=e5]
+      - paragraph [ref=e45]: CPF inválido. Verifique o número digitado.
+      - generic [ref=e39]:
+        - textbox "Seu nome *" [ref=e40]: Teste Silva
+        - textbox "Seu email *" [ref=e41]: teste@email.com
+        - textbox "CPF (opcional)" [ref=e42]: 111.111.111-11
+        - button "Continuar" [active] [ref=e43]
+        - button "← Voltar" [ref=e44]
+  - button "Open Next.js Dev Tools" [ref=e25] [cursor=pointer]:
+    - img [ref=e26]
+  - alert [ref=e29]
