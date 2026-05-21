@@ -20,13 +20,19 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
   }
 
-  const eventType: string = body.event_type ?? ''
-  if (!eventType.toUpperCase().includes('PAID') && !eventType.toUpperCase().includes('COMPLETED')) {
+  // O PagBank envia o objeto completo da order (mesmo formato do response síncrono
+  // da API), com um array `charges` — NÃO existe campo `event_type` nem `data.id`.
+  // Por segurança, também tratamos o caso de um charge isolado chegar no corpo.
+  const charges: any[] = Array.isArray(body.charges)
+    ? body.charges
+    : body.id && body.status
+      ? [body]
+      : []
+
+  const pagas = charges.filter((c) => String(c?.status).toUpperCase() === 'PAID')
+  if (pagas.length === 0) {
     return NextResponse.json({ ok: true })
   }
-
-  const chargeId = String(body.data?.id ?? '')
-  if (!chargeId) return NextResponse.json({ ok: true })
 
   const supabase = createAdminClient()
 
@@ -38,49 +44,58 @@ export async function POST(
 
   if (!conexao) return NextResponse.json({ ok: true })
 
-  // Verify charge against PagBank API — prevents fake webhook injection
-  const pbVerify = await fetch(
-    `${getPagBankBaseUrl(conexao.ambiente ?? 'producao')}/charges/${chargeId}`,
-    { headers: { Authorization: `Bearer ${conexao.token}` } }
-  )
+  const baseUrl = getPagBankBaseUrl(conexao.ambiente ?? 'producao')
+  let registradas = 0
 
-  if (!pbVerify.ok) {
-    console.error('[PagBank webhook] charge verification failed:', chargeId)
-    return NextResponse.json({ ok: true })
+  for (const charge of pagas) {
+    const chargeId = String(charge.id ?? '')
+    if (!chargeId) continue
+
+    // Verifica a cobrança direto na API do PagBank — impede injeção de webhook falso
+    const pbVerify = await fetch(
+      `${baseUrl}/charges/${chargeId}`,
+      { headers: { Authorization: `Bearer ${conexao.token}` } }
+    )
+
+    if (!pbVerify.ok) {
+      console.error('[PagBank webhook] charge verification failed:', chargeId)
+      continue
+    }
+
+    const verifiedCharge = await pbVerify.json()
+    if (verifiedCharge.status !== 'PAID') continue
+
+    const { data: existente } = await supabase
+      .from('vendas')
+      .select('id')
+      .eq('pb_charge_id', chargeId)
+      .maybeSingle()
+
+    if (existente) continue
+
+    const valor = (verifiedCharge.amount?.value ?? 0) / 100
+    const formaPagamento = resolverForma(verifiedCharge.payment_method?.type ?? '')
+
+    const { error } = await supabase.from('vendas').insert({
+      loja_id,
+      produto_id: null,
+      descricao: formaPagamento,
+      quantidade: 1,
+      valor_total: valor,
+      lucro: 0,
+      forma_pagamento: formaPagamento,
+      origem: 'pagbank',
+      pb_charge_id: chargeId,
+    })
+
+    if (error) {
+      console.error('[PagBank webhook] insert error:', error)
+      continue
+    }
+    registradas++
   }
 
-  const verifiedCharge = await pbVerify.json()
-  if (verifiedCharge.status !== 'PAID') return NextResponse.json({ ok: true })
-
-  const { data: existente } = await supabase
-    .from('vendas')
-    .select('id')
-    .eq('pb_charge_id', chargeId)
-    .maybeSingle()
-
-  if (existente) return NextResponse.json({ ok: true })
-
-  const valor = (verifiedCharge.amount?.value ?? 0) / 100
-  const formaPagamento = resolverForma(verifiedCharge.payment_method?.type ?? '')
-
-  const { error } = await supabase.from('vendas').insert({
-    loja_id,
-    produto_id: null,
-    descricao: verifiedCharge.description || 'Pagamento PagBank',
-    quantidade: 1,
-    valor_total: valor,
-    lucro: 0,
-    forma_pagamento: formaPagamento,
-    origem: 'pagbank',
-    pb_charge_id: chargeId,
-  })
-
-  if (error) {
-    console.error('[PagBank webhook] insert error:', error)
-    return NextResponse.json({ error: 'Failed to save sale' }, { status: 500 })
-  }
-
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, registradas })
 }
 
 function resolverForma(type: string): string {
