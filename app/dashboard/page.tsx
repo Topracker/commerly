@@ -209,6 +209,7 @@ export default function Dashboard() {
               <span>R$ {faturamentoMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               <span>Meta: R$ {metaMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
             </div>
+            <p className="text-gray-600 text-xs mt-2">Apenas pagamentos via maquininha/integração contam</p>
           </div>
 
           {/* Gráfico 7 dias */}
