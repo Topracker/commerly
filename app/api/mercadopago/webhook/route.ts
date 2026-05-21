@@ -5,14 +5,29 @@ import { createAdminClient } from '../../../lib/supabase-admin'
 export async function POST(request: NextRequest) {
   const rawBody = await request.text()
 
+  // Log imediato para confirmar que o MP está chegando — aparece no Vercel antes de qualquer validação
+  console.log('[MP webhook] chamado', {
+    xSignature: request.headers.get('x-signature')?.slice(0, 40) ?? '(ausente)',
+    xRequestId: request.headers.get('x-request-id') ?? '(ausente)',
+    contentType: request.headers.get('content-type') ?? '(ausente)',
+    bodyPreview: rawBody.slice(0, 120),
+  })
+
   const webhookSecret = process.env.MP_WEBHOOK_SECRET
   if (!webhookSecret) {
-    console.error('[MP webhook] MP_WEBHOOK_SECRET não configurada — requisição recusada')
+    console.error('[MP webhook] MP_WEBHOOK_SECRET não configurada')
     return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 })
   }
+
   const signature = request.headers.get('x-signature') ?? ''
   const requestId = request.headers.get('x-request-id') ?? ''
+
   if (!verificarAssinatura(rawBody, signature, requestId, webhookSecret)) {
+    console.error('[MP webhook] assinatura inválida', {
+      signature: signature.slice(0, 60),
+      requestId,
+      bodyPreview: rawBody.slice(0, 80),
+    })
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
@@ -23,35 +38,42 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
   }
 
-  // Only handle payment notifications
   if (notification.type !== 'payment') {
+    console.log('[MP webhook] tipo ignorado:', notification.type)
     return NextResponse.json({ ok: true })
   }
 
   const mpUserId = String(notification.user_id ?? '')
   const paymentId = String(notification.data?.id ?? '')
+
   if (!mpUserId || !paymentId) {
+    console.error('[MP webhook] campos ausentes', { mpUserId, paymentId, notification })
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
   const supabase = createAdminClient()
 
-  const { data: conexao } = await supabase
+  const { data: conexao, error: conexaoErr } = await supabase
     .from('mercadopago_conexoes')
     .select('loja_id, access_token')
     .eq('mp_user_id', mpUserId)
     .single()
 
-  if (!conexao) return NextResponse.json({ ok: true })
+  if (conexaoErr || !conexao) {
+    console.error('[MP webhook] merchant não encontrado para mp_user_id:', mpUserId, conexaoErr)
+    return NextResponse.json({ ok: true })
+  }
 
-  // Avoid duplicates
   const { data: existente } = await supabase
     .from('vendas')
     .select('id')
     .eq('mp_payment_id', paymentId)
     .maybeSingle()
 
-  if (existente) return NextResponse.json({ ok: true })
+  if (existente) {
+    console.log('[MP webhook] pagamento já registrado:', paymentId)
+    return NextResponse.json({ ok: true })
+  }
 
   const pagRes = await fetch(
     `https://api.mercadopago.com/v1/payments/${paymentId}`,
@@ -59,13 +81,16 @@ export async function POST(request: NextRequest) {
   )
 
   if (!pagRes.ok) {
-    console.error('[MP webhook] payment fetch error:', await pagRes.text())
+    console.error('[MP webhook] erro ao buscar pagamento:', paymentId, await pagRes.text())
     return NextResponse.json({ error: 'Failed to fetch payment' }, { status: 500 })
   }
 
   const pag = await pagRes.json()
 
-  if (pag.status !== 'approved') return NextResponse.json({ ok: true })
+  if (pag.status !== 'approved') {
+    console.log('[MP webhook] pagamento não aprovado:', paymentId, 'status:', pag.status)
+    return NextResponse.json({ ok: true })
+  }
 
   const formaPagamento = resolverFormaPagamento(pag.payment_type_id)
 
@@ -82,10 +107,11 @@ export async function POST(request: NextRequest) {
   })
 
   if (error) {
-    console.error('[MP webhook] insert error:', error)
+    console.error('[MP webhook] erro ao salvar venda:', error)
     return NextResponse.json({ error: 'Failed to save sale' }, { status: 500 })
   }
 
+  console.log('[MP webhook] venda salva:', { paymentId, lojaId: conexao.loja_id, valor: pag.transaction_amount })
   return NextResponse.json({ ok: true })
 }
 
@@ -96,8 +122,12 @@ function verificarAssinatura(
   secret: string
 ): boolean {
   try {
+    // .trim() evita falha caso o MP envie espaços após vírgulas (ex: "ts=123, v1=abc")
     const parts = Object.fromEntries(
-      signature.split(',').map(p => p.split('=') as [string, string])
+      signature.split(',').map(p => {
+        const idx = p.indexOf('=')
+        return [p.slice(0, idx).trim(), p.slice(idx + 1).trim()] as [string, string]
+      })
     )
     const ts = parts['ts']
     const v1 = parts['v1']
