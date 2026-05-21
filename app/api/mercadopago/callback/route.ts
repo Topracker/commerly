@@ -58,6 +58,30 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(erroUrl)
   }
 
+  // Registra o webhook na conta do merchant para receber notificações de pagamento
+  try {
+    const webhookUrl = `${origin}/api/mercadopago/webhook`
+    const wRes = await fetch('https://api.mercadopago.com/v1/webhook', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token.access_token}`,
+      },
+      body: JSON.stringify({ url: webhookUrl, events: ['payment'] }),
+    })
+    if (wRes.ok) {
+      console.log('[MP callback] webhook registrado com sucesso para loja', lojaId)
+    } else {
+      console.warn('[MP callback] webhook registration retornou', wRes.status, await wRes.text())
+    }
+  } catch (err) {
+    console.warn('[MP callback] erro ao registrar webhook (não bloqueia conexão):', err)
+  }
+
+  if (!process.env.MP_WEBHOOK_SECRET) {
+    console.error('[MP callback] ATENÇÃO: MP_WEBHOOK_SECRET não configurada — webhooks serão rejeitados')
+  }
+
   return NextResponse.redirect(sucessoUrl)
 }
 

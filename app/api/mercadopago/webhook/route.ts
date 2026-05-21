@@ -115,7 +115,8 @@ function resolverFormaPagamento(type: string): string {
   switch (type) {
     case 'credit_card': return 'Cartão de crédito'
     case 'debit_card': return 'Cartão de débito'
-    case 'account_money': return 'Pix'
+    case 'bank_transfer': return 'Pix'
+    case 'account_money': return 'Carteira MP'
     case 'ticket': return 'Boleto'
     default: return 'Maquininha'
   }
