@@ -40,14 +40,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Email e token são obrigatórios' }, { status: 400 })
   }
 
-  const since = encodeURIComponent(new Date(Date.now() - 3600000).toISOString())
-  const pbRes = await fetch(
-    `${getPagBankBaseUrl(ambiente)}/orders?created_at_gte=${since}&page_size=1`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  )
-  if (pbRes.status === 401) {
+  // Valida o token com POST /public-keys: 201 = token válido, qualquer outra resposta = inválido.
+  // A API do PagBank não tem endpoint de listagem de pedidos por data, então não dá pra validar
+  // por /orders (ele retorna 400 mesmo com token válido). /public-keys é o jeito confiável.
+  const pbRes = await fetch(`${getPagBankBaseUrl(ambiente)}/public-keys`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'card' }),
+  })
+  if (!pbRes.ok) {
     const pbBody = await pbRes.text().catch(() => '')
-    console.error('[PagBank connect] token inválido (401)', { body: pbBody, ambiente })
+    console.error('[PagBank connect] validação do token falhou', { status: pbRes.status, body: pbBody.slice(0, 300), ambiente })
     return NextResponse.json({ error: 'Token inválido ou sem permissão na API do PagBank' }, { status: 400 })
   }
 

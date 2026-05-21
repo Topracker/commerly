@@ -207,10 +207,15 @@ export default function Integracoes() {
                 <p className="text-green-500 text-xs">{pbEmail}</p>
               </div>
             </div>
-            <p className="text-gray-400 text-xs">
-              Configure seu webhook no painel do PagBank com a URL:<br />
-              <span className="text-gray-300 font-mono break-all">{typeof window !== 'undefined' ? window.location.origin : ''}/api/pagbank/webhook/{loja.id}</span>
-            </p>
+            <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-3">
+              <p className="text-gray-300 text-sm font-medium mb-1">✅ Pagamentos registrados automaticamente</p>
+              <p className="text-gray-400 text-xs">
+                Suas vendas no PagBank entram sozinhas no painel assim que o pagamento é aprovado, via webhook — não é preciso sincronizar manualmente. Para ativar, configure esta URL nas notificações (webhook) da sua conta PagBank:
+              </p>
+              <p className="text-gray-300 font-mono text-xs break-all mt-2 bg-gray-900 rounded-lg px-3 py-2">
+                {typeof window !== 'undefined' ? window.location.origin : ''}/api/pagbank/webhook/{loja.id}
+              </p>
+            </div>
             <button onClick={desconectarPB} disabled={pbDesconectando} className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 font-semibold py-3 rounded-xl transition text-sm">
               {pbDesconectando ? 'Desconectando...' : 'Desconectar PagBank'}
             </button>
