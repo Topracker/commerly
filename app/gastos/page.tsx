@@ -6,7 +6,7 @@ import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { ConfirmModal } from '../components/ConfirmModal'
 
-const tipos = ['Aluguel', 'Conta de luz', 'Conta de água', 'Internet', 'Compras', 'Salário', 'Outro']
+const CATEGORIAS = ['Aluguel', 'Água', 'Energia', 'Internet', 'Funcionários', 'Fornecedores', 'Marketing', 'Manutenção', 'Equipamentos', 'Outros']
 
 export default function Gastos() {
   const { loja, loading, supabase, sair } = useAuth()
@@ -135,14 +135,31 @@ export default function Gastos() {
                 onChange={e => setDescricao(e.target.value)}
                 className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <select
-                value={tipo}
-                onChange={e => setTipo(e.target.value)}
-                className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Tipo de gasto *</option>
-                {tipos.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <div>
+                <p className="text-gray-400 text-sm mb-2">Categoria *</p>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {CATEGORIAS.map(cat => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setTipo(cat)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                        tipo === cat
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  placeholder="Ou digite uma categoria"
+                  value={tipo}
+                  onChange={e => setTipo(e.target.value)}
+                  className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
               <input
                 placeholder="Valor *"
                 type="number"
