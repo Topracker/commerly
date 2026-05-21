@@ -1,8 +1,0 @@
-[    1064ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ https://commerly.vercel.app/login:0
-[   17297ms] [ERROR] Failed to load resource: the server responded with a status of 422 () @ https://lghtcidddnngrxkgeolk.supabase.co/auth/v1/otp:0
-[   17301ms] [ERROR] [OTP] signInWithOtp error: AuthApiError: Signups not allowed for otp
-    at t5 (https://commerly.vercel.app/_next/static/chunks/0.jvd3~x7c1ra.js:24:39549)
-    at async t3 (https://commerly.vercel.app/_next/static/chunks/0.jvd3~x7c1ra.js:24:40493)
-    at async t6 (https://commerly.vercel.app/_next/static/chunks/0.jvd3~x7c1ra.js:24:39933)
-    at async rU.signInWithOtp (https://commerly.vercel.app/_next/static/chunks/0.jvd3~x7c1ra.js:37:7192)
-    at async Z (https://commerly.vercel.app/_next/static/chunks/05ohnmie7h_-6.js:1:4490) @ https://commerly.vercel.app/_next/static/chunks/05ohnmie7h_-6.js:0

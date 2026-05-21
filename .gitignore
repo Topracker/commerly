@@ -46,3 +46,10 @@ next-env.d.ts
 # local
 .claude/
 *.zip
+
+# mcp / tooling artifacts
+.mcp.json
+.playwright-mcp/
+*.log
+pagbank-log.txt
+claude
