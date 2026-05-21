@@ -81,7 +81,13 @@ export async function POST(request: NextRequest) {
   )
 
   if (!pagRes.ok) {
-    console.error('[MP webhook] erro ao buscar pagamento:', paymentId, await pagRes.text())
+    const errText = await pagRes.text()
+    if (pagRes.status === 404) {
+      // Pagamento não encontrado — simulação do painel ou ID inválido, ignora silenciosamente
+      console.warn('[MP webhook] pagamento nao encontrado (404), ignorando:', paymentId)
+      return NextResponse.json({ ok: true })
+    }
+    console.error('[MP webhook] erro ao buscar pagamento:', paymentId, errText)
     return NextResponse.json({ error: 'Failed to fetch payment' }, { status: 500 })
   }
 
