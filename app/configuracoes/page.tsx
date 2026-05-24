@@ -94,7 +94,7 @@ function parseHorario(horario: string): [string, string] {
 }
 
 export default function Configuracoes() {
-  const { loja, loading, supabase, sair } = useAuth()
+  const { user, loja, loading, supabase, sair } = useAuth()
   const { toast, mostrarToast } = useToast()
 
   const [nome, setNome] = useState('')
@@ -184,6 +184,19 @@ export default function Configuracoes() {
       <Toast toast={toast} />
 
       <div className="bg-gray-900 rounded-2xl p-6 flex flex-col gap-4 mb-6">
+        {/* E-mail da conta — somente leitura */}
+        <div>
+          <label className="block text-gray-400 text-xs mb-1.5">E-mail da conta</label>
+          <input
+            type="email"
+            value={user?.email || ''}
+            readOnly
+            disabled
+            className={`w-full ${inputClass} opacity-60 cursor-not-allowed`}
+          />
+          <p className="text-gray-600 text-xs mt-1">Vinculado ao seu login. Não pode ser alterado por aqui.</p>
+        </div>
+
         <input placeholder="Nome da loja *" value={nome} onChange={e => setNome(e.target.value)} className={inputClass} />
 
         <select value={tipo} onChange={e => setTipo(e.target.value)} className={selectClass}>
