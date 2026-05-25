@@ -6,7 +6,6 @@ import { CheckCircle, Clock, Zap, AlertTriangle, X } from 'lucide-react'
 
 const PRECO_PROMO = 'R$ 29,90'
 const PRECO_NORMAL = 'R$ 54,99'
-const CICLOS_PROMO = 2
 
 function PlanosConteudo() {
   const router = useRouter()
@@ -29,7 +28,7 @@ function PlanosConteudo() {
         if (!user) return null
         const { data } = await supabase
           .from('lojas')
-          .select('id, nome, plano, trial_expira_em, fundador, mp_assinatura_id, assinatura_ciclos')
+          .select('id, nome, plano, trial_expira_em, fundador, stripe_subscription_id')
           .eq('user_id', user.id)
           .maybeSingle()
         return data
@@ -52,10 +51,10 @@ function PlanosConteudo() {
     setCancelando(true)
     setErro('')
     try {
-      const res = await fetch('/api/mercadopago/cancelar-assinatura', { method: 'POST' })
+      const res = await fetch('/api/stripe/cancelar-assinatura', { method: 'POST' })
       const json = await res.json()
       if (!res.ok) { setErro(json.error || 'Erro ao cancelar'); setCancelando(false); return }
-      setLoja((l: any) => ({ ...l, plano: 'inativo', mp_assinatura_id: null, assinatura_ciclos: 0 }))
+      setLoja((l: any) => ({ ...l, plano: 'inativo', stripe_subscription_id: null }))
       setConfirmarCancelamento(false)
     } catch {
       setErro('Erro de conexão. Tente novamente.')
@@ -64,13 +63,10 @@ function PlanosConteudo() {
   }
 
   const dias = diasRestantes()
-  const temAssinatura = !!loja?.mp_assinatura_id
+  const temAssinatura = !!loja?.stripe_subscription_id
   const planoAtivo = loja?.plano === 'ativo'
   const trialValido = loja?.plano === 'trial' && dias !== null && dias > 0
   const ehFundador = !!loja?.fundador
-  const ciclos = loja?.assinatura_ciclos ?? 0
-  const aindaNaPromo = ehFundador && ciclos < CICLOS_PROMO
-  const precoAtual = ehFundador && !temAssinatura ? PRECO_PROMO : PRECO_NORMAL
   const temVagasPromo = vagasRestantes !== null && vagasRestantes > 0
 
   const FEATURES = [
@@ -115,8 +111,8 @@ function PlanosConteudo() {
           <div className={`rounded-2xl p-4 border ${planoAtivo ? 'bg-green-950 border-green-800' : trialValido ? 'bg-blue-950 border-blue-800' : 'bg-red-950 border-red-800'}`}>
             <p className={`text-sm font-semibold ${planoAtivo ? 'text-green-300' : trialValido ? 'text-blue-300' : 'text-red-300'}`}>
               {planoAtivo && temAssinatura
-                ? aindaNaPromo
-                  ? `✓ Plano ativo — preço promocional (${CICLOS_PROMO - ciclos} mês${CICLOS_PROMO - ciclos !== 1 ? 'es' : ''} restante${CICLOS_PROMO - ciclos !== 1 ? 's' : ''})`
+                ? ehFundador
+                  ? '✓ Plano ativo — preço de fundador'
                   : '✓ Plano ativo'
                 : planoAtivo
                 ? '✓ Plano ativo'
@@ -137,9 +133,9 @@ function PlanosConteudo() {
               <span className="ml-auto bg-yellow-500 text-black text-xs font-bold px-2 py-0.5 rounded-full">46% OFF</span>
             </div>
             <p className="text-yellow-200 text-sm">
-              <span className="font-bold">{vagasRestantes} vaga{vagasRestantes !== 1 ? 's' : ''}</span> restante{vagasRestantes !== 1 ? 's' : ''} com desconto —{' '}
+              <span className="font-bold">{vagasRestantes} vaga{vagasRestantes !== 1 ? 's' : ''}</span> restante{vagasRestantes !== 1 ? 's' : ''} com preço de fundador —{' '}
               <span className="line-through text-yellow-600">{PRECO_NORMAL}</span>{' '}
-              <span className="text-yellow-300 font-bold">{PRECO_PROMO}/mês</span> nos 2 primeiros meses.
+              <span className="text-yellow-300 font-bold">{PRECO_PROMO}/mês</span> para sempre.
             </p>
           </div>
         )}
@@ -164,7 +160,7 @@ function PlanosConteudo() {
                     <span className="bg-green-600 text-white text-xs font-bold px-1.5 py-0.5 rounded">-46%</span>
                   </div>
                   <p className="text-2xl font-bold text-white">{PRECO_PROMO}</p>
-                  <p className="text-gray-400 text-xs">por 2 meses, depois {PRECO_NORMAL}/mês</p>
+                  <p className="text-gray-400 text-xs">/mês — preço de fundador</p>
                 </>
               ) : (
                 <>
@@ -193,15 +189,15 @@ function PlanosConteudo() {
               </div>
             ) : (
               <button
-                onClick={() => { setAssinando(true); window.location.href = '/api/mercadopago/assinar' }}
+                onClick={() => { setAssinando(true); window.location.href = '/api/stripe/assinar' }}
                 disabled={assinando}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl transition text-sm"
               >
                 {assinando
                   ? 'Redirecionando...'
-                  : ehFundador && temVagasPromo
-                  ? `Assinar por ${PRECO_PROMO}/mês via Mercado Pago`
-                  : `Assinar por ${PRECO_NORMAL}/mês via Mercado Pago`}
+                  : ehFundador
+                  ? `Assinar por ${PRECO_PROMO}/mês`
+                  : `Assinar por ${PRECO_NORMAL}/mês`}
               </button>
             )
           )}
@@ -225,8 +221,8 @@ function PlanosConteudo() {
               <div>
                 <p className="text-red-300 font-semibold text-sm">Cancelar assinatura?</p>
                 <p className="text-red-400 text-xs mt-1">
-                  Seu acesso fica ativo até o fim do período pago e é encerrado após isso.
-                  {ehFundador && aindaNaPromo && ' Você perde o preço promocional.'}
+                  A cobrança recorrente é encerrada e seu acesso é desativado.
+                  {ehFundador && ' Você perde o preço de fundador ao reassinar.'}
                 </p>
               </div>
               <button onClick={() => setConfirmarCancelamento(false)} className="ml-auto text-gray-600 hover:text-white">
