@@ -4,21 +4,28 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
 // Extract host for CSP (e.g. "https://abc.supabase.co" → "abc.supabase.co")
 const supabaseHost = supabaseUrl.replace(/^https?:\/\//, "")
 
+// Mercado Pago checkout: JS SDK, API calls, secure-field/3DS iframes and the
+// hosted checkout (Checkout Pro). Covers MP's multiple domains and CDNs.
+const mercadoPagoHosts =
+  "https://*.mercadopago.com https://*.mercadopago.com.br https://*.mercadolibre.com https://*.mercadolivre.com.br https://*.mlstatic.com"
+
 const csp = [
   "default-src 'self'",
   // Next.js requires unsafe-inline/unsafe-eval for hydration scripts
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${mercadoPagoHosts}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  // Browser-side connections: Supabase (REST + Realtime WS) + ViaCEP
-  `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://*.supabase.co wss://*.supabase.co https://viacep.com.br`,
+  // Browser-side connections: Supabase (REST + Realtime WS) + ViaCEP + Mercado Pago
+  `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://*.supabase.co wss://*.supabase.co https://viacep.com.br ${mercadoPagoHosts}`,
   "media-src 'none'",
   "object-src 'none'",
-  "frame-src 'none'",
+  // Mercado Pago embeds secure-field / 3DS / checkout iframes
+  `frame-src ${mercadoPagoHosts}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  // Allow form posts that redirect to the Mercado Pago hosted checkout
+  `form-action 'self' ${mercadoPagoHosts}`,
 ].join("; ")
 
 const nextConfig: NextConfig = {
