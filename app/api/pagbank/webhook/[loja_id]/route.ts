@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '../../../../lib/supabase-admin'
+import { rateLimit } from '../../../../lib/rate-limit'
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// Limite de cobranças verificadas por requisição — evita amplificação de
+// chamadas à API do PagBank a partir de um webhook forjado com muitos charges.
+const MAX_CHARGES = 50
 
 function getPagBankBaseUrl(ambiente: string): string {
   return ambiente === 'sandbox'
@@ -12,6 +18,18 @@ export async function POST(
   { params }: { params: Promise<{ loja_id: string }> }
 ) {
   const { loja_id } = await params
+
+  // Rejeita loja_id malformado antes de qualquer trabalho
+  if (!UUID_RE.test(loja_id)) {
+    return NextResponse.json({ error: 'Invalid loja_id' }, { status: 400 })
+  }
+
+  // Endpoint público (PagBank não assina o webhook) — limita a taxa por loja
+  // para conter abuso/amplificação. A verificação de cada charge na API do
+  // PagBank continua sendo a defesa principal contra injeção de vendas falsas.
+  if (!rateLimit(`pb-webhook:${loja_id}`, 120, 60_000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
 
   let body: any
   try {
@@ -29,7 +47,9 @@ export async function POST(
       ? [body]
       : []
 
-  const pagas = charges.filter((c) => String(c?.status).toUpperCase() === 'PAID')
+  const pagas = charges
+    .filter((c) => String(c?.status).toUpperCase() === 'PAID')
+    .slice(0, MAX_CHARGES)
   if (pagas.length === 0) {
     return NextResponse.json({ ok: true })
   }

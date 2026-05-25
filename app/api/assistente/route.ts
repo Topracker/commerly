@@ -3,9 +3,15 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { rateLimit } from '../../lib/rate-limit'
 
+const MAX_PERGUNTA = 2000
+
 export async function POST(request: NextRequest) {
-  const { pergunta } = await request.json()
-  if (!pergunta?.trim()) return NextResponse.json({ erro: 'Pergunta vazia' }, { status: 400 })
+  const body = await request.json().catch(() => null)
+  const pergunta: string = typeof body?.pergunta === 'string' ? body.pergunta : ''
+  if (!pergunta.trim()) return NextResponse.json({ erro: 'Pergunta vazia' }, { status: 400 })
+  if (pergunta.length > MAX_PERGUNTA) {
+    return NextResponse.json({ erro: 'Pergunta muito longa.' }, { status: 400 })
+  }
 
   const cookieStore = await cookies()
   const supabase = createServerClient(
