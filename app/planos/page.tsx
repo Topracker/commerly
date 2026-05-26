@@ -8,6 +8,12 @@ const PRECO_PROMO = 'R$ 29,90'
 const PRECO_NORMAL = 'R$ 54,99'
 const CICLOS_PROMO = 2
 
+// Lançamento: pagamento de mensalidade temporariamente desativado.
+// Enquanto true, o plano é exibido como gratuito e o botão de assinar /
+// banner de vagas promocionais ficam ocultos. O trial de 30 dias segue normal.
+// Defina como false para reativar a cobrança via Mercado Pago.
+const LANCAMENTO_GRATIS = true
+
 function PlanosConteudo() {
   const router = useRouter()
   const params = useSearchParams()
@@ -129,7 +135,7 @@ function PlanosConteudo() {
         )}
 
         {/* Banner de vagas promocionais */}
-        {!loading && temVagasPromo && !temAssinatura && (
+        {!loading && !LANCAMENTO_GRATIS && temVagasPromo && !temAssinatura && (
           <div className="bg-gradient-to-r from-yellow-950 to-orange-950 border border-yellow-700 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-yellow-400 text-lg">🔥</span>
@@ -157,7 +163,12 @@ function PlanosConteudo() {
               <h2 className="text-white font-bold">Acesso completo</h2>
             </div>
             <div className="text-right">
-              {!loading && ehFundador && !temAssinatura ? (
+              {!loading && LANCAMENTO_GRATIS ? (
+                <>
+                  <p className="text-2xl font-bold text-green-400">Grátis</p>
+                  <p className="text-gray-400 text-xs">durante o lançamento</p>
+                </>
+              ) : !loading && ehFundador && !temAssinatura ? (
                 <>
                   <div className="flex items-center gap-2 justify-end">
                     <span className="text-gray-500 text-sm line-through">{PRECO_NORMAL}</span>
@@ -190,6 +201,10 @@ function PlanosConteudo() {
             temAssinatura ? (
               <div className="w-full bg-green-900 text-green-300 font-semibold py-3 rounded-xl text-center text-sm">
                 ✓ Assinatura ativa — cobrança automática mensal
+              </div>
+            ) : LANCAMENTO_GRATIS ? (
+              <div className="w-full bg-green-950 border border-green-800 text-green-300 font-semibold py-3 px-4 rounded-xl text-center text-sm">
+                🎉 Gratuito durante o período de lançamento — aproveite o acesso completo sem custo.
               </div>
             ) : (
               <button
