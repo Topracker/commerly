@@ -38,6 +38,14 @@ export async function GET(request: NextRequest) {
 
   const preco = loja.fundador ? 29.90 : 54.99
 
+  // Em ambiente de teste (token TEST-...), o MP recusa pagamento quando o
+  // payer_email é o mesmo da conta dona do token ("pagar para si mesmo").
+  // Usa a conta de teste comprador nesse caso.
+  const isTestToken = process.env.MP_ACCESS_TOKEN?.startsWith('TEST-')
+  const payerEmail = isTestToken
+    ? (process.env.MP_TEST_BUYER_EMAIL || 'TESTUSER5928632247573938400@testuser.com')
+    : user.email
+
   const res = await fetch('https://api.mercadopago.com/preapproval', {
     method: 'POST',
     headers: {
@@ -46,7 +54,7 @@ export async function GET(request: NextRequest) {
     },
     body: JSON.stringify({
       reason: 'Commerly — Plano Mensal',
-      payer_email: user.email,
+      payer_email: payerEmail,
       auto_recurring: {
         frequency: 1,
         frequency_type: 'months',
