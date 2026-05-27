@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import DevtoolsBlocker from "./components/DevtoolsBlocker";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,7 +34,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Commerly" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <DevtoolsBlocker />
+        {children}
+      </body>
     </html>
   );
 }
