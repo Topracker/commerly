@@ -9,23 +9,26 @@ const supabaseHost = supabaseUrl.replace(/^https?:\/\//, "")
 const mercadoPagoHosts =
   "https://*.mercadopago.com https://*.mercadopago.com.br https://*.mercadolibre.com https://*.mercadolivre.com.br https://*.mlstatic.com"
 
+// Stripe Checkout (hosted) e SDK JS
+const stripeHosts = "https://checkout.stripe.com https://*.stripe.com https://js.stripe.com"
+
 const csp = [
   "default-src 'self'",
   // Next.js requires unsafe-inline/unsafe-eval for hydration scripts
-  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${mercadoPagoHosts}`,
+  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${mercadoPagoHosts} ${stripeHosts}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  // Browser-side connections: Supabase (REST + Realtime WS) + ViaCEP + Mercado Pago
-  `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://*.supabase.co wss://*.supabase.co https://viacep.com.br ${mercadoPagoHosts}`,
+  // Browser-side connections: Supabase (REST + Realtime WS) + ViaCEP + Mercado Pago + Stripe
+  `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://*.supabase.co wss://*.supabase.co https://viacep.com.br ${mercadoPagoHosts} ${stripeHosts}`,
   "media-src 'none'",
   "object-src 'none'",
-  // Mercado Pago embeds secure-field / 3DS / checkout iframes
-  `frame-src ${mercadoPagoHosts}`,
+  // Mercado Pago / Stripe embeds secure-field / 3DS / checkout iframes
+  `frame-src ${mercadoPagoHosts} ${stripeHosts}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
-  // Allow form posts that redirect to the Mercado Pago hosted checkout
-  `form-action 'self' ${mercadoPagoHosts}`,
+  // Allow form posts that redirect to the Mercado Pago / Stripe hosted checkout
+  `form-action 'self' ${mercadoPagoHosts} ${stripeHosts}`,
 ].join("; ")
 
 const nextConfig: NextConfig = {

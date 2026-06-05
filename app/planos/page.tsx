@@ -2,17 +2,10 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../supabase'
-import { CheckCircle, Clock, Zap, AlertTriangle, X } from 'lucide-react'
+import { CheckCircle, Clock, Zap } from 'lucide-react'
 
-const PRECO_PROMO = 'R$ 29,90'
+const PRECO_FUNDADOR = 'R$ 29,90'
 const PRECO_NORMAL = 'R$ 54,99'
-const CICLOS_PROMO = 2
-
-// Lançamento: pagamento de mensalidade temporariamente desativado.
-// Enquanto true, o plano é exibido como gratuito e o botão de assinar /
-// banner de vagas promocionais ficam ocultos. O trial de 30 dias segue normal.
-// Defina como false para reativar a cobrança via Mercado Pago.
-const LANCAMENTO_GRATIS = true
 
 function PlanosConteudo() {
   const router = useRouter()
@@ -21,29 +14,19 @@ function PlanosConteudo() {
 
   const [loja, setLoja] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [vagasRestantes, setVagasRestantes] = useState<number | null>(null)
   const [assinando, setAssinando] = useState(false)
-  const [cancelando, setCancelando] = useState(false)
-  const [confirmarCancelamento, setConfirmarCancelamento] = useState(false)
-  const [erro, setErro] = useState('')
 
   const status = params.get('status')
 
   useEffect(() => {
-    Promise.all([
-      supabase.auth.getUser().then(async ({ data: { user } }) => {
-        if (!user) return null
-        const { data } = await supabase
-          .from('lojas')
-          .select('id, nome, plano, trial_expira_em, fundador, mp_assinatura_id, assinatura_ciclos')
-          .eq('user_id', user.id)
-          .maybeSingle()
-        return data
-      }),
-      fetch('/api/planos/vagas').then(r => r.json()).catch(() => ({ vagasRestantes: null })),
-    ]).then(([lojaData, vagasData]) => {
-      setLoja(lojaData)
-      setVagasRestantes(vagasData?.vagasRestantes ?? null)
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { setLoading(false); return }
+      const { data } = await supabase
+        .from('lojas')
+        .select('id, nome, plano, trial_expira_em, fundador, stripe_subscription_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      setLoja(data)
       setLoading(false)
     })
   }, [])
@@ -54,30 +37,12 @@ function PlanosConteudo() {
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
   }
 
-  async function cancelarAssinatura() {
-    setCancelando(true)
-    setErro('')
-    try {
-      const res = await fetch('/api/mercadopago/cancelar-assinatura', { method: 'POST' })
-      const json = await res.json()
-      if (!res.ok) { setErro(json.error || 'Erro ao cancelar'); setCancelando(false); return }
-      setLoja((l: any) => ({ ...l, plano: 'inativo', mp_assinatura_id: null, assinatura_ciclos: 0 }))
-      setConfirmarCancelamento(false)
-    } catch {
-      setErro('Erro de conexão. Tente novamente.')
-    }
-    setCancelando(false)
-  }
-
   const dias = diasRestantes()
-  const temAssinatura = !!loja?.mp_assinatura_id
+  const temAssinatura = !!loja?.stripe_subscription_id
   const planoAtivo = loja?.plano === 'ativo'
   const trialValido = loja?.plano === 'trial' && dias !== null && dias > 0
   const ehFundador = !!loja?.fundador
-  const ciclos = loja?.assinatura_ciclos ?? 0
-  const aindaNaPromo = ehFundador && ciclos < CICLOS_PROMO
-  const precoAtual = ehFundador && !temAssinatura ? PRECO_PROMO : PRECO_NORMAL
-  const temVagasPromo = vagasRestantes !== null && vagasRestantes > 0
+  const precoAtual = ehFundador ? PRECO_FUNDADOR : PRECO_NORMAL
 
   const FEATURES = [
     'Dashboard completo com gráficos',
@@ -97,7 +62,6 @@ function PlanosConteudo() {
           <p className="text-gray-400 text-sm">Gerencie sua loja com tudo que precisa</p>
         </div>
 
-        {/* Feedbacks de pagamento */}
         {status === 'sucesso' && (
           <div className="bg-green-950 border border-green-800 rounded-2xl p-4 flex items-center gap-3">
             <CheckCircle size={20} className="text-green-400 shrink-0" />
@@ -109,22 +73,11 @@ function PlanosConteudo() {
             <p className="text-red-300 text-sm font-semibold">Houve um problema com o pagamento. Tente novamente.</p>
           </div>
         )}
-        {status === 'pendente' && (
-          <div className="bg-yellow-950 border border-yellow-800 rounded-2xl p-4 flex items-center gap-3">
-            <Clock size={20} className="text-yellow-400 shrink-0" />
-            <p className="text-yellow-300 text-sm font-semibold">Assinatura pendente. Você será notificado assim que confirmada.</p>
-          </div>
-        )}
 
-        {/* Status atual */}
         {!loading && loja && (
           <div className={`rounded-2xl p-4 border ${planoAtivo ? 'bg-green-950 border-green-800' : trialValido ? 'bg-blue-950 border-blue-800' : 'bg-red-950 border-red-800'}`}>
             <p className={`text-sm font-semibold ${planoAtivo ? 'text-green-300' : trialValido ? 'text-blue-300' : 'text-red-300'}`}>
-              {planoAtivo && temAssinatura
-                ? aindaNaPromo
-                  ? `✓ Plano ativo — preço promocional (${CICLOS_PROMO - ciclos} mês${CICLOS_PROMO - ciclos !== 1 ? 'es' : ''} restante${CICLOS_PROMO - ciclos !== 1 ? 's' : ''})`
-                  : '✓ Plano ativo'
-                : planoAtivo
+              {planoAtivo
                 ? '✓ Plano ativo'
                 : trialValido
                 ? `⏳ Trial — ${dias} dia${dias !== 1 ? 's' : ''} restante${dias !== 1 ? 's' : ''}`
@@ -134,48 +87,25 @@ function PlanosConteudo() {
           </div>
         )}
 
-        {/* Banner de vagas promocionais */}
-        {!loading && !LANCAMENTO_GRATIS && temVagasPromo && !temAssinatura && (
-          <div className="bg-gradient-to-r from-yellow-950 to-orange-950 border border-yellow-700 rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-yellow-400 text-lg">🔥</span>
-              <p className="text-yellow-300 font-bold text-sm">Oferta dos Primeiros 100</p>
-              <span className="ml-auto bg-yellow-500 text-black text-xs font-bold px-2 py-0.5 rounded-full">46% OFF</span>
-            </div>
-            <p className="text-yellow-200 text-sm">
-              <span className="font-bold">{vagasRestantes} vaga{vagasRestantes !== 1 ? 's' : ''}</span> restante{vagasRestantes !== 1 ? 's' : ''} com desconto —{' '}
-              <span className="line-through text-yellow-600">{PRECO_NORMAL}</span>{' '}
-              <span className="text-yellow-300 font-bold">{PRECO_PROMO}/mês</span> nos 2 primeiros meses.
-            </p>
-          </div>
-        )}
-
-        {/* Card do Plano */}
         <div className="bg-gray-900 rounded-2xl p-5 border-2 border-blue-600 relative">
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
             PLANO MENSAL
           </div>
 
-          {/* Preço */}
           <div className="flex items-start justify-between mb-4 mt-1">
             <div className="flex items-center gap-2">
               <Zap size={18} className="text-blue-400" />
               <h2 className="text-white font-bold">Acesso completo</h2>
             </div>
             <div className="text-right">
-              {!loading && LANCAMENTO_GRATIS ? (
-                <>
-                  <p className="text-2xl font-bold text-green-400">Grátis</p>
-                  <p className="text-gray-400 text-xs">durante o lançamento</p>
-                </>
-              ) : !loading && ehFundador && !temAssinatura ? (
+              {!loading && ehFundador ? (
                 <>
                   <div className="flex items-center gap-2 justify-end">
                     <span className="text-gray-500 text-sm line-through">{PRECO_NORMAL}</span>
                     <span className="bg-green-600 text-white text-xs font-bold px-1.5 py-0.5 rounded">-46%</span>
                   </div>
-                  <p className="text-2xl font-bold text-white">{PRECO_PROMO}</p>
-                  <p className="text-gray-400 text-xs">por 2 meses, depois {PRECO_NORMAL}/mês</p>
+                  <p className="text-2xl font-bold text-white">{PRECO_FUNDADOR}</p>
+                  <p className="text-gray-400 text-xs">/mês — preço fundador</p>
                 </>
               ) : (
                 <>
@@ -186,7 +116,6 @@ function PlanosConteudo() {
             </div>
           </div>
 
-          {/* Features */}
           <ul className="flex flex-col gap-2 mb-5">
             {FEATURES.map(f => (
               <li key={f} className="flex items-center gap-2 text-gray-300 text-sm">
@@ -196,78 +125,23 @@ function PlanosConteudo() {
             ))}
           </ul>
 
-          {/* CTA */}
           {!loading && (
             temAssinatura ? (
               <div className="w-full bg-green-900 text-green-300 font-semibold py-3 rounded-xl text-center text-sm">
                 ✓ Assinatura ativa — cobrança automática mensal
               </div>
-            ) : LANCAMENTO_GRATIS ? (
-              <div className="w-full bg-green-950 border border-green-800 text-green-300 font-semibold py-3 px-4 rounded-xl text-center text-sm">
-                🎉 Gratuito durante o período de lançamento — aproveite o acesso completo sem custo.
-              </div>
             ) : (
               <button
-                onClick={() => { setAssinando(true); window.location.href = '/api/mercadopago/assinar' }}
+                onClick={() => { setAssinando(true); window.location.href = '/api/stripe/assinar' }}
                 disabled={assinando}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl transition text-sm"
               >
-                {assinando
-                  ? 'Redirecionando...'
-                  : ehFundador && temVagasPromo
-                  ? `Assinar por ${PRECO_PROMO}/mês via Mercado Pago`
-                  : `Assinar por ${PRECO_NORMAL}/mês via Mercado Pago`}
+                {assinando ? 'Redirecionando...' : `Assinar por ${precoAtual}/mês via Stripe`}
               </button>
             )
           )}
         </div>
 
-        {/* Cancelar assinatura */}
-        {!loading && temAssinatura && !confirmarCancelamento && (
-          <button
-            onClick={() => setConfirmarCancelamento(true)}
-            className="text-gray-600 text-xs hover:text-red-400 transition text-center"
-          >
-            Cancelar assinatura
-          </button>
-        )}
-
-        {/* Modal de confirmação de cancelamento */}
-        {confirmarCancelamento && (
-          <div className="bg-red-950 border border-red-800 rounded-2xl p-5">
-            <div className="flex items-start gap-3 mb-4">
-              <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-red-300 font-semibold text-sm">Cancelar assinatura?</p>
-                <p className="text-red-400 text-xs mt-1">
-                  Seu acesso fica ativo até o fim do período pago e é encerrado após isso.
-                  {ehFundador && aindaNaPromo && ' Você perde o preço promocional.'}
-                </p>
-              </div>
-              <button onClick={() => setConfirmarCancelamento(false)} className="ml-auto text-gray-600 hover:text-white">
-                <X size={16} />
-              </button>
-            </div>
-            {erro && <p className="text-red-300 text-xs mb-3">{erro}</p>}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmarCancelamento(false)}
-                className="flex-1 bg-gray-800 text-gray-300 font-semibold py-2.5 rounded-xl text-sm hover:bg-gray-700 transition"
-              >
-                Manter
-              </button>
-              <button
-                onClick={cancelarAssinatura}
-                disabled={cancelando}
-                className="flex-1 bg-red-700 hover:bg-red-600 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl text-sm transition"
-              >
-                {cancelando ? 'Cancelando...' : 'Confirmar cancelamento'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Trial info */}
         {!loading && loja && !temAssinatura && (
           <div className="bg-gray-900 rounded-2xl p-4 border border-gray-800">
             <div className="flex items-center gap-2 mb-1">
