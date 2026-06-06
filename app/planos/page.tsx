@@ -152,7 +152,7 @@ function PlanosConteudo() {
           </div>
         )}
 
-        {loja && (
+        {loja && (planoAtivo || temAssinatura) && (
           <button onClick={() => router.push('/dashboard')} className="text-gray-500 text-sm hover:text-gray-400 transition text-center">
             ← Voltar ao dashboard
           </button>
