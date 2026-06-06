@@ -193,6 +193,7 @@ export default function Onboarding() {
     const { error } = await supabase.from('lojas').insert({
       user_id: user?.id,
       nome, tipo, documento, localizacao, telefone, instagram, horario,
+      plano: 'trial',
       trial_expira_em: trialExpira.toISOString(),
     })
     if (error) {
@@ -201,7 +202,7 @@ export default function Onboarding() {
       setLoading(false)
       return
     }
-    router.push('/dashboard')
+    router.push('/planos')
   }
 
   const inputClass = 'bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500'

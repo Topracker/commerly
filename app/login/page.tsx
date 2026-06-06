@@ -220,14 +220,15 @@ export default function Login() {
     if (clienteExiste) { setErro('Este e-mail já está cadastrado como cliente. Faça login para acessar sua conta.'); setLoading(false); return }
     if (fornecedorExiste) { setErro('Este e-mail já está cadastrado como fornecedor. Faça login para acessar sua conta.'); setLoading(false); return }
 
-    const { data: lojaExiste } = await supabase.from('lojas').select('id').eq('user_id', user!.id).maybeSingle()
-    if (lojaExiste) { router.push('/dashboard'); return }
+    const { data: lojaExiste } = await supabase.from('lojas').select('id, plano').eq('user_id', user!.id).maybeSingle()
+    if (lojaExiste) { router.push(lojaExiste.plano === 'ativo' ? '/dashboard' : '/planos'); return }
 
     const trialExpira = new Date()
     trialExpira.setDate(trialExpira.getDate() + 30)
     const { error: insertError } = await supabase.from('lojas').insert({
       user_id: user!.id, nome, tipo, documento, localizacao, telefone, instagram,
       horario: `${horarioAbertura} - ${horarioFechamento}`,
+      plano: 'trial',
       trial_expira_em: trialExpira.toISOString(),
     })
     if (insertError) {
