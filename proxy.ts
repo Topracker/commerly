@@ -59,19 +59,12 @@ export async function proxy(request: NextRequest) {
   if (rotaComerciantePrincipal) {
     const { data: loja } = await supabase
       .from('lojas')
-      .select('plano, trial_expira_em')
+      .select('plano')
       .eq('user_id', user.id)
       .maybeSingle()
 
-    if (loja) {
-      const agora = new Date()
-      const temAcesso =
-        loja.plano === 'ativo' ||
-        (loja.plano === 'trial' && loja.trial_expira_em && new Date(loja.trial_expira_em) > agora)
-
-      if (!temAcesso) {
-        return NextResponse.redirect(new URL('/planos', request.url))
-      }
+    if (loja && loja.plano !== 'ativo') {
+      return NextResponse.redirect(new URL('/planos', request.url))
     }
   }
 

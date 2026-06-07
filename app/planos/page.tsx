@@ -2,7 +2,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../supabase'
-import { CheckCircle, Clock, Zap } from 'lucide-react'
+import { CheckCircle, Zap } from 'lucide-react'
 
 const PRECO_FUNDADOR = 'R$ 29,90'
 const PRECO_NORMAL = 'R$ 54,99'
@@ -23,7 +23,7 @@ function PlanosConteudo() {
       if (!user) { setLoading(false); return }
       const { data } = await supabase
         .from('lojas')
-        .select('id, nome, plano, trial_expira_em, fundador, stripe_subscription_id')
+        .select('id, nome, plano, fundador, stripe_subscription_id')
         .eq('user_id', user.id)
         .maybeSingle()
       setLoja(data)
@@ -31,16 +31,8 @@ function PlanosConteudo() {
     })
   }, [])
 
-  function diasRestantes(): number | null {
-    if (!loja?.trial_expira_em) return null
-    const diff = new Date(loja.trial_expira_em).getTime() - Date.now()
-    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
-  }
-
-  const dias = diasRestantes()
   const temAssinatura = !!loja?.stripe_subscription_id
   const planoAtivo = loja?.plano === 'ativo'
-  const trialValido = loja?.plano === 'trial' && dias !== null && dias > 0
   const ehFundador = !!loja?.fundador
   const precoAtual = ehFundador ? PRECO_FUNDADOR : PRECO_NORMAL
 
@@ -75,13 +67,9 @@ function PlanosConteudo() {
         )}
 
         {!loading && loja && (
-          <div className={`rounded-2xl p-4 border ${planoAtivo ? 'bg-green-950 border-green-800' : trialValido ? 'bg-blue-950 border-blue-800' : 'bg-red-950 border-red-800'}`}>
-            <p className={`text-sm font-semibold ${planoAtivo ? 'text-green-300' : trialValido ? 'text-blue-300' : 'text-red-300'}`}>
-              {planoAtivo
-                ? '✓ Plano ativo'
-                : trialValido
-                ? `⏳ Trial — ${dias} dia${dias !== 1 ? 's' : ''} restante${dias !== 1 ? 's' : ''}`
-                : '⚠️ Seu acesso expirou'}
+          <div className={`rounded-2xl p-4 border ${planoAtivo ? 'bg-green-950 border-green-800' : 'bg-blue-950 border-blue-800'}`}>
+            <p className={`text-sm font-semibold ${planoAtivo ? 'text-green-300' : 'text-blue-300'}`}>
+              {planoAtivo ? '✓ Plano ativo' : 'Assine para acessar o dashboard'}
             </p>
             <p className="text-gray-500 text-xs mt-1">{loja.nome}</p>
           </div>
@@ -141,16 +129,6 @@ function PlanosConteudo() {
             )
           )}
         </div>
-
-        {!loading && loja && !temAssinatura && (
-          <div className="bg-gray-900 rounded-2xl p-4 border border-gray-800">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock size={14} className="text-gray-500" />
-              <p className="text-gray-400 text-xs font-semibold">Trial gratuito incluso</p>
-            </div>
-            <p className="text-gray-500 text-xs">30 dias de acesso completo sem custo ao criar conta.</p>
-          </div>
-        )}
 
         {loja && (planoAtivo || temAssinatura) && (
           <button onClick={() => router.push('/dashboard')} className="text-gray-500 text-sm hover:text-gray-400 transition text-center">

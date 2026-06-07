@@ -223,13 +223,10 @@ export default function Login() {
     const { data: lojaExiste } = await supabase.from('lojas').select('id, plano').eq('user_id', user!.id).maybeSingle()
     if (lojaExiste) { router.push(lojaExiste.plano === 'ativo' ? '/dashboard' : '/planos'); return }
 
-    const trialExpira = new Date()
-    trialExpira.setDate(trialExpira.getDate() + 30)
     const { error: insertError } = await supabase.from('lojas').insert({
       user_id: user!.id, nome, tipo, documento, localizacao, telefone, instagram,
       horario: `${horarioAbertura} - ${horarioFechamento}`,
-      plano: 'trial',
-      trial_expira_em: trialExpira.toISOString(),
+      plano: 'inativo',
     })
     if (insertError) {
       if (insertError.code === '23505') setErro('Este CPF/CNPJ já está cadastrado no Commerly!')
