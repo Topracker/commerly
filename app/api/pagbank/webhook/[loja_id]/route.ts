@@ -13,6 +13,10 @@ function getPagBankBaseUrl(ambiente: string): string {
     : 'https://api.pagseguro.com'
 }
 
+export async function GET() {
+  return NextResponse.json({ ok: true })
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ loja_id: string }> }
