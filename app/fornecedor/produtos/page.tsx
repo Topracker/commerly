@@ -49,7 +49,7 @@ export default function FornecedorProdutos() {
       preco: parseFloat(preco),
     }
     const { error } = editando
-      ? await supabase.from('fornecedor_produtos').update(dados).eq('id', editando.id)
+      ? await supabase.from('fornecedor_produtos').update(dados).eq('id', editando.id).eq('fornecedor_id', fornecedor.id)
       : await supabase.from('fornecedor_produtos').insert(dados)
     if (error) { mostrarToast('Erro ao salvar', 'erro'); setSalvando(false); return }
     mostrarToast(editando ? 'Produto atualizado!' : 'Produto cadastrado!', 'sucesso')
@@ -60,7 +60,7 @@ export default function FornecedorProdutos() {
 
   async function remover() {
     if (!confirmarId) return
-    const { error } = await supabase.from('fornecedor_produtos').delete().eq('id', confirmarId)
+    const { error } = await supabase.from('fornecedor_produtos').delete().eq('id', confirmarId).eq('fornecedor_id', fornecedor.id)
     if (error) { mostrarToast('Erro ao remover', 'erro') }
     else { mostrarToast('Produto removido', 'sucesso') }
     setConfirmarId(null)

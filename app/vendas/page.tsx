@@ -83,7 +83,7 @@ export default function Vendas() {
 
     await Promise.all(
       carrinho.map(item =>
-        supabase.from('produtos').update({ quantidade: item.produto.quantidade - item.quantidade }).eq('id', item.produto.id)
+        supabase.from('produtos').update({ quantidade: item.produto.quantidade - item.quantidade }).eq('id', item.produto.id).eq('loja_id', loja.id)
       )
     )
 

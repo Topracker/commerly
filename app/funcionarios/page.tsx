@@ -37,7 +37,7 @@ export default function Funcionarios() {
 
   async function remover() {
     if (!confirmarId) return
-    const { error } = await supabase.from('funcionarios').delete().eq('id', confirmarId)
+    const { error } = await supabase.from('funcionarios').delete().eq('id', confirmarId).eq('loja_id', loja.id)
     if (error) { mostrarToast('Erro ao remover funcionário', 'erro') }
     else { mostrarToast('Funcionário removido', 'sucesso') }
     setConfirmarId(null)

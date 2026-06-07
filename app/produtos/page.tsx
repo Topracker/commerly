@@ -86,7 +86,7 @@ export default function Produtos() {
     }
 
     const { error } = editando
-      ? await supabase.from('produtos').update(dados).eq('id', editando.id)
+      ? await supabase.from('produtos').update(dados).eq('id', editando.id).eq('loja_id', loja.id)
       : await supabase.from('produtos').insert(dados)
 
     if (error) { mostrarToast('Erro ao salvar produto', 'erro'); setSalvando(false); return }
@@ -100,7 +100,7 @@ export default function Produtos() {
 
   async function remover() {
     if (!confirmarId) return
-    const { error } = await supabase.from('produtos').delete().eq('id', confirmarId)
+    const { error } = await supabase.from('produtos').delete().eq('id', confirmarId).eq('loja_id', loja.id)
     if (error) { mostrarToast('Erro ao remover produto', 'erro') }
     else { mostrarToast('Produto removido', 'sucesso') }
     setConfirmarId(null)

@@ -46,7 +46,7 @@ export default function Fiado() {
   }
 
   async function marcarPago(id: string, pago: boolean) {
-    const { error } = await supabase.from('fiado').update({ pago: !pago }).eq('id', id)
+    const { error } = await supabase.from('fiado').update({ pago: !pago }).eq('id', id).eq('loja_id', loja.id)
     if (error) { mostrarToast('Erro ao atualizar fiado', 'erro'); return }
     mostrarToast(!pago ? 'Marcado como pago!' : 'Marcação desfeita', 'sucesso')
     carregar()
@@ -54,7 +54,7 @@ export default function Fiado() {
 
   async function remover() {
     if (!confirmarId) return
-    const { error } = await supabase.from('fiado').delete().eq('id', confirmarId)
+    const { error } = await supabase.from('fiado').delete().eq('id', confirmarId).eq('loja_id', loja.id)
     if (error) { mostrarToast('Erro ao remover fiado', 'erro') }
     else { mostrarToast('Fiado removido', 'sucesso') }
     setConfirmarId(null)

@@ -58,7 +58,7 @@ export default function Gastos() {
 
   async function remover() {
     if (!confirmarId) return
-    const { error } = await supabase.from('gastos').delete().eq('id', confirmarId)
+    const { error } = await supabase.from('gastos').delete().eq('id', confirmarId).eq('loja_id', loja.id)
     if (error) { mostrarToast('Erro ao remover gasto', 'erro') }
     else { mostrarToast('Gasto removido', 'sucesso') }
     setConfirmarId(null)
