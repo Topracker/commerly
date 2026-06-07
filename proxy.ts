@@ -17,14 +17,22 @@ const ROTAS_COMERCIANTE = [
   '/integracoes',
 ]
 
+// Rotas publicas dentro das areas autenticadas — nao exigem sessao.
+const PUBLICAS_CLIENTE = ['/cliente/login']
+const PUBLICAS_FORNECEDOR = ['/fornecedor/login']
+
+function rotaPublicaFornecedor(pathname: string): boolean {
+  if (PUBLICAS_FORNECEDOR.includes(pathname)) return true
+  // /fornecedor/[id] — perfil publico do fornecedor (UUID).
+  // Cobre /fornecedor/<uuid> mas NAO /fornecedor/dashboard, /fornecedor/produtos, etc.
+  const m = pathname.match(/^\/fornecedor\/([^/]+)$/)
+  if (!m) return false
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(m[1])
+}
+
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
   const { pathname } = request.nextUrl
-
-  // Áreas de cliente e fornecedor temporariamente desativadas
-  if (pathname.startsWith('/cliente/') || pathname.startsWith('/fornecedor/')) {
-    return NextResponse.redirect(new URL('/', request.url))
-  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,11 +53,21 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) {
-    if (pathname.startsWith('/cliente/')) return NextResponse.redirect(new URL('/cliente/login', request.url))
-    if (pathname.startsWith('/fornecedor/')) return NextResponse.redirect(new URL('/fornecedor/login', request.url))
-    return NextResponse.redirect(new URL('/login', request.url))
+  // /cliente/* — login publico, demais exigem sessao
+  if (pathname.startsWith('/cliente/')) {
+    if (PUBLICAS_CLIENTE.includes(pathname)) return response
+    if (!user) return NextResponse.redirect(new URL('/cliente/login', request.url))
+    return response
   }
+
+  // /fornecedor/* — login e perfil publico [id] livres, demais exigem sessao
+  if (pathname.startsWith('/fornecedor/')) {
+    if (rotaPublicaFornecedor(pathname)) return response
+    if (!user) return NextResponse.redirect(new URL('/fornecedor/login', request.url))
+    return response
+  }
+
+  if (!user) return NextResponse.redirect(new URL('/login', request.url))
 
   // Verifica plano para rotas principais do comerciante (exclui onboarding)
   const rotaComerciantePrincipal = ROTAS_COMERCIANTE.some(
@@ -88,8 +106,9 @@ export const config = {
     '/assistente/:path*',
     '/integracoes/:path*',
     '/onboarding/:path*',
-    // Cliente e Fornecedor — bloqueados temporariamente, redireciona para /
+    // Cliente — todas as rotas (login tratado internamente)
     '/cliente/:path*',
+    // Fornecedor — todas as rotas (login e perfil publico tratados internamente)
     '/fornecedor/:path*',
   ],
 }

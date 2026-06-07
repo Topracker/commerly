@@ -22,8 +22,8 @@ export default function Home() {
           </div>
         </Link>
 
-        <div className="relative opacity-50 cursor-not-allowed select-none pointer-events-none">
-          <div className="w-full bg-green-600 text-white font-semibold py-4 px-6 rounded-2xl flex items-center gap-4">
+        <Link href="/cliente/login">
+          <div className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-6 rounded-2xl transition flex items-center gap-4 cursor-pointer">
             <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center shrink-0">
               <User size={20} />
             </div>
@@ -32,13 +32,10 @@ export default function Home() {
               <p className="text-green-200 text-sm">Descobrir comércios locais</p>
             </div>
           </div>
-          <span className="absolute top-2 right-3 text-xs font-bold bg-black/40 text-white px-2 py-0.5 rounded-full">
-            Em breve
-          </span>
-        </div>
+        </Link>
 
-        <div className="relative opacity-50 cursor-not-allowed select-none pointer-events-none">
-          <div className="w-full bg-purple-600 text-white font-semibold py-4 px-6 rounded-2xl flex items-center gap-4">
+        <Link href="/fornecedor/login">
+          <div className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 px-6 rounded-2xl transition flex items-center gap-4 cursor-pointer">
             <div className="w-10 h-10 bg-purple-500 rounded-xl flex items-center justify-center shrink-0">
               <Truck size={20} />
             </div>
@@ -47,10 +44,7 @@ export default function Home() {
               <p className="text-purple-200 text-sm">Oferecer produtos e serviços</p>
             </div>
           </div>
-          <span className="absolute top-2 right-3 text-xs font-bold bg-black/40 text-white px-2 py-0.5 rounded-full">
-            Em breve
-          </span>
-        </div>
+        </Link>
       </div>
     </main>
   )
