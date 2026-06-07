@@ -96,8 +96,8 @@ export default function Dashboard() {
       supabase.from('fiado').select('*').eq('loja_id', loja.id).eq('pago', false),
       // Gráfico 7 dias: todas as origens
       supabase.from('vendas').select('valor_total, created_at').eq('loja_id', loja.id).gte('created_at', seteAtras.toISOString()),
-      // Meta mensal e conquistas: apenas integrações (mercadopago + pagbank)
-      supabase.from('vendas').select('valor_total').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()).in('origem', ['mercadopago', 'pagbank']),
+      // Meta mensal e conquistas: todas as origens (manual + integrações)
+      supabase.from('vendas').select('valor_total').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()),
       supabase.from('conquistas').select('tipo').eq('loja_id', loja.id),
     ])
 
@@ -211,7 +211,7 @@ export default function Dashboard() {
               <span>R$ {faturamentoMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               <span>Meta: R$ {metaMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
             </div>
-            <p className="text-gray-600 text-xs mt-2">Apenas pagamentos via maquininha/integração contam</p>
+            <p className="text-gray-600 text-xs mt-2">Conta todas as vendas do mês (manuais + integrações)</p>
           </div>
 
           {/* Gráfico 7 dias */}

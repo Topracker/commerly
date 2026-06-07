@@ -68,6 +68,42 @@ export default function Vendas() {
     if (carrinho.length === 0) { mostrarToast('Carrinho vazio!', 'erro'); return }
     setConfirmando(true)
 
+    // Decrementa estoque ANTES de registrar venda — filtro .gte('quantidade', N)
+    // garante atomicidade: se outra venda concorrente ja zerou o estoque, o update
+    // afeta 0 linhas (count=0) e abortamos antes de inserir a venda fantasma.
+    const decrementos = await Promise.all(
+      carrinho.map(item =>
+        supabase
+          .from('produtos')
+          .update({ quantidade: item.produto.quantidade - item.quantidade })
+          .eq('id', item.produto.id)
+          .eq('loja_id', loja.id)
+          .gte('quantidade', item.quantidade)
+          .select('id')
+      )
+    )
+
+    const indexFalhou = decrementos.findIndex(r => r.error || (r.data && r.data.length === 0))
+    if (indexFalhou !== -1) {
+      // Reverte os decrementos ja aplicados (best-effort, sem transacao)
+      const aplicados = decrementos.slice(0, indexFalhou)
+      await Promise.all(
+        aplicados.map((_, i) => {
+          const item = carrinho[i]
+          return supabase
+            .from('produtos')
+            .update({ quantidade: item.produto.quantidade })
+            .eq('id', item.produto.id)
+            .eq('loja_id', loja.id)
+        })
+      )
+      const item = carrinho[indexFalhou]
+      mostrarToast(`Estoque insuficiente para "${item.produto.nome}". Atualize a página.`, 'erro')
+      setConfirmando(false)
+      carregar()
+      return
+    }
+
     const inserts = carrinho.map(item => ({
       loja_id: loja.id,
       produto_id: item.produto.id,
@@ -79,13 +115,21 @@ export default function Vendas() {
     }))
 
     const { error } = await supabase.from('vendas').insert(inserts)
-    if (error) { mostrarToast('Erro ao registrar venda', 'erro'); setConfirmando(false); return }
-
-    await Promise.all(
-      carrinho.map(item =>
-        supabase.from('produtos').update({ quantidade: item.produto.quantidade - item.quantidade }).eq('id', item.produto.id).eq('loja_id', loja.id)
+    if (error) {
+      // Reverte estoque ja decrementado
+      await Promise.all(
+        carrinho.map(item =>
+          supabase
+            .from('produtos')
+            .update({ quantidade: item.produto.quantidade })
+            .eq('id', item.produto.id)
+            .eq('loja_id', loja.id)
+        )
       )
-    )
+      mostrarToast('Erro ao registrar venda', 'erro')
+      setConfirmando(false)
+      return
+    }
 
     mostrarToast(`✓ Venda registrada! ${carrinho.length} produto(s)`, 'sucesso')
     setCarrinho([])

@@ -25,6 +25,8 @@ export default function FornecedorConfiguracoes() {
   const [descricao, setDescricao] = useState('')
   const [telefone, setTelefone] = useState('')
   const [localizacao, setLocalizacao] = useState('')
+  const [instagram, setInstagram] = useState('')
+  const [erroInstagram, setErroInstagram] = useState('')
   const [salvando, setSalvando] = useState(false)
 
   useEffect(() => {
@@ -34,12 +36,23 @@ export default function FornecedorConfiguracoes() {
       setDescricao(fornecedor.descricao || '')
       setTelefone(fornecedor.telefone || '')
       setLocalizacao(fornecedor.localizacao || '')
+      setInstagram(fornecedor.instagram || '')
     }
   }, [fornecedor])
+
+  function handleInstagram(v: string) {
+    setInstagram(v)
+    if (v && !/^@[\w.]{1,30}$/.test(v)) setErroInstagram('Use o formato @usuario')
+    else setErroInstagram('')
+  }
 
   async function salvar() {
     if (!nome.trim() || !categoria) {
       mostrarToast('Nome e categoria são obrigatórios!', 'erro')
+      return
+    }
+    if (instagram && erroInstagram) {
+      mostrarToast('Instagram inválido', 'erro')
       return
     }
     setSalvando(true)
@@ -51,6 +64,7 @@ export default function FornecedorConfiguracoes() {
         descricao: descricao.trim() || null,
         telefone: telefone.trim() || null,
         localizacao: localizacao.trim() || null,
+        instagram: instagram.trim() || null,
       })
       .eq('id', fornecedor.id)
     if (error) mostrarToast('Erro ao salvar configurações', 'erro')
@@ -121,6 +135,17 @@ export default function FornecedorConfiguracoes() {
             placeholder="Cidade, bairro ou endereço"
             className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500"
           />
+        </div>
+
+        <div>
+          <label className="text-gray-400 text-sm block mb-1.5">Instagram</label>
+          <input
+            value={instagram}
+            onChange={e => handleInstagram(e.target.value)}
+            placeholder="@empresa"
+            className={`w-full bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500 ${erroInstagram ? 'ring-2 ring-red-500 focus:ring-red-500' : ''}`}
+          />
+          {erroInstagram && <p className="text-red-400 text-sm mt-1">{erroInstagram}</p>}
         </div>
 
         <button

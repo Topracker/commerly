@@ -32,38 +32,46 @@ export default function FornecedorPerfil() {
   async function carregar() {
     setCarregando(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/'); return }
-    setUserId(user.id)
+    setUserId(user?.id ?? null)
 
-    const [fornRes, prodRes, avalRes, lojaRes] = await Promise.all([
+    // Perfil publico — carrega dados do fornecedor mesmo sem sessao.
+    // Consultas dependentes do user (loja, avaliacao propria) so rodam logado.
+    const queries: any[] = [
       supabase.from('fornecedores').select('*').eq('id', id).single(),
       supabase.from('fornecedor_produtos').select('*').eq('fornecedor_id', id).order('created_at', { ascending: false }),
       supabase.from('avaliacoes_fornecedores').select('nota, comentario, created_at, user_id').eq('fornecedor_id', id).order('created_at', { ascending: false }),
-      supabase.from('lojas').select('id').eq('user_id', user.id).maybeSingle(),
-    ])
+    ]
+    if (user) {
+      queries.push(supabase.from('lojas').select('id').eq('user_id', user.id).maybeSingle())
+    }
+
+    const [fornRes, prodRes, avalRes, lojaRes] = await Promise.all(queries)
 
     if (fornRes.error || !fornRes.data) { router.push('/'); return }
     setFornecedor(fornRes.data)
-    setLojaId(lojaRes.data?.id ?? null)
+    setLojaId(lojaRes?.data?.id ?? null)
     setProdutos(prodRes.data || [])
 
     const avals = avalRes.data || []
     setAvaliacoes(avals)
     if (avals.length > 0) setMediaAval(avals.reduce((s: number, a: any) => s + a.nota, 0) / avals.length)
 
-    const minha = avals.find((a: any) => a.user_id === user.id)
-    if (minha) { setMinhaAvaliacao(minha); setNota(minha.nota); setComentario(minha.comentario || '') }
+    if (user) {
+      const minha = avals.find((a: any) => a.user_id === user.id)
+      if (minha) { setMinhaAvaliacao(minha); setNota(minha.nota); setComentario(minha.comentario || '') }
 
-    // Registrar visualização (apenas uma vez por carregamento)
-    if (!viewRegistered.current && fornRes.data.user_id !== user.id) {
-      viewRegistered.current = true
-      await supabase.from('visualizacoes_fornecedor').insert({ fornecedor_id: id, user_id: user.id })
+      // Registrar visualizacao (apenas uma vez por carregamento, e nao se for o dono)
+      if (!viewRegistered.current && fornRes.data.user_id !== user.id) {
+        viewRegistered.current = true
+        await supabase.from('visualizacoes_fornecedor').insert({ fornecedor_id: id, user_id: user.id })
+      }
     }
 
     setCarregando(false)
   }
 
   async function enviarAvaliacao() {
+    if (!userId) { router.push('/cliente/login'); return }
     if (nota === 0) { mostrarToast('Selecione uma nota!', 'erro'); return }
     if (userId === fornecedor?.user_id) { mostrarToast('Você não pode avaliar seu próprio perfil', 'erro'); return }
     setEnviandoAval(true)

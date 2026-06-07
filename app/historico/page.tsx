@@ -16,6 +16,7 @@ export default function Historico() {
   const [temMais, setTemMais] = useState(false)
   const [periodo, setPeriodo] = useState('todos')
   const [carregando, setCarregando] = useState(false)
+  const [exportando, setExportando] = useState(false)
 
   useEffect(() => {
     if (loja) {
@@ -62,22 +63,55 @@ export default function Historico() {
     carregarPagina(pagina + 1)
   }
 
-  function exportarCSV() {
-    // Escape protege contra CSV injection (=, +, -, @, TAB, CR no início viram fórmula no Excel)
-    // e contra aspas/vírgulas/quebras de linha dentro do campo.
+  async function exportarCSV() {
+    if (exportando) return
+    setExportando(true)
+    // Busca TODAS as vendas filtradas pelo periodo atual, nao apenas a pagina visivel.
+    // Pagina em blocos de 1000 (limite default do supabase) ate esgotar.
+    const agora = new Date()
+    let desde = new Date()
+    if (periodo === 'hoje') desde.setHours(0, 0, 0, 0)
+    else if (periodo === 'semana') desde.setDate(agora.getDate() - 7)
+    else if (periodo === 'mes') desde.setDate(1)
+
+    const BATCH = 1000
+    const todas: any[] = []
+    let offset = 0
+    while (true) {
+      let q = supabase
+        .from('vendas')
+        .select('valor_total, lucro, quantidade, forma_pagamento, created_at, produtos(nome)')
+        .eq('loja_id', loja.id)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + BATCH - 1)
+      if (periodo !== 'todos') q = q.gte('created_at', desde.toISOString())
+      const { data, error } = await q
+      if (error) {
+        mostrarToast('Erro ao exportar', 'erro')
+        setExportando(false)
+        return
+      }
+      const chunk = data || []
+      todas.push(...chunk)
+      if (chunk.length < BATCH) break
+      offset += BATCH
+    }
+
+    // Escape protege contra CSV injection (=, +, -, @, TAB, CR no inicio viram formula no Excel)
+    // e contra aspas/virgulas/quebras de linha dentro do campo.
     const escape = (v: any) => {
       const s = v == null ? '' : String(v)
       const prefixed = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s
       return `"${prefixed.replace(/"/g, '""')}"`
     }
     const linhas = [['ID', 'Produto', 'Quantidade', 'Valor', 'Lucro', 'Pagamento', 'Data']]
-    vendas.forEach((v, i) => {
+    todas.forEach((v: any, i: number) => {
       linhas.push([
         `#${String(i + 1).padStart(4, '0')}`,
         v.produtos?.nome ?? '',
         v.quantidade,
-        v.valor_total.toFixed(2),
-        v.lucro.toFixed(2),
+        Number(v.valor_total).toFixed(2),
+        Number(v.lucro).toFixed(2),
         v.forma_pagamento,
         new Date(v.created_at).toLocaleDateString('pt-BR')
       ])
@@ -87,9 +121,11 @@ export default function Historico() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'vendas.csv'
+    a.download = `vendas-${periodo}-${new Date().toISOString().slice(0, 10)}.csv`
     a.click()
     URL.revokeObjectURL(url)
+    mostrarToast(`✓ ${todas.length} vendas exportadas`, 'sucesso')
+    setExportando(false)
   }
 
   if (loading) return (
@@ -112,8 +148,8 @@ export default function Historico() {
             </button>
           ))}
         </div>
-        <button onClick={exportarCSV} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl transition text-sm">
-          Exportar CSV
+        <button onClick={exportarCSV} disabled={exportando} className="bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl transition text-sm">
+          {exportando ? 'Exportando...' : 'Exportar CSV'}
         </button>
       </div>
 
