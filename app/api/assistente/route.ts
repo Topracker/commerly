@@ -32,7 +32,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ erro: 'Limite de perguntas atingido. Tente novamente em uma hora.' }, { status: 429 })
   }
 
-  const { data: loja } = await supabase.from('lojas').select('*').eq('user_id', user.id).single()
+  const { data: loja } = await supabase
+    .from('lojas')
+    .select('id, nome, tipo')
+    .eq('user_id', user.id)
+    .single()
   if (!loja) return NextResponse.json({ erro: 'Loja não encontrada' }, { status: 404 })
 
   const trintaDiasAtras = new Date()

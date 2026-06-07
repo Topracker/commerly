@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createHmac } from 'crypto'
+import { createHmac, timingSafeEqual } from 'crypto'
 import { createAdminClient } from '../../../lib/supabase-admin'
 
 const PRECO_NORMAL = 54.99
@@ -116,7 +116,8 @@ function verificarAssinatura(
     const dataId = JSON.parse(body)?.data?.id ?? ''
     const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`
     const computed = createHmac('sha256', secret).update(manifest).digest('hex')
-    return computed === v1
+    if (computed.length !== v1.length) return false
+    return timingSafeEqual(Buffer.from(computed), Buffer.from(v1))
   } catch {
     return false
   }

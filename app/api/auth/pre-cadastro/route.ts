@@ -19,13 +19,17 @@ export async function POST(req: NextRequest) {
       email_confirm: true,
     })
 
-    // Usuário já existe: tudo bem, o signInWithOtp vai enviar OTP normalmente
+    // Usuário já existe: tudo bem, o signInWithOtp vai enviar OTP normalmente.
+    // Outros erros são logados mas a resposta é genérica — evita enumeração
+    // de contas e vazamento de detalhes internos do Supabase Auth.
     if (error && !error.message.toLowerCase().includes('already')) {
-      return NextResponse.json({ erro: error.message }, { status: 400 })
+      console.error('[pre-cadastro] createUser error:', error.message)
+      return NextResponse.json({ erro: 'Não foi possível processar este email.' }, { status: 400 })
     }
 
     return NextResponse.json({ ok: true })
-  } catch {
+  } catch (e) {
+    console.error('[pre-cadastro] exception:', e)
     return NextResponse.json({ erro: 'Erro interno' }, { status: 500 })
   }
 }

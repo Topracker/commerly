@@ -53,6 +53,19 @@ export default function Produtos() {
   function handleImagem(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    // SVG executa script no <img>; bloqueia formatos não-raster
+    const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    if (!tiposPermitidos.includes(file.type)) {
+      mostrarToast('Use uma imagem JPG, PNG, WEBP ou GIF.', 'erro')
+      e.target.value = ''
+      return
+    }
+    const MAX_BYTES = 5 * 1024 * 1024
+    if (file.size > MAX_BYTES) {
+      mostrarToast('A imagem deve ter no máximo 5 MB.', 'erro')
+      e.target.value = ''
+      return
+    }
     setImagem(file)
     setImagemPreview(URL.createObjectURL(file))
   }
@@ -65,9 +78,19 @@ export default function Produtos() {
 
     let imagem_url = editando?.imagem_url || ''
     if (imagem) {
-      const ext = imagem.name.split('.').pop()
+      // Extensão derivada do MIME type, não do nome do arquivo do usuário.
+      const extByMime: Record<string, string> = {
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'image/gif': 'gif',
+      }
+      const ext = extByMime[imagem.type]
+      if (!ext) { mostrarToast('Formato de imagem inválido.', 'erro'); setSalvando(false); return }
       const fileName = `${loja.id}-${Date.now()}.${ext}`
-      const { error: uploadError } = await supabase.storage.from('produtos').upload(fileName, imagem, { upsert: true })
+      const { error: uploadError } = await supabase.storage
+        .from('produtos')
+        .upload(fileName, imagem, { upsert: true, contentType: imagem.type })
       if (!uploadError) {
         const { data: urlData } = supabase.storage.from('produtos').getPublicUrl(fileName)
         imagem_url = urlData.publicUrl

@@ -63,11 +63,18 @@ export default function Historico() {
   }
 
   function exportarCSV() {
+    // Escape protege contra CSV injection (=, +, -, @, TAB, CR no início viram fórmula no Excel)
+    // e contra aspas/vírgulas/quebras de linha dentro do campo.
+    const escape = (v: any) => {
+      const s = v == null ? '' : String(v)
+      const prefixed = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s
+      return `"${prefixed.replace(/"/g, '""')}"`
+    }
     const linhas = [['ID', 'Produto', 'Quantidade', 'Valor', 'Lucro', 'Pagamento', 'Data']]
     vendas.forEach((v, i) => {
       linhas.push([
         `#${String(i + 1).padStart(4, '0')}`,
-        v.produtos?.nome,
+        v.produtos?.nome ?? '',
         v.quantidade,
         v.valor_total.toFixed(2),
         v.lucro.toFixed(2),
@@ -75,13 +82,14 @@ export default function Historico() {
         new Date(v.created_at).toLocaleDateString('pt-BR')
       ])
     })
-    const csv = linhas.map(l => l.join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
+    const csv = linhas.map(l => l.map(escape).join(',')).join('\r\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
     a.download = 'vendas.csv'
     a.click()
+    URL.revokeObjectURL(url)
   }
 
   if (loading) return (

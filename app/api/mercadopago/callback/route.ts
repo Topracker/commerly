@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createHmac } from 'crypto'
+import { createHmac, timingSafeEqual } from 'crypto'
 import { createAdminClient } from '../../../lib/supabase-admin'
 
 const STATE_TTL_MS = 10 * 60 * 1000 // 10 minutes
@@ -95,7 +95,8 @@ function validarState(state: string): string | null {
     const esperada = createHmac('sha256', process.env.MP_CLIENT_SECRET!)
       .update(`${lojaId}:${timestamp}`)
       .digest('hex')
-    return assinatura === esperada ? lojaId : null
+    if (typeof assinatura !== 'string' || assinatura.length !== esperada.length) return null
+    return timingSafeEqual(Buffer.from(assinatura), Buffer.from(esperada)) ? lojaId : null
   } catch {
     return null
   }

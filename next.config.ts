@@ -31,6 +31,8 @@ const csp = [
   `form-action 'self' ${mercadoPagoHosts} ${stripeHosts}`,
 ].join("; ")
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL
+
 const nextConfig: NextConfig = {
   async headers() {
     return [
@@ -41,23 +43,28 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-          // HSTS: 1 year, includeSubDomains
-          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+          // HSTS: 2 anos, includeSubDomains, preload — elegível para hstspreload.org
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
           { key: "Content-Security-Policy", value: csp },
+          // Endurecimentos adicionais — barram técnicas de side-channel
+          // e isolam o documento como top-level browsing context
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "X-DNS-Prefetch-Control", value: "off" },
         ],
       },
-      {
+      // CORS — só emite cabeçalhos quando há origem confiável definida.
+      // Sem isso, "Access-Control-Allow-Origin: " (vazio) confunde proxies
+      // intermediários e dá falsa sensação de configuração.
+      ...(appUrl ? [{
         source: "/api/(.*)",
         headers: [
-          {
-            key: "Access-Control-Allow-Origin",
-            value: process.env.NEXT_PUBLIC_APP_URL ?? "",
-          },
+          { key: "Access-Control-Allow-Origin", value: appUrl },
+          { key: "Vary", value: "Origin" },
           { key: "Access-Control-Allow-Methods", value: "GET, POST, DELETE, OPTIONS" },
           { key: "Access-Control-Allow-Headers", value: "Content-Type, Authorization" },
           { key: "Access-Control-Max-Age", value: "86400" },
         ],
-      },
+      }] : []),
     ];
   },
 };

@@ -3,6 +3,9 @@ import { createAdminClient } from '../../../../lib/supabase-admin'
 import { rateLimit } from '../../../../lib/rate-limit'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// Charge ID do PagBank: prefixo CHAR_ + ULID/UUID. Restringe ao alfabeto seguro
+// para uso direto em URL e impede SSRF / path traversal via charge_id forjado.
+const CHARGE_ID_RE = /^[A-Z0-9_\-]{1,80}$/i
 // Limite de cobranças verificadas por requisição — evita amplificação de
 // chamadas à API do PagBank a partir de um webhook forjado com muitos charges.
 const MAX_CHARGES = 50
@@ -73,11 +76,11 @@ export async function POST(
 
   for (const charge of pagas) {
     const chargeId = String(charge.id ?? '')
-    if (!chargeId) continue
+    if (!chargeId || !CHARGE_ID_RE.test(chargeId)) continue
 
     // Verifica a cobrança direto na API do PagBank — impede injeção de webhook falso
     const pbVerify = await fetch(
-      `${baseUrl}/charges/${chargeId}`,
+      `${baseUrl}/charges/${encodeURIComponent(chargeId)}`,
       { headers: { Authorization: `Bearer ${conexao.token}` } }
     )
 
