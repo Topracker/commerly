@@ -1,5 +1,5 @@
 /* Commerly service worker — minimal & conservative */
-const VERSION = 'commerly-v1';
+const VERSION = 'commerly-v2';
 const STATIC_CACHE = `${VERSION}-static`;
 
 const PRECACHE = [
@@ -10,7 +10,7 @@ const PRECACHE = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE))
+    caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE)).catch(() => {})
   );
   self.skipWaiting();
 });
@@ -44,6 +44,15 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
   if (url.pathname === '/sw.js') return;
+
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      fetch(req).catch(() =>
+        caches.match(req).then((c) => c || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } }))
+      )
+    );
+    return;
+  }
 
   const isImmutable = url.pathname.startsWith('/_next/static/');
   const isStatic = STATIC_ASSET_RE.test(url.pathname);
