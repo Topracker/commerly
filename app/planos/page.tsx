@@ -39,7 +39,7 @@ function PlanosConteudo() {
   const FEATURES = [
     'Dashboard completo com gráficos',
     'Controle de vendas, estoque e produtos',
-    'Integração MercadoPago e PagBank automática',
+    'Integração MercadoPago automática',
     'Fiado, gastos e histórico',
     'Assistente IA',
     'Novas funcionalidades em primeira mão',
