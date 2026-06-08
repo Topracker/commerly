@@ -16,7 +16,7 @@ function PlanosConteudo() {
   const [loading, setLoading] = useState(true)
   const [assinando, setAssinando] = useState(false)
   const [cancelando, setCancelando] = useState(false)
-  const [msgCancelamento, setMsgCancelamento] = useState<string | null>(null)
+  const [cancelInfo, setCancelInfo] = useState<{ cancelAtPeriodEnd: boolean; validoAte: string | null } | null>(null)
   const [erroCancelamento, setErroCancelamento] = useState<string | null>(null)
 
   const status = params.get('status')
@@ -31,8 +31,26 @@ function PlanosConteudo() {
         .maybeSingle()
       setLoja(data)
       setLoading(false)
+
+      if (data?.stripe_subscription_id) {
+        try {
+          const res = await fetch('/api/stripe/status-assinatura', { cache: 'no-store' })
+          if (res.ok) {
+            const info = await res.json()
+            if (info?.ativa) {
+              setCancelInfo({
+                cancelAtPeriodEnd: !!info.cancelAtPeriodEnd,
+                validoAte: info.validoAte ?? null,
+              })
+            }
+          }
+        } catch {}
+      }
     })
   }, [])
+
+  const formatarData = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleDateString('pt-BR') : null
 
   const temAssinatura = !!loja?.stripe_subscription_id
   const planoAtivo = loja?.plano === 'ativo'
@@ -120,13 +138,11 @@ function PlanosConteudo() {
             temAssinatura ? (
               <div className="flex flex-col gap-2">
                 <div className="w-full bg-green-900 text-green-300 font-semibold py-3 rounded-xl text-center text-sm">
-                  ✓ Assinatura ativa — cobrança automática mensal
+                  {cancelInfo?.cancelAtPeriodEnd
+                    ? `✓ Assinatura ativa — acesso até ${formatarData(cancelInfo.validoAte) ?? 'o fim do período'}`
+                    : '✓ Assinatura ativa — cobrança automática mensal'}
                 </div>
-                {msgCancelamento ? (
-                  <div className="w-full bg-yellow-950 border border-yellow-800 text-yellow-300 text-sm py-3 px-4 rounded-xl text-center">
-                    {msgCancelamento}
-                  </div>
-                ) : (
+                {!cancelInfo?.cancelAtPeriodEnd && (
                   <button
                     onClick={async () => {
                       if (!confirm('Tem certeza que deseja cancelar a assinatura? Você manterá acesso até o fim do período já pago.')) return
@@ -138,14 +154,10 @@ function PlanosConteudo() {
                         if (!res.ok) {
                           setErroCancelamento(data?.error || 'Erro ao cancelar')
                         } else {
-                          const fim = data?.validoAte
-                            ? new Date(data.validoAte).toLocaleDateString('pt-BR')
-                            : null
-                          setMsgCancelamento(
-                            fim
-                              ? `Cancelamento agendado. Acesso válido até ${fim}.`
-                              : 'Cancelamento agendado. Você manterá acesso até o fim do período.'
-                          )
+                          setCancelInfo({
+                            cancelAtPeriodEnd: true,
+                            validoAte: data?.validoAte ?? cancelInfo?.validoAte ?? null,
+                          })
                         }
                       } catch {
                         setErroCancelamento('Erro de conexão. Tente novamente.')
