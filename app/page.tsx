@@ -1,15 +1,17 @@
 import Link from 'next/link'
 import { Store, User, Truck } from 'lucide-react'
+import AnimatedBackground from './components/AnimatedBackground'
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-6">
-      <div className="mb-10 text-center">
+    <main className="relative min-h-screen bg-gray-950 flex flex-col items-center justify-center p-6 overflow-hidden">
+      <AnimatedBackground />
+      <div className="relative z-10 mb-10 text-center">
         <h1 className="text-5xl font-bold text-white mb-2">Commerly</h1>
         <p className="text-gray-400 text-lg">Gestão completa para o seu comércio</p>
       </div>
 
-      <div className="flex flex-col gap-4 w-full max-w-sm">
+      <div className="relative z-10 flex flex-col gap-4 w-full max-w-sm">
         <Link href="/login">
           <div className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-2xl transition flex items-center gap-4 cursor-pointer">
             <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center shrink-0">
