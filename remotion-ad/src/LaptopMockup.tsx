@@ -4,14 +4,23 @@ type Props = {
   children: React.ReactNode;
   // 0..1 — quanto o notebook já se aproximou da câmera (anima a sombra)
   approach?: number;
+  // 0..1 — progresso do brilho diagonal atravessando a tela (0 = desligado)
+  glare?: number;
 };
 
 // Dimensions chosen to fit safely in 1920x1080 with room for label below
 export const LAPTOP_SCREEN_W = 1280;
 export const LAPTOP_SCREEN_H = 720;
 
-export const LaptopMockup: React.FC<Props> = ({ children, approach = 0 }) => {
+export const LaptopMockup: React.FC<Props> = ({
+  children,
+  approach = 0,
+  glare = 0,
+}) => {
   const a = Math.min(Math.max(approach, 0), 1);
+  const g = Math.min(Math.max(glare, 0), 1);
+  // opacidade 0 -> 20% -> 0 enquanto o brilho atravessa
+  const glareOpacity = Math.sin(g * Math.PI) * 0.2;
   const screenW = LAPTOP_SCREEN_W;
   const screenH = LAPTOP_SCREEN_H;
   const topBezel = 22;
@@ -95,6 +104,25 @@ export const LaptopMockup: React.FC<Props> = ({ children, approach = 0 }) => {
             }}
           >
             {children}
+
+            {/* brilho diagonal premium atravessando a tela */}
+            {glareOpacity > 0.005 && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "-60%",
+                  left: `${-70 + g * 220}%`,
+                  width: "55%",
+                  height: "220%",
+                  transform: "rotate(18deg)",
+                  background:
+                    "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0) 100%)",
+                  opacity: glareOpacity,
+                  pointerEvents: "none",
+                  zIndex: 7,
+                }}
+              />
+            )}
 
             {/* glass reflection overlay */}
             <div

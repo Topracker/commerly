@@ -3,7 +3,7 @@ import { Cursor } from "./Cursor";
 import { Modal, Field, TypeText } from "./ui";
 
 // Coordenadas no espaço da tela do laptop (1280x720)
-const BTN = { x: 1024, y: 72 };
+const BTN = { x: 1114, y: 72 };
 
 // Funcionários: cursor -> "+ Adicionar" -> modal abre e é preenchido
 export const FuncionariosOverlay: React.FC<{ frame: number }> = ({ frame }) => {

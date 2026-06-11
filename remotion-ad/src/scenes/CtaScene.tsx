@@ -113,7 +113,7 @@ export const CtaScene: React.FC<Props> = ({ frame, start, end }) => {
                   letterSpacing: 0.5,
                 }}
               >
-                Primeiros 100 usuários:
+                Primeiros 100 usuários
               </div>
             </MaskedText>
 
@@ -135,16 +135,30 @@ export const CtaScene: React.FC<Props> = ({ frame, start, end }) => {
               </div>
             </MaskedText>
 
-            <MaskedText progress={sub2Enter} style={{ marginTop: 6 }}>
+            <MaskedText progress={sub2Enter} style={{ marginTop: 14 }}>
               <div
                 style={{
                   fontFamily: FONT,
-                  color: "#64748b",
-                  fontSize: 32,
-                  fontWeight: 500,
+                  fontSize: 34,
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
                 }}
               >
-                nos 2 primeiros meses
+                <span
+                  style={{
+                    color: "#4ade80",
+                    background: "rgba(34,197,94,0.12)",
+                    border: "1px solid rgba(34,197,94,0.35)",
+                    borderRadius: 999,
+                    padding: "6px 20px",
+                    fontWeight: 800,
+                  }}
+                >
+                  Economize R$ 50
+                </span>
+                <span style={{ color: "#94a3b8" }}>nos 2 primeiros meses</span>
               </div>
             </MaskedText>
 

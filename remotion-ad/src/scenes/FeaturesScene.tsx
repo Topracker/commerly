@@ -158,6 +158,12 @@ export const FeaturesScene: React.FC<Props> = ({
     extrapolateRight: "clamp",
   });
 
+  // brilho diagonal varre a tela logo após cada transição/entrada
+  const glareP = interpolate(fi, [4, 30], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
   const Overlay = feature.overlay;
 
   return (
@@ -214,7 +220,7 @@ export const FeaturesScene: React.FC<Props> = ({
                   willChange: "transform",
                 }}
               >
-                <LaptopMockup approach={approach}>
+                <LaptopMockup approach={approach} glare={glareP}>
                   <Img
                     src={staticFile(feature.src)}
                     style={{
@@ -223,7 +229,9 @@ export const FeaturesScene: React.FC<Props> = ({
                       width: "100%",
                       height: "100%",
                       objectFit: "cover",
-                      objectPosition: "top center",
+                      // alinhado à esquerda: a sidebar aparece completa,
+                      // o corte fica no lado direito (área vazia do app)
+                      objectPosition: "top left",
                     }}
                   />
                   {Overlay ? <Overlay frame={fi} /> : null}

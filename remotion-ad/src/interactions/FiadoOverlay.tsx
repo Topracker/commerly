@@ -4,7 +4,7 @@ import { Cursor } from "./Cursor";
 import { Modal, Field, PrimaryButton, Toast, TypeText } from "./ui";
 
 // Coordenadas no espaço da tela do laptop (1280x720)
-const BTN = { x: 1060, y: 87 };
+const BTN = { x: 1134, y: 87 };
 const SALVAR = { x: 838, y: 448 };
 
 // Fiado: cursor -> "+ Adicionar" -> modal -> João Silva / R$ 150 -> salvar ->
@@ -27,7 +27,7 @@ export const FiadoOverlay: React.FC<{ frame: number }> = ({ frame }) => {
         <div
           style={{
             position: "absolute",
-            left: 420,
+            left: 495,
             top: 142,
             width: 260,
             height: 42,

@@ -1,18 +1,35 @@
 import React from "react";
-import { interpolate, spring, useVideoConfig } from "remotion";
+import { interpolate, spring, useVideoConfig, Easing } from "remotion";
 import { TypeText } from "./ui";
 
 const FONT =
   "ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif";
 
 const QUESTION = "Quanto vendi hoje?";
-const ANSWER =
-  "Hoje você vendeu R$ 1.250,00 em 18 vendas! 🎉 Seu produto mais vendido foi Coca-Cola 2L.";
 
 const TYPE_START = 24;
 const SEND = 66;
 const DOTS_START = 74;
 const ANSWER_START = 106;
+// o valor é o 4º "word" da resposta (revelado 9 frames após o início)
+const COUNT_START = ANSWER_START + 9;
+const COUNT_DUR = 24; // 0.8s a 30fps
+
+// R$ 0 -> R$ 1.250 contando
+const MoneyCounter: React.FC<{ frame: number }> = ({ frame }) => {
+  const value = Math.round(
+    interpolate(frame, [0, COUNT_DUR], [0, 1250], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.out(Easing.cubic),
+    }),
+  );
+  return (
+    <span style={{ color: "#4ade80", fontWeight: 700 }}>
+      R$ {value.toLocaleString("pt-BR")},00
+    </span>
+  );
+};
 
 // Assistente IA: usuário digita pergunta -> envia -> IA "pensa" -> responde palavra a palavra
 export const AssistenteOverlay: React.FC<{ frame: number }> = ({ frame }) => {
@@ -30,7 +47,24 @@ export const AssistenteOverlay: React.FC<{ frame: number }> = ({ frame }) => {
     config: { damping: 15, stiffness: 160 },
   });
 
-  const words = ANSWER.split(" ");
+  // resposta palavra a palavra, com o valor como contador animado
+  const words: React.ReactNode[] = [
+    "Hoje",
+    "você",
+    "vendeu",
+    <MoneyCounter key="counter" frame={f - COUNT_START} />,
+    "em",
+    "18",
+    "vendas!",
+    "🎉",
+    "Seu",
+    "produto",
+    "mais",
+    "vendido",
+    "foi",
+    "Coca-Cola",
+    "2L.",
+  ];
   const wordCount = Math.max(
     0,
     Math.min(words.length, Math.floor((f - ANSWER_START) / 3) + 1),
@@ -42,7 +76,7 @@ export const AssistenteOverlay: React.FC<{ frame: number }> = ({ frame }) => {
       <div
         style={{
           position: "absolute",
-          left: 270,
+          left: 330,
           top: 64,
           right: 0,
           height: 524,
@@ -134,7 +168,9 @@ export const AssistenteOverlay: React.FC<{ frame: number }> = ({ frame }) => {
             >
               ✦ ASSISTENTE IA
             </div>
-            {words.slice(0, wordCount).join(" ")}
+            {words.slice(0, wordCount).map((w, i) => (
+              <React.Fragment key={i}>{w} </React.Fragment>
+            ))}
           </div>
         )}
       </div>
@@ -144,7 +180,7 @@ export const AssistenteOverlay: React.FC<{ frame: number }> = ({ frame }) => {
         <div
           style={{
             position: "absolute",
-            left: 296,
+            left: 350,
             top: 617,
             height: 26,
             display: "flex",
