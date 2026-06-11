@@ -1,5 +1,11 @@
 import React from "react";
-import { AbsoluteFill, spring, useVideoConfig } from "remotion";
+import {
+  AbsoluteFill,
+  spring,
+  useVideoConfig,
+  interpolate,
+  Easing,
+} from "remotion";
 import { Camera } from "../Camera";
 import { MaskedText } from "../MaskedText";
 import { LetterReveal } from "../LetterReveal";
@@ -33,8 +39,28 @@ export const LogoIntro: React.FC<Props> = ({ frame, start, end }) => {
     config: { damping: 18, stiffness: 110 },
   });
 
+  // saída em zoom: câmera mergulha para frente e a próxima cena chega por zoom
+  const exitP = interpolate(local, [duration - 12, duration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.in(Easing.cubic),
+  });
+  const exitScale = 1 + exitP * 1.4;
+  const exitBlur = exitP * 10;
+  const exitOpacity = interpolate(local, [duration - 5, duration], [1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
   return (
-    <AbsoluteFill>
+    <AbsoluteFill
+      style={{
+        transform: `scale(${exitScale})`,
+        transformOrigin: "center center",
+        filter: exitBlur > 0.1 ? `blur(${exitBlur}px)` : undefined,
+        opacity: exitOpacity,
+      }}
+    >
       <Camera frame={local} duration={duration} driftX={-12} driftY={-8}>
         <AbsoluteFill
           style={{

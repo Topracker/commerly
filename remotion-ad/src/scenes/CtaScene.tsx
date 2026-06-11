@@ -4,13 +4,14 @@ import {
   spring,
   useVideoConfig,
   interpolate,
-  Easing,
 } from "remotion";
-import { Logo } from "../Logo";
 import { Camera } from "../Camera";
 import { MaskedText } from "../MaskedText";
 import { LetterReveal } from "../LetterReveal";
 import { parallax } from "../motion";
+
+const FONT =
+  "ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif";
 
 type Props = {
   frame: number;
@@ -18,6 +19,8 @@ type Props = {
   end: number;
 };
 
+// Oferta de lançamento — stagger: título 0, "Primeiros 100" +8,
+// preço +14, "2 primeiros meses" +20, botão +26
 export const CtaScene: React.FC<Props> = ({ frame, start, end }) => {
   const { fps } = useVideoConfig();
   if (frame < start || frame >= end) return null;
@@ -25,26 +28,26 @@ export const CtaScene: React.FC<Props> = ({ frame, start, end }) => {
   const local = frame - start;
   const duration = end - start;
 
-  const pLogo = parallax(frame, 15);
+  const pTitle = parallax(frame, 15);
   const pText = parallax(frame, 25);
 
-  // stagger: logo 0s, url +0.2s, botão +0.4s
-  const logoScale = interpolate(local, [0, 10, 18], [0.8, 1.05, 1.0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.out(Easing.quad),
+  const sub1Enter = spring({
+    frame: local - 8,
+    fps,
+    config: { damping: 18, stiffness: 110 },
   });
-  const logoOpacity = interpolate(local, [0, 8], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
+  const priceEnter = spring({
+    frame: local - 14,
+    fps,
+    config: { damping: 15, stiffness: 120 },
   });
-  const logoBlur = interpolate(local, [0, 10], [5, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
+  const sub2Enter = spring({
+    frame: local - 20,
+    fps,
+    config: { damping: 18, stiffness: 110 },
   });
-
   const btnEnter = spring({
-    frame: local - 12,
+    frame: local - 26,
     fps,
     config: { damping: 16, stiffness: 120 },
   });
@@ -52,7 +55,7 @@ export const CtaScene: React.FC<Props> = ({ frame, start, end }) => {
     extrapolateRight: "clamp",
   });
 
-  // pulso contínuo do botão — nada fica parado
+  // pulso contínuo do botão
   const btnPulse = 1 + 0.015 * Math.sin(local / 9);
 
   const fadeOut = interpolate(local, [duration - 12, duration], [1, 0], {
@@ -71,13 +74,24 @@ export const CtaScene: React.FC<Props> = ({ frame, start, end }) => {
         >
           <div
             style={{
-              opacity: logoOpacity,
-              transform: `translate(${pLogo.x}px, ${pLogo.y}px) scale(${logoScale})`,
-              filter: logoBlur > 0.1 ? `blur(${logoBlur}px)` : undefined,
+              transform: `translate(${pTitle.x}px, ${pTitle.y}px)`,
               willChange: "transform",
             }}
           >
-            <Logo size={280} />
+            <LetterReveal
+              text="Lançamento Commerly"
+              frame={local}
+              delayPerChar={1.4}
+              style={{
+                fontFamily: FONT,
+                fontWeight: 900,
+                fontSize: 104,
+                lineHeight: 1,
+                letterSpacing: -3,
+                color: "#ffffff",
+                textShadow: "0 6px 30px rgba(96,165,250,0.25)",
+              }}
+            />
           </div>
 
           <div
@@ -89,41 +103,69 @@ export const CtaScene: React.FC<Props> = ({ frame, start, end }) => {
               alignItems: "center",
             }}
           >
-            <LetterReveal
-              text="commerly.vercel.app"
-              frame={local - 6}
-              delayPerChar={1.2}
-              style={{
-                marginTop: 32,
-                fontFamily:
-                  "ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif",
-                color: "#cbd5e1",
-                fontWeight: 600,
-                fontSize: 60,
-                letterSpacing: -0.5,
-                textShadow: "0 4px 24px rgba(0,0,0,0.4)",
-              }}
-            />
+            <MaskedText progress={sub1Enter} style={{ marginTop: 34 }}>
+              <div
+                style={{
+                  fontFamily: FONT,
+                  color: "#94a3b8",
+                  fontSize: 40,
+                  fontWeight: 600,
+                  letterSpacing: 0.5,
+                }}
+              >
+                Primeiros 100 usuários:
+              </div>
+            </MaskedText>
 
-            <MaskedText progress={btnEnter} style={{ marginTop: 36 }}>
+            <MaskedText progress={priceEnter} style={{ marginTop: 10 }}>
+              <div
+                style={{
+                  fontFamily: FONT,
+                  fontWeight: 900,
+                  fontSize: 120,
+                  lineHeight: 1.05,
+                  letterSpacing: -3,
+                  background:
+                    "linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                R$ 29,90/mês
+              </div>
+            </MaskedText>
+
+            <MaskedText progress={sub2Enter} style={{ marginTop: 6 }}>
+              <div
+                style={{
+                  fontFamily: FONT,
+                  color: "#64748b",
+                  fontSize: 32,
+                  fontWeight: 500,
+                }}
+              >
+                nos 2 primeiros meses
+              </div>
+            </MaskedText>
+
+            <MaskedText progress={btnEnter} style={{ marginTop: 40 }}>
               <div
                 style={{
                   transform: `scale(${btnScale * btnPulse})`,
-                  padding: "22px 56px",
+                  padding: "22px 52px",
                   borderRadius: 999,
                   background:
                     "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)",
                   boxShadow:
                     "0 16px 48px rgba(37,99,235,0.5), inset 0 1px 0 rgba(255,255,255,0.25)",
-                  fontFamily:
-                    "ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif",
+                  fontFamily: FONT,
                   color: "#ffffff",
                   fontWeight: 700,
-                  fontSize: 40,
+                  fontSize: 38,
                   letterSpacing: -0.5,
                 }}
               >
-                Comece grátis agora
+                Garanta sua vaga → commerly.vercel.app
               </div>
             </MaskedText>
           </div>
