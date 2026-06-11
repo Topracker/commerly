@@ -156,9 +156,22 @@ export const CtaScene: React.FC<Props> = ({ frame, start, end }) => {
                     fontWeight: 800,
                   }}
                 >
-                  Economize R$ 50
+                  Economize R$ 50,18
                 </span>
-                <span style={{ color: "#94a3b8" }}>nos 2 primeiros meses</span>
+                <span style={{ color: "#94a3b8" }}>nos 2 meses</span>
+              </div>
+            </MaskedText>
+
+            <MaskedText progress={sub2Enter} style={{ marginTop: 10 }}>
+              <div
+                style={{
+                  fontFamily: FONT,
+                  color: "#64748b",
+                  fontSize: 26,
+                  fontWeight: 500,
+                }}
+              >
+                depois, R$ 54,99/mês
               </div>
             </MaskedText>
 
