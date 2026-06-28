@@ -7,7 +7,7 @@ import { Toast } from '../components/Toast'
 import { ConfirmModal } from '../components/ConfirmModal'
 import {
   carregarAgendamentos, salvarAgendamento, removerAgendamento, carregarServicos,
-  type Agendamento, type Servico,
+  type Agendamento, type Servico, type StatusAgendamento,
 } from '../lib/nicheStore'
 
 const HORAS = Array.from({ length: 28 }, (_, i) => {
@@ -47,13 +47,14 @@ export default function Agenda() {
   const [telefone, setTelefone] = useState('')
   const [obs, setObs] = useState('')
 
-  function recarregar() {
-    setAgendamentos(carregarAgendamentos(loja.id))
-    setServicos(carregarServicos(loja.id))
-  }
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- carga única do store local (localStorage) no mount
-  useEffect(() => { if (loja) recarregar() }, [loja])
+  useEffect(() => {
+    if (!loja) return
+    let ativo = true
+    Promise.all([carregarAgendamentos(loja.id), carregarServicos(loja.id)])
+      .then(([ags, servs]) => { if (!ativo) return; setAgendamentos(ags); setServicos(servs) })
+      .catch(() => { if (ativo) mostrarToast('Erro ao carregar a agenda', 'erro') })
+    return () => { ativo = false }
+  }, [loja])
 
   function abrirModal(ag?: Agendamento) {
     if (ag) {
@@ -67,33 +68,46 @@ export default function Agenda() {
     setModal(true)
   }
 
-  function salvar() {
+  async function salvar() {
     if (!cliente.trim() || !servico.trim()) {
       mostrarToast('Informe o cliente e o serviço!', 'erro'); return
     }
-    const lista = salvarAgendamento(loja.id, {
-      id: editando?.id,
-      cliente: cliente.trim(),
-      servico: servico.trim(),
-      data, hora,
-      telefone: telefone.trim() || undefined,
-      obs: obs.trim() || undefined,
-      status: editando?.status || 'agendado',
-    })
-    setAgendamentos(lista)
-    setModal(false)
-    mostrarToast(editando ? 'Agendamento atualizado!' : 'Horário marcado!', 'sucesso')
+    try {
+      const lista = await salvarAgendamento(loja.id, {
+        id: editando?.id,
+        cliente: cliente.trim(),
+        servico: servico.trim(),
+        data, hora,
+        telefone: telefone.trim() || null,
+        obs: obs.trim() || null,
+        status: editando?.status || 'agendado',
+      })
+      setAgendamentos(lista)
+      setModal(false)
+      mostrarToast(editando ? 'Agendamento atualizado!' : 'Horário marcado!', 'sucesso')
+    } catch {
+      mostrarToast('Erro ao salvar o agendamento', 'erro')
+    }
   }
 
-  function mudarStatus(ag: Agendamento, status: Agendamento['status']) {
-    setAgendamentos(salvarAgendamento(loja.id, { ...ag, status }))
+  async function mudarStatus(ag: Agendamento, status: StatusAgendamento) {
+    try {
+      setAgendamentos(await salvarAgendamento(loja.id, { ...ag, status }))
+    } catch {
+      mostrarToast('Erro ao atualizar o status', 'erro')
+    }
   }
 
-  function remover() {
+  async function remover() {
     if (!confirmarId) return
-    setAgendamentos(removerAgendamento(loja.id, confirmarId))
-    setConfirmarId(null)
-    mostrarToast('Agendamento removido', 'sucesso')
+    try {
+      const lista = await removerAgendamento(loja.id, confirmarId)
+      setAgendamentos(lista)
+      setConfirmarId(null)
+      mostrarToast('Agendamento removido', 'sucesso')
+    } catch {
+      mostrarToast('Erro ao remover o agendamento', 'erro')
+    }
   }
 
   if (loading) return (

@@ -20,12 +20,14 @@ export default function Servicos() {
   const [preco, setPreco] = useState('')
   const [duracao, setDuracao] = useState('30')
 
-  function recarregar() {
-    setServicos(carregarServicos(loja.id))
-  }
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- carga única do store local (localStorage) no mount
-  useEffect(() => { if (loja) recarregar() }, [loja])
+  useEffect(() => {
+    if (!loja) return
+    let ativo = true
+    carregarServicos(loja.id)
+      .then(lista => { if (ativo) setServicos(lista) })
+      .catch(() => { if (ativo) mostrarToast('Erro ao carregar os serviços', 'erro') })
+    return () => { ativo = false }
+  }, [loja])
 
   function abrirModal(s?: Servico) {
     if (s) {
@@ -38,26 +40,35 @@ export default function Servicos() {
     setModal(true)
   }
 
-  function salvar() {
+  async function salvar() {
     if (!nome.trim() || !preco) {
       mostrarToast('Informe o nome e o preço!', 'erro'); return
     }
-    const lista = salvarServico(loja.id, {
-      id: editando?.id,
-      nome: nome.trim(),
-      preco: parseFloat(preco) || 0,
-      duracao: parseInt(duracao) || 0,
-    })
-    setServicos(lista)
-    setModal(false)
-    mostrarToast(editando ? 'Serviço atualizado!' : 'Serviço cadastrado!', 'sucesso')
+    try {
+      const lista = await salvarServico(loja.id, {
+        id: editando?.id,
+        nome: nome.trim(),
+        preco: parseFloat(preco) || 0,
+        duracao: parseInt(duracao) || 0,
+      })
+      setServicos(lista)
+      setModal(false)
+      mostrarToast(editando ? 'Serviço atualizado!' : 'Serviço cadastrado!', 'sucesso')
+    } catch {
+      mostrarToast('Erro ao salvar o serviço', 'erro')
+    }
   }
 
-  function remover() {
+  async function remover() {
     if (!confirmarId) return
-    setServicos(removerServico(loja.id, confirmarId))
-    setConfirmarId(null)
-    mostrarToast('Serviço removido', 'sucesso')
+    try {
+      const lista = await removerServico(loja.id, confirmarId)
+      setServicos(lista)
+      setConfirmarId(null)
+      mostrarToast('Serviço removido', 'sucesso')
+    } catch {
+      mostrarToast('Erro ao remover o serviço', 'erro')
+    }
   }
 
   if (loading) return (
