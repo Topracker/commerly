@@ -5,7 +5,7 @@ import { createClient } from '../supabase'
 import { useNicho } from '../hooks/useNicho'
 import {
   TrendingDown, Clock, Users,
-  MessageSquare, Settings, LogOut, Menu, X, Wallet, Home, Sparkles, Plug, Crown
+  MessageSquare, MessageCircle, Settings, LogOut, Menu, X, Wallet, Home, Sparkles, Plug, Crown
 } from 'lucide-react'
 
 // Itens sempre visíveis no topo.
@@ -20,6 +20,7 @@ const MENU_ADMIN = [
   { label: 'Gastos', sub: 'Controlar despesas', path: '/gastos', icon: TrendingDown },
   { label: 'Histórico', sub: 'Ver todas as vendas', path: '/historico', icon: Clock },
   { label: 'Funcionários', sub: 'Gerenciar equipe', path: '/funcionarios', icon: Users },
+  { label: 'Mensagens', sub: 'Chat com clientes e fornecedores', path: '/mensagens', icon: MessageCircle },
   { label: 'Feedback', sub: 'Enviar sugestão', path: '/feedback', icon: MessageSquare },
   { label: 'Integrações', sub: 'MP e PagBank', path: '/integracoes', icon: Plug },
   { label: 'Configurações', sub: 'Editar dados da loja', path: '/configuracoes', icon: Settings },
@@ -52,13 +53,25 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
 
   useEffect(() => {
     if (!loja?.id) return
-    supabase
-      .from('mensagens')
-      .select('id', { count: 'exact', head: true })
-      .eq('loja_id', loja.id)
-      .eq('remetente', 'fornecedor')
-      .eq('lida', false)
-      .then(({ count }) => setNaoLidas(count || 0))
+    let ativo = true
+    // Não-lidas no menu Mensagens = clientes + fornecedores.
+    Promise.all([
+      supabase
+        .from('mensagens_clientes')
+        .select('id', { count: 'exact', head: true })
+        .eq('loja_id', loja.id)
+        .eq('remetente', 'cliente')
+        .eq('lida', false),
+      supabase
+        .from('mensagens')
+        .select('id', { count: 'exact', head: true })
+        .eq('loja_id', loja.id)
+        .eq('remetente', 'fornecedor')
+        .eq('lida', false),
+    ]).then(([clientes, fornecedores]) => {
+      if (ativo) setNaoLidas((clientes.count || 0) + (fornecedores.count || 0))
+    })
+    return () => { ativo = false }
   }, [loja?.id, pathname])
 
   function navegar(path: string) {
