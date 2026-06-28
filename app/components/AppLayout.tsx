@@ -2,16 +2,20 @@
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
+import { useNicho } from '../hooks/useNicho'
 import {
-  Package, ShoppingCart, TrendingDown, Clock, Users,
+  TrendingDown, Clock, Users,
   MessageSquare, Settings, LogOut, Menu, X, Wallet, Home, Sparkles, Plug, Crown
 } from 'lucide-react'
 
-const MENU = [
+// Itens sempre visíveis no topo.
+const MENU_TOPO = [
   { label: 'Dashboard', path: '/dashboard', icon: Home },
   { label: 'Assistente IA', sub: 'Perguntas sobre a loja', path: '/assistente', icon: Sparkles },
-  { label: 'Produtos', sub: 'Gerenciar estoque', path: '/produtos', icon: Package },
-  { label: 'Vendas', sub: 'Registrar vendas', path: '/vendas', icon: ShoppingCart },
+]
+
+// Itens administrativos/financeiros, sempre visíveis abaixo dos módulos do nicho.
+const MENU_ADMIN = [
   { label: 'Fiado', sub: 'Controlar fiados', path: '/fiado', icon: Wallet },
   { label: 'Gastos', sub: 'Controlar despesas', path: '/gastos', icon: TrendingDown },
   { label: 'Histórico', sub: 'Ver todas as vendas', path: '/historico', icon: Clock },
@@ -37,6 +41,14 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
+  const { modulos } = useNicho(loja)
+
+  // Menu = topo fixo + módulos do nicho + administrativo fixo.
+  const MENU = [
+    ...MENU_TOPO,
+    ...modulos.map(m => ({ label: m.label, sub: m.sub, path: m.path, icon: m.icon })),
+    ...MENU_ADMIN,
+  ]
 
   useEffect(() => {
     if (!loja?.id) return

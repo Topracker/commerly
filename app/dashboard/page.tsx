@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
+import { useNicho } from '../hooks/useNicho'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
@@ -32,6 +33,7 @@ const BADGES = [
 export default function Dashboard() {
   const { loja, loading, supabase, sair } = useAuth()
   const { toast, mostrarToast } = useToast()
+  const { nicho, modulos } = useNicho(loja)
 
   const [faturamento, setFaturamento] = useState(0)
   const [lucro, setLucro] = useState(0)
@@ -191,6 +193,34 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {/* Atalhos personalizados pro nicho do comerciante */}
+      <div className="mb-6">
+        <p className="text-gray-400 text-xs uppercase font-semibold mb-2">{nicho.emoji} Atalhos do seu negócio</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {modulos.map(m => (
+            <button
+              key={m.path}
+              onClick={() => window.location.href = m.path}
+              className="bg-gray-900 hover:bg-gray-800 rounded-2xl p-4 text-left transition flex flex-col gap-1"
+            >
+              <span className="text-2xl">{m.emoji}</span>
+              <p className="text-white font-semibold text-sm">{m.label}</p>
+              <p className="text-gray-500 text-xs">{m.descricao}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Alerta de estoque em destaque para nichos focados em estoque */}
+      {nicho.destaque === 'estoque' && estoqueBaixo.length > 0 && (
+        <div className="bg-red-950 border border-red-800 rounded-2xl p-4 mb-6">
+          <p className="text-red-300 font-semibold mb-2">⚠️ Estoque baixo — reponha logo</p>
+          {estoqueBaixo.map(p => (
+            <p key={p.id} className="text-red-400 text-sm">{p.nome} — {p.quantidade} unidades</p>
+          ))}
+        </div>
+      )}
+
       {carregando ? (
         <div className="text-center py-12 text-gray-500">Atualizando...</div>
       ) : (
@@ -306,7 +336,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          {estoqueBaixo.length > 0 && (
+          {nicho.destaque !== 'estoque' && estoqueBaixo.length > 0 && (
             <div className="bg-red-950 border border-red-800 rounded-2xl p-4 mb-6">
               <p className="text-red-300 font-semibold mb-2">⚠️ Estoque baixo</p>
               {estoqueBaixo.map(p => (
@@ -337,7 +367,7 @@ export default function Dashboard() {
 
           {ultimasVendas.length > 0 && (
             <div className="bg-gray-900 rounded-2xl p-5">
-              <h2 className="text-white font-semibold mb-4">Últimas vendas</h2>
+              <h2 className="text-white font-semibold mb-4">{nicho.vocab.ultimasVendas}</h2>
               <div className="flex flex-col gap-3">
                 {ultimasVendas.map(v => (
                   <div key={v.id} className="flex justify-between border-b border-gray-800 pb-3">
