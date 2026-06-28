@@ -21,11 +21,6 @@ export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
   const { pathname } = request.nextUrl
 
-  // Areas de Cliente e Fornecedor desativadas — redireciona para a home.
-  if (pathname.startsWith('/cliente/') || pathname.startsWith('/fornecedor/')) {
-    return NextResponse.redirect(new URL('/', request.url))
-  }
-
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -84,8 +79,5 @@ export const config = {
     '/assistente/:path*',
     '/integracoes/:path*',
     '/onboarding/:path*',
-    // Cliente e Fornecedor — bloqueadas (redirect para /)
-    '/cliente/:path*',
-    '/fornecedor/:path*',
   ],
 }
