@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Store, Copy, ExternalLink } from 'lucide-react'
 
 const TIPOS = [
   'Açougue', 'Barbearia', 'Delivery', 'Distribuidora de bebidas',
@@ -115,6 +115,25 @@ export default function Configuracoes() {
   // Blur/reveal
   const [mostrarDoc, setMostrarDoc] = useState(false)
   const [mostrarTel, setMostrarTel] = useState(false)
+
+  // Link da loja pública (montado no client pra usar o origin correto)
+  const [linkPublico, setLinkPublico] = useState('')
+
+  useEffect(() => {
+    if (loja?.id) {
+      const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+      setLinkPublico(`${base}/loja/${loja.id}`)
+    }
+  }, [loja?.id])
+
+  async function copiarLink() {
+    try {
+      await navigator.clipboard.writeText(linkPublico)
+      mostrarToast('Link copiado!', 'sucesso')
+    } catch {
+      mostrarToast('Não foi possível copiar o link', 'erro')
+    }
+  }
 
   useEffect(() => {
     if (loja) {
@@ -303,6 +322,45 @@ export default function Configuracoes() {
         >
           {salvando ? 'Salvando...' : 'Salvar alterações'}
         </button>
+      </div>
+
+      {/* Minha loja pública */}
+      <div className="bg-gray-900 rounded-2xl p-6 mb-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Store size={18} className="text-blue-400" />
+          <h2 className="text-white font-semibold">Minha loja pública</h2>
+        </div>
+        <p className="text-gray-400 text-sm mb-4">
+          Compartilhe este link em redes sociais e no WhatsApp. Qualquer pessoa pode ver sua loja,
+          produtos e avaliações — sem precisar de login.
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            value={linkPublico}
+            readOnly
+            onFocus={e => e.target.select()}
+            className={`flex-1 ${inputClass} text-sm`}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={copiarLink}
+              className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-3 rounded-xl transition flex items-center justify-center gap-2"
+            >
+              <Copy size={16} />
+              Copiar
+            </button>
+            <a
+              href={linkPublico || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 sm:flex-none bg-gray-800 hover:bg-gray-700 text-white font-medium px-4 py-3 rounded-xl transition flex items-center justify-center gap-2"
+            >
+              <ExternalLink size={16} />
+              Abrir
+            </a>
+          </div>
+        </div>
       </div>
     </AppLayout>
   )
