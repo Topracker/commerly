@@ -100,19 +100,6 @@ export default function ClienteLoja() {
           <ArrowLeft size={20} />
         </button>
         <p className="text-white font-bold truncate flex-1 min-w-0">{loja.nome}</p>
-        <button
-          onClick={alternarFavorito}
-          aria-label={favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-          title={favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-          className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition ${
-            favorito
-              ? 'bg-red-500/15 text-red-400 hover:bg-red-500/25'
-              : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
-          }`}
-        >
-          <Heart size={18} className={favorito ? 'fill-red-500 text-red-500' : 'text-red-400'} />
-          {favorito ? 'Favoritada' : 'Favoritar'}
-        </button>
       </header>
 
       <div className="max-w-2xl mx-auto p-4">
@@ -163,6 +150,19 @@ export default function ClienteLoja() {
               </button>
             )}
           </div>
+
+          <button
+            onClick={alternarFavorito}
+            aria-label={favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+            className={`mt-2 w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold transition border ${
+              favorito
+                ? 'bg-red-500/15 border-red-500/40 text-red-400 hover:bg-red-500/25'
+                : 'bg-gray-800 border-gray-700 text-gray-200 hover:bg-gray-700'
+            }`}
+          >
+            <Heart size={18} className={favorito ? 'fill-red-500 text-red-500' : 'text-red-400'} />
+            {favorito ? 'Favoritada' : 'Favoritar loja'}
+          </button>
         </div>
 
         {produtos.length > 0 && (
