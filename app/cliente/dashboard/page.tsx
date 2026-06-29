@@ -1,16 +1,19 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useCliente } from '../../hooks/useCliente'
 import { useToast } from '../../hooks/useToast'
 import { Toast } from '../../components/Toast'
 import { ClienteLayout } from '../../components/ClienteLayout'
-import { User, AlertCircle, ShoppingBag } from 'lucide-react'
+import { getFavoritos, removeFavorito, type LojaFavorita } from '../../lib/favoritos'
+import { User, Heart, Store, X } from 'lucide-react'
 
-type Aba = 'perfil' | 'dividas' | 'historico'
+type Aba = 'perfil' | 'favoritas'
 
 export default function ClienteDashboard() {
   const { cliente, loading, supabase, sair } = useCliente()
   const { toast, mostrarToast } = useToast()
+  const router = useRouter()
   const [aba, setAba] = useState<Aba>('perfil')
 
   const [nome, setNome] = useState('')
@@ -18,51 +21,28 @@ export default function ClienteDashboard() {
   const [email, setEmail] = useState('')
   const [salvandoPerfil, setSalvandoPerfil] = useState(false)
 
-  const [dividas, setDividas] = useState<any[]>([])
-  const [historico, setHistorico] = useState<any[]>([])
-  const [carregando, setCarregando] = useState(false)
+  const [favoritas, setFavoritas] = useState<LojaFavorita[]>([])
 
   useEffect(() => {
     if (cliente) {
       setNome(cliente.nome || '')
       setCpf(cliente.cpf || '')
       carregarEmail()
-      carregarFiados()
     }
   }, [cliente])
+
+  useEffect(() => {
+    if (aba === 'favoritas') setFavoritas(getFavoritos())
+  }, [aba])
 
   async function carregarEmail() {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) setEmail(user.email || '')
   }
 
-  async function carregarFiados() {
-    if (!cliente?.nome) return
-    setCarregando(true)
-    const { data, error } = await supabase
-      .from('fiado')
-      .select('*, lojas(id, nome)')
-      .ilike('cliente_nome', cliente.nome)
-      .order('created_at', { ascending: false })
-
-    if (!error && data) {
-      const lojaMap: Record<string, any> = {}
-      data.forEach((f: any) => {
-        const lid = f.loja_id
-        if (!lojaMap[lid]) {
-          lojaMap[lid] = {
-            loja_id: lid,
-            loja_nome: f.lojas?.nome || 'Loja',
-            pendente: 0,
-            ultima_entrada: f.created_at,
-          }
-        }
-        if (!f.pago) lojaMap[lid].pendente += f.valor
-      })
-      setDividas(Object.values(lojaMap).filter((l: any) => l.pendente > 0))
-      setHistorico(data)
-    }
-    setCarregando(false)
+  function desfavoritar(id: string) {
+    removeFavorito(id)
+    setFavoritas(getFavoritos())
   }
 
   async function salvarPerfil() {
@@ -91,8 +71,7 @@ export default function ClienteDashboard() {
       <div className="flex border-b border-gray-800 bg-gray-900 px-2">
         {([
           { id: 'perfil', label: 'Perfil', Icon: User },
-          { id: 'dividas', label: 'Minhas dívidas', Icon: AlertCircle },
-          { id: 'historico', label: 'Histórico', Icon: ShoppingBag },
+          { id: 'favoritas', label: 'Lojas favoritas', Icon: Heart },
         ] as const).map(({ id, label, Icon }) => (
           <button
             key={id}
@@ -149,64 +128,43 @@ export default function ClienteDashboard() {
           </div>
         )}
 
-        {aba === 'dividas' && (
-          carregando ? (
-            <div className="text-center py-12 text-gray-500">Carregando...</div>
-          ) : dividas.length === 0 ? (
+        {aba === 'favoritas' && (
+          favoritas.length === 0 ? (
             <div className="bg-gray-900 rounded-2xl p-10 text-center">
-              <AlertCircle size={32} className="mx-auto mb-3 text-gray-600" />
-              <p className="text-gray-500">Nenhuma dívida pendente.</p>
+              <Heart size={32} className="mx-auto mb-3 text-gray-600" />
+              <p className="text-gray-500">Nenhuma loja favorita ainda.</p>
+              <p className="text-gray-600 text-sm mt-1">Toque no coração de uma loja para salvá-la aqui.</p>
+              <button
+                onClick={() => router.push('/cliente/buscar')}
+                className="mt-4 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition"
+              >
+                Descobrir comércios
+              </button>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              <p className="text-gray-400 text-sm">{dividas.length} loja{dividas.length !== 1 ? 's' : ''} com fiado pendente</p>
-              {dividas.map((d: any) => (
-                <div key={d.loja_id} className="bg-gray-900 rounded-2xl p-5">
-                  <p className="text-white font-semibold">{d.loja_nome}</p>
-                  <p className="text-red-400 text-2xl font-bold mt-1">
-                    R$ {d.pendente.toFixed(2)}
-                  </p>
-                  <p className="text-gray-500 text-xs mt-2">
-                    Última entrada: {new Date(d.ultima_entrada).toLocaleDateString('pt-BR')}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )
-        )}
-
-        {aba === 'historico' && (
-          carregando ? (
-            <div className="text-center py-12 text-gray-500">Carregando...</div>
-          ) : historico.length === 0 ? (
-            <div className="bg-gray-900 rounded-2xl p-10 text-center">
-              <ShoppingBag size={32} className="mx-auto mb-3 text-gray-600" />
-              <p className="text-gray-500">Nenhuma compra registrada ainda.</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <p className="text-gray-400 text-sm">{historico.length} registro{historico.length !== 1 ? 's' : ''}</p>
-              {historico.map((f: any) => (
-                <div key={f.id} className={`bg-gray-900 rounded-2xl p-4 ${f.pago ? 'opacity-70' : ''}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-green-400 text-xs font-semibold">{f.lojas?.nome || 'Loja'}</p>
-                      <p className="text-white font-semibold mt-0.5">{f.descricao}</p>
-                      <p className="text-gray-500 text-xs mt-1">
-                        {new Date(f.created_at).toLocaleDateString('pt-BR')}
-                      </p>
+              <p className="text-gray-400 text-sm">{favoritas.length} loja{favoritas.length !== 1 ? 's' : ''} favorita{favoritas.length !== 1 ? 's' : ''}</p>
+              {favoritas.map(l => (
+                <div key={l.id} className="bg-gray-900 rounded-2xl p-4 flex items-center gap-3">
+                  <button
+                    onClick={() => router.push(`/cliente/loja/${l.id}`)}
+                    className="flex-1 min-w-0 text-left flex items-center gap-3"
+                  >
+                    <div className="w-10 h-10 bg-green-900 rounded-full flex items-center justify-center shrink-0">
+                      <Store size={18} className="text-green-400" />
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className={`font-bold ${f.pago ? 'text-gray-400' : 'text-red-400'}`}>
-                        R$ {f.valor.toFixed(2)}
-                      </p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full mt-1 inline-block ${
-                        f.pago ? 'bg-green-900 text-green-300' : 'bg-red-900/50 text-red-400'
-                      }`}>
-                        {f.pago ? 'Pago' : 'Pendente'}
-                      </span>
+                    <div className="min-w-0">
+                      <p className="text-white font-semibold truncate">{l.nome}</p>
+                      {l.tipo && <p className="text-gray-500 text-xs">{l.tipo}</p>}
                     </div>
-                  </div>
+                  </button>
+                  <button
+                    onClick={() => desfavoritar(l.id)}
+                    title="Remover dos favoritos"
+                    className="text-gray-500 hover:text-red-400 transition shrink-0 p-1"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
               ))}
             </div>

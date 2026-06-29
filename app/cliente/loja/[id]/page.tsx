@@ -6,7 +6,8 @@ import { ClienteLayout } from '../../../components/ClienteLayout'
 import { Estrelas } from '../../../components/Estrelas'
 import { useToast } from '../../../hooks/useToast'
 import { Toast } from '../../../components/Toast'
-import { Phone, AtSign, MapPin, Clock, MessageCircle, ArrowLeft } from 'lucide-react'
+import { isFavorito, toggleFavorito } from '../../../lib/favoritos'
+import { Phone, AtSign, MapPin, Clock, MessageCircle, ArrowLeft, Heart } from 'lucide-react'
 
 export default function ClienteLoja() {
   const { id } = useParams<{ id: string }>()
@@ -20,11 +21,23 @@ export default function ClienteLoja() {
   const [nota, setNota] = useState(0)
   const [comentario, setComentario] = useState('')
   const [enviandoAval, setEnviandoAval] = useState(false)
+  const [favorito, setFavorito] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
     if (cliente && id) carregarLoja()
   }, [cliente, id])
+
+  useEffect(() => {
+    if (id) setFavorito(isFavorito(id))
+  }, [id])
+
+  function alternarFavorito() {
+    if (!loja) return
+    const agora = toggleFavorito({ id: loja.id, nome: loja.nome, tipo: loja.tipo })
+    setFavorito(agora)
+    mostrarToast(agora ? 'Loja adicionada aos favoritos!' : 'Removida dos favoritos', 'sucesso')
+  }
 
   async function carregarLoja() {
     const [lojaRes, prodRes, avalRes] = await Promise.all([
@@ -86,7 +99,14 @@ export default function ClienteLoja() {
         <button onClick={() => router.push('/cliente/buscar')} className="text-gray-400 hover:text-white">
           <ArrowLeft size={20} />
         </button>
-        <p className="text-white font-bold truncate">{loja.nome}</p>
+        <p className="text-white font-bold truncate flex-1">{loja.nome}</p>
+        <button
+          onClick={alternarFavorito}
+          title={favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+          className="shrink-0 text-gray-400 hover:text-red-400 transition"
+        >
+          <Heart size={20} className={favorito ? 'fill-red-500 text-red-500' : ''} />
+        </button>
       </header>
 
       <div className="max-w-2xl mx-auto p-4">
