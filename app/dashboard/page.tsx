@@ -180,6 +180,16 @@ export default function Dashboard() {
   const pctMeta = Math.min(Math.round((faturamentoMes / metaMensal) * 100), 100)
   const corBarra = pctMeta >= 100 ? 'bg-green-500' : pctMeta >= 70 ? 'bg-yellow-400' : 'bg-blue-500'
 
+  // Progresso até o desconto de fidelidade na mensalidade (10% a partir de
+  // R$5.000 e 15% a partir de R$10.000 de faturamento no mês).
+  const reais = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+  const descontoFidelidade =
+    faturamentoMes >= 10000
+      ? { texto: '🎉 Você garantiu 15% de desconto na próxima mensalidade!', cor: 'text-green-400' }
+      : faturamentoMes >= 5000
+        ? { texto: `🎉 10% de desconto garantido! Faltam ${reais(10000 - faturamentoMes)} para 15% off`, cor: 'text-green-400' }
+        : { texto: `Faltam ${reais(5000 - faturamentoMes)} para 10% de desconto na mensalidade`, cor: 'text-gray-400' }
+
   return (
     <AppLayout loja={loja} sair={sair} titulo="Dashboard" maxWidth="max-w-3xl">
       <Toast toast={toast} />
@@ -242,6 +252,10 @@ export default function Dashboard() {
               <span>Meta: R$ {metaMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
             </div>
             <p className="text-gray-600 text-xs mt-2">Conta todas as vendas do mês (manuais + integrações)</p>
+            <div className="border-t border-gray-800 mt-3 pt-3 flex items-center gap-2">
+              <span className="text-base">🏷️</span>
+              <p className={`text-xs font-medium ${descontoFidelidade.cor}`}>{descontoFidelidade.texto}</p>
+            </div>
           </div>
 
           {/* Gráfico 7 dias */}
