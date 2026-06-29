@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCliente } from '../../hooks/useCliente'
 import { ClienteLayout } from '../../components/ClienteLayout'
-import { Search, MapPin, Phone } from 'lucide-react'
+import { getRatingsPorLoja } from '../../lib/avaliacoes'
+import { Search, MapPin, Phone, Star } from 'lucide-react'
 
 const TIPOS = ['Todos', 'Barbearia', 'Distribuidora de bebidas', 'Mercado', 'Loja de roupas', 'Lanchonete', 'Salão de beleza', 'Eletrônicos', 'Outro']
 
@@ -32,7 +33,20 @@ export default function ClienteBuscar() {
 
     const { data, error } = await query
     if (error) console.error('[buscar] lojas_publicas error:', error)
-    setLojas(data || [])
+
+    const base = data || []
+    const ratings = await getRatingsPorLoja(supabase, base.map(l => l.id))
+    const comNota = base.map(l => ({
+      ...l,
+      media: ratings[l.id]?.media ?? 0,
+      totalAval: ratings[l.id]?.total ?? 0,
+    }))
+    // Maior nota primeiro; empate vai pra quem tem mais avaliações, depois nome.
+    comNota.sort((a, b) =>
+      b.media - a.media || b.totalAval - a.totalAval || a.nome.localeCompare(b.nome),
+    )
+
+    setLojas(comNota)
     setBuscando(false)
   }
 
@@ -93,7 +107,16 @@ export default function ClienteBuscar() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-semibold">{loja.nome}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-white font-semibold">{loja.nome}</p>
+                    {loja.totalAval > 0 && (
+                      <span className="inline-flex items-center gap-1 text-xs bg-yellow-500/15 text-yellow-400 px-2 py-0.5 rounded-full font-medium">
+                        <Star size={11} className="fill-yellow-400" />
+                        {loja.media.toFixed(1)}
+                        <span className="text-yellow-400/60">({loja.totalAval})</span>
+                      </span>
+                    )}
+                  </div>
                   <span className="inline-block text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded-full mt-1 mb-2">{loja.tipo}</span>
                   {loja.localizacao && (
                     <p className="text-gray-400 text-sm flex items-center gap-1">

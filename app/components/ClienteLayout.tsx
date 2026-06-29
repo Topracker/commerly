@@ -2,10 +2,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
-import { Search, Heart, MessageCircle, User, LogOut, Menu, X } from 'lucide-react'
+import { Search, Heart, MessageCircle, User, LogOut, Menu, X, Trophy } from 'lucide-react'
 
 const MENU = [
   { label: 'Buscar lojas', path: '/cliente/buscar', icon: Search },
+  { label: 'Ranking', path: '/cliente/ranking', icon: Trophy },
   { label: 'Lojas favoritas', path: '/cliente/favoritas', icon: Heart },
   { label: 'Mensagens', path: '/cliente/mensagens', icon: MessageCircle },
   { label: 'Minha conta', path: '/cliente/dashboard', icon: User },
