@@ -254,8 +254,24 @@ export default function Login() {
     const { error } = await supabase.auth.verifyOtp({ email, token: codigo, type: 'email' })
     if (error) { console.error('[OTP] verifyOtp error:', error); setErro('Código inválido ou expirado'); setLoading(false); return }
     const { data: { user } } = await supabase.auth.getUser()
-    const { data } = await supabase.from('lojas').select('id').eq('user_id', user!.id).maybeSingle()
-    router.push(data ? '/dashboard' : '/onboarding')
+
+    const { data: lojaData } = await supabase.from('lojas').select('id').eq('user_id', user!.id).maybeSingle()
+    if (lojaData) { router.push('/dashboard'); return }
+
+    // E-mail já cadastrado em outra área: bloqueia e desloga em vez de cair
+    // no onboarding de comerciante (mesma regra das áreas cliente/fornecedor).
+    const [{ data: clienteData }, { data: fornecedorData }] = await Promise.all([
+      supabase.from('clientes').select('id').eq('user_id', user!.id).maybeSingle(),
+      supabase.from('fornecedores').select('id').eq('user_id', user!.id).maybeSingle(),
+    ])
+    if (clienteData || fornecedorData) {
+      await supabase.auth.signOut()
+      setErro('Este e-mail está cadastrado como ' + (clienteData ? 'cliente' : 'fornecedor') + '. Use a área correta para fazer login.')
+      setLoading(false)
+      return
+    }
+
+    router.push('/onboarding')
   }
 
   const inp = 'bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500'
