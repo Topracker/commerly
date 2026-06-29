@@ -3,128 +3,38 @@ import { useState, useEffect } from 'react'
 import { createClient } from '../supabase'
 import { useRouter } from 'next/navigation'
 
-type Tela = 'escolha' | 'cadastro' | 'cadastro-otp' | 'login-email' | 'login-otp'
-
-const TIPOS = [
-  'Açougue', 'Barbearia', 'Delivery', 'Distribuidora de bebidas',
-  'Eletrônicos', 'Farmácia', 'Hamburgueria', 'Hortifruti',
-  'Lanchonete', 'Loja de roupas', 'Mercadinho', 'Mercado',
-  'Padaria', 'Pet Shop', 'Pizzaria', 'Restaurante',
-  'Salão de Beleza', 'Sorveteria', 'Outro',
-]
-
-const HORAS = Array.from({ length: 48 }, (_, i) => {
-  const h = Math.floor(i / 2).toString().padStart(2, '0')
-  const m = i % 2 === 0 ? '00' : '30'
-  return `${h}:${m}`
-})
-
-function validarCPF(cpf: string) {
-  cpf = cpf.replace(/\D/g, '')
-  if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false
-  let soma = 0
-  for (let i = 0; i < 9; i++) soma += parseInt(cpf[i]) * (10 - i)
-  let resto = (soma * 10) % 11
-  if (resto === 10 || resto === 11) resto = 0
-  if (resto !== parseInt(cpf[9])) return false
-  soma = 0
-  for (let i = 0; i < 10; i++) soma += parseInt(cpf[i]) * (11 - i)
-  resto = (soma * 10) % 11
-  if (resto === 10 || resto === 11) resto = 0
-  return resto === parseInt(cpf[10])
-}
-
-function validarCNPJ(cnpj: string) {
-  cnpj = cnpj.replace(/\D/g, '')
-  if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false
-  const calc = (c: string, arr: number[]) => {
-    let soma = 0
-    for (let i = 0; i < arr.length; i++) soma += parseInt(c[i]) * arr[i]
-    const resto = soma % 11
-    return resto < 2 ? 0 : 11 - resto
-  }
-  const d1 = calc(cnpj, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
-  const d2 = calc(cnpj, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
-  return d1 === parseInt(cnpj[12]) && d2 === parseInt(cnpj[13])
-}
-
-function formatarDocumento(valor: string) {
-  const nums = valor.replace(/\D/g, '')
-  if (nums.length <= 11) {
-    return nums
-      .replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
-      .replace(/(\d{3})(\d{3})(\d{3})/, '$1.$2.$3')
-      .replace(/(\d{3})(\d{3})/, '$1.$2')
-  } else {
-    return nums
-      .replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
-      .replace(/(\d{2})(\d{3})(\d{3})(\d{4})/, '$1.$2.$3/$4')
-      .replace(/(\d{2})(\d{3})(\d{3})/, '$1.$2.$3')
-      .replace(/(\d{2})(\d{3})/, '$1.$2')
-  }
-}
-
-function formatarTelefone(valor: string): string {
-  const nums = valor.replace(/\D/g, '').slice(0, 11)
-  if (nums.length <= 2) return nums ? `(${nums}` : ''
-  if (nums.length <= 6) return `(${nums.slice(0, 2)}) ${nums.slice(2)}`
-  if (nums.length <= 10) return `(${nums.slice(0, 2)}) ${nums.slice(2, 6)}-${nums.slice(6)}`
-  return `(${nums.slice(0, 2)}) ${nums.slice(2, 7)}-${nums.slice(7)}`
-}
-
-function erroTelefone(valor: string): string {
-  const nums = valor.replace(/\D/g, '')
-  if (!nums) return ''
-  const ddd = parseInt(nums.slice(0, 2))
-  if (ddd < 11 || ddd > 99) return 'DDD inválido'
-  if (nums.length < 10 || nums.length > 11) return 'Número incompleto'
-  return ''
-}
-
-function erroInstagram(valor: string): string {
-  if (!valor) return ''
-  if (!/^@[\w.]{1,30}$/.test(valor)) return 'Use o formato @usuario'
-  return ''
-}
-
-function formatarCEP(valor: string): string {
-  const nums = valor.replace(/\D/g, '').slice(0, 8)
-  if (nums.length <= 5) return nums
-  return `${nums.slice(0, 5)}-${nums.slice(5)}`
-}
+type Tela =
+  | 'escolha'
+  | 'cadastro-senha'
+  | 'login-senha'
+  | 'cadastro-otp-codigo'
+  | 'login-otp-email'
+  | 'login-otp-codigo'
 
 export default function Login() {
   const [tela, setTela] = useState<Tela>('escolha')
   const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
   const [codigo, setCodigo] = useState('')
+  const [usarOtp, setUsarOtp] = useState(false)
   const [erro, setErro] = useState('')
   const [loading, setLoading] = useState(false)
-
-  const [nome, setNome] = useState('')
-  const [tipo, setTipo] = useState('')
-  const [documento, setDocumento] = useState('')
-  const [cep, setCep] = useState('')
-  const [localizacao, setLocalizacao] = useState('')
-  const [telefone, setTelefone] = useState('')
-  const [instagram, setInstagram] = useState('')
-  const [horarioAbertura, setHorarioAbertura] = useState('08:00')
-  const [horarioFechamento, setHorarioFechamento] = useState('18:00')
-  const [erroCEP, setErroCEP] = useState('')
-  const [cepCarregando, setCepCarregando] = useState(false)
-  const [erroDoc, setErroDoc] = useState('')
-  const [erroTel, setErroTel] = useState('')
-  const [erroIG, setErroIG] = useState('')
-
   const router = useRouter()
   const supabase = createClient()
+
+  // Destino conforme o estado da loja (cadastro de dados fica em /onboarding).
+  function rotaLoja(loja: { plano?: string } | null): string {
+    if (!loja) return '/onboarding'
+    return loja.plano === 'ativo' ? '/dashboard' : '/planos'
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) return
       const userId = session.user.id
 
-      const { data: lojaData } = await supabase.from('lojas').select('id').eq('user_id', userId).maybeSingle()
-      if (lojaData) { router.push('/dashboard'); return }
+      const { data: loja } = await supabase.from('lojas').select('id, plano').eq('user_id', userId).maybeSingle()
+      if (loja) { router.push(rotaLoja(loja)); return }
 
       const [{ data: clienteData }, { data: fornecedorData }] = await Promise.all([
         supabase.from('clientes').select('id').eq('user_id', userId).maybeSingle(),
@@ -132,7 +42,7 @@ export default function Login() {
       ])
       if (clienteData || fornecedorData) {
         await supabase.auth.signOut()
-        setErro('Esta conta está cadastrada como ' + (clienteData ? 'cliente' : 'fornecedor') + '. Use a área correta para fazer login.')
+        setErro('Este e-mail está cadastrado como ' + (clienteData ? 'cliente' : 'fornecedor') + '. Use a área correta para fazer login.')
         return
       }
 
@@ -140,55 +50,85 @@ export default function Login() {
     })
   }, [])
 
-  function handleDocumento(valor: string) {
-    setDocumento(formatarDocumento(valor))
-    const nums = valor.replace(/\D/g, '')
-    if (nums.length === 11) setErroDoc(validarCPF(nums) ? '' : 'CPF inválido')
-    else if (nums.length === 14) setErroDoc(validarCNPJ(nums) ? '' : 'CNPJ inválido')
-    else setErroDoc('')
+  // ---- Etapas compartilhadas (após autenticar por senha ou OTP) ----
+
+  async function finalizarCadastro(): Promise<boolean> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setErro('Sessão expirada. Tente novamente.'); return false }
+
+    const [{ data: clienteExiste }, { data: fornecedorExiste }] = await Promise.all([
+      supabase.from('clientes').select('id').eq('user_id', user.id).maybeSingle(),
+      supabase.from('fornecedores').select('id').eq('user_id', user.id).maybeSingle(),
+    ])
+    if (clienteExiste) { setErro('Este e-mail já está cadastrado como cliente. Faça login para acessar sua conta.'); return false }
+    if (fornecedorExiste) { setErro('Este e-mail já está cadastrado como fornecedor. Faça login para acessar sua conta.'); return false }
+
+    const { data: loja } = await supabase.from('lojas').select('id, plano').eq('user_id', user.id).maybeSingle()
+    router.push(rotaLoja(loja))
+    return true
   }
 
-  function handleTelefone(valor: string) {
-    const f = formatarTelefone(valor)
-    setTelefone(f)
-    setErroTel(erroTelefone(f))
-  }
+  async function finalizarLogin(): Promise<boolean> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setErro('Sessão expirada. Tente novamente.'); return false }
 
-  function handleInstagram(valor: string) {
-    setInstagram(valor)
-    setErroIG(erroInstagram(valor))
-  }
+    const { data: loja } = await supabase.from('lojas').select('id, plano').eq('user_id', user.id).maybeSingle()
+    if (loja) { router.push(rotaLoja(loja)); return true }
 
-  async function handleCEP(valor: string) {
-    const f = formatarCEP(valor)
-    setCep(f)
-    const nums = f.replace(/\D/g, '')
-    if (nums.length < 8) { setErroCEP(''); return }
-    setCepCarregando(true)
-    setErroCEP('')
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${nums}/json/`)
-      const data = await res.json()
-      if (data.erro) {
-        setErroCEP('CEP não encontrado')
-      } else {
-        setLocalizacao([data.logradouro, data.bairro, data.localidade, data.uf].filter(Boolean).join(', '))
-      }
-    } catch {
-      setErroCEP('Erro ao consultar CEP')
+    const [{ data: clienteData }, { data: fornecedorData }] = await Promise.all([
+      supabase.from('clientes').select('id').eq('user_id', user.id).maybeSingle(),
+      supabase.from('fornecedores').select('id').eq('user_id', user.id).maybeSingle(),
+    ])
+    if (clienteData || fornecedorData) {
+      await supabase.auth.signOut()
+      setErro('Esta conta está cadastrada como ' + (clienteData ? 'cliente' : 'fornecedor') + '. Use a área correta para fazer login.')
+      return false
     }
-    setCepCarregando(false)
+
+    router.push('/onboarding')
+    return true
   }
 
-  async function avancarCadastro() {
-    if (!nome || !tipo) { setErro('Preencha o nome e tipo da loja!'); return }
-    const nums = documento.replace(/\D/g, '')
-    if (!nums) { setErro('Informe seu CPF ou CNPJ!'); return }
-    if (nums.length === 11 && !validarCPF(nums)) { setErro('CPF inválido!'); return }
-    if (nums.length === 14 && !validarCNPJ(nums)) { setErro('CNPJ inválido!'); return }
-    if (nums.length !== 11 && nums.length !== 14) { setErro('Informe um CPF ou CNPJ válido!'); return }
-    if (telefone && erroTelefone(telefone)) { setErro('Telefone inválido!'); return }
-    if (instagram && erroInstagram(instagram)) { setErro('Formato de Instagram inválido!'); return }
+  // ---- Cadastro / login por SENHA (método principal) ----
+
+  async function cadastrarComSenha() {
+    if (!email) { setErro('Informe seu email!'); return }
+    if (senha.length < 6) { setErro('A senha deve ter ao menos 6 caracteres.'); return }
+    setLoading(true)
+    setErro('')
+
+    const res = await fetch('/api/auth/senha-cadastro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, senha }),
+    })
+    if (!res.ok) {
+      const { erro } = await res.json().catch(() => ({ erro: '' }))
+      setErro(erro || 'Erro ao criar conta. Tente novamente.')
+      setLoading(false)
+      return
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
+    if (error) { setErro('Conta criada, mas não foi possível entrar. Tente fazer login.'); setLoading(false); return }
+
+    const ok = await finalizarCadastro()
+    if (!ok) setLoading(false)
+  }
+
+  async function loginComSenha() {
+    if (!email || !senha) { setErro('Informe email e senha'); return }
+    setLoading(true)
+    setErro('')
+    const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
+    if (error) { setErro('E-mail ou senha incorretos.'); setLoading(false); return }
+    const ok = await finalizarLogin()
+    if (!ok) setLoading(false)
+  }
+
+  // ---- Cadastro / login por OTP (alternativa) ----
+
+  async function avancarCadastroOtp() {
     if (!email) { setErro('Informe seu email!'); return }
     setLoading(true)
     setErro('')
@@ -200,78 +140,38 @@ export default function Login() {
     if (!preRes.ok) { setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
     const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
     if (error) { console.error('[OTP] signInWithOtp error:', error); setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
-    setTela('cadastro-otp')
+    setTela('cadastro-otp-codigo')
     setLoading(false)
   }
 
-  async function verificarCadastro() {
+  async function verificarCadastroOtp() {
     if (codigo.length !== 6) { setErro('Digite o código de 6 dígitos'); return }
     setLoading(true)
     setErro('')
     const { error } = await supabase.auth.verifyOtp({ email, token: codigo, type: 'email' })
     if (error) { console.error('[OTP] verifyOtp error:', error); setErro('Código inválido ou expirado'); setLoading(false); return }
-
-    const { data: { user } } = await supabase.auth.getUser()
-
-    const [{ data: clienteExiste }, { data: fornecedorExiste }] = await Promise.all([
-      supabase.from('clientes').select('id').eq('user_id', user!.id).maybeSingle(),
-      supabase.from('fornecedores').select('id').eq('user_id', user!.id).maybeSingle(),
-    ])
-    if (clienteExiste) { setErro('Este e-mail já está cadastrado como cliente. Faça login para acessar sua conta.'); setLoading(false); return }
-    if (fornecedorExiste) { setErro('Este e-mail já está cadastrado como fornecedor. Faça login para acessar sua conta.'); setLoading(false); return }
-
-    const { data: lojaExiste } = await supabase.from('lojas').select('id, plano').eq('user_id', user!.id).maybeSingle()
-    if (lojaExiste) { router.push(lojaExiste.plano === 'ativo' ? '/dashboard' : '/planos'); return }
-
-    const { error: insertError } = await supabase.from('lojas').insert({
-      user_id: user!.id, nome, tipo, documento, localizacao, telefone, instagram,
-      horario: `${horarioAbertura} - ${horarioFechamento}`,
-      plano: 'inativo',
-    })
-    if (insertError) {
-      if (insertError.code === '23505') setErro('Este CPF/CNPJ já está cadastrado no Commerly!')
-      else setErro('Erro ao criar conta. Tente novamente.')
-      setLoading(false)
-      return
-    }
-    router.push('/planos')
+    const ok = await finalizarCadastro()
+    if (!ok) setLoading(false)
   }
 
-  async function enviarCodigoLogin() {
+  async function enviarCodigoLoginOtp() {
     if (!email) { setErro('Informe seu email'); return }
     setLoading(true)
     setErro('')
     const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
     if (error) { console.error('[OTP] signInWithOtp error:', error); setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
-    setTela('login-otp')
+    setTela('login-otp-codigo')
     setLoading(false)
   }
 
-  async function verificarLogin() {
+  async function verificarLoginOtp() {
     if (codigo.length !== 6) { setErro('Digite o código de 6 dígitos'); return }
     setLoading(true)
     setErro('')
     const { error } = await supabase.auth.verifyOtp({ email, token: codigo, type: 'email' })
     if (error) { console.error('[OTP] verifyOtp error:', error); setErro('Código inválido ou expirado'); setLoading(false); return }
-    const { data: { user } } = await supabase.auth.getUser()
-
-    const { data: lojaData } = await supabase.from('lojas').select('id').eq('user_id', user!.id).maybeSingle()
-    if (lojaData) { router.push('/dashboard'); return }
-
-    // E-mail já cadastrado em outra área: bloqueia e desloga em vez de cair
-    // no onboarding de comerciante (mesma regra das áreas cliente/fornecedor).
-    const [{ data: clienteData }, { data: fornecedorData }] = await Promise.all([
-      supabase.from('clientes').select('id').eq('user_id', user!.id).maybeSingle(),
-      supabase.from('fornecedores').select('id').eq('user_id', user!.id).maybeSingle(),
-    ])
-    if (clienteData || fornecedorData) {
-      await supabase.auth.signOut()
-      setErro('Este e-mail está cadastrado como ' + (clienteData ? 'cliente' : 'fornecedor') + '. Use a área correta para fazer login.')
-      setLoading(false)
-      return
-    }
-
-    router.push('/onboarding')
+    const ok = await finalizarLogin()
+    if (!ok) setLoading(false)
   }
 
   const inp = 'bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500'
@@ -286,12 +186,12 @@ export default function Login() {
 
         {tela === 'escolha' && (
           <div className="flex flex-col gap-3">
-            <button onClick={() => { setTela('cadastro'); setErro(''); setEmail('') }}
+            <button onClick={() => { setTela('cadastro-senha'); setUsarOtp(false); setErro('') }}
               className="bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl transition text-left px-5">
               <p className="font-bold">Criar conta</p>
               <p className="text-blue-200 text-sm">Cadastre sua loja no Commerly</p>
             </button>
-            <button onClick={() => { setTela('login-email'); setErro(''); setEmail('') }}
+            <button onClick={() => { setTela('login-senha'); setErro('') }}
               className="bg-gray-800 hover:bg-gray-700 text-white py-4 rounded-xl transition text-left px-5">
               <p className="font-bold">Fazer login</p>
               <p className="text-gray-400 text-sm">Acessar minha conta existente</p>
@@ -302,123 +202,106 @@ export default function Login() {
           </div>
         )}
 
-        {tela === 'cadastro' && (
+        {tela === 'cadastro-senha' && (
           <div className="flex flex-col gap-4">
-            <p className="text-gray-400 text-sm -mt-2 mb-1">Preencha os dados da sua loja</p>
-
-            <input placeholder="Nome da loja *" value={nome} onChange={e => setNome(e.target.value)} className={inp} />
-
-            <select value={tipo} onChange={e => setTipo(e.target.value)} className={inp}>
-              <option value="">Tipo de comércio *</option>
-              {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-
-            <div>
-              <input placeholder="CPF ou CNPJ *" value={documento} onChange={e => handleDocumento(e.target.value)}
-                maxLength={18} className={`w-full ${inp} ${erroDoc ? 'ring-2 ring-red-500 focus:ring-red-500' : ''}`} />
-              {erroDoc && <p className="text-red-400 text-sm mt-1">{erroDoc}</p>}
-            </div>
-
-            <div>
-              <div className="relative flex items-center">
-                <input placeholder="CEP (ex: 01310-100)" value={cep} onChange={e => handleCEP(e.target.value)}
-                  maxLength={9} className={`w-full ${inp} ${erroCEP ? 'ring-2 ring-red-500 focus:ring-red-500' : ''}`} />
-                {cepCarregando && <span className="absolute right-3 text-gray-400 text-xs">buscando...</span>}
-              </div>
-              {erroCEP && <p className="text-red-400 text-sm mt-1">{erroCEP}</p>}
-            </div>
-
-            <input placeholder="Complemento (ex: Rua das Flores, 123)" value={localizacao}
-              onChange={e => setLocalizacao(e.target.value)} className={inp} />
-
-            <div>
-              <input placeholder="Telefone (ex: (11) 98765-4321)" value={telefone}
-                onChange={e => handleTelefone(e.target.value)}
-                className={`w-full ${inp} ${erroTel ? 'ring-2 ring-red-500 focus:ring-red-500' : ''}`} />
-              {erroTel && <p className="text-red-400 text-sm mt-1">{erroTel}</p>}
-            </div>
-
-            <div>
-              <input placeholder="Instagram (ex: @minha_loja)" value={instagram}
-                onChange={e => handleInstagram(e.target.value)}
-                className={`w-full ${inp} ${erroIG ? 'ring-2 ring-red-500 focus:ring-red-500' : ''}`} />
-              {erroIG && <p className="text-red-400 text-sm mt-1">{erroIG}</p>}
-            </div>
-
-            <div>
-              <p className="text-gray-400 text-xs mb-2">Horário de funcionamento</p>
-              <div className="flex items-center gap-3">
-                <select value={horarioAbertura} onChange={e => setHorarioAbertura(e.target.value)} className={`flex-1 ${inp}`}>
-                  {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-                <span className="text-gray-500 text-sm shrink-0">até</span>
-                <select value={horarioFechamento} onChange={e => setHorarioFechamento(e.target.value)} className={`flex-1 ${inp}`}>
-                  {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <input type="email" placeholder="Seu email *" value={email} onChange={e => setEmail(e.target.value)} className={inp} />
-
-            <button onClick={avancarCadastro}
-              disabled={loading || !!erroDoc || !!erroTel || !!erroIG || !!erroCEP || cepCarregando}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition mt-2">
-              {loading ? 'Enviando código...' : 'Continuar'}
+            <p className="text-gray-400 text-sm -mt-2 mb-1">Crie sua conta com email e senha</p>
+            <input type="email" autoComplete="email" placeholder="Seu email *" value={email}
+              onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && (usarOtp ? avancarCadastroOtp() : cadastrarComSenha())}
+              className={inp} />
+            {!usarOtp && (
+              <input type="password" autoComplete="new-password" placeholder="Senha (mín. 6 caracteres) *" value={senha}
+                onChange={e => setSenha(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && cadastrarComSenha()}
+                className={inp} />
+            )}
+            <button onClick={() => (usarOtp ? avancarCadastroOtp() : cadastrarComSenha())} disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition mt-1">
+              {loading ? (usarOtp ? 'Enviando código...' : 'Criando conta...') : (usarOtp ? 'Continuar' : 'Criar conta')}
             </button>
-            <button onClick={() => { setTela('escolha'); setErro(''); setEmail('') }} className="text-gray-500 text-sm hover:text-gray-400 transition">
-              ← Voltar
+            <button onClick={() => { setUsarOtp(!usarOtp); setErro('') }}
+              className="text-blue-400 text-sm hover:text-blue-300 transition">
+              {usarOtp ? 'Cadastrar com senha' : 'Prefiro receber um código por e-mail'}
             </button>
-          </div>
-        )}
-
-        {tela === 'cadastro-otp' && (
-          <div className="flex flex-col gap-4">
-            <p className="text-gray-400 text-sm -mt-2 mb-2">
-              Código enviado para <strong className="text-white">{email}</strong>
-            </p>
-            <input type="text" inputMode="numeric" placeholder="000000" value={codigo}
-              onChange={e => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              onKeyDown={e => e.key === 'Enter' && verificarCadastro()}
-              maxLength={6} autoFocus className={`${inp} text-center text-2xl tracking-widest`} />
-            <button onClick={verificarCadastro} disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
-              {loading ? 'Criando conta...' : 'Verificar e criar conta'}
-            </button>
-            <button onClick={() => { setTela('cadastro'); setCodigo(''); setErro('') }}
+            <button onClick={() => { setTela('escolha'); setErro(''); setEmail(''); setSenha('') }}
               className="text-gray-500 text-sm hover:text-gray-400 transition">
               ← Voltar
             </button>
           </div>
         )}
 
-        {tela === 'login-email' && (
+        {tela === 'login-senha' && (
           <div className="flex flex-col gap-4">
-            <input type="email" placeholder="Seu email" value={email} onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && enviarCodigoLogin()} autoComplete="off" className={inp} />
-            <button onClick={enviarCodigoLogin} disabled={loading}
+            <input type="email" autoComplete="email" placeholder="Seu email" value={email}
+              onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && loginComSenha()} className={inp} />
+            <input type="password" autoComplete="current-password" placeholder="Senha" value={senha}
+              onChange={e => setSenha(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && loginComSenha()} className={inp} />
+            <button onClick={loginComSenha} disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
-              {loading ? 'Enviando...' : 'Enviar código'}
+              {loading ? 'Entrando...' : 'Entrar'}
             </button>
-            <button onClick={() => { setTela('escolha'); setErro(''); setEmail('') }} className="text-gray-500 text-sm hover:text-gray-400 transition">
+            <button onClick={() => { setTela('login-otp-email'); setErro('') }}
+              className="text-blue-400 text-sm hover:text-blue-300 transition">
+              Entrar com código por e-mail
+            </button>
+            <button onClick={() => { setTela('escolha'); setErro(''); setEmail(''); setSenha('') }}
+              className="text-gray-500 text-sm hover:text-gray-400 transition">
               ← Voltar
             </button>
           </div>
         )}
 
-        {tela === 'login-otp' && (
+        {tela === 'cadastro-otp-codigo' && (
           <div className="flex flex-col gap-4">
             <p className="text-gray-400 text-sm -mt-2 mb-2">
               Código enviado para <strong className="text-white">{email}</strong>
             </p>
             <input type="text" inputMode="numeric" placeholder="000000" value={codigo}
               onChange={e => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              onKeyDown={e => e.key === 'Enter' && verificarLogin()}
+              onKeyDown={e => e.key === 'Enter' && verificarCadastroOtp()}
               maxLength={6} autoFocus className={`${inp} text-center text-2xl tracking-widest`} />
-            <button onClick={verificarLogin} disabled={loading}
+            <button onClick={verificarCadastroOtp} disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
+              {loading ? 'Criando conta...' : 'Verificar e criar conta'}
+            </button>
+            <button onClick={() => { setTela('cadastro-senha'); setCodigo(''); setErro('') }}
+              className="text-gray-500 text-sm hover:text-gray-400 transition">
+              ← Voltar
+            </button>
+          </div>
+        )}
+
+        {tela === 'login-otp-email' && (
+          <div className="flex flex-col gap-4">
+            <input type="email" placeholder="Seu email" value={email} onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && enviarCodigoLoginOtp()} autoComplete="email" className={inp} />
+            <button onClick={enviarCodigoLoginOtp} disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
+              {loading ? 'Enviando...' : 'Enviar código'}
+            </button>
+            <button onClick={() => { setTela('login-senha'); setErro('') }}
+              className="text-gray-500 text-sm hover:text-gray-400 transition">
+              ← Voltar
+            </button>
+          </div>
+        )}
+
+        {tela === 'login-otp-codigo' && (
+          <div className="flex flex-col gap-4">
+            <p className="text-gray-400 text-sm -mt-2 mb-2">
+              Código enviado para <strong className="text-white">{email}</strong>
+            </p>
+            <input type="text" inputMode="numeric" placeholder="000000" value={codigo}
+              onChange={e => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onKeyDown={e => e.key === 'Enter' && verificarLoginOtp()}
+              maxLength={6} autoFocus className={`${inp} text-center text-2xl tracking-widest`} />
+            <button onClick={verificarLoginOtp} disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
               {loading ? 'Verificando...' : 'Verificar código'}
             </button>
-            <button onClick={() => { setTela('login-email'); setCodigo(''); setErro('') }}
+            <button onClick={() => { setTela('login-otp-email'); setCodigo(''); setErro('') }}
               className="text-gray-500 text-sm hover:text-gray-400 transition">
               ← Usar outro email
             </button>
