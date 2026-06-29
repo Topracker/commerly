@@ -104,9 +104,14 @@ export default function ClienteLoja() {
           onClick={alternarFavorito}
           aria-label={favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
           title={favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-          className="shrink-0 text-gray-400 hover:text-red-400 transition p-1 -mr-1"
+          className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition ${
+            favorito
+              ? 'bg-red-500/15 text-red-400 hover:bg-red-500/25'
+              : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
+          }`}
         >
-          <Heart size={22} className={favorito ? 'fill-red-500 text-red-500' : ''} />
+          <Heart size={18} className={favorito ? 'fill-red-500 text-red-500' : 'text-red-400'} />
+          {favorito ? 'Favoritada' : 'Favoritar'}
         </button>
       </header>
 
