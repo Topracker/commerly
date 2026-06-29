@@ -137,6 +137,22 @@ export default function Vendas() {
     setQuantidade('1')
     setConfirmando(false)
     carregar()
+    verificarDescontoFidelidade()
+  }
+
+  // Após cada venda, checa se a loja bateu a meta de faturamento do mês e,
+  // se bateu, aplica o desconto na próxima mensalidade via Stripe. Não bloqueia
+  // o fluxo da venda — roda em background e só avisa se algo for aplicado.
+  async function verificarDescontoFidelidade() {
+    try {
+      const res = await fetch('/api/stripe/aplicar-desconto', { method: 'POST' })
+      const data = await res.json().catch(() => null)
+      if (data?.aplicado) {
+        mostrarToast(`🎉 Meta batida! ${data.pct}% de desconto na próxima mensalidade.`, 'sucesso')
+      }
+    } catch {
+      // silencioso: a venda já foi registrada com sucesso
+    }
   }
 
   if (loading) return (
