@@ -31,5 +31,5 @@ export function useAuth() {
     router.push('/')
   }
 
-  return { user, loja, loading, supabase, sair }
+  return { user, loja, setLoja, loading, supabase, sair }
 }

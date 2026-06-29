@@ -4,7 +4,12 @@ import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
+import { salvarNichoCustom, carregarNichoCustom } from '../lib/nicheStore'
+import { MODULOS, type ModuloKey } from '../lib/nichos'
 import { Eye, EyeOff, Store, Copy, ExternalLink } from 'lucide-react'
+
+// Módulos que a IA pode sugerir / o comerciante pode escolher no fluxo "Outro".
+const MODULOS_ESCOLHIVEIS: ModuloKey[] = ['agenda', 'servicos', 'pedidos', 'estoque', 'produtos', 'vendas', 'fornecedores']
 
 const TIPOS = [
   'Açougue', 'Barbearia', 'Delivery', 'Distribuidora de bebidas',
@@ -94,7 +99,7 @@ function parseHorario(horario: string): [string, string] {
 }
 
 export default function Configuracoes() {
-  const { user, loja, loading, supabase, sair } = useAuth()
+  const { user, loja, setLoja, loading, supabase, sair } = useAuth()
   const { toast, mostrarToast } = useToast()
 
   const [nome, setNome] = useState('')
@@ -115,6 +120,14 @@ export default function Configuracoes() {
   // Blur/reveal
   const [mostrarDoc, setMostrarDoc] = useState(false)
   const [mostrarTel, setMostrarTel] = useState(false)
+
+  // Fluxo de IA para tipo "Outro" (mesmo do onboarding)
+  const [iaDescricao, setIaDescricao] = useState('')
+  const [iaLoading, setIaLoading] = useState(false)
+  const [iaErro, setIaErro] = useState('')
+  const [iaResumo, setIaResumo] = useState('')
+  const [tipoCustom, setTipoCustom] = useState('')
+  const [modulosSel, setModulosSel] = useState<ModuloKey[]>([])
 
   // Link da loja pública (montado no client pra usar o origin correto)
   const [linkPublico, setLinkPublico] = useState('')
@@ -138,7 +151,20 @@ export default function Configuracoes() {
   useEffect(() => {
     if (loja) {
       setNome(loja.nome)
-      setTipo(loja.tipo)
+      // Tipo custom (ramo sugerido pela IA, ex.: "Floricultura") não está na
+      // lista fixa: cai em "Outro" e reidrata o painel da IA com o que foi salvo.
+      if (TIPOS.includes(loja.tipo)) {
+        setTipo(loja.tipo)
+      } else {
+        setTipo('Outro')
+        setTipoCustom(loja.tipo)
+        const custom = carregarNichoCustom(loja.id)
+        if (custom) {
+          setIaDescricao(custom.descricao || '')
+          setModulosSel(custom.modulos || [])
+          setIaResumo(custom.modulos?.length ? 'Módulos salvos para o seu negócio.' : '')
+        }
+      }
       setDocumento(formatarDocumento(loja.documento || ''))
       setLocalizacao(loja.localizacao || '')
       setTelefone(formatarTelefone(loja.telefone || ''))
@@ -149,6 +175,30 @@ export default function Configuracoes() {
       setMetaMensal(Number(loja.meta_mensal) || 5000)
     }
   }, [loja])
+
+  async function consultarIA() {
+    if (!iaDescricao.trim()) { setIaErro('Conta um pouco sobre o seu negócio.'); return }
+    setIaLoading(true); setIaErro('')
+    try {
+      const res = await fetch('/api/onboarding-ia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ descricao: iaDescricao }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setIaErro(data.erro || 'Erro ao consultar a IA.'); setIaLoading(false); return }
+      setIaResumo(data.resumo || '')
+      if (data.tipoSugerido) setTipoCustom(data.tipoSugerido)
+      setModulosSel(((data.modulos || []) as string[]).filter(k => MODULOS_ESCOLHIVEIS.includes(k as ModuloKey)) as ModuloKey[])
+    } catch {
+      setIaErro('Erro de rede. Tente novamente.')
+    }
+    setIaLoading(false)
+  }
+
+  function toggleModulo(k: ModuloKey) {
+    setModulosSel(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k])
+  }
 
   function handleDocumento(valor: string) {
     const formatado = formatarDocumento(valor)
@@ -179,11 +229,29 @@ export default function Configuracoes() {
     if (erroIG) { mostrarToast('Formato de Instagram inválido!', 'erro'); return }
 
     const horario = `${horarioAbertura} - ${horarioFechamento}`
+    // Para "Outro", o ramo sugerido pela IA (se houver) vira o tipo da loja.
+    const tipoFinal = tipo === 'Outro' && tipoCustom.trim() ? tipoCustom.trim() : tipo
+
     setSalvando(true)
     const { error } = await supabase.from('lojas').update({
-      nome, tipo, documento, localizacao, telefone, instagram, horario, meta_mensal: metaMensal,
+      nome, tipo: tipoFinal, documento, localizacao, telefone, instagram, horario, meta_mensal: metaMensal,
     }).eq('id', loja.id)
     if (error) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
+
+    // Tipo custom ("Outro"): guarda os módulos escolhidos pra personalizar
+    // dashboard e sidebar. Nichos conhecidos usam a config estática.
+    if (tipo === 'Outro') {
+      salvarNichoCustom(loja.id, {
+        tipo: tipoFinal,
+        descricao: iaDescricao.trim(),
+        modulos: modulosSel,
+      })
+    }
+
+    // Atualiza a loja local pra dashboard e menu lateral refletirem o novo
+    // nicho na hora (useNicho recomputa a partir do tipo atualizado).
+    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, telefone, instagram, horario, meta_mensal: metaMensal })
+
     mostrarToast('Configurações salvas!', 'sucesso')
     setSalvando(false)
   }
@@ -221,6 +289,75 @@ export default function Configuracoes() {
         <select value={tipo} onChange={e => setTipo(e.target.value)} className={selectClass}>
           {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
+
+        {/* IA de onboarding — aparece quando o comerciante escolhe "Outro" */}
+        {tipo === 'Outro' && (
+          <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4 flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">✨</span>
+              <p className="text-white font-semibold text-sm">Personalize seu painel</p>
+            </div>
+            <p className="text-gray-400 text-xs">
+              Conta com suas palavras o que o seu negócio faz, que eu sugiro os módulos certos pro seu dashboard.
+            </p>
+            <textarea
+              value={iaDescricao}
+              onChange={e => setIaDescricao(e.target.value)}
+              placeholder="Ex: Tenho uma floricultura, vendo flores e arranjos e faço entregas..."
+              rows={3}
+              maxLength={1000}
+              className={`${inputClass} resize-none text-sm`}
+            />
+            <button
+              type="button"
+              onClick={consultarIA}
+              disabled={iaLoading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition text-sm"
+            >
+              {iaLoading ? 'Pensando...' : iaResumo ? 'Gerar de novo' : 'Sugerir módulos'}
+            </button>
+            {iaErro && <p className="text-red-400 text-sm">{iaErro}</p>}
+
+            {(iaResumo || modulosSel.length > 0) && (
+              <div className="flex flex-col gap-3 border-t border-gray-800 pt-3">
+                {iaResumo && <p className="text-gray-300 text-sm">{iaResumo}</p>}
+                {tipoCustom && (
+                  <div>
+                    <label className="text-gray-500 text-xs">Ramo identificado</label>
+                    <input
+                      value={tipoCustom}
+                      onChange={e => setTipoCustom(e.target.value)}
+                      maxLength={30}
+                      className={`w-full ${inputClass} text-sm mt-1`}
+                    />
+                  </div>
+                )}
+                <div>
+                  <p className="text-gray-500 text-xs mb-2">Módulos do seu painel (toque pra ativar/desativar)</p>
+                  <div className="flex flex-wrap gap-2">
+                    {MODULOS_ESCOLHIVEIS.map(k => {
+                      const ativo = modulosSel.includes(k)
+                      return (
+                        <button
+                          key={k}
+                          type="button"
+                          onClick={() => toggleModulo(k)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition border ${
+                            ativo
+                              ? 'bg-blue-600 border-blue-500 text-white'
+                              : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'
+                          }`}
+                        >
+                          {MODULOS[k].emoji} {MODULOS[k].label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* CPF / CNPJ com olhinho */}
         <div>
