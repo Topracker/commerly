@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { rateLimit } from '../../lib/rate-limit'
+import { chamarGemini } from '../../lib/gemini'
 
 const MAX_DESC = 1000
 
@@ -76,34 +77,21 @@ Descrição do comerciante: "${descricao.replace(/"/g, "'")}"
 Responda APENAS com um JSON válido, sem texto antes ou depois, neste formato:
 {"tipoSugerido": "...", "resumo": "...", "modulos": ["key1", "key2"]}`
 
-  let geminiRes: Response
-  try {
-    geminiRes = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 512, responseMimeType: 'application/json' },
-        }),
-      }
-    )
-  } catch (e) {
-    console.error('[onboarding-ia] fetch exception:', e)
-    return NextResponse.json({ erro: 'Erro de rede ao contactar o assistente.' }, { status: 500 })
-  }
+  // Retenta até 2x em falhas transitórias (timeout/rede/5xx) antes de errar.
+  const resultado = await chamarGemini(geminiApiKey, {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.4, maxOutputTokens: 512, responseMimeType: 'application/json' },
+  })
 
-  if (!geminiRes.ok) {
-    console.error('[onboarding-ia] gemini status:', geminiRes.status, await geminiRes.text())
-    const msg = geminiRes.status === 429
+  if (!resultado.ok) {
+    console.error('[onboarding-ia] gemini falhou:', resultado.status, resultado.body.slice(0, 300))
+    const msg = resultado.status === 429
       ? 'Limite de consultas atingido. Tente novamente em alguns minutos.'
       : 'Erro ao consultar o assistente. Tente novamente.'
     return NextResponse.json({ erro: msg }, { status: 500 })
   }
 
-  const geminiData = await geminiRes.json()
-  const texto = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || ''
+  const texto = resultado.data.candidates?.[0]?.content?.parts?.[0]?.text || ''
   const parsed = extrairJSON(texto)
   if (!parsed) {
     console.error('[onboarding-ia] resposta não parseável:', texto.slice(0, 300))

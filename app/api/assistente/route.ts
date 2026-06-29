@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { rateLimit } from '../../lib/rate-limit'
+import { chamarGemini } from '../../lib/gemini'
 
 const MAX_PERGUNTA = 2000
 
@@ -108,39 +109,21 @@ Pergunta do comerciante: ${pergunta}`
   }
   console.log('[assistente] contexto chars:', contexto.length)
 
-  let geminiRes: Response
-  try {
-    geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': geminiApiKey,
-        },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: contexto }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
-        }),
-      }
-    )
-  } catch (fetchErr) {
-    console.error('[assistente] fetch exception:', fetchErr)
-    return NextResponse.json({ erro: 'Erro de rede ao contactar o assistente.' }, { status: 500 })
-  }
+  // Retenta até 2x em falhas transitórias (timeout/rede/5xx) antes de errar.
+  const resultado = await chamarGemini(geminiApiKey, {
+    contents: [{ parts: [{ text: contexto }] }],
+    generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+  })
 
-  console.log('[assistente] gemini status:', geminiRes.status)
-
-  if (!geminiRes.ok) {
-    const errBody = await geminiRes.text()
-    console.error('[assistente] gemini error body:', errBody)
-    const msg = geminiRes.status === 429
+  if (!resultado.ok) {
+    console.error('[assistente] gemini falhou:', resultado.status, resultado.body.slice(0, 300))
+    const msg = resultado.status === 429
       ? 'Limite de consultas atingido. Tente novamente em alguns minutos.'
       : 'Erro ao consultar o assistente. Tente novamente.'
     return NextResponse.json({ erro: msg }, { status: 500 })
   }
 
-  const geminiData = await geminiRes.json()
+  const geminiData = resultado.data
   console.log('[assistente] gemini ok, candidates:', geminiData.candidates?.length ?? 0)
   const resposta = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 'Não foi possível gerar uma resposta.'
 
