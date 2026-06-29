@@ -5,7 +5,8 @@ import { createClient } from '../../supabase'
 import { Estrelas } from '../../components/Estrelas'
 import { useToast } from '../../hooks/useToast'
 import { Toast } from '../../components/Toast'
-import { Phone, AtSign, MapPin, MessageCircle, ArrowLeft, Package } from 'lucide-react'
+import { STATUS_META, type Pedido } from '../../lib/pedidos'
+import { Phone, AtSign, MapPin, MessageCircle, ArrowLeft, Package, ShoppingCart, Plus, Minus, X } from 'lucide-react'
 
 export default function FornecedorPerfil() {
   const { id } = useParams<{ id: string }>()
@@ -21,6 +22,11 @@ export default function FornecedorPerfil() {
   const [userId, setUserId] = useState<string | null>(null)
   const [lojaId, setLojaId] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(true)
+  const [meusPedidos, setMeusPedidos] = useState<Pedido[]>([])
+  const [modalPedido, setModalPedido] = useState(false)
+  const [quantidades, setQuantidades] = useState<Record<string, number>>({})
+  const [observacao, setObservacao] = useState('')
+  const [enviandoPedido, setEnviandoPedido] = useState(false)
   const viewRegistered = useRef(false)
   const supabase = createClient()
   const router = useRouter()
@@ -49,8 +55,12 @@ export default function FornecedorPerfil() {
 
     if (fornRes.error || !fornRes.data) { router.push('/'); return }
     setFornecedor(fornRes.data)
-    setLojaId(lojaRes?.data?.id ?? null)
+    const minhaLojaId = lojaRes?.data?.id ?? null
+    setLojaId(minhaLojaId)
     setProdutos(prodRes.data || [])
+
+    // Se o visitante é um comerciante, carrega os pedidos que ele já fez a este fornecedor.
+    if (minhaLojaId) carregarMeusPedidos(minhaLojaId)
 
     const avals = avalRes.data || []
     setAvaliacoes(avals)
@@ -82,6 +92,63 @@ export default function FornecedorPerfil() {
     mostrarToast(minhaAvaliacao ? 'Avaliação atualizada!' : 'Avaliação enviada!', 'sucesso')
     setEnviandoAval(false)
     carregar()
+  }
+
+  async function carregarMeusPedidos(minhaLojaId: string) {
+    const { data } = await supabase
+      .from('pedidos')
+      .select('*')
+      .eq('loja_id', minhaLojaId)
+      .eq('fornecedor_id', id)
+      .order('created_at', { ascending: false })
+    setMeusPedidos((data as Pedido[]) || [])
+  }
+
+  function ajustarQtd(produtoId: string, delta: number) {
+    setQuantidades(prev => {
+      const atual = prev[produtoId] || 0
+      const novo = Math.max(0, atual + delta)
+      const copia = { ...prev }
+      if (novo === 0) delete copia[produtoId]
+      else copia[produtoId] = novo
+      return copia
+    })
+  }
+
+  const itensSelecionados = produtos
+    .filter(p => (quantidades[p.id] || 0) > 0)
+    .map(p => ({
+      produto_id: p.id,
+      nome: p.nome,
+      preco: parseFloat(p.preco),
+      quantidade: quantidades[p.id],
+    }))
+
+  const totalPedido = itensSelecionados.reduce((s, i) => s + i.preco * i.quantidade, 0)
+
+  function abrirModalPedido() {
+    setQuantidades({})
+    setObservacao('')
+    setModalPedido(true)
+  }
+
+  async function enviarPedido() {
+    if (!lojaId) { router.push('/login'); return }
+    if (itensSelecionados.length === 0) { mostrarToast('Selecione ao menos um produto', 'erro'); return }
+    setEnviandoPedido(true)
+    const { error } = await supabase.from('pedidos').insert({
+      loja_id: lojaId,
+      fornecedor_id: id,
+      itens: itensSelecionados,
+      total: totalPedido,
+      observacao: observacao.trim() || null,
+      status: 'pendente',
+    })
+    if (error) { mostrarToast('Erro ao enviar pedido', 'erro'); setEnviandoPedido(false); return }
+    mostrarToast('Pedido enviado!', 'sucesso')
+    setEnviandoPedido(false)
+    setModalPedido(false)
+    carregarMeusPedidos(lojaId)
   }
 
   async function registrarContato() {
@@ -162,8 +229,43 @@ export default function FornecedorPerfil() {
                 Enviar mensagem
               </button>
             )}
+            {lojaId && !isProprietario && produtos.length > 0 && (
+              <button
+                onClick={abrirModalPedido}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+              >
+                <ShoppingCart size={18} />
+                Fazer pedido
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Pedidos feitos pelo comerciante a este fornecedor */}
+        {lojaId && !isProprietario && meusPedidos.length > 0 && (
+          <div className="bg-gray-900 rounded-2xl p-5 mb-4">
+            <h2 className="text-white font-semibold text-lg mb-3 flex items-center gap-2">
+              <ShoppingCart size={18} className="text-purple-400" />
+              Seus pedidos
+            </h2>
+            <div className="flex flex-col gap-3">
+              {meusPedidos.map(p => (
+                <div key={p.id} className="border-b border-gray-800 last:border-0 pb-3 last:pb-0">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_META[p.status].classes}`}>
+                      {STATUS_META[p.status].label}
+                    </span>
+                    <span className="text-gray-500 text-xs">{new Date(p.created_at).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                  <p className="text-gray-300 text-sm">
+                    {p.itens.map(i => `${i.quantidade}x ${i.nome}`).join(', ')}
+                  </p>
+                  <p className="text-purple-400 font-bold text-sm mt-1">R$ {p.total.toFixed(2)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Produtos */}
         {produtos.length > 0 && (
@@ -230,6 +332,72 @@ export default function FornecedorPerfil() {
           </div>
         )}
       </div>
+
+      {/* Modal de pedido */}
+      {modalPedido && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-end md:items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-t-3xl md:rounded-3xl w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-gray-800 shrink-0">
+              <h2 className="text-xl font-bold text-white">Fazer pedido</h2>
+              <button onClick={() => setModalPedido(false)} className="text-gray-400 hover:text-white">
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-3">
+              {produtos.map(p => {
+                const qtd = quantidades[p.id] || 0
+                return (
+                  <div key={p.id} className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium truncate">{p.nome}</p>
+                      <p className="text-purple-400 text-sm">R$ {parseFloat(p.preco).toFixed(2)}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => ajustarQtd(p.id, -1)}
+                        disabled={qtd === 0}
+                        className="w-8 h-8 rounded-lg bg-gray-800 text-white flex items-center justify-center disabled:opacity-40 hover:bg-gray-700 transition"
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <span className="text-white w-6 text-center text-sm">{qtd}</span>
+                      <button
+                        onClick={() => ajustarQtd(p.id, 1)}
+                        className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 transition"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+
+              <textarea
+                placeholder="Observação (opcional)"
+                value={observacao}
+                onChange={e => setObservacao(e.target.value)}
+                rows={2}
+                className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm mt-2"
+              />
+            </div>
+
+            <div className="p-5 border-t border-gray-800 shrink-0">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-gray-400 text-sm">{itensSelecionados.length} item(ns)</span>
+                <span className="text-white font-bold text-lg">R$ {totalPedido.toFixed(2)}</span>
+              </div>
+              <button
+                onClick={enviarPedido}
+                disabled={enviandoPedido || itensSelecionados.length === 0}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50"
+              >
+                {enviandoPedido ? 'Enviando...' : 'Enviar pedido'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

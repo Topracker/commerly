@@ -24,13 +24,14 @@ export default function ClienteBuscar() {
     let query = supabase
       .from('lojas_publicas')
       .select('id, nome, tipo, localizacao, telefone, instagram, horario')
-      .order('created_at', { ascending: false })
+      .order('nome', { ascending: true })
       .limit(50)
 
     if (tipoFiltro !== 'Todos') query = query.eq('tipo', tipoFiltro)
     if (busca.trim()) query = query.ilike('nome', `%${busca.trim()}%`)
 
-    const { data } = await query
+    const { data, error } = await query
+    if (error) console.error('[buscar] lojas_publicas error:', error)
     setLojas(data || [])
     setBuscando(false)
   }
