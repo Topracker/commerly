@@ -96,16 +96,17 @@ export default function ClienteLoja() {
     <ClienteLayout cliente={cliente} sair={sair} noPadding>
       <Toast toast={toast} />
       <header className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
-        <button onClick={() => router.push('/cliente/buscar')} className="text-gray-400 hover:text-white">
+        <button onClick={() => router.push('/cliente/buscar')} className="shrink-0 text-gray-400 hover:text-white">
           <ArrowLeft size={20} />
         </button>
-        <p className="text-white font-bold truncate flex-1">{loja.nome}</p>
+        <p className="text-white font-bold truncate flex-1 min-w-0">{loja.nome}</p>
         <button
           onClick={alternarFavorito}
+          aria-label={favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
           title={favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-          className="shrink-0 text-gray-400 hover:text-red-400 transition"
+          className="shrink-0 text-gray-400 hover:text-red-400 transition p-1 -mr-1"
         >
-          <Heart size={20} className={favorito ? 'fill-red-500 text-red-500' : ''} />
+          <Heart size={22} className={favorito ? 'fill-red-500 text-red-500' : ''} />
         </button>
       </header>
 
