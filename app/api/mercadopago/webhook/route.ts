@@ -53,16 +53,38 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient()
 
-  const { data: conexao, error: conexaoErr } = await supabase
+  // NÃO usar .single() aqui: a mesma conta MP pode estar conectada a mais de
+  // uma loja (2+ linhas com o mesmo mp_user_id). O .single() lançava erro
+  // nesse caso e a venda era descartada silenciosamente com 200 OK.
+  const { data: conexoes, error: conexaoErr } = await supabase
     .from('mercadopago_conexoes')
-    .select('loja_id, access_token')
+    .select('loja_id, access_token, updated_at')
     .eq('mp_user_id', mpUserId)
-    .single()
+    .order('updated_at', { ascending: false })
 
-  if (conexaoErr || !conexao) {
-    console.error('[MP webhook] merchant não encontrado para mp_user_id:', mpUserId, conexaoErr)
+  if (conexaoErr) {
+    // Erro de banco é transitório — responder 500 faz o MP retentar (a cada
+    // 15 min), em vez de perder a venda.
+    console.error('[MP webhook] erro ao buscar conexão para mp_user_id:', mpUserId, conexaoErr)
+    return NextResponse.json({ error: 'Connection lookup failed' }, { status: 500 })
+  }
+
+  if (!conexoes || conexoes.length === 0) {
+    console.error('[MP webhook] merchant não encontrado para mp_user_id:', mpUserId)
     return NextResponse.json({ ok: true })
   }
+
+  if (conexoes.length > 1) {
+    console.warn(
+      '[MP webhook] múltiplas conexões para mp_user_id', mpUserId,
+      '— gravando na mais recente (loja', conexoes[0].loja_id + ').',
+      'loja_ids:', conexoes.map(c => c.loja_id)
+    )
+  }
+
+  // Conta MP conectada a várias lojas é ambígua: atribui à conexão mais
+  // recente (maior updated_at). O ideal é o lojista manter só uma conexão.
+  const conexao = conexoes[0]
 
   const { data: existente } = await supabase
     .from('vendas')
