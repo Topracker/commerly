@@ -162,6 +162,7 @@ export default function Integracoes() {
   const [mpConectado, setMpConectado] = useState(false)
   const [mpUserId, setMpUserId] = useState<string | null>(null)
   const [desconectando, setDesconectando] = useState(false)
+  const [sincronizando, setSincronizando] = useState(false)
 
   const [pbConectado, setPbConectado] = useState(false)
   const [pbEmail, setPbEmail] = useState('')
@@ -204,6 +205,20 @@ export default function Integracoes() {
     if (res.ok) { setMpConectado(false); setMpUserId(null); mostrarToast('Mercado Pago desconectado.', 'sucesso') }
     else mostrarToast('Erro ao desconectar. Tente novamente.', 'erro')
     setDesconectando(false)
+  }
+
+  async function sincronizarMP() {
+    setSincronizando(true)
+    try {
+      const res = await fetch('/api/mercadopago/sincronizar', { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { mostrarToast(data.erro || 'Erro ao sincronizar pagamentos.', 'erro'); return }
+      if (data.novas > 0) mostrarToast(`${data.novas} venda(s) sincronizada(s) do Mercado Pago!`, 'sucesso')
+      else mostrarToast('Nenhuma venda nova encontrada.', 'sucesso')
+    } catch {
+      mostrarToast('Erro de rede ao sincronizar. Tente novamente.', 'erro')
+    }
+    setSincronizando(false)
   }
 
   async function conectarPB() {
@@ -276,7 +291,10 @@ export default function Integracoes() {
               <p className="text-green-300 text-sm">Maquininha conectada</p>
               {mpUserId && <p className="text-green-500 text-xs ml-auto">ID: {mpUserId}</p>}
             </div>
-            <p className="text-gray-400 text-xs">Pagamentos feitos na maquininha serão registrados automaticamente nas suas vendas.</p>
+            <p className="text-gray-400 text-xs">Pagamentos feitos na maquininha serão registrados automaticamente nas suas vendas. Se alguma venda não aparecer, use o botão abaixo para buscar os pagamentos recentes direto no Mercado Pago.</p>
+            <button onClick={sincronizarMP} disabled={sincronizando} className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition text-sm">
+              {sincronizando ? 'Sincronizando...' : 'Sincronizar pagamentos'}
+            </button>
             <button onClick={desconectarMP} disabled={desconectando} className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 font-semibold py-3 rounded-xl transition text-sm">
               {desconectando ? 'Desconectando...' : 'Desconectar Mercado Pago'}
             </button>
