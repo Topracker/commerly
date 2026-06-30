@@ -58,25 +58,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(erroUrl)
   }
 
-  // Registra o webhook na conta do merchant para receber notificações de pagamento
-  try {
-    const webhookUrl = `${origin}/api/mercadopago/webhook`
-    const wRes = await fetch('https://api.mercadopago.com/v1/webhook', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token.access_token}`,
-      },
-      body: JSON.stringify({ url: webhookUrl, events: ['payment'] }),
-    })
-    if (wRes.ok) {
-      console.log('[MP callback] webhook registrado com sucesso para loja', lojaId)
-    } else {
-      console.warn('[MP callback] webhook registration retornou', wRes.status, await wRes.text())
-    }
-  } catch (err) {
-    console.warn('[MP callback] erro ao registrar webhook (não bloqueia conexão):', err)
-  }
+  // OBS: o Mercado Pago NÃO expõe endpoint REST para registrar webhook por
+  // vendedor (o antigo POST /v1/webhook usado aqui não existe e respondia 404).
+  // A configuração é feita UMA vez no painel, no nível da APLICAÇÃO:
+  //   Suas integrações > Webhooks > Configurar notificações (modo Produção)
+  //   URL: {NEXT_PUBLIC_APP_URL}/api/mercadopago/webhook
+  //   Evento: "Pagamentos" (payment)
+  // Esse webhook de aplicação recebe as notificações de TODAS as contas
+  // conectadas via OAuth — por isso o receiver identifica a loja pelo
+  // notification.user_id. O secret gerado no painel deve ser igual ao
+  // MP_WEBHOOK_SECRET nas env vars da Vercel.
 
   if (!process.env.MP_WEBHOOK_SECRET) {
     console.error('[MP callback] ATENÇÃO: MP_WEBHOOK_SECRET não configurada — webhooks serão rejeitados')
