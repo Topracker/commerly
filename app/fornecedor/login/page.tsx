@@ -138,23 +138,25 @@ export default function FornecedorLogin() {
     setLoading(true)
     setErro('')
 
-    const res = await fetch('/api/auth/senha-cadastro', {
+    // Segurança: o cadastro por senha exige confirmação do e-mail por código
+    // antes de liberar acesso. A senha só é definida após o código ser
+    // confirmado (verificarCadastroOtp), provando a posse do e-mail.
+    const preRes = await fetch('/api/auth/pre-cadastro', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, senha }),
+      body: JSON.stringify({ email }),
     })
-    if (!res.ok) {
-      const { erro } = await res.json().catch(() => ({ erro: '' }))
-      setErro(erro || 'Erro ao criar conta. Tente novamente.')
+    if (!preRes.ok) {
+      const { erro } = await preRes.json().catch(() => ({ erro: '' }))
+      setErro(erro || 'Não foi possível enviar o código. Tente novamente.')
       setLoading(false)
       return
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
-    if (error) { setErro('Conta criada, mas não foi possível entrar. Tente fazer login.'); setLoading(false); return }
-
-    const ok = await finalizarCadastroFornecedor()
-    if (!ok) setLoading(false)
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
+    if (error) { console.error('[OTP] signInWithOtp error:', error); setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
+    setTela('cadastro-otp-codigo')
+    setLoading(false)
   }
 
   async function loginComSenha() {
@@ -191,6 +193,12 @@ export default function FornecedorLogin() {
     setErro('')
     const { error } = await supabase.auth.verifyOtp({ email, token: codigo, type: 'email' })
     if (error) { console.error('[OTP] verifyOtp error:', error); setErro('Código inválido ou expirado'); setLoading(false); return }
+    // E-mail confirmado: define a senha escolhida no cadastro (vazia no fluxo
+    // só-OTP, então é ignorada).
+    if (senha.length >= 6) {
+      const { error: senhaErr } = await supabase.auth.updateUser({ password: senha })
+      if (senhaErr) console.error('[cadastro] erro ao definir senha:', senhaErr)
+    }
     const ok = await finalizarCadastroFornecedor()
     if (!ok) setLoading(false)
   }
