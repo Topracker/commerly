@@ -56,9 +56,14 @@ export async function POST(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 })
 
-  if (!rateLimit(`onboarding-ia:${user.id}`, 30, 60 * 60_000)) {
+  // O assistente roda durante o PRÓPRIO cadastro. No fluxo do fornecedor
+  // (cadastro por senha/OTP) o usuário descreve o negócio antes da conta de
+  // auth existir, então ainda não há sessão — por isso não exigimos login.
+  // Limitamos por usuário quando há sessão, ou por IP como fallback.
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+  const limiteKey = user ? `onboarding-ia:${user.id}` : `onboarding-ia-ip:${ip}`
+  if (!rateLimit(limiteKey, 30, 60 * 60_000)) {
     return NextResponse.json({ erro: 'Muitas tentativas. Tente novamente em alguns minutos.' }, { status: 429 })
   }
 
