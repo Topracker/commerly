@@ -34,9 +34,17 @@ function extrairJSON(texto: string): RespostaIA | null {
   try { return JSON.parse(limpo.slice(ini, fim + 1)) as RespostaIA } catch { return null }
 }
 
+// Categorias que o fornecedor pode escolher (precisa bater com a lista das
+// telas de cadastro do fornecedor).
+const CATEGORIAS_FORNECEDOR = [
+  'Alimentos e bebidas', 'Limpeza e higiene', 'Eletrônicos', 'Roupas e acessórios',
+  'Papelaria', 'Construção', 'Serviços', 'Tecnologia',
+]
+
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null)
   const descricao: string = typeof body?.descricao === 'string' ? body.descricao : ''
+  const modo: string = body?.modo === 'fornecedor' ? 'fornecedor' : 'comerciante'
   if (!descricao.trim()) return NextResponse.json({ erro: 'Descreva seu negócio.' }, { status: 400 })
   if (descricao.length > MAX_DESC) return NextResponse.json({ erro: 'Descrição muito longa.' }, { status: 400 })
 
@@ -58,6 +66,54 @@ export async function POST(request: NextRequest) {
   if (!geminiApiKey) {
     console.error('[onboarding-ia] GEMINI_API_KEY ausente')
     return NextResponse.json({ erro: 'Assistente não configurado.' }, { status: 500 })
+  }
+
+  // -------------------------------------------------------------------------
+  // Modo fornecedor: sugere CATEGORIA e FOCO de atuação (não módulos).
+  // -------------------------------------------------------------------------
+  if (modo === 'fornecedor') {
+    const promptForn = `Você é o assistente de onboarding de FORNECEDORES do Commerly, um app que conecta fornecedores a pequenos comércios no Brasil.
+O fornecedor descreveu a empresa dele. Sua tarefa: identificar a CATEGORIA e o FOCO de atuação.
+
+CATEGORIAS SUGERIDAS (use uma delas quando encaixar bem):
+${CATEGORIAS_FORNECEDOR.map(c => `- ${c}`).join('\n')}
+Se nenhuma encaixar, crie um nome de categoria curto e natural (máx 40 caracteres).
+
+Regras:
+- "categoriaSugerida": a categoria que melhor descreve o que a empresa FORNECE.
+- "foco": 1 frase curta dizendo o que ela fornece / pra quem (máx 120 caracteres).
+- "resumo": 1 frase amigável confirmando o perfil que você preparou.
+
+Descrição do fornecedor: "${descricao.replace(/"/g, "'")}"
+
+Responda APENAS com um JSON válido, sem texto antes ou depois, neste formato:
+{"categoriaSugerida": "...", "foco": "...", "resumo": "..."}`
+
+    const resForn = await chamarGemini(geminiApiKey, {
+      contents: [{ parts: [{ text: promptForn }] }],
+      generationConfig: { temperature: 0.4, maxOutputTokens: 512, responseMimeType: 'application/json' },
+    })
+
+    if (!resForn.ok) {
+      console.error('[onboarding-ia/fornecedor] gemini falhou:', resForn.status, resForn.body.slice(0, 300))
+      const msg = resForn.status === 429
+        ? 'Limite de consultas atingido. Tente novamente em alguns minutos.'
+        : 'Erro ao consultar o assistente. Tente novamente.'
+      return NextResponse.json({ erro: msg }, { status: 500 })
+    }
+
+    const textoForn = resForn.data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    const parsedForn = extrairJSON(textoForn) as { categoriaSugerida?: unknown; foco?: unknown; resumo?: unknown } | null
+    if (!parsedForn) {
+      console.error('[onboarding-ia/fornecedor] resposta não parseável:', textoForn.slice(0, 300))
+      return NextResponse.json({ erro: 'Não consegui entender. Tente descrever de outro jeito.' }, { status: 502 })
+    }
+
+    return NextResponse.json({
+      categoriaSugerida: typeof parsedForn.categoriaSugerida === 'string' ? parsedForn.categoriaSugerida.slice(0, 40) : '',
+      foco: typeof parsedForn.foco === 'string' ? parsedForn.foco.slice(0, 120) : '',
+      resumo: typeof parsedForn.resumo === 'string' ? parsedForn.resumo.slice(0, 300) : '',
+    })
   }
 
   const prompt = `Você é o assistente de onboarding do Commerly, um app de gestão para pequenos comércios no Brasil.

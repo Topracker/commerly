@@ -2,6 +2,11 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '../../supabase'
 import { useRouter } from 'next/navigation'
+import {
+  validarCNPJ, formatarCNPJ, formatarTelefone, erroTelefone,
+  checarDuplicidade, MSG_DUPLICADO,
+} from '../../lib/validacoes'
+import FornecedorIaOutro from '../../components/FornecedorIaOutro'
 
 type Tela =
   | 'escolha'
@@ -23,10 +28,14 @@ export default function FornecedorLogin() {
   const [codigo, setCodigo] = useState('')
   const [nome, setNome] = useState('')
   const [categoria, setCategoria] = useState('')
+  const [cnpj, setCnpj] = useState('')
   const [localizacao, setLocalizacao] = useState('')
   const [telefone, setTelefone] = useState('')
   const [instagram, setInstagram] = useState('')
   const [descricao, setDescricao] = useState('')
+  // Fluxo de IA para categoria "Outro"
+  const [categoriaCustom, setCategoriaCustom] = useState('')
+  const [foco, setFoco] = useState('')
   const [usarOtp, setUsarOtp] = useState(false)
   const [erro, setErro] = useState('')
   const [loading, setLoading] = useState(false)
@@ -71,10 +80,23 @@ export default function FornecedorLogin() {
     const { data: fornecedorExiste } = await supabase.from('fornecedores').select('id').eq('user_id', user.id).maybeSingle()
     if (fornecedorExiste) { router.push('/fornecedor/dashboard'); return true }
 
+    // CNPJ e telefone não podem se repetir em outra conta do Commerly.
+    const dup = await checarDuplicidade({ cnpj, ...(telefone ? { telefone } : {}) })
+    if (dup.erro) { setErro(dup.erro); return false }
+    if (dup.duplicado) { setErro(MSG_DUPLICADO[dup.duplicado]); return false }
+
+    const categoriaFinal = categoria === 'Outro' ? (categoriaCustom.trim() || 'Outro') : categoria
+    const descricaoFinal = descricao.trim() || foco.trim()
+
     const { error: insertError } = await supabase.from('fornecedores').insert({
-      user_id: user.id, nome: nome.trim(), categoria, localizacao, telefone, instagram, descricao,
+      user_id: user.id, nome: nome.trim(), categoria: categoriaFinal, cnpj,
+      localizacao, telefone, instagram, descricao: descricaoFinal,
     })
-    if (insertError) { setErro('Erro ao criar conta. Tente novamente.'); return false }
+    if (insertError) {
+      if (insertError.code === '23505') setErro('Este CNPJ já está cadastrado no Commerly!')
+      else setErro('Erro ao criar conta. Tente novamente.')
+      return false
+    }
     router.push('/fornecedor/dashboard')
     return true
   }
@@ -104,6 +126,8 @@ export default function FornecedorLogin() {
 
   function validarDadosCadastro(): boolean {
     if (!nome.trim() || !categoria) { setErro('Nome e categoria são obrigatórios!'); return false }
+    if (!validarCNPJ(cnpj)) { setErro('Informe um CNPJ válido. O fornecedor é uma empresa.'); return false }
+    if (telefone && erroTelefone(telefone)) { setErro('Telefone inválido. Use um número válido com DDD.'); return false }
     if (!email) { setErro('Informe seu email!'); return false }
     return true
   }
@@ -227,10 +251,22 @@ export default function FornecedorLogin() {
               <option value="">Categoria *</option>
               {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <textarea placeholder="Descrição da empresa (opcional)" value={descricao}
-              onChange={e => setDescricao(e.target.value)} rows={3} className={`${inp} resize-none`} />
+            {categoria === 'Outro' && (
+              <FornecedorIaOutro
+                descricao={descricao} onDescricao={setDescricao}
+                categoria={categoriaCustom} onCategoria={setCategoriaCustom}
+                foco={foco} onFoco={setFoco}
+              />
+            )}
+            <input placeholder="CNPJ *" value={cnpj} inputMode="numeric" maxLength={18}
+              onChange={e => setCnpj(formatarCNPJ(e.target.value))} className={inp} />
+            {categoria !== 'Outro' && (
+              <textarea placeholder="Descrição da empresa (opcional)" value={descricao}
+                onChange={e => setDescricao(e.target.value)} rows={3} className={`${inp} resize-none`} />
+            )}
             <input placeholder="Localização" value={localizacao} onChange={e => setLocalizacao(e.target.value)} className={inp} />
-            <input placeholder="Telefone / WhatsApp" value={telefone} onChange={e => setTelefone(e.target.value)} className={inp} />
+            <input placeholder="Telefone / WhatsApp" value={telefone} inputMode="numeric"
+              onChange={e => setTelefone(formatarTelefone(e.target.value))} className={inp} />
             <input placeholder="Instagram (ex: @empresa)" value={instagram} onChange={e => setInstagram(e.target.value)} className={inp} />
             <input type="email" placeholder="Seu email *" value={email} onChange={e => setEmail(e.target.value)} className={inp} />
             {!usarOtp && (

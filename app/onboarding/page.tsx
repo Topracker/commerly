@@ -4,6 +4,10 @@ import { createClient } from '../supabase'
 import { useRouter } from 'next/navigation'
 import { salvarNichoCustom } from '../lib/nicheStore'
 import { MODULOS, type ModuloKey } from '../lib/nichos'
+import {
+  validarCPF, validarCNPJ, formatarDocumento,
+  formatarTelefone, erroTelefone, checarDuplicidade, MSG_DUPLICADO,
+} from '../lib/validacoes'
 
 // Módulos que a IA pode sugerir / o usuário pode escolher no fluxo "Outro".
 const MODULOS_ESCOLHIVEIS: ModuloKey[] = ['agenda', 'servicos', 'pedidos', 'estoque', 'produtos', 'vendas', 'fornecedores']
@@ -21,68 +25,6 @@ const HORAS = Array.from({ length: 48 }, (_, i) => {
   const m = i % 2 === 0 ? '00' : '30'
   return `${h}:${m}`
 })
-
-function validarCPF(cpf: string) {
-  cpf = cpf.replace(/\D/g, '')
-  if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false
-  let soma = 0
-  for (let i = 0; i < 9; i++) soma += parseInt(cpf[i]) * (10 - i)
-  let resto = (soma * 10) % 11
-  if (resto === 10 || resto === 11) resto = 0
-  if (resto !== parseInt(cpf[9])) return false
-  soma = 0
-  for (let i = 0; i < 10; i++) soma += parseInt(cpf[i]) * (11 - i)
-  resto = (soma * 10) % 11
-  if (resto === 10 || resto === 11) resto = 0
-  return resto === parseInt(cpf[10])
-}
-
-function validarCNPJ(cnpj: string) {
-  cnpj = cnpj.replace(/\D/g, '')
-  if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false
-  const calc = (c: string, arr: number[]) => {
-    let soma = 0
-    for (let i = 0; i < arr.length; i++) soma += parseInt(c[i]) * arr[i]
-    const resto = soma % 11
-    return resto < 2 ? 0 : 11 - resto
-  }
-  const d1 = calc(cnpj, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
-  const d2 = calc(cnpj, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
-  return d1 === parseInt(cnpj[12]) && d2 === parseInt(cnpj[13])
-}
-
-function formatarDocumento(valor: string) {
-  const nums = valor.replace(/\D/g, '')
-  if (nums.length <= 11) {
-    return nums
-      .replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
-      .replace(/(\d{3})(\d{3})(\d{3})/, '$1.$2.$3')
-      .replace(/(\d{3})(\d{3})/, '$1.$2')
-  } else {
-    return nums
-      .replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
-      .replace(/(\d{2})(\d{3})(\d{3})(\d{4})/, '$1.$2.$3/$4')
-      .replace(/(\d{2})(\d{3})(\d{3})/, '$1.$2.$3')
-      .replace(/(\d{2})(\d{3})/, '$1.$2')
-  }
-}
-
-function formatarTelefone(valor: string): string {
-  const nums = valor.replace(/\D/g, '').slice(0, 11)
-  if (nums.length <= 2) return nums ? `(${nums}` : ''
-  if (nums.length <= 6) return `(${nums.slice(0, 2)}) ${nums.slice(2)}`
-  if (nums.length <= 10) return `(${nums.slice(0, 2)}) ${nums.slice(2, 6)}-${nums.slice(6)}`
-  return `(${nums.slice(0, 2)}) ${nums.slice(2, 7)}-${nums.slice(7)}`
-}
-
-function erroTelefone(valor: string): string {
-  const nums = valor.replace(/\D/g, '')
-  if (!nums) return ''
-  const ddd = parseInt(nums.slice(0, 2))
-  if (ddd < 11 || ddd > 99) return 'DDD inválido'
-  if (nums.length < 10 || nums.length > 11) return 'Número incompleto'
-  return ''
-}
 
 function erroInstagram(valor: string): string {
   if (!valor) return ''
@@ -224,6 +166,14 @@ export default function Onboarding() {
     ])
     if (clienteExiste) { alert('Este e-mail já está cadastrado como cliente. Faça login para acessar sua conta.'); setLoading(false); return }
     if (fornecedorExiste) { alert('Este e-mail já está cadastrado como fornecedor. Faça login para acessar sua conta.'); setLoading(false); return }
+
+    // CPF/CNPJ e telefone não podem se repetir em outra conta do Commerly.
+    const dup = await checarDuplicidade({
+      ...(nums.length === 11 ? { cpf: documento } : { cnpj: documento }),
+      ...(telefone ? { telefone } : {}),
+    })
+    if (dup.erro) { alert(dup.erro); setLoading(false); return }
+    if (dup.duplicado) { alert(MSG_DUPLICADO[dup.duplicado]); setLoading(false); return }
 
     // Para "Outro", usa o ramo sugerido pela IA (se houver) como tipo da loja.
     const tipoFinal = tipo === 'Outro' && tipoCustom.trim() ? tipoCustom.trim() : tipo
