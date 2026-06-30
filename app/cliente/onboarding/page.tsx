@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   soDigitos, validarCPF, formatarCPF, formatarTelefone,
   erroTelefone, checarDuplicidade, MSG_DUPLICADO,
+  registrarCadastroIp, AVISO_VERIFICACAO,
 } from '../../lib/validacoes'
 
 export default function ClienteOnboarding() {
@@ -45,6 +46,10 @@ export default function ClienteOnboarding() {
     })
     if (dup.erro) { setErro(dup.erro); setLoading(false); return }
     if (dup.duplicado) { setErro(MSG_DUPLICADO[dup.duplicado]); setLoading(false); return }
+
+    // Anti-spam: no máx. 1 conta por dia por IP.
+    const lim = await registrarCadastroIp('cliente')
+    if (!lim.ok) { setErro(lim.erro!); setLoading(false); return }
 
     const { error } = await supabase.from('clientes').insert({
       user_id: user!.id,
@@ -97,6 +102,7 @@ export default function ClienteOnboarding() {
             onKeyDown={e => e.key === 'Enter' && salvar()}
             className={inp}
           />
+          <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
           <button onClick={salvar} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50">
             {loading ? 'Salvando...' : 'Começar a explorar'}
           </button>

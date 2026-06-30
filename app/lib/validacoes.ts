@@ -12,6 +12,22 @@ export function soDigitos(valor: string): string {
   return (valor || '').replace(/\D/g, '')
 }
 
+// CPFs que PASSAM no dígito verificador mas são notoriamente "de teste"
+// (saem de geradores online e tutoriais). Os de dígitos repetidos
+// (111.111.111-11 etc.) já são barrados pela regex de repetição.
+const CPF_BLOCKLIST = new Set([
+  '12345678909', // 123.456.789-09 — o "CPF de teste" mais famoso
+  '11144477735', // muito citado em tutoriais/docs
+  '00000000191',
+  '11111111111', // (também pego pela regex, mantido por clareza)
+])
+
+// CNPJs de teste famosos que passam no dígito verificador.
+const CNPJ_BLOCKLIST = new Set([
+  '11222333000181', // CNPJ de teste recorrente em docs/geradores
+  '00000000000191',
+])
+
 // ---------------------------------------------------------------------------
 // CPF
 // ---------------------------------------------------------------------------
@@ -19,6 +35,7 @@ export function soDigitos(valor: string): string {
 export function validarCPF(valor: string): boolean {
   const cpf = soDigitos(valor)
   if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false
+  if (CPF_BLOCKLIST.has(cpf)) return false
   let soma = 0
   for (let i = 0; i < 9; i++) soma += parseInt(cpf[i]) * (10 - i)
   let resto = (soma * 10) % 11
@@ -38,6 +55,7 @@ export function validarCPF(valor: string): boolean {
 export function validarCNPJ(valor: string): boolean {
   const cnpj = soDigitos(valor)
   if (cnpj.length !== 14 || /^(\d)\1{13}$/.test(cnpj)) return false
+  if (CNPJ_BLOCKLIST.has(cnpj)) return false
   const calc = (pesos: number[]) => {
     let soma = 0
     for (let i = 0; i < pesos.length; i++) soma += parseInt(cnpj[i]) * pesos[i]
@@ -191,5 +209,32 @@ export async function checarDuplicidade(payload: {
     return { duplicado: data?.duplicado as CampoDuplicado | undefined }
   } catch {
     return { erro: 'Erro de rede ao validar seus dados. Tente novamente.' }
+  }
+}
+
+// Aviso exibido em todos os cadastros.
+export const AVISO_VERIFICACAO =
+  'Seus dados serão verificados — contas com informações falsas serão suspensas.'
+
+// ---------------------------------------------------------------------------
+// Limite de criação de conta por IP (anti-spam: 1 por dia por IP)
+// ---------------------------------------------------------------------------
+
+// Chamado imediatamente antes de criar o perfil (loja/cliente/fornecedor). O
+// servidor registra o IP e bloqueia se já houve uma criação nas últimas 24h.
+// Falha "aberta" (ok) em erro de rede pra não travar cadastro legítimo — o
+// servidor é a barreira real de qualquer forma.
+export async function registrarCadastroIp(area: string): Promise<{ ok: boolean; erro?: string }> {
+  try {
+    const res = await fetch('/api/cadastro/registrar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ area }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, erro: data?.erro || 'Não foi possível concluir o cadastro agora.' }
+    return { ok: true }
+  } catch {
+    return { ok: true }
   }
 }

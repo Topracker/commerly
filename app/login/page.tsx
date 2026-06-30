@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '../supabase'
 import { useRouter } from 'next/navigation'
+import { AVISO_VERIFICACAO } from '../lib/validacoes'
 
 type Tela =
   | 'escolha'
@@ -224,6 +225,7 @@ export default function Login() {
                 onKeyDown={e => e.key === 'Enter' && cadastrarComSenha()}
                 className={inp} />
             )}
+            <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
             <button onClick={() => (usarOtp ? avancarCadastroOtp() : cadastrarComSenha())} disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition mt-1">
               {loading ? (usarOtp ? 'Enviando código...' : 'Criando conta...') : (usarOtp ? 'Continuar' : 'Criar conta')}

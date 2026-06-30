@@ -4,7 +4,7 @@ import { createClient } from '../../supabase'
 import { useRouter } from 'next/navigation'
 import {
   validarCNPJ, formatarCNPJ, formatarTelefone, erroTelefone,
-  checarDuplicidade, MSG_DUPLICADO,
+  checarDuplicidade, MSG_DUPLICADO, registrarCadastroIp, AVISO_VERIFICACAO,
 } from '../../lib/validacoes'
 import FornecedorIaOutro from '../../components/FornecedorIaOutro'
 
@@ -84,6 +84,10 @@ export default function FornecedorLogin() {
     const dup = await checarDuplicidade({ cnpj, ...(telefone ? { telefone } : {}) })
     if (dup.erro) { setErro(dup.erro); return false }
     if (dup.duplicado) { setErro(MSG_DUPLICADO[dup.duplicado]); return false }
+
+    // Anti-spam: no máx. 1 conta por dia por IP.
+    const lim = await registrarCadastroIp('fornecedor')
+    if (!lim.ok) { setErro(lim.erro!); return false }
 
     const categoriaFinal = categoria === 'Outro' ? (categoriaCustom.trim() || 'Outro') : categoria
     const descricaoFinal = descricao.trim() || foco.trim()
@@ -281,6 +285,7 @@ export default function FornecedorLogin() {
               <input type="password" autoComplete="new-password" placeholder="Senha (mín. 6 caracteres) *" value={senha}
                 onChange={e => setSenha(e.target.value)} className={inp} />
             )}
+            <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
             <button onClick={() => (usarOtp ? avancarCadastroOtp() : cadastrarComSenha())} disabled={loading}
               className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition mt-2">
               {loading ? (usarOtp ? 'Enviando código...' : 'Criando conta...') : (usarOtp ? 'Continuar' : 'Criar conta')}

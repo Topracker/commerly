@@ -4,7 +4,7 @@ import { createClient } from '../../supabase'
 import { useRouter } from 'next/navigation'
 import {
   validarCNPJ, formatarCNPJ, erroCNPJ, formatarTelefone, erroTelefone,
-  checarDuplicidade, MSG_DUPLICADO,
+  checarDuplicidade, MSG_DUPLICADO, registrarCadastroIp, AVISO_VERIFICACAO,
 } from '../../lib/validacoes'
 import FornecedorIaOutro from '../../components/FornecedorIaOutro'
 
@@ -64,6 +64,10 @@ export default function FornecedorOnboarding() {
     const dup = await checarDuplicidade({ cnpj, ...(telefone ? { telefone } : {}) })
     if (dup.erro) { setErro(dup.erro); setLoading(false); return }
     if (dup.duplicado) { setErro(MSG_DUPLICADO[dup.duplicado]); setLoading(false); return }
+
+    // Anti-spam: no máx. 1 conta por dia por IP.
+    const lim = await registrarCadastroIp('fornecedor')
+    if (!lim.ok) { setErro(lim.erro!); setLoading(false); return }
 
     const categoriaFinal = categoria === 'Outro' ? (categoriaCustom.trim() || 'Outro') : categoria
     const descricaoFinal = descricao.trim() || foco.trim()
@@ -170,6 +174,7 @@ export default function FornecedorOnboarding() {
             onChange={e => setInstagram(e.target.value)}
             className={inp}
           />
+          <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
           <button
             onClick={salvar}
             disabled={loading || !!erroCnpj || !!erroTel}

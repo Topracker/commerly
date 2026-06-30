@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   soDigitos, validarCPF, formatarCPF, formatarTelefone,
   erroTelefone, checarDuplicidade, MSG_DUPLICADO,
+  registrarCadastroIp, AVISO_VERIFICACAO,
 } from '../../lib/validacoes'
 
 type Tela =
@@ -75,6 +76,10 @@ export default function ClienteLogin() {
     })
     if (dup.erro) { setErro(dup.erro); return false }
     if (dup.duplicado) { setErro(MSG_DUPLICADO[dup.duplicado]); return false }
+
+    // Anti-spam: no máx. 1 conta por dia por IP.
+    const lim = await registrarCadastroIp('cliente')
+    if (!lim.ok) { setErro(lim.erro!); return false }
 
     const { error: insertError } = await supabase.from('clientes').insert({
       user_id: user.id,
@@ -252,6 +257,7 @@ export default function ClienteLogin() {
             <input type="password" autoComplete="new-password" placeholder="Senha (mín. 6 caracteres) *" value={senha}
               onChange={e => setSenha(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && cadastrarComSenha()} className={inp} />
+            <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
             <button onClick={cadastrarComSenha} disabled={loading}
               className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
               {loading ? 'Criando conta...' : 'Criar conta'}
@@ -298,6 +304,7 @@ export default function ClienteLogin() {
             <input type="tel" autoComplete="tel" inputMode="numeric" placeholder="WhatsApp (opcional)" value={telefone}
               onChange={e => setTelefone(formatarTelefone(e.target.value))}
               onKeyDown={e => e.key === 'Enter' && avancarCadastroOtp()} className={inp} />
+            <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
             <button onClick={avancarCadastroOtp} disabled={loading}
               className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
               {loading ? 'Enviando código...' : 'Continuar'}

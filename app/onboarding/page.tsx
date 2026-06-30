@@ -7,6 +7,7 @@ import { MODULOS, type ModuloKey } from '../lib/nichos'
 import {
   validarCPF, validarCNPJ, formatarDocumento,
   formatarTelefone, erroTelefone, checarDuplicidade, MSG_DUPLICADO,
+  registrarCadastroIp, AVISO_VERIFICACAO,
 } from '../lib/validacoes'
 
 // Módulos que a IA pode sugerir / o usuário pode escolher no fluxo "Outro".
@@ -177,6 +178,10 @@ export default function Onboarding() {
 
     // Para "Outro", usa o ramo sugerido pela IA (se houver) como tipo da loja.
     const tipoFinal = tipo === 'Outro' && tipoCustom.trim() ? tipoCustom.trim() : tipo
+
+    // Anti-spam: no máx. 1 conta por dia por IP.
+    const lim = await registrarCadastroIp('comerciante')
+    if (!lim.ok) { alert(lim.erro); setLoading(false); return }
 
     const { data: lojaInserida, error } = await supabase.from('lojas').insert({
       user_id: user?.id,
@@ -366,6 +371,7 @@ export default function Onboarding() {
             </div>
           </div>
 
+          <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
           <button
             onClick={salvar}
             disabled={loading || !!erroDoc || !!erroTel || !!erroIG || !!erroCEP || cepCarregando}
