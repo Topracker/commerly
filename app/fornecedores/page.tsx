@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { AppLayout } from '../components/AppLayout'
-import { Search, MapPin, Star } from 'lucide-react'
+import { distanciaKm, formatarDistancia } from '../lib/geo'
+import { Search, MapPin, Star, Navigation } from 'lucide-react'
 
 const CATEGORIAS = ['Todos', 'Alimentos e bebidas', 'Limpeza e higiene', 'Eletrônicos', 'Roupas e acessórios', 'Papelaria', 'Construção', 'Serviços', 'Tecnologia', 'Outro']
 
@@ -21,7 +22,7 @@ export default function BuscarFornecedores() {
     setBuscando(true)
     let query = supabase
       .from('fornecedores')
-      .select('id, nome, categoria, localizacao, descricao, avaliacoes_fornecedores(nota)')
+      .select('id, nome, categoria, localizacao, descricao, latitude, longitude, avaliacoes_fornecedores(nota)')
       .order('created_at', { ascending: false })
       .limit(50)
 
@@ -83,6 +84,7 @@ export default function BuscarFornecedores() {
           {fornecedores.map(f => {
             const notas: any[] = f.avaliacoes_fornecedores || []
             const media = notas.length > 0 ? notas.reduce((s: number, a: any) => s + a.nota, 0) / notas.length : 0
+            const dist = distanciaKm(loja, f)
             return (
               <button
                 key={f.id}
@@ -97,6 +99,9 @@ export default function BuscarFornecedores() {
                     <div className="flex items-center gap-3 flex-wrap">
                       {f.localizacao && (
                         <p className="text-gray-500 text-xs flex items-center gap-1"><MapPin size={11} />{f.localizacao}</p>
+                      )}
+                      {dist != null && (
+                        <p className="text-blue-400 text-xs flex items-center gap-1 font-medium"><Navigation size={11} />{formatarDistancia(dist)}</p>
                       )}
                       {notas.length > 0 && (
                         <p className="text-yellow-400 text-xs flex items-center gap-1 font-medium">

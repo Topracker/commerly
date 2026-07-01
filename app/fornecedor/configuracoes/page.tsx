@@ -4,6 +4,7 @@ import { useFornecedor } from '../../hooks/useFornecedor'
 import { useToast } from '../../hooks/useToast'
 import { FornecedorLayout } from '../../components/FornecedorLayout'
 import { Toast } from '../../components/Toast'
+import { EnderecoAutocomplete } from '../../components/EnderecoAutocomplete'
 
 const CATEGORIAS = [
   'Alimentos e bebidas',
@@ -25,6 +26,8 @@ export default function FornecedorConfiguracoes() {
   const [descricao, setDescricao] = useState('')
   const [telefone, setTelefone] = useState('')
   const [localizacao, setLocalizacao] = useState('')
+  const [latitude, setLatitude] = useState<number | null>(null)
+  const [longitude, setLongitude] = useState<number | null>(null)
   const [instagram, setInstagram] = useState('')
   const [erroInstagram, setErroInstagram] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -36,6 +39,8 @@ export default function FornecedorConfiguracoes() {
       setDescricao(fornecedor.descricao || '')
       setTelefone(fornecedor.telefone || '')
       setLocalizacao(fornecedor.localizacao || '')
+      setLatitude(fornecedor.latitude ?? null)
+      setLongitude(fornecedor.longitude ?? null)
       setInstagram(fornecedor.instagram || '')
     }
   }, [fornecedor])
@@ -64,6 +69,8 @@ export default function FornecedorConfiguracoes() {
         descricao: descricao.trim() || null,
         telefone: telefone.trim() || null,
         localizacao: localizacao.trim() || null,
+        latitude,
+        longitude,
         instagram: instagram.trim() || null,
       })
       .eq('id', fornecedor.id)
@@ -129,9 +136,12 @@ export default function FornecedorConfiguracoes() {
 
         <div>
           <label className="text-gray-400 text-sm block mb-1.5">Localização</label>
-          <input
+          <EnderecoAutocomplete
             value={localizacao}
-            onChange={e => setLocalizacao(e.target.value)}
+            onChange={v => { setLocalizacao(v); setLatitude(null); setLongitude(null) }}
+            onSelect={({ endereco, latitude, longitude }) => {
+              setLocalizacao(endereco); setLatitude(latitude); setLongitude(longitude)
+            }}
             placeholder="Cidade, bairro ou endereço"
             className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500"
           />

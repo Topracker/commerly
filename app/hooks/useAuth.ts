@@ -17,7 +17,7 @@ export function useAuth() {
     if (error || !user) { router.push('/login'); return }
     const { data: lojaData, error: lojaError } = await supabase
       .from('lojas')
-      .select('id, nome, tipo, documento, localizacao, telefone, instagram, horario, meta_mensal')
+      .select('id, nome, tipo, documento, localizacao, telefone, instagram, horario, meta_mensal, latitude, longitude')
       .eq('user_id', user.id)
       .single()
     if (lojaError || !lojaData) { router.push('/onboarding'); return }

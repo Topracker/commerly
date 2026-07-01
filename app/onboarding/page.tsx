@@ -4,6 +4,7 @@ import { createClient } from '../supabase'
 import { useRouter } from 'next/navigation'
 import { salvarNichoCustom } from '../lib/nicheStore'
 import { MODULOS, type ModuloKey } from '../lib/nichos'
+import { EnderecoAutocomplete } from '../components/EnderecoAutocomplete'
 import {
   validarCPF, validarCNPJ, formatarDocumento,
   formatarTelefone, erroTelefone, checarDuplicidade, MSG_DUPLICADO,
@@ -44,6 +45,8 @@ export default function Onboarding() {
   const [tipo, setTipo] = useState('')
   const [documento, setDocumento] = useState('')
   const [localizacao, setLocalizacao] = useState('')
+  const [latitude, setLatitude] = useState<number | null>(null)
+  const [longitude, setLongitude] = useState<number | null>(null)
   const [telefone, setTelefone] = useState('')
   const [instagram, setInstagram] = useState('')
   const [horarioAbertura, setHorarioAbertura] = useState('08:00')
@@ -186,6 +189,7 @@ export default function Onboarding() {
     const { data: lojaInserida, error } = await supabase.from('lojas').insert({
       user_id: user?.id,
       nome, tipo: tipoFinal, documento, localizacao, telefone, instagram, horario,
+      latitude, longitude,
       plano: 'inativo',
     }).select('id').single()
     if (error) {
@@ -328,10 +332,13 @@ export default function Onboarding() {
             {erroCEP && <p className="text-red-400 text-sm mt-1">{erroCEP}</p>}
           </div>
 
-          <input
-            placeholder="Complemento (ex: Rua das Flores, 123)"
+          <EnderecoAutocomplete
             value={localizacao}
-            onChange={e => setLocalizacao(e.target.value)}
+            onChange={v => { setLocalizacao(v); setLatitude(null); setLongitude(null) }}
+            onSelect={({ endereco, latitude, longitude }) => {
+              setLocalizacao(endereco); setLatitude(latitude); setLongitude(longitude)
+            }}
+            placeholder="Endereço (ex: Rua das Flores, 123)"
             className={inputClass}
           />
 

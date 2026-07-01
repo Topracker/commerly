@@ -7,6 +7,7 @@ import {
   checarDuplicidade, MSG_DUPLICADO, registrarCadastroIp, AVISO_VERIFICACAO,
 } from '../../lib/validacoes'
 import FornecedorIaOutro from '../../components/FornecedorIaOutro'
+import { EnderecoAutocomplete } from '../../components/EnderecoAutocomplete'
 
 const CATEGORIAS = ['Alimentos e bebidas', 'Limpeza e higiene', 'Eletrônicos', 'Roupas e acessórios', 'Papelaria', 'Construção', 'Serviços', 'Tecnologia', 'Outro']
 
@@ -15,6 +16,8 @@ export default function FornecedorOnboarding() {
   const [categoria, setCategoria] = useState('')
   const [cnpj, setCnpj] = useState('')
   const [localizacao, setLocalizacao] = useState('')
+  const [latitude, setLatitude] = useState<number | null>(null)
+  const [longitude, setLongitude] = useState<number | null>(null)
   const [telefone, setTelefone] = useState('')
   const [instagram, setInstagram] = useState('')
   const [descricao, setDescricao] = useState('')
@@ -78,6 +81,8 @@ export default function FornecedorOnboarding() {
       categoria: categoriaFinal,
       cnpj,
       localizacao,
+      latitude,
+      longitude,
       telefone,
       instagram,
       descricao: descricaoFinal,
@@ -149,10 +154,13 @@ export default function FornecedorOnboarding() {
               className={`${inp} resize-none`}
             />
           )}
-          <input
-            placeholder="Localização"
+          <EnderecoAutocomplete
             value={localizacao}
-            onChange={e => setLocalizacao(e.target.value)}
+            onChange={v => { setLocalizacao(v); setLatitude(null); setLongitude(null) }}
+            onSelect={({ endereco, latitude, longitude }) => {
+              setLocalizacao(endereco); setLatitude(latitude); setLongitude(longitude)
+            }}
+            placeholder="Endereço da empresa"
             className={inp}
           />
 

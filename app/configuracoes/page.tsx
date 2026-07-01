@@ -6,6 +6,7 @@ import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { salvarNichoCustom, carregarNichoCustom } from '../lib/nicheStore'
 import { MODULOS, type ModuloKey } from '../lib/nichos'
+import { EnderecoAutocomplete } from '../components/EnderecoAutocomplete'
 import { Eye, EyeOff, Store, Copy, ExternalLink } from 'lucide-react'
 
 // Módulos que a IA pode sugerir / o comerciante pode escolher no fluxo "Outro".
@@ -106,6 +107,8 @@ export default function Configuracoes() {
   const [tipo, setTipo] = useState('')
   const [documento, setDocumento] = useState('')
   const [localizacao, setLocalizacao] = useState('')
+  const [latitude, setLatitude] = useState<number | null>(null)
+  const [longitude, setLongitude] = useState<number | null>(null)
   const [telefone, setTelefone] = useState('')
   const [instagram, setInstagram] = useState('')
   const [horarioAbertura, setHorarioAbertura] = useState('08:00')
@@ -167,6 +170,8 @@ export default function Configuracoes() {
       }
       setDocumento(formatarDocumento(loja.documento || ''))
       setLocalizacao(loja.localizacao || '')
+      setLatitude(loja.latitude ?? null)
+      setLongitude(loja.longitude ?? null)
       setTelefone(formatarTelefone(loja.telefone || ''))
       setInstagram(loja.instagram || '')
       const [ab, fe] = parseHorario(loja.horario || '')
@@ -234,7 +239,7 @@ export default function Configuracoes() {
 
     setSalvando(true)
     const { error } = await supabase.from('lojas').update({
-      nome, tipo: tipoFinal, documento, localizacao, telefone, instagram, horario, meta_mensal: metaMensal,
+      nome, tipo: tipoFinal, documento, localizacao, latitude, longitude, telefone, instagram, horario, meta_mensal: metaMensal,
     }).eq('id', loja.id)
     if (error) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
 
@@ -250,7 +255,7 @@ export default function Configuracoes() {
 
     // Atualiza a loja local pra dashboard e menu lateral refletirem o novo
     // nicho na hora (useNicho recomputa a partir do tipo atualizado).
-    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, telefone, instagram, horario, meta_mensal: metaMensal })
+    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, latitude, longitude, telefone, instagram, horario, meta_mensal: metaMensal })
 
     mostrarToast('Configurações salvas!', 'sucesso')
     setSalvando(false)
@@ -385,7 +390,15 @@ export default function Configuracoes() {
           {erroDoc && <p className="text-red-400 text-sm mt-1">{erroDoc}</p>}
         </div>
 
-        <input placeholder="Localização" value={localizacao} onChange={e => setLocalizacao(e.target.value)} className={inputClass} />
+        <EnderecoAutocomplete
+          value={localizacao}
+          onChange={v => { setLocalizacao(v); setLatitude(null); setLongitude(null) }}
+          onSelect={({ endereco, latitude, longitude }) => {
+            setLocalizacao(endereco); setLatitude(latitude); setLongitude(longitude)
+          }}
+          placeholder="Endereço (para aparecer no mapa)"
+          className={inputClass}
+        />
 
         {/* Telefone com olhinho */}
         <div>

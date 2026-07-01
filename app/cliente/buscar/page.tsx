@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import { useCliente } from '../../hooks/useCliente'
 import { ClienteLayout } from '../../components/ClienteLayout'
 import { getRatingsPorLoja } from '../../lib/avaliacoes'
-import { Search, MapPin, Phone, Star } from 'lucide-react'
+import { MapaLojas } from '../../components/MapaLojas'
+import { Search, MapPin, Phone, Star, List, Map as MapIcon } from 'lucide-react'
 
 const TIPOS = ['Todos', 'Barbearia', 'Distribuidora de bebidas', 'Mercado', 'Loja de roupas', 'Lanchonete', 'Salão de beleza', 'Eletrônicos', 'Outro']
 
@@ -14,6 +15,7 @@ export default function ClienteBuscar() {
   const [busca, setBusca] = useState('')
   const [tipoFiltro, setTipoFiltro] = useState('Todos')
   const [buscando, setBuscando] = useState(false)
+  const [aba, setAba] = useState<'lista' | 'mapa'>('lista')
   const router = useRouter()
 
   useEffect(() => {
@@ -24,7 +26,7 @@ export default function ClienteBuscar() {
     setBuscando(true)
     let query = supabase
       .from('lojas_publicas')
-      .select('id, nome, tipo, localizacao, telefone, instagram, horario')
+      .select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude')
       .order('nome', { ascending: true })
       .limit(50)
 
@@ -93,7 +95,24 @@ export default function ClienteBuscar() {
         ))}
       </div>
 
-      {buscando ? (
+      <div className="flex gap-2 mb-4 max-w-2xl mx-auto">
+        {([['lista', 'Lista', List], ['mapa', 'Mapa', MapIcon]] as const).map(([key, label, Icon]) => (
+          <button
+            key={key}
+            onClick={() => setAba(key)}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium transition ${aba === key ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+          >
+            <Icon size={15} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {aba === 'mapa' ? (
+        <div className="max-w-2xl mx-auto">
+          <MapaLojas lojas={lojas} onVer={(id) => router.push(`/cliente/loja/${id}`)} />
+        </div>
+      ) : buscando ? (
         <div className="text-center py-12 text-gray-500">Buscando...</div>
       ) : lojas.length === 0 ? (
         <div className="text-center py-12 text-gray-500">Nenhum comércio encontrado.</div>
