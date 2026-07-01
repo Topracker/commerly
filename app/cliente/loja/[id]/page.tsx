@@ -7,6 +7,7 @@ import { Estrelas } from '../../../components/Estrelas'
 import { useToast } from '../../../hooks/useToast'
 import { Toast } from '../../../components/Toast'
 import { isFavorito, toggleFavorito } from '../../../lib/favoritos'
+import { MiniMapa } from '../../../components/MiniMapa'
 import { Phone, AtSign, MapPin, Clock, MessageCircle, ArrowLeft, Heart } from 'lucide-react'
 
 export default function ClienteLoja() {
@@ -41,7 +42,7 @@ export default function ClienteLoja() {
 
   async function carregarLoja() {
     const [lojaRes, prodRes, avalRes] = await Promise.all([
-      supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario').eq('id', id).single(),
+      supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude').eq('id', id).single(),
       supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
       supabase.from('avaliacoes_lojas').select('nota, comentario, created_at, cliente_id').eq('loja_id', id).order('created_at', { ascending: false }),
     ])
@@ -164,6 +165,8 @@ export default function ClienteLoja() {
             {favorito ? 'Favoritada' : 'Favoritar loja'}
           </button>
         </div>
+
+        <MiniMapa latitude={loja.latitude} longitude={loja.longitude} nome={loja.nome} />
 
         {produtos.length > 0 && (
           <div className="mb-4">

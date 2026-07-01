@@ -1,11 +1,12 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCliente } from '../../hooks/useCliente'
 import { ClienteLayout } from '../../components/ClienteLayout'
 import { getRatingsPorLoja } from '../../lib/avaliacoes'
 import { MapaLojas } from '../../components/MapaLojas'
-import { Search, MapPin, Phone, Star, List, Map as MapIcon } from 'lucide-react'
+import { distanciaKm, formatarDistancia } from '../../lib/geo'
+import { Search, MapPin, Phone, Star, List, Map as MapIcon, Navigation } from 'lucide-react'
 
 const TIPOS = ['Todos', 'Barbearia', 'Distribuidora de bebidas', 'Mercado', 'Loja de roupas', 'Lanchonete', 'Salão de beleza', 'Eletrônicos', 'Outro']
 
@@ -16,11 +17,41 @@ export default function ClienteBuscar() {
   const [tipoFiltro, setTipoFiltro] = useState('Todos')
   const [buscando, setBuscando] = useState(false)
   const [aba, setAba] = useState<'lista' | 'mapa'>('lista')
+  const [userPos, setUserPos] = useState<{ latitude: number; longitude: number } | null>(null)
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'pedindo' | 'ok' | 'negado'>('idle')
   const router = useRouter()
 
   useEffect(() => {
     if (cliente) buscarLojas()
   }, [cliente, tipoFiltro])
+
+  useEffect(() => {
+    if (cliente) pedirLocalizacao()
+  }, [cliente])
+
+  function pedirLocalizacao() {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) { setGeoStatus('negado'); return }
+    setGeoStatus('pedindo')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setUserPos({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }); setGeoStatus('ok') },
+      () => setGeoStatus('negado'),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    )
+  }
+
+  // Quando há localização, ordena por distância (mais perto primeiro; lojas sem
+  // coordenadas vão para o fim). Sem localização, mantém a ordem por nota.
+  const lojasExibidas = useMemo(() => {
+    if (!userPos) return lojas
+    return lojas
+      .map((l) => ({ ...l, _dist: distanciaKm(userPos, l) }))
+      .sort((a, b) => {
+        if (a._dist == null && b._dist == null) return 0
+        if (a._dist == null) return 1
+        if (b._dist == null) return -1
+        return a._dist - b._dist
+      })
+  }, [lojas, userPos])
 
   async function buscarLojas() {
     setBuscando(true)
@@ -95,7 +126,7 @@ export default function ClienteBuscar() {
         ))}
       </div>
 
-      <div className="flex gap-2 mb-4 max-w-2xl mx-auto">
+      <div className="flex gap-2 mb-3 max-w-2xl mx-auto">
         {([['lista', 'Lista', List], ['mapa', 'Mapa', MapIcon]] as const).map(([key, label, Icon]) => (
           <button
             key={key}
@@ -108,17 +139,35 @@ export default function ClienteBuscar() {
         ))}
       </div>
 
+      <div className="max-w-2xl mx-auto mb-4">
+        {geoStatus === 'ok' ? (
+          <p className="text-green-400 text-xs flex items-center gap-1">
+            <Navigation size={12} /> Ordenando pelos comércios mais próximos de você.
+          </p>
+        ) : geoStatus === 'negado' ? (
+          <button onClick={pedirLocalizacao} className="text-gray-400 text-xs flex items-center gap-1 hover:text-white transition">
+            <Navigation size={12} /> Ativar minha localização para ordenar por distância
+          </button>
+        ) : geoStatus === 'pedindo' ? (
+          <p className="text-gray-500 text-xs flex items-center gap-1"><Navigation size={12} /> Obtendo sua localização...</p>
+        ) : null}
+      </div>
+
       {aba === 'mapa' ? (
         <div className="max-w-2xl mx-auto">
-          <MapaLojas lojas={lojas} onVer={(id) => router.push(`/cliente/loja/${id}`)} />
+          <MapaLojas
+            lojas={lojasExibidas}
+            onVer={(id) => router.push(`/cliente/loja/${id}`)}
+            userPos={userPos ? [userPos.latitude, userPos.longitude] : null}
+          />
         </div>
       ) : buscando ? (
         <div className="text-center py-12 text-gray-500">Buscando...</div>
-      ) : lojas.length === 0 ? (
+      ) : lojasExibidas.length === 0 ? (
         <div className="text-center py-12 text-gray-500">Nenhum comércio encontrado.</div>
       ) : (
         <div className="flex flex-col gap-3 max-w-2xl mx-auto">
-          {lojas.map(loja => (
+          {lojasExibidas.map(loja => (
             <button
               key={loja.id}
               onClick={() => router.push(`/cliente/loja/${loja.id}`)}
@@ -141,6 +190,12 @@ export default function ClienteBuscar() {
                     <p className="text-gray-400 text-sm flex items-center gap-1">
                       <MapPin size={12} />
                       {loja.localizacao}
+                    </p>
+                  )}
+                  {loja._dist != null && (
+                    <p className="text-green-400 text-xs flex items-center gap-1 mt-0.5 font-medium">
+                      <Navigation size={11} />
+                      {formatarDistancia(loja._dist)} de você
                     </p>
                   )}
                   {loja.telefone && (

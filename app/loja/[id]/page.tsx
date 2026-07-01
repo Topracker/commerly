@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '../../lib/supabase-admin'
 import { Estrelas } from '../../components/Estrelas'
+import { MiniMapa } from '../../components/MiniMapa'
 import { Phone, AtSign, MapPin, Clock } from 'lucide-react'
 
 // Página pública da loja — acessível sem login. Lê os dados via service role
@@ -17,12 +18,14 @@ type Loja = {
   telefone: string | null
   instagram: string | null
   horario: string | null
+  latitude: number | null
+  longitude: number | null
 }
 
 async function carregar(id: string) {
   const supabase = createAdminClient()
   const [lojaRes, prodRes, avalRes] = await Promise.all([
-    supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario').eq('id', id).maybeSingle(),
+    supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude').eq('id', id).maybeSingle(),
     supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
     supabase.from('avaliacoes_lojas').select('nota, comentario, created_at').eq('loja_id', id).order('created_at', { ascending: false }),
   ])
@@ -113,6 +116,8 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
             </a>
           )}
         </div>
+
+        <MiniMapa latitude={loja.latitude} longitude={loja.longitude} nome={loja.nome} />
 
         {/* Produtos */}
         {produtos.length > 0 && (

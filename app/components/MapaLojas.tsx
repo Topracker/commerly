@@ -16,9 +16,11 @@ export type LojaMapa = {
 type Props = {
   lojas: LojaMapa[]
   onVer: (id: string) => void
+  /** Posição do usuário [lat, lng], se a localização foi autorizada. */
+  userPos?: [number, number] | null
 }
 
-// Centro padrão: Brasil (usado só se nenhuma loja tiver coordenadas).
+// Centro padrão: Brasil (usado só se nada tiver coordenadas).
 const CENTRO_BR: [number, number] = [-14.235, -51.925]
 
 // Pin SVG (verde da marca) como divIcon — evita depender das imagens padrão
@@ -27,7 +29,14 @@ const PIN_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="#16a34a" stroke="#ffffff" stroke-width="1.5">' +
   '<path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10z"/><circle cx="12" cy="11" r="2.2" fill="#ffffff" stroke="none"/></svg>'
 
-export function MapaLojas({ lojas, onVer }: Props) {
+// Ponto do usuário — círculo azul com halo.
+const USER_SVG =
+  '<div style="position:relative;width:18px;height:18px">' +
+  '<span style="position:absolute;inset:-6px;border-radius:50%;background:rgba(37,99,235,0.25)"></span>' +
+  '<span style="position:absolute;inset:0;border-radius:50%;background:#2563eb;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,.4)"></span>' +
+  '</div>'
+
+export function MapaLojas({ lojas, onVer, userPos }: Props) {
   const divRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
   const layerRef = useRef<any>(null)
@@ -62,14 +71,11 @@ export function MapaLojas({ lojas, onVer }: Props) {
     }
   }, [])
 
-  // (Re)desenha os marcadores quando as lojas mudam.
+  // (Re)desenha os marcadores quando as lojas ou a posição do usuário mudam.
   useEffect(() => {
     const L = LRef.current
     if (!pronto || !L || !mapRef.current || !layerRef.current) return
     layerRef.current.clearLayers()
-
-    const comCoord = lojas.filter((l) => l.latitude != null && l.longitude != null)
-    if (comCoord.length === 0) return
 
     const icon = L.divIcon({
       html: PIN_SVG,
@@ -80,7 +86,8 @@ export function MapaLojas({ lojas, onVer }: Props) {
     })
 
     const pontos: [number, number][] = []
-    for (const loja of comCoord) {
+    for (const loja of lojas) {
+      if (loja.latitude == null || loja.longitude == null) continue
       const ll: [number, number] = [Number(loja.latitude), Number(loja.longitude)]
       const marker = L.marker(ll, { icon, title: loja.nome }).addTo(layerRef.current)
       marker.bindPopup(conteudoCard(loja))
@@ -91,12 +98,25 @@ export function MapaLojas({ lojas, onVer }: Props) {
       pontos.push(ll)
     }
 
-    if (pontos.length === 1) {
+    // Pin do usuário ("Você está aqui").
+    if (userPos) {
+      const userIcon = L.divIcon({ html: USER_SVG, className: 'commerly-user', iconSize: [18, 18], iconAnchor: [9, 9] })
+      L.marker(userPos, { icon: userIcon, zIndexOffset: 1000 })
+        .addTo(layerRef.current)
+        .bindPopup('<b>Você está aqui</b>')
+    }
+
+    // Enquadramento: prioriza o usuário; senão, ajusta às lojas.
+    if (userPos) {
+      // Mostra o usuário e as lojas próximas (as mais distantes podem ficar fora).
+      const proximas = pontos.slice(0, 8)
+      mapRef.current.fitBounds([userPos, ...proximas], { padding: [50, 50], maxZoom: 15 })
+    } else if (pontos.length === 1) {
       mapRef.current.setView(pontos[0], 15)
-    } else {
+    } else if (pontos.length > 1) {
       mapRef.current.fitBounds(pontos, { padding: [40, 40] })
     }
-  }, [lojas, pronto])
+  }, [lojas, pronto, userPos])
 
   const semCoord = lojas.length > 0 && lojas.every((l) => l.latitude == null || l.longitude == null)
 
