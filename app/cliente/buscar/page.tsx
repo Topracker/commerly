@@ -6,7 +6,6 @@ import { ClienteLayout } from '../../components/ClienteLayout'
 import { getRatingsPorLoja } from '../../lib/avaliacoes'
 import { MapaLojas } from '../../components/MapaLojas'
 import { distanciaKm, formatarDistancia } from '../../lib/geo'
-import { geocodificarEndereco } from '../../lib/geocode'
 import { Search, MapPin, Phone, Star, List, Map as MapIcon, Navigation } from 'lucide-react'
 
 const TIPOS = ['Todos', 'Barbearia', 'Distribuidora de bebidas', 'Mercado', 'Loja de roupas', 'Lanchonete', 'Salão de beleza', 'Eletrônicos', 'Outro']
@@ -80,24 +79,11 @@ export default function ClienteBuscar() {
       b.media - a.media || b.totalAval - a.totalAval || a.nome.localeCompare(b.nome),
     )
 
+    // Usa APENAS as coordenadas salvas no banco (lat/lng da view lojas_publicas).
+    // Nada de geocodificar endereço no client — isso plotava o pino no lugar
+    // errado, ignorando o ajuste manual feito pelo comerciante.
     setLojas(comNota)
     setBuscando(false)
-    // Lojas antigas foram cadastradas antes do geocode e não têm lat/lng.
-    // Geocodificamos o endereço textual para o mapa e a distância funcionarem.
-    enriquecerCoordenadas(comNota)
-  }
-
-  // Preenche latitude/longitude faltantes a partir do endereço (com cache).
-  // Roda em segundo plano e vai atualizando as lojas conforme resolve.
-  async function enriquecerCoordenadas(lista: any[]) {
-    for (const l of lista) {
-      if ((l.latitude != null && l.longitude != null) || !l.localizacao) continue
-      const geo = await geocodificarEndereco(l.localizacao)
-      if (!geo) continue
-      setLojas(prev => prev.map(x =>
-        x.id === l.id ? { ...x, latitude: geo.latitude, longitude: geo.longitude } : x,
-      ))
-    }
   }
 
   function handleBusca(e: React.FormEvent) {

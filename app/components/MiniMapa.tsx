@@ -2,12 +2,11 @@
 import { useEffect, useRef, useState } from 'react'
 import 'leaflet/dist/leaflet.css'
 import { Navigation, MapPinOff } from 'lucide-react'
-import { geocodificarEndereco, enderecoVago } from '../lib/geocode'
 
 type Props = {
   latitude?: number | null
   longitude?: number | null
-  /** Endereço textual — geocodificado quando não há lat/lng salvos (lojas antigas). */
+  /** Endereço textual — só para a mensagem quando não há coordenada salva. */
   localizacao?: string | null
   nome?: string
   /** Altura do mapa (classe Tailwind). Padrão: h-48. */
@@ -20,8 +19,10 @@ const PIN_SVG =
 
 /**
  * Mini mapa (Leaflet + OpenStreetMap) com um único pin da loja + botões para
- * abrir a rota no Google Maps ou no Waze. Não renderiza nada se a loja não
- * tiver coordenadas cadastradas.
+ * abrir a rota no Google Maps ou no Waze. Usa APENAS a coordenada salva no
+ * banco (latitude/longitude). Nada de geocodificar o endereço no client — isso
+ * plotava o pino no lugar errado, ignorando o ajuste manual do comerciante.
+ * Sem coordenada salva, mostra "Localização não disponível".
  */
 export function MiniMapa({ latitude, longitude, localizacao, nome, altura = 'h-48' }: Props) {
   const divRef = useRef<HTMLDivElement>(null)
@@ -29,30 +30,17 @@ export function MiniMapa({ latitude, longitude, localizacao, nome, altura = 'h-4
 
   const explicito = latitude != null && longitude != null
 
-  // Coordenadas efetivas: as salvas ou, na falta, geocodificadas do endereço.
+  // Coordenada salva no banco — única fonte da verdade.
   const [coord, setCoord] = useState<[number, number] | null>(
     explicito ? [Number(latitude), Number(longitude)] : null,
   )
-  // Tem endereço mas não dá pra plotar (vago demais ou geocode falhou).
-  const [indisponivel, setIndisponivel] = useState(false)
 
   useEffect(() => {
-    if (explicito) { setCoord([Number(latitude), Number(longitude)]); setIndisponivel(false); return }
-    let vivo = true
-    setCoord(null)
-    if (localizacao && !enderecoVago(localizacao)) {
-      setIndisponivel(false)
-      geocodificarEndereco(localizacao).then((r) => {
-        if (!vivo) return
-        if (r) setCoord([r.latitude, r.longitude])
-        else setIndisponivel(true)
-      })
-    } else {
-      // Endereço vago (só cidade) ou inexistente → não plota pin errado.
-      setIndisponivel(!!localizacao)
-    }
-    return () => { vivo = false }
-  }, [explicito, latitude, longitude, localizacao])
+    setCoord(explicito ? [Number(latitude), Number(longitude)] : null)
+  }, [explicito, latitude, longitude])
+
+  // Tem endereço textual mas sem coordenada salva → não plota nada.
+  const indisponivel = !explicito && !!localizacao
 
   useEffect(() => {
     if (!coord) return
