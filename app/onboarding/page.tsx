@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../supabase'
 import { useRouter } from 'next/navigation'
 import { salvarNichoCustom } from '../lib/nicheStore'
@@ -41,6 +41,9 @@ export default function Onboarding() {
   const [localizacao, setLocalizacao] = useState('')
   const [latitude, setLatitude] = useState<number | null>(null)
   const [longitude, setLongitude] = useState<number | null>(null)
+  // Fonte da verdade das coordenadas (atualizada no arrasto/geocode), lida no
+  // insert — independe do timing do estado React.
+  const coordRef = useRef<{ lat: number | null; lng: number | null }>({ lat: null, lng: null })
   const [telefone, setTelefone] = useState('')
   const [instagram, setInstagram] = useState('')
   const [horarioAbertura, setHorarioAbertura] = useState('08:00')
@@ -157,7 +160,8 @@ export default function Onboarding() {
     const { data: lojaInserida, error } = await supabase.from('lojas').insert({
       user_id: user?.id,
       nome, tipo: tipoFinal, documento, localizacao, telefone, instagram, horario,
-      latitude, longitude,
+      latitude: coordRef.current.lat ?? latitude,
+      longitude: coordRef.current.lng ?? longitude,
       plano: 'inativo',
     }).select('id').single()
     if (error) {
@@ -286,8 +290,9 @@ export default function Onboarding() {
           {/* Endereço: CEP (ViaCEP) + geocodificação (Nominatim/OpenStreetMap) */}
           <EnderecoAutocomplete
             value={localizacao}
-            onChange={v => { setLocalizacao(v); setLatitude(null); setLongitude(null) }}
+            onChange={v => { coordRef.current = { lat: null, lng: null }; setLocalizacao(v); setLatitude(null); setLongitude(null) }}
             onSelect={({ endereco, latitude, longitude }) => {
+              coordRef.current = { lat: latitude, lng: longitude }
               setLocalizacao(endereco); setLatitude(latitude); setLongitude(longitude)
             }}
             placeholder="Endereço (ex: Rua das Flores, 123)"

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
@@ -109,6 +109,10 @@ export default function Configuracoes() {
   const [localizacao, setLocalizacao] = useState('')
   const [latitude, setLatitude] = useState<number | null>(null)
   const [longitude, setLongitude] = useState<number | null>(null)
+  // Fonte da verdade das coordenadas, atualizada de forma síncrona pelo onSelect
+  // (arrasto do pino). Independe do timing do estado React — é o que o salvar()
+  // lê na hora de gravar, evitando salvar valor defasado/nulo.
+  const coordRef = useRef<{ lat: number | null; lng: number | null }>({ lat: null, lng: null })
   const [telefone, setTelefone] = useState('')
   const [instagram, setInstagram] = useState('')
   const [horarioAbertura, setHorarioAbertura] = useState('08:00')
@@ -172,6 +176,7 @@ export default function Configuracoes() {
       setLocalizacao(loja.localizacao || '')
       setLatitude(loja.latitude ?? null)
       setLongitude(loja.longitude ?? null)
+      coordRef.current = { lat: loja.latitude ?? null, lng: loja.longitude ?? null }
       setTelefone(formatarTelefone(loja.telefone || ''))
       setInstagram(loja.instagram || '')
       const [ab, fe] = parseHorario(loja.horario || '')
@@ -237,11 +242,28 @@ export default function Configuracoes() {
     // Para "Outro", o ramo sugerido pela IA (se houver) vira o tipo da loja.
     const tipoFinal = tipo === 'Outro' && tipoCustom.trim() ? tipoCustom.trim() : tipo
 
+    // Lê as coordenadas do ref (atualizado no arrasto/geocode) — mais confiável
+    // que o estado, que pode estar defasado no momento do clique em Salvar.
+    const latFinal = coordRef.current.lat ?? latitude
+    const lngFinal = coordRef.current.lng ?? longitude
+
     setSalvando(true)
     const { error } = await supabase.from('lojas').update({
-      nome, tipo: tipoFinal, documento, localizacao, latitude, longitude, telefone, instagram, horario, meta_mensal: metaMensal,
+      nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal,
     }).eq('id', loja.id)
     if (error) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
+
+    // Confirmação visível (sem precisar do console): relê do banco o que ficou
+    // gravado em latitude/longitude e avisa se veio nulo.
+    const { data: verif } = await supabase
+      .from('lojas').select('latitude, longitude').eq('id', loja.id).single()
+    if (verif && (verif.latitude == null || verif.longitude == null)) {
+      mostrarToast('Salvo, mas SEM coordenadas no mapa. Clique em Localizar e ajuste o pino.', 'erro')
+    } else if (verif) {
+      mostrarToast(`Localização salva: ${Number(verif.latitude).toFixed(5)}, ${Number(verif.longitude).toFixed(5)}`, 'sucesso')
+    } else {
+      mostrarToast('Configurações salvas!', 'sucesso')
+    }
 
     // Tipo custom ("Outro"): guarda os módulos escolhidos pra personalizar
     // dashboard e sidebar. Nichos conhecidos usam a config estática.
@@ -254,10 +276,12 @@ export default function Configuracoes() {
     }
 
     // Atualiza a loja local pra dashboard e menu lateral refletirem o novo
-    // nicho na hora (useNicho recomputa a partir do tipo atualizado).
-    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, latitude, longitude, telefone, instagram, horario, meta_mensal: metaMensal })
+    // nicho na hora (useNicho recomputa a partir do tipo atualizado). Reflete
+    // também as coordenadas efetivamente gravadas.
+    setLatitude(latFinal); setLongitude(lngFinal)
+    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal })
 
-    mostrarToast('Configurações salvas!', 'sucesso')
+    // (o toast de confirmação com as coordenadas já foi mostrado acima)
     setSalvando(false)
   }
 
@@ -392,8 +416,9 @@ export default function Configuracoes() {
 
         <EnderecoAutocomplete
           value={localizacao}
-          onChange={v => { setLocalizacao(v); setLatitude(null); setLongitude(null) }}
+          onChange={v => { coordRef.current = { lat: null, lng: null }; setLocalizacao(v); setLatitude(null); setLongitude(null) }}
           onSelect={({ endereco, latitude, longitude }) => {
+            coordRef.current = { lat: latitude, lng: longitude }
             setLocalizacao(endereco); setLatitude(latitude); setLongitude(longitude)
           }}
           placeholder="Endereço (para aparecer no mapa)"
