@@ -16,9 +16,26 @@ function chave(endereco: string): string {
   return 'geo:' + endereco.trim().toLowerCase()
 }
 
+/**
+ * Endereço "vago demais" para geocodificar com segurança — só o nome da cidade
+ * ("Goiânia", "goiânia-go") ou muito curto ("MG"). O Nominatim resolve esses
+ * casos para o centroide do município ou pior, gerando pins errados; melhor
+ * não plotar do que plotar no lugar errado.
+ */
+export function enderecoVago(endereco?: string | null): boolean {
+  const e = (endereco || '').trim()
+  if (e.length < 10) return true
+  // Ignora a UF de duas letras no fim (", GO" / "-GO" / " GO") — ela não torna
+  // um "Goiânia, GO" mais específico que "Goiânia". Depois disso, precisa de
+  // pelo menos duas partes (ex.: "rua/bairro, cidade") separadas por vírgula.
+  const semUf = e.replace(/[\s,\-]+[A-Za-z]{2}\s*$/, '').trim()
+  const partes = semUf.split(',').map((s) => s.trim()).filter(Boolean)
+  return partes.length < 2
+}
+
 export async function geocodificarEndereco(endereco?: string | null): Promise<LatLng | null> {
   const e = endereco?.trim()
-  if (!e) return null
+  if (!e || enderecoVago(e)) return null
   const k = chave(e)
 
   // Cache persistente. Guardamos também negativos (string 'null') para não
@@ -39,7 +56,8 @@ export async function geocodificarEndereco(endereco?: string | null): Promise<La
 
   const p = (async (): Promise<LatLng | null> => {
     try {
-      const res = await fetch(`/api/geocode?q=${encodeURIComponent(`${e}, Brasil`)}`)
+      // countrycodes=br (o proxy já força) + "Brazil" no fim → mais precisão.
+      const res = await fetch(`/api/geocode?countrycodes=br&q=${encodeURIComponent(`${e}, Brazil`)}`)
       if (res.ok) {
         const d = await res.json()
         if (typeof d.lat === 'number' && typeof d.lng === 'number') {

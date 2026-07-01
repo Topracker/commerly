@@ -1,8 +1,8 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import 'leaflet/dist/leaflet.css'
-import { Navigation } from 'lucide-react'
-import { geocodificarEndereco } from '../lib/geocode'
+import { Navigation, MapPinOff } from 'lucide-react'
+import { geocodificarEndereco, enderecoVago } from '../lib/geocode'
 
 type Props = {
   latitude?: number | null
@@ -27,21 +27,32 @@ export function MiniMapa({ latitude, longitude, localizacao, nome, altura = 'h-4
   const divRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
 
+  const explicito = latitude != null && longitude != null
+
   // Coordenadas efetivas: as salvas ou, na falta, geocodificadas do endereço.
   const [coord, setCoord] = useState<[number, number] | null>(
-    latitude != null && longitude != null ? [Number(latitude), Number(longitude)] : null,
+    explicito ? [Number(latitude), Number(longitude)] : null,
   )
+  // Tem endereço mas não dá pra plotar (vago demais ou geocode falhou).
+  const [indisponivel, setIndisponivel] = useState(false)
 
   useEffect(() => {
-    if (latitude != null && longitude != null) { setCoord([Number(latitude), Number(longitude)]); return }
+    if (explicito) { setCoord([Number(latitude), Number(longitude)]); setIndisponivel(false); return }
     let vivo = true
-    if (localizacao) {
-      geocodificarEndereco(localizacao).then((r) => { if (vivo && r) setCoord([r.latitude, r.longitude]) })
+    setCoord(null)
+    if (localizacao && !enderecoVago(localizacao)) {
+      setIndisponivel(false)
+      geocodificarEndereco(localizacao).then((r) => {
+        if (!vivo) return
+        if (r) setCoord([r.latitude, r.longitude])
+        else setIndisponivel(true)
+      })
     } else {
-      setCoord(null)
+      // Endereço vago (só cidade) ou inexistente → não plota pin errado.
+      setIndisponivel(!!localizacao)
     }
     return () => { vivo = false }
-  }, [latitude, longitude, localizacao])
+  }, [explicito, latitude, longitude, localizacao])
 
   useEffect(() => {
     if (!coord) return
@@ -63,7 +74,18 @@ export function MiniMapa({ latitude, longitude, localizacao, nome, altura = 'h-4
     }
   }, [coord, nome])
 
-  if (!coord) return null
+  if (!coord) {
+    if (!indisponivel) return null
+    return (
+      <div className="bg-gray-900 rounded-2xl p-4 mb-4">
+        <h2 className="text-white font-semibold text-lg mb-2">Localização</h2>
+        <div className="flex items-center gap-2 text-gray-400 text-sm">
+          <MapPinOff size={16} className="text-gray-500 shrink-0" />
+          <span>Localização não disponível no mapa{localizacao ? ` — ${localizacao}` : ''}.</span>
+        </div>
+      </div>
+    )
+  }
 
   const [lat, lng] = coord
   const gmaps = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`

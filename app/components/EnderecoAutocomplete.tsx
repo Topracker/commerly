@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { MapPin, Navigation, Check } from 'lucide-react'
+import { MapaConfirmar } from './MapaConfirmar'
 
 export type EnderecoSelecionado = {
   endereco: string
@@ -59,11 +60,13 @@ export function EnderecoAutocomplete({
   const [buscando, setBuscando] = useState(false)
   const [erro, setErro] = useState('')
   const [ok, setOk] = useState(false)
+  // Coordenada atual para o mapa de confirmação (pin arrastável).
+  const [confirmar, setConfirmar] = useState<{ endereco: string; lat: number; lng: number } | null>(null)
 
   async function handleCEP(valor: string) {
     const formatado = formatarCEP(valor)
     setCep(formatado)
-    setErro(''); setOk(false)
+    setErro(''); setOk(false); setConfirmar(null)
     const nums = formatado.replace(/\D/g, '')
     if (nums.length < 8) return
 
@@ -79,6 +82,7 @@ export function EnderecoAutocomplete({
           const endereco = geo.display_name || value.trim() || `CEP ${formatado}`
           onChange(endereco)
           onSelect({ endereco, latitude: geo.lat, longitude: geo.lng })
+          setConfirmar({ endereco, lat: geo.lat, lng: geo.lng })
           setOk(true)
         } else {
           setErro('CEP não encontrado')
@@ -91,7 +95,11 @@ export function EnderecoAutocomplete({
       onChange(endereco)
       // Busca as coordenadas: primeiro pelo endereço, com fallback pelo CEP.
       const geo = await geocodificar({ q: `${endereco}, Brasil`, cep: formatado })
-      if (geo) { onSelect({ endereco, latitude: geo.lat, longitude: geo.lng }); setOk(true) }
+      if (geo) {
+        onSelect({ endereco, latitude: geo.lat, longitude: geo.lng })
+        setConfirmar({ endereco, lat: geo.lat, lng: geo.lng })
+        setOk(true)
+      }
     } catch {
       setErro('Erro ao consultar o CEP')
     }
@@ -100,11 +108,23 @@ export function EnderecoAutocomplete({
 
   async function localizar() {
     if (!value.trim()) { setErro('Digite o endereço primeiro'); return }
-    setBuscando(true); setErro(''); setOk(false)
+    setBuscando(true); setErro(''); setOk(false); setConfirmar(null)
     const geo = await geocodificar({ q: `${value.trim()}, Brasil` })
-    if (geo) { onSelect({ endereco: value.trim(), latitude: geo.lat, longitude: geo.lng }); setOk(true) }
-    else setErro('Endereço não localizado no mapa. Revise e tente de novo.')
+    if (geo) {
+      const endereco = value.trim()
+      onSelect({ endereco, latitude: geo.lat, longitude: geo.lng })
+      setConfirmar({ endereco, lat: geo.lat, lng: geo.lng })
+      setOk(true)
+    } else setErro('Endereço não localizado no mapa. Revise e tente de novo.')
     setBuscando(false)
+  }
+
+  // Comerciante ajustou o pin: usa as coordenadas novas, mantendo o endereço.
+  function moverPin(lat: number, lng: number) {
+    setConfirmar((c) => (c ? { ...c, lat, lng } : c))
+    const endereco = confirmar?.endereco ?? value.trim()
+    onSelect({ endereco, latitude: lat, longitude: lng })
+    setOk(true)
   }
 
   return (
@@ -127,7 +147,7 @@ export function EnderecoAutocomplete({
         <MapPin size={16} className="absolute left-3 text-gray-400 pointer-events-none" />
         <input
           value={value}
-          onChange={e => { onChange(e.target.value); setOk(false) }}
+          onChange={e => { onChange(e.target.value); setOk(false); setConfirmar(null) }}
           placeholder={placeholder}
           autoComplete="off"
           className={`w-full pl-9 pr-28 ${className}`}
@@ -141,6 +161,17 @@ export function EnderecoAutocomplete({
           <Navigation size={12} /> Localizar
         </button>
       </div>
+
+      {/* Confirmação: pin arrastável para o comerciante conferir/corrigir. */}
+      {confirmar && (
+        <div className="flex flex-col gap-1.5 mt-1">
+          <p className="text-gray-300 text-xs flex items-center gap-1">
+            <MapPin size={12} className="text-green-500" />
+            Confira se o pin está no lugar certo — <strong>arraste</strong> ou clique no mapa para ajustar.
+          </p>
+          <MapaConfirmar lat={confirmar.lat} lng={confirmar.lng} onMove={moverPin} />
+        </div>
+      )}
 
       {ok && (
         <p className="text-green-500 text-xs flex items-center gap-1">
