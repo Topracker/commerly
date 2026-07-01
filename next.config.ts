@@ -12,9 +12,9 @@ const mercadoPagoHosts =
 // Stripe Checkout (hosted) e SDK JS
 const stripeHosts = "https://checkout.stripe.com https://*.stripe.com https://js.stripe.com"
 
-// Mapa: OpenStreetMap (tiles via <img>, cobertos por img-src https:) e a API
-// gratuita do Nominatim para geocodificar endereços (endereço → lat/long).
-const mapaConnect = "https://nominatim.openstreetmap.org"
+// Mapa: tiles do OpenStreetMap chegam via <img> (cobertos por img-src https:).
+// A geocodificação (Nominatim) é feita server-side em /api/geocode, então o
+// navegador não precisa conectar direto no Nominatim.
 
 const csp = [
   "default-src 'self'",
@@ -23,8 +23,8 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  // Browser-side connections: Supabase (REST + Realtime WS) + ViaCEP + Mercado Pago + Stripe + Nominatim
-  `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://*.supabase.co wss://*.supabase.co https://viacep.com.br ${mercadoPagoHosts} ${stripeHosts} ${mapaConnect}`,
+  // Browser-side connections: Supabase (REST + Realtime WS) + ViaCEP + Mercado Pago + Stripe
+  `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://*.supabase.co wss://*.supabase.co https://viacep.com.br ${mercadoPagoHosts} ${stripeHosts}`,
   "media-src 'none'",
   "object-src 'none'",
   // Mercado Pago / Stripe embeds secure-field / 3DS / checkout iframes

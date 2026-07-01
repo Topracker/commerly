@@ -22,18 +22,20 @@ function formatarCEP(valor: string): string {
   return `${nums.slice(0, 5)}-${nums.slice(5)}`
 }
 
-// Nominatim (OpenStreetMap): endereço → lat/long. 100% gratuito, sem chave.
-// Política de uso: no máx. ~1 req/s; o navegador já envia o Referer.
-async function geocodificar(endereco: string): Promise<{ lat: number; lng: number } | null> {
+type Geo = { lat: number; lng: number; display_name?: string }
+
+// Geocodificação via nosso proxy /api/geocode (Nominatim/OpenStreetMap).
+// Precisa ser server-side: o Nominatim bloqueia User-Agent de navegador e o
+// fetch do browser não permite alterá-lo. Passamos endereço (q) e/ou CEP.
+async function geocodificar(opts: { q?: string; cep?: string }): Promise<Geo | null> {
   try {
-    const url =
-      'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=' +
-      encodeURIComponent(endereco)
-    const res = await fetch(url, { headers: { Accept: 'application/json' } })
-    const data = await res.json()
-    if (Array.isArray(data) && data[0]?.lat && data[0]?.lon) {
-      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
-    }
+    const p = new URLSearchParams()
+    if (opts.q) p.set('q', opts.q)
+    if (opts.cep) p.set('postalcode', opts.cep)
+    const res = await fetch(`/api/geocode?${p.toString()}`)
+    if (!res.ok) return null
+    const d = await res.json()
+    if (typeof d.lat === 'number' && typeof d.lng === 'number') return d as Geo
   } catch {
     /* silencioso — o usuário pode tentar de novo */
   }
@@ -69,12 +71,26 @@ export function EnderecoAutocomplete({
     try {
       const res = await fetch(`https://viacep.com.br/ws/${nums}/json/`)
       const d = await res.json()
-      if (d.erro) { setErro('CEP não encontrado'); setBuscando(false); return }
+      if (d.erro) {
+        // ViaCEP não tem esse CEP (comum em CEPs "gerais"). Ainda assim o
+        // Nominatim geocodifica pelo próprio CEP — usamos como fallback.
+        const geo = await geocodificar({ cep: formatado })
+        if (geo) {
+          const endereco = geo.display_name || value.trim() || `CEP ${formatado}`
+          onChange(endereco)
+          onSelect({ endereco, latitude: geo.lat, longitude: geo.lng })
+          setOk(true)
+        } else {
+          setErro('CEP não encontrado')
+        }
+        setBuscando(false)
+        return
+      }
       const partes = [d.logradouro, d.bairro, d.localidade, d.uf].filter(Boolean)
       const endereco = partes.join(', ')
       onChange(endereco)
-      // Já busca as coordenadas do endereço do CEP.
-      const geo = await geocodificar(`${endereco}, ${nums}`)
+      // Busca as coordenadas: primeiro pelo endereço, com fallback pelo CEP.
+      const geo = await geocodificar({ q: `${endereco}, Brasil`, cep: formatado })
       if (geo) { onSelect({ endereco, latitude: geo.lat, longitude: geo.lng }); setOk(true) }
     } catch {
       setErro('Erro ao consultar o CEP')
@@ -85,7 +101,7 @@ export function EnderecoAutocomplete({
   async function localizar() {
     if (!value.trim()) { setErro('Digite o endereço primeiro'); return }
     setBuscando(true); setErro(''); setOk(false)
-    const geo = await geocodificar(value.trim())
+    const geo = await geocodificar({ q: `${value.trim()}, Brasil` })
     if (geo) { onSelect({ endereco: value.trim(), latitude: geo.lat, longitude: geo.lng }); setOk(true) }
     else setErro('Endereço não localizado no mapa. Revise e tente de novo.')
     setBuscando(false)
