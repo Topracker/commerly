@@ -166,7 +166,7 @@ export default function ClienteLoja() {
           </button>
         </div>
 
-        <MiniMapa latitude={loja.latitude} longitude={loja.longitude} nome={loja.nome} />
+        <MiniMapa latitude={loja.latitude} longitude={loja.longitude} localizacao={loja.localizacao} nome={loja.nome} />
 
         {produtos.length > 0 && (
           <div className="mb-4">

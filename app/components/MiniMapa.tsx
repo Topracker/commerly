@@ -1,11 +1,14 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import 'leaflet/dist/leaflet.css'
 import { Navigation } from 'lucide-react'
+import { geocodificarEndereco } from '../lib/geocode'
 
 type Props = {
   latitude?: number | null
   longitude?: number | null
+  /** Endereço textual — geocodificado quando não há lat/lng salvos (lojas antigas). */
+  localizacao?: string | null
   nome?: string
   /** Altura do mapa (classe Tailwind). Padrão: h-48. */
   altura?: string
@@ -20,23 +23,36 @@ const PIN_SVG =
  * abrir a rota no Google Maps ou no Waze. Não renderiza nada se a loja não
  * tiver coordenadas cadastradas.
  */
-export function MiniMapa({ latitude, longitude, nome, altura = 'h-48' }: Props) {
+export function MiniMapa({ latitude, longitude, localizacao, nome, altura = 'h-48' }: Props) {
   const divRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
 
-  const temCoord = latitude != null && longitude != null
+  // Coordenadas efetivas: as salvas ou, na falta, geocodificadas do endereço.
+  const [coord, setCoord] = useState<[number, number] | null>(
+    latitude != null && longitude != null ? [Number(latitude), Number(longitude)] : null,
+  )
 
   useEffect(() => {
-    if (!temCoord) return
+    if (latitude != null && longitude != null) { setCoord([Number(latitude), Number(longitude)]); return }
+    let vivo = true
+    if (localizacao) {
+      geocodificarEndereco(localizacao).then((r) => { if (vivo && r) setCoord([r.latitude, r.longitude]) })
+    } else {
+      setCoord(null)
+    }
+    return () => { vivo = false }
+  }, [latitude, longitude, localizacao])
+
+  useEffect(() => {
+    if (!coord) return
     let cancelado = false
     import('leaflet').then((mod) => {
       const L = (mod as any).default || mod
       if (cancelado || !divRef.current || mapRef.current) return
-      const ll: [number, number] = [Number(latitude), Number(longitude)]
-      const map = L.map(divRef.current, { scrollWheelZoom: false, attributionControl: false }).setView(ll, 16)
+      const map = L.map(divRef.current, { scrollWheelZoom: false, attributionControl: false }).setView(coord, 16)
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map)
       const icon = L.divIcon({ html: PIN_SVG, className: 'commerly-pin', iconSize: [30, 30], iconAnchor: [15, 28] })
-      const marker = L.marker(ll, { icon }).addTo(map)
+      const marker = L.marker(coord, { icon }).addTo(map)
       if (nome) marker.bindPopup(`<b>${nome.replace(/[<>&]/g, '')}</b>`)
       mapRef.current = map
       setTimeout(() => map.invalidateSize(), 0)
@@ -45,12 +61,13 @@ export function MiniMapa({ latitude, longitude, nome, altura = 'h-48' }: Props) 
       cancelado = true
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
     }
-  }, [latitude, longitude, nome, temCoord])
+  }, [coord, nome])
 
-  if (!temCoord) return null
+  if (!coord) return null
 
-  const gmaps = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`
-  const waze = `https://waze.com/ul?ll=${latitude},${longitude}&navigate=yes`
+  const [lat, lng] = coord
+  const gmaps = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+  const waze = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
 
   return (
     <div className="bg-gray-900 rounded-2xl p-4 mb-4">
