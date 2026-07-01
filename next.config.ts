@@ -12,19 +12,19 @@ const mercadoPagoHosts =
 // Stripe Checkout (hosted) e SDK JS
 const stripeHosts = "https://checkout.stripe.com https://*.stripe.com https://js.stripe.com"
 
-// Google Maps JS API + Places: SDK, tiles/fetch e fontes usadas pelo mapa.
-const googleMapsScript = "https://maps.googleapis.com https://maps.gstatic.com"
-const googleMapsConnect = "https://maps.googleapis.com https://maps.gstatic.com"
+// Mapa: OpenStreetMap (tiles via <img>, cobertos por img-src https:) e a API
+// gratuita do Nominatim para geocodificar endereços (endereço → lat/long).
+const mapaConnect = "https://nominatim.openstreetmap.org"
 
 const csp = [
   "default-src 'self'",
   // Next.js requires unsafe-inline/unsafe-eval for hydration scripts
-  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${mercadoPagoHosts} ${stripeHosts} ${googleMapsScript}`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${mercadoPagoHosts} ${stripeHosts}`,
+  "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
-  "font-src 'self' data: https://fonts.gstatic.com",
-  // Browser-side connections: Supabase (REST + Realtime WS) + ViaCEP + Mercado Pago + Stripe + Google Maps
-  `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://*.supabase.co wss://*.supabase.co https://viacep.com.br ${mercadoPagoHosts} ${stripeHosts} ${googleMapsConnect}`,
+  "font-src 'self' data:",
+  // Browser-side connections: Supabase (REST + Realtime WS) + ViaCEP + Mercado Pago + Stripe + Nominatim
+  `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://*.supabase.co wss://*.supabase.co https://viacep.com.br ${mercadoPagoHosts} ${stripeHosts} ${mapaConnect}`,
   "media-src 'none'",
   "object-src 'none'",
   // Mercado Pago / Stripe embeds secure-field / 3DS / checkout iframes

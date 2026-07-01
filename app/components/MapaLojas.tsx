@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { carregarGoogleMaps, GOOGLE_MAPS_KEY } from '../lib/googleMaps'
+import 'leaflet/dist/leaflet.css'
 
 export type LojaMapa = {
   id: string
@@ -19,99 +19,90 @@ type Props = {
 }
 
 // Centro padrão: Brasil (usado só se nenhuma loja tiver coordenadas).
-const CENTRO_BR = { lat: -14.235, lng: -51.925 }
+const CENTRO_BR: [number, number] = [-14.235, -51.925]
+
+// Pin SVG (verde da marca) como divIcon — evita depender das imagens padrão
+// do Leaflet, que quebram com o bundler do Next.
+const PIN_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="#16a34a" stroke="#ffffff" stroke-width="1.5">' +
+  '<path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10z"/><circle cx="12" cy="11" r="2.2" fill="#ffffff" stroke="none"/></svg>'
 
 export function MapaLojas({ lojas, onVer }: Props) {
   const divRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
-  const infoRef = useRef<any>(null)
-  const markersRef = useRef<any[]>([])
-  const [erro, setErro] = useState('')
+  const layerRef = useRef<any>(null)
+  const LRef = useRef<any>(null)
   const [pronto, setPronto] = useState(false)
 
-  // Guardamos o callback num ref para o listener sempre chamar a versão atual.
+  // Ref para o listener do popup sempre chamar a versão atual do callback.
   const onVerRef = useRef(onVer)
   useEffect(() => { onVerRef.current = onVer }, [onVer])
 
-  // Inicializa o mapa uma vez.
+  // Inicializa o mapa uma vez (Leaflet só roda no navegador → import dinâmico).
   useEffect(() => {
-    if (!GOOGLE_MAPS_KEY || !divRef.current) return
     let cancelado = false
-    carregarGoogleMaps()
-      .then((maps) => {
-        if (cancelado || !divRef.current) return
-        mapRef.current = new maps.Map(divRef.current, {
-          center: CENTRO_BR,
-          zoom: 4,
-          mapId: 'commerly_lojas',
-          disableDefaultUI: false,
-          streetViewControl: false,
-          mapTypeControl: false,
-          fullscreenControl: false,
-        })
-        infoRef.current = new maps.InfoWindow()
-        setPronto(true)
-      })
-      .catch((e) => setErro(e?.message || 'Erro ao carregar o mapa'))
-    return () => { cancelado = true }
+    import('leaflet').then((mod) => {
+      const L = (mod as any).default || mod
+      if (cancelado || !divRef.current || mapRef.current) return
+      LRef.current = L
+      const map = L.map(divRef.current).setView(CENTRO_BR, 4)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      }).addTo(map)
+      layerRef.current = L.layerGroup().addTo(map)
+      mapRef.current = map
+      // O container acabou de montar; garante o cálculo correto do tamanho.
+      setTimeout(() => map.invalidateSize(), 0)
+      setPronto(true)
+    })
+    return () => {
+      cancelado = true
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
+    }
   }, [])
 
   // (Re)desenha os marcadores quando as lojas mudam.
   useEffect(() => {
-    const maps = (window as any).google?.maps
-    if (!pronto || !maps || !mapRef.current) return
-
-    markersRef.current.forEach((m) => (m.setMap ? m.setMap(null) : (m.map = null)))
-    markersRef.current = []
+    const L = LRef.current
+    if (!pronto || !L || !mapRef.current || !layerRef.current) return
+    layerRef.current.clearLayers()
 
     const comCoord = lojas.filter((l) => l.latitude != null && l.longitude != null)
     if (comCoord.length === 0) return
 
-    const bounds = new maps.LatLngBounds()
+    const icon = L.divIcon({
+      html: PIN_SVG,
+      className: 'commerly-pin',
+      iconSize: [30, 30],
+      iconAnchor: [15, 28],
+      popupAnchor: [0, -26],
+    })
+
+    const pontos: [number, number][] = []
     for (const loja of comCoord) {
-      const pos = { lat: Number(loja.latitude), lng: Number(loja.longitude) }
-      const marker = new maps.Marker({ position: pos, map: mapRef.current, title: loja.nome })
-      marker.addListener('click', () => {
-        infoRef.current.setContent(conteudoCard(loja))
-        infoRef.current.open(mapRef.current, marker)
-        // O botão só existe depois que o InfoWindow renderiza no DOM.
-        maps.event.addListenerOnce(infoRef.current, 'domready', () => {
-          const btn = document.getElementById(`ver-loja-${loja.id}`)
-          if (btn) btn.onclick = () => onVerRef.current(loja.id)
-        })
+      const ll: [number, number] = [Number(loja.latitude), Number(loja.longitude)]
+      const marker = L.marker(ll, { icon, title: loja.nome }).addTo(layerRef.current)
+      marker.bindPopup(conteudoCard(loja))
+      marker.on('popupopen', () => {
+        const btn = document.getElementById(`ver-loja-${loja.id}`)
+        if (btn) btn.onclick = () => onVerRef.current(loja.id)
       })
-      markersRef.current.push(marker)
-      bounds.extend(pos)
+      pontos.push(ll)
     }
 
-    if (comCoord.length === 1) {
-      mapRef.current.setCenter(bounds.getCenter())
-      mapRef.current.setZoom(15)
+    if (pontos.length === 1) {
+      mapRef.current.setView(pontos[0], 15)
     } else {
-      mapRef.current.fitBounds(bounds, 60)
+      mapRef.current.fitBounds(pontos, { padding: [40, 40] })
     }
   }, [lojas, pronto])
-
-  if (!GOOGLE_MAPS_KEY) {
-    return (
-      <div className="bg-gray-900 rounded-2xl p-8 text-center text-gray-400 text-sm">
-        O mapa ficará disponível assim que a chave do Google Maps for configurada.
-      </div>
-    )
-  }
-  if (erro) {
-    return (
-      <div className="bg-gray-900 rounded-2xl p-8 text-center text-yellow-500 text-sm">
-        Não foi possível carregar o mapa. Use a aba Lista.
-      </div>
-    )
-  }
 
   const semCoord = lojas.length > 0 && lojas.every((l) => l.latitude == null || l.longitude == null)
 
   return (
     <div>
-      <div ref={divRef} className="w-full h-[70vh] rounded-2xl overflow-hidden bg-gray-900" />
+      <div ref={divRef} className="w-full h-[70vh] rounded-2xl overflow-hidden bg-gray-900 z-0" />
       {semCoord && (
         <p className="text-gray-500 text-xs text-center mt-2">
           Nenhum comércio com localização no mapa ainda.

@@ -34,12 +34,6 @@ function erroInstagram(valor: string): string {
   return ''
 }
 
-function formatarCEP(valor: string): string {
-  const nums = valor.replace(/\D/g, '').slice(0, 8)
-  if (nums.length <= 5) return nums
-  return `${nums.slice(0, 5)}-${nums.slice(5)}`
-}
-
 export default function Onboarding() {
   const [nome, setNome] = useState('')
   const [tipo, setTipo] = useState('')
@@ -51,10 +45,6 @@ export default function Onboarding() {
   const [instagram, setInstagram] = useState('')
   const [horarioAbertura, setHorarioAbertura] = useState('08:00')
   const [horarioFechamento, setHorarioFechamento] = useState('18:00')
-
-  const [cep, setCep] = useState('')
-  const [erroCEP, setErroCEP] = useState('')
-  const [cepCarregando, setCepCarregando] = useState(false)
 
   const [erroDoc, setErroDoc] = useState('')
   const [erroTel, setErroTel] = useState('')
@@ -99,28 +89,6 @@ export default function Onboarding() {
   function handleInstagram(valor: string) {
     setInstagram(valor)
     setErroIG(erroInstagram(valor))
-  }
-
-  async function handleCEP(valor: string) {
-    const formatado = formatarCEP(valor)
-    setCep(formatado)
-    const nums = formatado.replace(/\D/g, '')
-    if (nums.length < 8) { setErroCEP(''); return }
-    setCepCarregando(true)
-    setErroCEP('')
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${nums}/json/`)
-      const data = await res.json()
-      if (data.erro) {
-        setErroCEP('CEP não encontrado')
-      } else {
-        const partes = [data.logradouro, data.bairro, data.localidade, data.uf].filter(Boolean)
-        setLocalizacao(partes.join(', '))
-      }
-    } catch {
-      setErroCEP('Erro ao consultar CEP')
-    }
-    setCepCarregando(false)
   }
 
   async function consultarIA() {
@@ -315,23 +283,7 @@ export default function Onboarding() {
             {erroDoc && <p className="text-red-400 text-sm mt-1">{erroDoc}</p>}
           </div>
 
-          {/* CEP */}
-          <div>
-            <div className="relative flex items-center">
-              <input
-                placeholder="CEP (ex: 01310-100)"
-                value={cep}
-                onChange={e => handleCEP(e.target.value)}
-                maxLength={9}
-                className={`w-full ${inputClass} ${erroCEP ? 'ring-2 ring-red-500 focus:ring-red-500' : ''}`}
-              />
-              {cepCarregando && (
-                <span className="absolute right-3 text-gray-400 text-xs">buscando...</span>
-              )}
-            </div>
-            {erroCEP && <p className="text-red-400 text-sm mt-1">{erroCEP}</p>}
-          </div>
-
+          {/* Endereço: CEP (ViaCEP) + geocodificação (Nominatim/OpenStreetMap) */}
           <EnderecoAutocomplete
             value={localizacao}
             onChange={v => { setLocalizacao(v); setLatitude(null); setLongitude(null) }}
@@ -381,7 +333,7 @@ export default function Onboarding() {
           <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
           <button
             onClick={salvar}
-            disabled={loading || !!erroDoc || !!erroTel || !!erroIG || !!erroCEP || cepCarregando}
+            disabled={loading || !!erroDoc || !!erroTel || !!erroIG}
             className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition mt-2"
           >
             {loading ? 'Salvando...' : 'Começar a usar o Commerly'}
