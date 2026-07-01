@@ -170,6 +170,10 @@ export function EnderecoAutocomplete({
             Confira se o pin está no lugar certo — <strong>arraste</strong> ou clique no mapa para ajustar.
           </p>
           <MapaConfirmar lat={confirmar.lat} lng={confirmar.lng} onMove={moverPin} />
+          {/* Atualiza ao mover o pin — confirma que a posição foi capturada. */}
+          <p className="text-gray-500 text-[11px]">
+            Pino em {confirmar.lat.toFixed(5)}, {confirmar.lng.toFixed(5)}
+          </p>
         </div>
       )}
 
