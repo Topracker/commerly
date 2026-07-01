@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MapPin, Navigation, Check } from 'lucide-react'
 import { MapaConfirmar } from './MapaConfirmar'
 
@@ -13,6 +13,9 @@ type Props = {
   value: string
   onChange: (v: string) => void
   onSelect: (e: EnderecoSelecionado) => void
+  /** Coordenadas já salvas no banco — mostram o pino no load SEM regeocodificar. */
+  latitude?: number | null
+  longitude?: number | null
   placeholder?: string
   className?: string
 }
@@ -53,6 +56,7 @@ async function geocodificar(opts: { q?: string; cep?: string }): Promise<Geo | n
  */
 export function EnderecoAutocomplete({
   value, onChange, onSelect,
+  latitude, longitude,
   placeholder = 'Endereço (rua, número, bairro, cidade...)',
   className = '',
 }: Props) {
@@ -62,6 +66,17 @@ export function EnderecoAutocomplete({
   const [ok, setOk] = useState(false)
   // Coordenada atual para o mapa de confirmação (pin arrastável).
   const [confirmar, setConfirmar] = useState<{ endereco: string; lat: number; lng: number } | null>(null)
+
+  // Semeia o pino com a coordenada JÁ SALVA no banco quando a loja carrega —
+  // SEM geocodificar. Só semeia se o usuário ainda não interagiu (confirmar
+  // nulo), para nunca sobrescrever um arrasto/Localizar em andamento. O geocode
+  // só acontece quando o usuário clica em "Localizar" ou preenche o CEP.
+  useEffect(() => {
+    if (latitude != null && longitude != null) {
+      setConfirmar((c) => c ?? { endereco: value, lat: latitude, lng: longitude })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latitude, longitude])
 
   async function handleCEP(valor: string) {
     const formatado = formatarCEP(valor)

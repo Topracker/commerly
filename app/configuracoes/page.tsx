@@ -416,6 +416,8 @@ export default function Configuracoes() {
 
         <EnderecoAutocomplete
           value={localizacao}
+          latitude={latitude}
+          longitude={longitude}
           onChange={v => { coordRef.current = { lat: null, lng: null }; setLocalizacao(v); setLatitude(null); setLongitude(null) }}
           onSelect={({ endereco, latitude, longitude }) => {
             coordRef.current = { lat: latitude, lng: longitude }
