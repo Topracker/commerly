@@ -11,7 +11,9 @@ import { MiniMapa } from '../../../components/MiniMapa'
 import { FachadaBanner } from '../../../components/FachadaBanner'
 import { RatingBadge } from '../../../components/RatingBadge'
 import { ProdutoCard } from '../../../components/ProdutoCard'
-import { Phone, AtSign, MapPin, Clock, MessageCircle, ArrowLeft, Heart } from 'lucide-react'
+import { PedidoModal } from '../../../components/PedidoModal'
+import { isDelivery } from '../../../lib/pedidosClientes'
+import { Phone, AtSign, MapPin, Clock, MessageCircle, ArrowLeft, Heart, ShoppingBag } from 'lucide-react'
 
 export default function ClienteLoja() {
   const { id } = useParams<{ id: string }>()
@@ -26,6 +28,7 @@ export default function ClienteLoja() {
   const [comentario, setComentario] = useState('')
   const [enviandoAval, setEnviandoAval] = useState(false)
   const [favorito, setFavorito] = useState(false)
+  const [pedidoAberto, setPedidoAberto] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -161,6 +164,16 @@ export default function ClienteLoja() {
                 <Heart size={20} className={favorito ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
               </button>
             </div>
+
+            {isDelivery(loja.tipo) && produtos.length > 0 && (
+              <button
+                onClick={() => setPedidoAberto(true)}
+                className="mt-2.5 w-full bg-[#C1441E] hover:bg-[#a83a19] text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+              >
+                <ShoppingBag size={18} />
+                Fazer Pedido
+              </button>
+            )}
           </div>
 
           <MiniMapa latitude={loja.latitude} longitude={loja.longitude} localizacao={loja.localizacao} nome={loja.nome} />
@@ -221,6 +234,18 @@ export default function ClienteLoja() {
           )}
         </div>
       </div>
+
+      {pedidoAberto && (
+        <PedidoModal
+          loja={loja}
+          cliente={cliente}
+          produtos={produtos}
+          supabase={supabase}
+          onFechar={() => setPedidoAberto(false)}
+          onSucesso={(msg) => mostrarToast(msg, 'sucesso')}
+          onErro={(msg) => mostrarToast(msg, 'erro')}
+        />
+      )}
     </ClienteLayout>
   )
 }

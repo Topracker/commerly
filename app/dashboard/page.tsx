@@ -5,6 +5,8 @@ import { useToast } from '../hooks/useToast'
 import { useNicho } from '../hooks/useNicho'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
+import { isDelivery } from '../lib/pedidosClientes'
+import { ShoppingBag, ChevronRight } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 type GraficoDia = { dia: string; faturamento: number }
@@ -46,6 +48,7 @@ export default function Dashboard() {
   const [carregando, setCarregando] = useState(false)
   const [mpConectado, setMpConectado] = useState(false)
   const [graficoData, setGraficoData] = useState<GraficoDia[]>([])
+  const [pedidosAtivos, setPedidosAtivos] = useState(0)
 
   // Metas e conquistas
   const [faturamentoMes, setFaturamentoMes] = useState(0)
@@ -63,6 +66,14 @@ export default function Dashboard() {
         .eq('loja_id', loja.id)
         .maybeSingle()
         .then(({ data }) => setMpConectado(!!data))
+      if (isDelivery(loja.tipo)) {
+        supabase
+          .from('pedidos_clientes')
+          .select('id', { count: 'exact', head: true })
+          .eq('loja_id', loja.id)
+          .not('status', 'in', '(entregue,cancelado)')
+          .then(({ count }) => setPedidosAtivos(count || 0))
+      }
     }
   }, [loja, periodo])
 
@@ -193,6 +204,31 @@ export default function Dashboard() {
   return (
     <AppLayout loja={loja} sair={sair} titulo="Dashboard" maxWidth="max-w-3xl">
       <Toast toast={toast} />
+
+      {isDelivery(loja.tipo) && (
+        <button
+          onClick={() => window.location.href = '/pedidos'}
+          className="w-full mb-6 bg-[#12161B] border border-[#232A32] hover:border-[#C1441E]/60 rounded-2xl p-4 flex items-center gap-3 transition text-left"
+        >
+          <div className="relative shrink-0">
+            <div className="w-11 h-11 rounded-xl bg-[#C1441E]/15 flex items-center justify-center">
+              <ShoppingBag size={20} className="text-[#E0632C]" />
+            </div>
+            {pedidosAtivos > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-green-500 text-white text-xs rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center font-bold">
+                {pedidosAtivos}
+              </span>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-semibold">Pedidos online</p>
+            <p className="text-gray-400 text-sm">
+              {pedidosAtivos > 0 ? `${pedidosAtivos} ${pedidosAtivos === 1 ? 'pedido em andamento' : 'pedidos em andamento'}` : 'Nenhum pedido em andamento'}
+            </p>
+          </div>
+          <ChevronRight size={20} className="text-gray-500 shrink-0" />
+        </button>
+      )}
 
       <div className="flex gap-2 mb-6">
         {[['hoje', 'Hoje'], ['semana', 'Semana'], ['mes', 'Mês']].map(([val, label]) => (

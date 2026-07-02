@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
 import { useNicho } from '../hooks/useNicho'
+import { isDelivery } from '../lib/pedidosClientes'
 import {
   TrendingDown, Clock, Users,
-  MessageSquare, MessageCircle, Settings, LogOut, Menu, X, Wallet, Home, Sparkles, Plug, Crown
+  MessageSquare, MessageCircle, Settings, LogOut, Menu, X, Wallet, Home, Sparkles, Plug, Crown, ShoppingBag
 } from 'lucide-react'
 
 // Itens sempre visíveis no topo.
@@ -39,14 +40,18 @@ type Props = {
 export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl', noPadding = false }: Props) {
   const [menuAberto, setMenuAberto] = useState(false)
   const [naoLidas, setNaoLidas] = useState(0)
+  const [pedidosNovos, setPedidosNovos] = useState(0)
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
   const { modulos } = useNicho(loja)
 
-  // Menu = topo fixo + módulos do nicho + administrativo fixo.
+  const delivery = isDelivery(loja?.tipo)
+
+  // Menu = topo fixo + (Pedidos online, se delivery) + módulos + administrativo.
   const MENU = [
     ...MENU_TOPO,
+    ...(delivery ? [{ label: 'Pedidos online', sub: 'Entregas dos clientes', path: '/pedidos', icon: ShoppingBag }] : []),
     ...modulos.map(m => ({ label: m.label, sub: m.sub, path: m.path, icon: m.icon })),
     ...MENU_ADMIN,
   ]
@@ -71,8 +76,18 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
     ]).then(([clientes, fornecedores]) => {
       if (ativo) setNaoLidas((clientes.count || 0) + (fornecedores.count || 0))
     })
+
+    // Badge de pedidos online: pedidos em andamento (não entregues/cancelados).
+    if (delivery) {
+      supabase
+        .from('pedidos_clientes')
+        .select('id', { count: 'exact', head: true })
+        .eq('loja_id', loja.id)
+        .not('status', 'in', '(entregue,cancelado)')
+        .then(({ count }) => { if (ativo) setPedidosNovos(count || 0) })
+    }
     return () => { ativo = false }
-  }, [loja?.id, pathname])
+  }, [loja?.id, pathname, delivery])
 
   function navegar(path: string) {
     setMenuAberto(false)
@@ -102,6 +117,11 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
               {item.label === 'Mensagens' && naoLidas > 0 && (
                 <span className="bg-blue-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
                   {naoLidas}
+                </span>
+              )}
+              {item.label === 'Pedidos online' && pedidosNovos > 0 && (
+                <span className="bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
+                  {pedidosNovos}
                 </span>
               )}
             </button>
