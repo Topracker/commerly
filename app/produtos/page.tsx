@@ -74,6 +74,12 @@ export default function Produtos() {
     if (!nome || !preco || !custo || !quantidade) {
       mostrarToast('Preencha todos os campos obrigatórios!', 'erro'); return
     }
+    // Nome precisa ter ao menos 2 caracteres e conter letra/número
+    // (não pode ser só pontos, espaços ou símbolos).
+    const nomeLimpo = nome.trim()
+    if (nomeLimpo.length < 2 || !/[\p{L}\p{N}]/u.test(nomeLimpo)) {
+      mostrarToast('Informe um nome de produto válido (mínimo 2 caracteres).', 'erro'); return
+    }
     setSalvando(true)
 
     let imagem_url = editando?.imagem_url || ''

@@ -4,6 +4,9 @@ import { createAdminClient } from '../../lib/supabase-admin'
 import { Estrelas } from '../../components/Estrelas'
 import { MiniMapa } from '../../components/MiniMapa'
 import { FachadaBanner } from '../../components/FachadaBanner'
+import { RatingBadge } from '../../components/RatingBadge'
+import { ProdutoCard } from '../../components/ProdutoCard'
+import { emojiNicho } from '../../lib/temaLoja'
 import { Phone, AtSign, MapPin, Clock } from 'lucide-react'
 
 // Página pública da loja — acessível sem login. Lê os dados via service role
@@ -76,21 +79,16 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
         <FachadaBanner fotos={loja.fotos_fachada} nome={loja.nome} tipo={loja.tipo} />
 
         {/* Cabeçalho da loja */}
-        <div className="bg-gray-900 rounded-2xl p-5 mb-4">
+        <div className="bg-gradient-to-b from-gray-900 to-gray-900/60 border border-gray-800 rounded-2xl p-5 mb-4">
           <div className="flex items-start justify-between gap-3 mb-3">
-            <div>
-              <h1 className="text-2xl font-bold text-white">{loja.nome}</h1>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl shrink-0">{emojiNicho(loja.tipo)}</span>
+                <h1 className="text-2xl font-bold text-white truncate">{loja.nome}</h1>
+              </div>
               <span className="inline-block text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded-full mt-1">{loja.tipo}</span>
             </div>
-            {avaliacoes.length > 0 && (
-              <div className="text-right shrink-0">
-                <div className="flex items-center gap-1 justify-end">
-                  <span className="text-yellow-400 text-lg">★</span>
-                  <span className="text-white font-bold">{media.toFixed(1)}</span>
-                </div>
-                <p className="text-gray-400 text-xs">{avaliacoes.length} avaliação{avaliacoes.length > 1 ? 'ões' : ''}</p>
-              </div>
-            )}
+            {avaliacoes.length > 0 && <RatingBadge media={media} total={avaliacoes.length} />}
           </div>
 
           <div className="flex flex-col gap-2 text-sm">
@@ -125,23 +123,10 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
 
         {/* Produtos */}
         {produtos.length > 0 && (
-          <div className="mb-4">
+          <div className="bg-gray-900/40 border border-gray-800 rounded-2xl p-4 mb-4">
             <h2 className="text-white font-semibold text-lg mb-3">Produtos disponíveis</h2>
             <div className="grid grid-cols-2 gap-3">
-              {produtos.map((p: any) => (
-                <div key={p.id} className="bg-gray-900 rounded-2xl overflow-hidden">
-                  {p.imagem_url ? (
-                    <img src={p.imagem_url} alt={p.nome} className="w-full h-32 object-cover" />
-                  ) : (
-                    <div className="w-full h-32 bg-gray-800 flex items-center justify-center text-3xl">📦</div>
-                  )}
-                  <div className="p-3">
-                    <p className="text-white font-medium text-sm">{p.nome}</p>
-                    {p.categoria && <p className="text-gray-500 text-xs">{p.categoria}</p>}
-                    <p className="text-green-400 font-bold mt-1">R$ {parseFloat(p.preco_venda).toFixed(2)}</p>
-                  </div>
-                </div>
-              ))}
+              {produtos.map((p: any) => <ProdutoCard key={p.id} produto={p} tipoLoja={loja.tipo} />)}
             </div>
           </div>
         )}
@@ -152,7 +137,7 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
             <h2 className="text-white font-semibold text-lg mb-3">Avaliações ({avaliacoes.length})</h2>
             <div className="flex flex-col gap-3">
               {avaliacoes.map((a, i) => (
-                <div key={i} className="bg-gray-900 rounded-2xl p-4">
+                <div key={i} className="bg-gray-900/60 border border-gray-800 rounded-2xl p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Estrelas nota={a.nota} tamanho="text-base" />
                     <span className="text-gray-500 text-xs">{new Date(a.created_at).toLocaleDateString('pt-BR')}</span>

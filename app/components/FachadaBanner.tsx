@@ -1,7 +1,7 @@
-import { Store } from 'lucide-react'
+import { gradienteNicho, emojiNicho } from '../lib/temaLoja'
 
 // Fotos da fachada no topo das páginas da loja.
-// Sem foto: placeholder com degradê, ícone, nome e tipo.
+// Sem foto: placeholder com degradê temático do nicho, emoji, nome e tipo.
 // Uma foto: banner único. Várias: carrossel horizontal com snap.
 export function FachadaBanner({
   fotos,
@@ -16,8 +16,8 @@ export function FachadaBanner({
 
   if (lista.length === 0) {
     return (
-      <div className="w-full aspect-[16/9] sm:aspect-[3/1] rounded-2xl overflow-hidden mb-4 flex flex-col items-center justify-center text-center px-4 bg-gradient-to-br from-blue-600/30 via-gray-900 to-green-600/20">
-        <Store size={40} className="text-white/70 mb-2" />
+      <div className={`w-full aspect-[16/9] sm:aspect-[3/1] rounded-2xl overflow-hidden mb-4 flex flex-col items-center justify-center text-center px-4 bg-gradient-to-br ${gradienteNicho(tipo)}`}>
+        <span className="text-5xl mb-2 drop-shadow-lg">{emojiNicho(tipo)}</span>
         <p className="text-white font-bold text-lg drop-shadow">{nome}</p>
         <span className="inline-block text-xs bg-black/30 text-white/90 px-2 py-0.5 rounded-full mt-1">{tipo}</span>
       </div>

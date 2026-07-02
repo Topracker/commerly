@@ -9,6 +9,9 @@ import { Toast } from '../../../components/Toast'
 import { isFavorito, toggleFavorito } from '../../../lib/favoritos'
 import { MiniMapa } from '../../../components/MiniMapa'
 import { FachadaBanner } from '../../../components/FachadaBanner'
+import { RatingBadge } from '../../../components/RatingBadge'
+import { ProdutoCard } from '../../../components/ProdutoCard'
+import { emojiNicho } from '../../../lib/temaLoja'
 import { Phone, AtSign, MapPin, Clock, MessageCircle, ArrowLeft, Heart } from 'lucide-react'
 
 export default function ClienteLoja() {
@@ -102,26 +105,28 @@ export default function ClienteLoja() {
           <ArrowLeft size={20} />
         </button>
         <p className="text-white font-bold truncate flex-1 min-w-0">{loja.nome}</p>
+        <button
+          onClick={alternarFavorito}
+          aria-label={favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+          className={`shrink-0 p-2 rounded-full transition ${favorito ? 'bg-red-500/15 hover:bg-red-500/25' : 'hover:bg-gray-800'}`}
+        >
+          <Heart size={20} className={favorito ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
+        </button>
       </header>
 
       <div className="max-w-2xl mx-auto p-4">
         <FachadaBanner fotos={loja.fotos_fachada} nome={loja.nome} tipo={loja.tipo} />
 
-        <div className="bg-gray-900 rounded-2xl p-5 mb-4">
+        <div className="bg-gradient-to-b from-gray-900 to-gray-900/60 border border-gray-800 rounded-2xl p-5 mb-4">
           <div className="flex items-start justify-between gap-3 mb-3">
-            <div>
-              <h1 className="text-2xl font-bold text-white">{loja.nome}</h1>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl shrink-0">{emojiNicho(loja.tipo)}</span>
+                <h1 className="text-2xl font-bold text-white truncate">{loja.nome}</h1>
+              </div>
               <span className="inline-block text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded-full mt-1">{loja.tipo}</span>
             </div>
-            {avaliacoes.length > 0 && (
-              <div className="text-right shrink-0">
-                <div className="flex items-center gap-1 justify-end">
-                  <span className="text-yellow-400 text-lg">★</span>
-                  <span className="text-white font-bold">{mediaAval.toFixed(1)}</span>
-                </div>
-                <p className="text-gray-400 text-xs">{avaliacoes.length} avaliação{avaliacoes.length > 1 ? 'ões' : ''}</p>
-              </div>
-            )}
+            {avaliacoes.length > 0 && <RatingBadge media={mediaAval} total={avaliacoes.length} />}
           </div>
 
           <div className="flex flex-col gap-2 text-sm">
@@ -142,7 +147,7 @@ export default function ClienteLoja() {
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
             >
               <MessageCircle size={18} />
-              Enviar mensagem
+              Mensagem
             </button>
             {loja.telefone && (
               <button
@@ -154,46 +159,20 @@ export default function ClienteLoja() {
               </button>
             )}
           </div>
-
-          <button
-            onClick={alternarFavorito}
-            aria-label={favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-            className={`mt-2 w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold transition border ${
-              favorito
-                ? 'bg-red-500/15 border-red-500/40 text-red-400 hover:bg-red-500/25'
-                : 'bg-gray-800 border-gray-700 text-gray-200 hover:bg-gray-700'
-            }`}
-          >
-            <Heart size={18} className={favorito ? 'fill-red-500 text-red-500' : 'text-red-400'} />
-            {favorito ? 'Favoritada' : 'Favoritar loja'}
-          </button>
         </div>
 
         <MiniMapa latitude={loja.latitude} longitude={loja.longitude} localizacao={loja.localizacao} nome={loja.nome} />
 
         {produtos.length > 0 && (
-          <div className="mb-4">
+          <div className="bg-gray-900/40 border border-gray-800 rounded-2xl p-4 mb-4">
             <h2 className="text-white font-semibold text-lg mb-3">Produtos disponíveis</h2>
             <div className="grid grid-cols-2 gap-3">
-              {produtos.map(p => (
-                <div key={p.id} className="bg-gray-900 rounded-2xl overflow-hidden">
-                  {p.imagem_url ? (
-                    <img src={p.imagem_url} alt={p.nome} className="w-full h-32 object-cover" />
-                  ) : (
-                    <div className="w-full h-32 bg-gray-800 flex items-center justify-center text-3xl">📦</div>
-                  )}
-                  <div className="p-3">
-                    <p className="text-white font-medium text-sm">{p.nome}</p>
-                    {p.categoria && <p className="text-gray-500 text-xs">{p.categoria}</p>}
-                    <p className="text-green-400 font-bold mt-1">R$ {parseFloat(p.preco_venda).toFixed(2)}</p>
-                  </div>
-                </div>
-              ))}
+              {produtos.map(p => <ProdutoCard key={p.id} produto={p} tipoLoja={loja.tipo} />)}
             </div>
           </div>
         )}
 
-        <div className="bg-gray-900 rounded-2xl p-5 mb-4">
+        <div className="bg-gray-900 border border-green-900/30 rounded-2xl p-5 mb-4">
           <h2 className="text-white font-semibold text-lg mb-4">
             {minhaAvaliacao ? 'Sua avaliação' : 'Avaliar este comércio'}
           </h2>
@@ -221,7 +200,7 @@ export default function ClienteLoja() {
             <h2 className="text-white font-semibold text-lg mb-3">Avaliações ({avaliacoes.length})</h2>
             <div className="flex flex-col gap-3">
               {avaliacoes.map((a, i) => (
-                <div key={i} className="bg-gray-900 rounded-2xl p-4">
+                <div key={i} className="bg-gray-900/60 border border-gray-800 rounded-2xl p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Estrelas nota={a.nota} tamanho="text-base" />
                     <span className="text-gray-500 text-xs">{new Date(a.created_at).toLocaleDateString('pt-BR')}</span>
