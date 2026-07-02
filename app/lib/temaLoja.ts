@@ -35,6 +35,41 @@ export function gradienteNicho(tipo?: string | null): string {
   return GRAD_PADRAO
 }
 
+// Gradientes em hex (3 paradas) para o banner hero — precisão de cor por nicho.
+const GRADIENTES_HEX: Record<string, [string, string, string]> = {
+  'Açougue': ['#7A2A11', '#C1441E', '#E0632C'],
+  'Barbearia': ['#16222E', '#24405C', '#3A6EA5'],
+  'Salão de Beleza': ['#4A1533', '#9D2A6B', '#D14D8F'],
+  'Delivery': ['#7A3B0E', '#C56A1E', '#E8912C'],
+  'Restaurante': ['#6B3410', '#B5711E', '#E0A02C'],
+  'Pizzaria': ['#7A1F14', '#C13A1E', '#E8632C'],
+  'Hamburgueria': ['#6B3410', '#B5811E', '#E0B02C'],
+  'Lanchonete': ['#7A3B0E', '#C56A1E', '#E8A02C'],
+  'Sorveteria': ['#6B2A4A', '#C14D8F', '#4DB8D1'],
+  'Padaria': ['#6B4410', '#B5901E', '#E0C02C'],
+  'Farmácia': ['#0E4A3B', '#1E8C6E', '#2CC199'],
+  'Mercado': ['#0E4A2A', '#1E8C4E', '#2CC16E'],
+  'Mercadinho': ['#0E4A2A', '#4E8C1E', '#8CC12C'],
+  'Hortifruti': ['#2A4A0E', '#6E8C1E', '#9DC12C'],
+  'Pet Shop': ['#4A2E0E', '#8C5E1E', '#C1852C'],
+  'Distribuidora de bebidas': ['#6B5410', '#B5901E', '#E8B82C'],
+  'Eletrônicos': ['#0E2E4A', '#1E5E8C', '#2C9DC1'],
+  'Loja de roupas': ['#2A1A4A', '#5E2A8C', '#8C4DC1'],
+}
+
+const HEX_PADRAO: [string, string, string] = ['#12303A', '#1E5E5C', '#2C8C6E']
+
+/** Paradas de cor (hex) do gradiente temático do nicho. */
+export function gradienteHexNicho(tipo?: string | null): [string, string, string] {
+  if (tipo && GRADIENTES_HEX[tipo]) return GRADIENTES_HEX[tipo]
+  return HEX_PADRAO
+}
+
+/** Cor de acento (parada mais viva) do nicho — para glows/detalhes. */
+export function corAcentoNicho(tipo?: string | null): string {
+  return gradienteHexNicho(tipo)[2]
+}
+
 /** Emoji do nicho (reaproveita a config de nichos do dashboard). */
 export function emojiNicho(tipo?: string | null): string {
   return getNicho(tipo).emoji

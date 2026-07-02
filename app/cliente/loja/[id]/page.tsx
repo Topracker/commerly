@@ -11,7 +11,6 @@ import { MiniMapa } from '../../../components/MiniMapa'
 import { FachadaBanner } from '../../../components/FachadaBanner'
 import { RatingBadge } from '../../../components/RatingBadge'
 import { ProdutoCard } from '../../../components/ProdutoCard'
-import { emojiNicho } from '../../../lib/temaLoja'
 import { Phone, AtSign, MapPin, Clock, MessageCircle, ArrowLeft, Heart } from 'lucide-react'
 
 export default function ClienteLoja() {
@@ -100,117 +99,127 @@ export default function ClienteLoja() {
   return (
     <ClienteLayout cliente={cliente} sair={sair} noPadding>
       <Toast toast={toast} />
-      <header className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+      <header className="bg-[#12161B] border-b border-[#232A32] px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
         <button onClick={() => router.push('/cliente/buscar')} className="shrink-0 text-gray-400 hover:text-white">
           <ArrowLeft size={20} />
         </button>
-        <p className="text-white font-bold truncate flex-1 min-w-0">{loja.nome}</p>
-        <button
-          onClick={alternarFavorito}
-          aria-label={favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-          className={`shrink-0 p-2 rounded-full transition ${favorito ? 'bg-red-500/15 hover:bg-red-500/25' : 'hover:bg-gray-800'}`}
-        >
-          <Heart size={20} className={favorito ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
-        </button>
+        <p className="font-display text-white font-bold truncate flex-1 min-w-0">{loja.nome}</p>
       </header>
 
-      <div className="max-w-2xl mx-auto p-4">
+      <div className="max-w-2xl mx-auto px-4 pt-4 pb-10 font-body">
         <FachadaBanner fotos={loja.fotos_fachada} nome={loja.nome} tipo={loja.tipo} />
 
-        <div className="bg-gradient-to-b from-gray-900 to-gray-900/60 border border-gray-800 rounded-2xl p-5 mb-4">
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl shrink-0">{emojiNicho(loja.tipo)}</span>
-                <h1 className="text-2xl font-bold text-white truncate">{loja.nome}</h1>
+        <div className="relative z-10 -mt-10 space-y-[18px]">
+          {/* Card de info — sobrepõe o banner */}
+          <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-5">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="min-w-0">
+                <h1 className="font-display text-2xl font-bold text-white truncate">{loja.nome}</h1>
+                <span className="inline-block text-xs bg-[#1B2129] border border-[#232A32] text-gray-300 px-2.5 py-0.5 rounded-full mt-1.5">{loja.tipo}</span>
               </div>
-              <span className="inline-block text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded-full mt-1">{loja.tipo}</span>
+              {avaliacoes.length > 0 && <RatingBadge media={mediaAval} total={avaliacoes.length} />}
             </div>
-            {avaliacoes.length > 0 && <RatingBadge media={mediaAval} total={avaliacoes.length} />}
-          </div>
 
-          <div className="flex flex-col gap-2 text-sm">
-            {loja.localizacao && (
-              <p className="text-gray-400 flex items-center gap-2"><MapPin size={14} className="text-gray-500" />{loja.localizacao}</p>
-            )}
-            {loja.horario && (
-              <p className="text-gray-400 flex items-center gap-2"><Clock size={14} className="text-gray-500" />{loja.horario}</p>
-            )}
-            {loja.instagram && (
-              <p className="text-gray-400 flex items-center gap-2"><AtSign size={14} className="text-gray-500" />{loja.instagram}</p>
-            )}
-          </div>
+            <div className="flex flex-col gap-2 text-sm">
+              {loja.localizacao && (
+                <p className="text-gray-400 flex items-center gap-2.5"><MapPin size={15} className="text-gray-500 shrink-0" />{loja.localizacao}</p>
+              )}
+              {loja.horario && (
+                <p className="text-gray-400 flex items-center gap-2.5"><Clock size={15} className="text-gray-500 shrink-0" />{loja.horario}</p>
+              )}
+              {loja.instagram && (
+                <p className="text-gray-400 flex items-center gap-2.5"><AtSign size={15} className="text-gray-500 shrink-0" />{loja.instagram}</p>
+              )}
+            </div>
 
-          <div className="mt-4 flex gap-2">
-            <button
-              onClick={() => router.push(`/cliente/mensagens/${id}`)}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
-            >
-              <MessageCircle size={18} />
-              Mensagem
-            </button>
-            {loja.telefone && (
+            <div className="mt-4 flex items-center gap-2">
+              {loja.telefone && (
+                <button
+                  onClick={abrirWhatsApp}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+                >
+                  <Phone size={18} />
+                  WhatsApp
+                </button>
+              )}
               <button
-                onClick={abrirWhatsApp}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+                onClick={() => router.push(`/cliente/mensagens/${id}`)}
+                className="flex-1 bg-[#1B2129] border border-[#232A32] hover:bg-[#232A32] text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
               >
-                <Phone size={18} />
-                WhatsApp
+                <MessageCircle size={18} />
+                Mensagem
               </button>
-            )}
-          </div>
-        </div>
-
-        <MiniMapa latitude={loja.latitude} longitude={loja.longitude} localizacao={loja.localizacao} nome={loja.nome} />
-
-        {produtos.length > 0 && (
-          <div className="bg-gray-900/40 border border-gray-800 rounded-2xl p-4 mb-4">
-            <h2 className="text-white font-semibold text-lg mb-3">Produtos disponíveis</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {produtos.map(p => <ProdutoCard key={p.id} produto={p} tipoLoja={loja.tipo} />)}
+              <button
+                onClick={alternarFavorito}
+                aria-label={favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                className={`shrink-0 w-12 h-12 flex items-center justify-center rounded-xl border transition ${
+                  favorito
+                    ? 'bg-red-500/15 border-red-500/40 hover:bg-red-500/25'
+                    : 'bg-[#1B2129] border-[#232A32] hover:bg-[#232A32]'
+                }`}
+              >
+                <Heart size={20} className={favorito ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
+              </button>
             </div>
           </div>
-        )}
 
-        <div className="bg-gray-900 border border-green-900/30 rounded-2xl p-5 mb-4">
-          <h2 className="text-white font-semibold text-lg mb-4">
-            {minhaAvaliacao ? 'Sua avaliação' : 'Avaliar este comércio'}
-          </h2>
-          <div className="flex flex-col gap-3">
-            <Estrelas nota={nota} onSelect={setNota} />
-            <textarea
-              placeholder="Deixe um comentário (opcional)"
-              value={comentario}
-              onChange={e => setComentario(e.target.value)}
-              rows={3}
-              className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-green-500 resize-none text-sm"
-            />
-            <button
-              onClick={enviarAvaliacao}
-              disabled={enviandoAval || nota === 0}
-              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50"
-            >
-              {enviandoAval ? 'Enviando...' : minhaAvaliacao ? 'Atualizar avaliação' : 'Enviar avaliação'}
-            </button>
-          </div>
-        </div>
+          <MiniMapa latitude={loja.latitude} longitude={loja.longitude} localizacao={loja.localizacao} nome={loja.nome} />
 
-        {avaliacoes.length > 0 && (
-          <div>
-            <h2 className="text-white font-semibold text-lg mb-3">Avaliações ({avaliacoes.length})</h2>
+          {produtos.length > 0 && (
+            <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+              <h2 className="font-display text-white font-semibold text-lg mb-3">
+                Produtos disponíveis <span className="text-gray-500 font-normal text-sm">({produtos.length})</span>
+              </h2>
+              <div className="grid grid-cols-2 gap-3">
+                {produtos.map(p => <ProdutoCard key={p.id} produto={p} tipoLoja={loja.tipo} />)}
+              </div>
+            </div>
+          )}
+
+          <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-5">
+            <h2 className="font-display text-white font-semibold text-lg mb-4">
+              {minhaAvaliacao ? 'Sua avaliação' : 'Avaliar este comércio'}
+            </h2>
             <div className="flex flex-col gap-3">
-              {avaliacoes.map((a, i) => (
-                <div key={i} className="bg-gray-900/60 border border-gray-800 rounded-2xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Estrelas nota={a.nota} tamanho="text-base" />
-                    <span className="text-gray-500 text-xs">{new Date(a.created_at).toLocaleDateString('pt-BR')}</span>
-                  </div>
-                  {a.comentario && <p className="text-gray-300 text-sm">{a.comentario}</p>}
-                </div>
-              ))}
+              <Estrelas nota={nota} onSelect={setNota} />
+              <textarea
+                placeholder="Deixe um comentário (opcional)"
+                value={comentario}
+                onChange={e => setComentario(e.target.value)}
+                rows={3}
+                className="bg-[#171C22] border border-[#232A32] text-white rounded-xl px-4 py-3 outline-none focus:border-[#F5C34B]/60 focus:ring-1 focus:ring-[#F5C34B]/40 resize-none text-sm"
+              />
+              <button
+                onClick={enviarAvaliacao}
+                disabled={enviandoAval || nota === 0}
+                className={`font-semibold py-3 rounded-xl transition disabled:opacity-50 ${
+                  minhaAvaliacao
+                    ? 'bg-[#F5C34B] hover:bg-[#e6b43e] text-[#12161B]'
+                    : 'bg-green-600 hover:bg-green-700 text-white'
+                }`}
+              >
+                {enviandoAval ? 'Enviando...' : minhaAvaliacao ? 'Atualizar avaliação' : 'Enviar avaliação'}
+              </button>
             </div>
           </div>
-        )}
+
+          {avaliacoes.length > 0 && (
+            <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-5">
+              <h2 className="font-display text-white font-semibold text-lg mb-2">Avaliações ({avaliacoes.length})</h2>
+              <div className="divide-y divide-[#232A32]">
+                {avaliacoes.map((a, i) => (
+                  <div key={i} className="py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <Estrelas nota={a.nota} tamanho="text-base" />
+                      <span className="text-gray-500 text-xs shrink-0">{new Date(a.created_at).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                    {a.comentario && <p className="text-gray-300 text-sm mt-1.5">{a.comentario}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </ClienteLayout>
   )

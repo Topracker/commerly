@@ -6,7 +6,6 @@ import { MiniMapa } from '../../components/MiniMapa'
 import { FachadaBanner } from '../../components/FachadaBanner'
 import { RatingBadge } from '../../components/RatingBadge'
 import { ProdutoCard } from '../../components/ProdutoCard'
-import { emojiNicho } from '../../lib/temaLoja'
 import { Phone, AtSign, MapPin, Clock } from 'lucide-react'
 
 // Página pública da loja — acessível sem login. Lê os dados via service role
@@ -67,91 +66,92 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
     : null
 
   return (
-    <main className="min-h-screen bg-gray-950">
-      <header className="bg-gray-900 border-b border-gray-800 px-4 py-3 sticky top-0 z-10">
+    <main className="min-h-screen bg-gray-950 font-body">
+      <header className="bg-[#12161B] border-b border-[#232A32] px-4 py-3 sticky top-0 z-20">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
-          <p className="text-white font-bold truncate">{loja.nome}</p>
+          <p className="font-display text-white font-bold truncate">{loja.nome}</p>
           <span className="text-gray-500 text-sm shrink-0">Commerly</span>
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto p-4">
+      <div className="max-w-2xl mx-auto px-4 pt-4 pb-10">
         <FachadaBanner fotos={loja.fotos_fachada} nome={loja.nome} tipo={loja.tipo} />
 
-        {/* Cabeçalho da loja */}
-        <div className="bg-gradient-to-b from-gray-900 to-gray-900/60 border border-gray-800 rounded-2xl p-5 mb-4">
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl shrink-0">{emojiNicho(loja.tipo)}</span>
-                <h1 className="text-2xl font-bold text-white truncate">{loja.nome}</h1>
+        <div className="relative z-10 -mt-10 space-y-[18px]">
+          {/* Cabeçalho da loja — sobrepõe o banner */}
+          <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-5">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="min-w-0">
+                <h1 className="font-display text-2xl font-bold text-white truncate">{loja.nome}</h1>
+                <span className="inline-block text-xs bg-[#1B2129] border border-[#232A32] text-gray-300 px-2.5 py-0.5 rounded-full mt-1.5">{loja.tipo}</span>
               </div>
-              <span className="inline-block text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded-full mt-1">{loja.tipo}</span>
+              {avaliacoes.length > 0 && <RatingBadge media={media} total={avaliacoes.length} />}
             </div>
-            {avaliacoes.length > 0 && <RatingBadge media={media} total={avaliacoes.length} />}
+
+            <div className="flex flex-col gap-2 text-sm">
+              {loja.localizacao && (
+                <p className="text-gray-400 flex items-center gap-2.5"><MapPin size={15} className="text-gray-500 shrink-0" />{loja.localizacao}</p>
+              )}
+              {loja.horario && (
+                <p className="text-gray-400 flex items-center gap-2.5"><Clock size={15} className="text-gray-500 shrink-0" />{loja.horario}</p>
+              )}
+              {loja.telefone && (
+                <p className="text-gray-400 flex items-center gap-2.5"><Phone size={15} className="text-gray-500 shrink-0" />{loja.telefone}</p>
+              )}
+              {loja.instagram && (
+                <p className="text-gray-400 flex items-center gap-2.5"><AtSign size={15} className="text-gray-500 shrink-0" />{loja.instagram}</p>
+              )}
+            </div>
+
+            {whatsapp && (
+              <a
+                href={whatsapp}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+              >
+                <Phone size={18} />
+                Falar no WhatsApp
+              </a>
+            )}
           </div>
 
-          <div className="flex flex-col gap-2 text-sm">
-            {loja.localizacao && (
-              <p className="text-gray-400 flex items-center gap-2"><MapPin size={14} className="text-gray-500" />{loja.localizacao}</p>
-            )}
-            {loja.horario && (
-              <p className="text-gray-400 flex items-center gap-2"><Clock size={14} className="text-gray-500" />{loja.horario}</p>
-            )}
-            {loja.telefone && (
-              <p className="text-gray-400 flex items-center gap-2"><Phone size={14} className="text-gray-500" />{loja.telefone}</p>
-            )}
-            {loja.instagram && (
-              <p className="text-gray-400 flex items-center gap-2"><AtSign size={14} className="text-gray-500" />{loja.instagram}</p>
-            )}
-          </div>
+          <MiniMapa latitude={loja.latitude} longitude={loja.longitude} nome={loja.nome} />
 
-          {whatsapp && (
-            <a
-              href={whatsapp}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
-            >
-              <Phone size={18} />
-              Falar no WhatsApp
-            </a>
+          {/* Produtos */}
+          {produtos.length > 0 && (
+            <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+              <h2 className="font-display text-white font-semibold text-lg mb-3">
+                Produtos disponíveis <span className="text-gray-500 font-normal text-sm">({produtos.length})</span>
+              </h2>
+              <div className="grid grid-cols-2 gap-3">
+                {produtos.map((p: any) => <ProdutoCard key={p.id} produto={p} tipoLoja={loja.tipo} />)}
+              </div>
+            </div>
           )}
-        </div>
 
-        <MiniMapa latitude={loja.latitude} longitude={loja.longitude} nome={loja.nome} />
-
-        {/* Produtos */}
-        {produtos.length > 0 && (
-          <div className="bg-gray-900/40 border border-gray-800 rounded-2xl p-4 mb-4">
-            <h2 className="text-white font-semibold text-lg mb-3">Produtos disponíveis</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {produtos.map((p: any) => <ProdutoCard key={p.id} produto={p} tipoLoja={loja.tipo} />)}
-            </div>
-          </div>
-        )}
-
-        {/* Avaliações */}
-        {avaliacoes.length > 0 && (
-          <div className="mb-4">
-            <h2 className="text-white font-semibold text-lg mb-3">Avaliações ({avaliacoes.length})</h2>
-            <div className="flex flex-col gap-3">
-              {avaliacoes.map((a, i) => (
-                <div key={i} className="bg-gray-900/60 border border-gray-800 rounded-2xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Estrelas nota={a.nota} tamanho="text-base" />
-                    <span className="text-gray-500 text-xs">{new Date(a.created_at).toLocaleDateString('pt-BR')}</span>
+          {/* Avaliações */}
+          {avaliacoes.length > 0 && (
+            <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-5">
+              <h2 className="font-display text-white font-semibold text-lg mb-2">Avaliações ({avaliacoes.length})</h2>
+              <div className="divide-y divide-[#232A32]">
+                {avaliacoes.map((a, i) => (
+                  <div key={i} className="py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <Estrelas nota={a.nota} tamanho="text-base" />
+                      <span className="text-gray-500 text-xs shrink-0">{new Date(a.created_at).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                    {a.comentario && <p className="text-gray-300 text-sm mt-1.5">{a.comentario}</p>}
                   </div>
-                  {a.comentario && <p className="text-gray-300 text-sm">{a.comentario}</p>}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <p className="text-center text-gray-600 text-xs mt-8">
-          Página pública criada com <span className="text-gray-400">Commerly</span>
-        </p>
+          <p className="text-center text-gray-600 text-xs pt-4">
+            Página pública criada com <span className="text-gray-400">Commerly</span>
+          </p>
+        </div>
       </div>
     </main>
   )

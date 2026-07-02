@@ -1,12 +1,13 @@
 import { Star } from 'lucide-react'
 
-// Badge dourado de avaliação, em destaque no cabeçalho da loja.
+// Pill dourado de avaliação em destaque no cabeçalho da loja: fundo dourado
+// translúcido, borda dourada, estrela + média (Sora) + contagem.
 export function RatingBadge({ media, total }: { media: number; total: number }) {
   return (
-    <div className="shrink-0 flex items-center gap-1.5 bg-gradient-to-br from-yellow-400/25 to-amber-600/15 border border-yellow-500/40 rounded-xl px-3 py-1.5 shadow-lg shadow-yellow-500/5">
-      <Star size={16} className="fill-yellow-400 text-yellow-400" />
-      <span className="text-yellow-200 font-bold text-base leading-none">{media.toFixed(1)}</span>
-      <span className="text-yellow-200/60 text-[11px] leading-none">({total})</span>
+    <div className="shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 bg-[#F5C34B]/12 border border-[#F5C34B]/40">
+      <Star size={15} className="fill-[#F5C34B] text-[#F5C34B]" />
+      <span className="font-display font-bold text-[#F5C34B] text-base leading-none">{media.toFixed(1)}</span>
+      <span className="text-[#F5C34B]/60 text-[11px] leading-none">({total})</span>
     </div>
   )
 }

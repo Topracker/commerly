@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Sora, Inter } from "next/font/google";
 import "./globals.css";
 import DevtoolsBlocker from "./components/DevtoolsBlocker";
 import PWARegister from "./components/PWARegister";
@@ -14,6 +14,20 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Sora (títulos) + Inter (corpo) — usados nas páginas de loja via as
+// utilities `font-display` / `font-body` (ver globals.css @theme).
+const sora = Sora({
+  variable: "--font-sora",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Commerly",
   description: "Gerencie seu comércio com simplicidade",
@@ -26,7 +40,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} ${sora.variable} ${inter.variable} h-full antialiased`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#030712" />
