@@ -1,28 +1,38 @@
--- Foto da fachada do comércio.
+-- Fotos da fachada do comércio (até 3 por loja).
 --
 -- Rode este SQL no SQL Editor do Supabase (produção) ANTES do deploy com o
--- upload da foto da fachada.
+-- upload das fotos da fachada.
 --
 -- O que ele faz:
---   1. Adiciona `foto_fachada_url` (text) na tabela `lojas`.
---   2. Recria a view pública `lojas_publicas` para expor `foto_fachada_url`,
---      para as páginas públicas e a busca mostrarem a foto sem dar acesso à
+--   1. Adiciona `fotos_fachada` (text[]) na tabela `lojas` — array de URLs.
+--      Faz backfill da coluna antiga `foto_fachada_url` (se existir) para o array.
+--   2. Recria a view pública `lojas_publicas` para expor `fotos_fachada`,
+--      para as páginas públicas e a busca mostrarem as fotos sem dar acesso à
 --      tabela `lojas`.
 --   3. Cria o bucket público de Storage "lojas" e as policies para o
---      comerciante logado subir/atualizar a foto (caminho "{loja_id}/fachada.jpg").
+--      comerciante logado subir/atualizar/apagar as fotos
+--      (caminho "{loja_id}/{timestamp}-{rand}.{ext}").
 --
 -- Tudo é idempotente — pode rodar mais de uma vez sem problema.
 
-alter table public.lojas add column if not exists foto_fachada_url text;
+alter table public.lojas add column if not exists foto_fachada_url text;             -- legado (uma foto)
+alter table public.lojas add column if not exists fotos_fachada text[] not null default '{}';
 
--- View pública: recriada para incluir foto_fachada_url. security_invoker=false
+-- Backfill: se já houver foto única salva e o array ainda estiver vazio, migra.
+update public.lojas
+   set fotos_fachada = array[foto_fachada_url]
+ where foto_fachada_url is not null
+   and foto_fachada_url <> ''
+   and (fotos_fachada is null or array_length(fotos_fachada, 1) is null);
+
+-- View pública: recriada para incluir fotos_fachada. security_invoker=false
 -- (security definer) para que anon/authenticated enxerguem as lojas mesmo com
 -- o RLS restritivo da tabela base.
 drop view if exists public.lojas_publicas;
 create view public.lojas_publicas
   with (security_invoker = false) as
   select id, nome, tipo, localizacao, telefone, instagram, horario,
-         latitude, longitude, foto_fachada_url, created_at
+         latitude, longitude, fotos_fachada, created_at
   from public.lojas;
 
 grant select on public.lojas_publicas to anon, authenticated;
@@ -54,4 +64,4 @@ create policy "lojas_auth_delete" on storage.objects
   using (bucket_id = 'lojas');
 
 -- Verificação:
--- select foto_fachada_url from public.lojas_publicas limit 1;
+-- select fotos_fachada from public.lojas_publicas limit 1;

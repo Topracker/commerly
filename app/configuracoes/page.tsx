@@ -7,8 +7,8 @@ import { Toast } from '../components/Toast'
 import { salvarNichoCustom, carregarNichoCustom } from '../lib/nicheStore'
 import { MODULOS, type ModuloKey } from '../lib/nichos'
 import { EnderecoAutocomplete } from '../components/EnderecoAutocomplete'
-import { FachadaUpload } from '../components/FachadaUpload'
-import { uploadFachada } from '../lib/fachada'
+import { FachadaUpload, type FachadaItem } from '../components/FachadaUpload'
+import { uploadFachada, removerFachada } from '../lib/fachada'
 import { Eye, EyeOff, Store, Copy, ExternalLink } from 'lucide-react'
 
 // Módulos que a IA pode sugerir / o comerciante pode escolher no fluxo "Outro".
@@ -120,7 +120,7 @@ export default function Configuracoes() {
   const [horarioAbertura, setHorarioAbertura] = useState('08:00')
   const [horarioFechamento, setHorarioFechamento] = useState('18:00')
   const [metaMensal, setMetaMensal] = useState(5000)
-  const [fachadaFile, setFachadaFile] = useState<File | null>(null)
+  const [fachadaItems, setFachadaItems] = useState<FachadaItem[]>([])
 
   const [erroDoc, setErroDoc] = useState('')
   const [erroTel, setErroTel] = useState('')
@@ -252,17 +252,21 @@ export default function Configuracoes() {
 
     setSalvando(true)
 
-    // Foto da fachada: sobe pro Storage ("{loja_id}/fachada.jpg") e grava a URL.
-    // Mantém a atual se nada novo foi escolhido.
-    let fotoFachadaUrl = loja.foto_fachada_url ?? null
-    if (fachadaFile) {
-      const res = await uploadFachada(supabase, loja.id, fachadaFile)
+    // Fotos da fachada: sobe as novas pro Storage, mantém as já salvas e apaga
+    // as que o comerciante removeu. O array final vai pra coluna fotos_fachada.
+    const fotosFinais: string[] = []
+    for (const it of fachadaItems) {
+      if (it.tipo === 'url') { fotosFinais.push(it.url); continue }
+      const res = await uploadFachada(supabase, loja.id, it.file)
       if ('error' in res) { mostrarToast(res.error, 'erro'); setSalvando(false); return }
-      fotoFachadaUrl = res.url
+      fotosFinais.push(res.url)
     }
+    const fotosAntigas: string[] = loja.fotos_fachada || []
+    const removidas = fotosAntigas.filter(u => !fotosFinais.includes(u))
+    await Promise.all(removidas.map(u => removerFachada(supabase, u)))
 
     const { error } = await supabase.from('lojas').update({
-      nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, foto_fachada_url: fotoFachadaUrl,
+      nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais,
     }).eq('id', loja.id)
     if (error) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
 
@@ -292,8 +296,7 @@ export default function Configuracoes() {
     // nicho na hora (useNicho recomputa a partir do tipo atualizado). Reflete
     // também as coordenadas efetivamente gravadas.
     setLatitude(latFinal); setLongitude(lngFinal)
-    setFachadaFile(null)
-    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, foto_fachada_url: fotoFachadaUrl })
+    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais })
 
     // (o toast de confirmação com as coordenadas já foi mostrado acima)
     setSalvando(false)
@@ -402,8 +405,8 @@ export default function Configuracoes() {
           </div>
         )}
 
-        {/* Foto da fachada */}
-        <FachadaUpload atual={loja.foto_fachada_url} nome={nome} tipo={tipo} onSelect={setFachadaFile} />
+        {/* Fotos da fachada */}
+        <FachadaUpload atuais={loja.fotos_fachada} nome={nome} tipo={tipo} onChange={setFachadaItems} />
 
         {/* CPF / CNPJ com olhinho */}
         <div>

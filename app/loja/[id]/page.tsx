@@ -21,13 +21,13 @@ type Loja = {
   horario: string | null
   latitude: number | null
   longitude: number | null
-  foto_fachada_url: string | null
+  fotos_fachada: string[] | null
 }
 
 async function carregar(id: string) {
   const supabase = createAdminClient()
   const [lojaRes, prodRes, avalRes] = await Promise.all([
-    supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, foto_fachada_url').eq('id', id).maybeSingle(),
+    supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada').eq('id', id).maybeSingle(),
     supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
     supabase.from('avaliacoes_lojas').select('nota, comentario, created_at').eq('loja_id', id).order('created_at', { ascending: false }),
   ])
@@ -73,7 +73,7 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
       </header>
 
       <div className="max-w-2xl mx-auto p-4">
-        <FachadaBanner url={loja.foto_fachada_url} nome={loja.nome} tipo={loja.tipo} />
+        <FachadaBanner fotos={loja.fotos_fachada} nome={loja.nome} tipo={loja.tipo} />
 
         {/* Cabeçalho da loja */}
         <div className="bg-gray-900 rounded-2xl p-5 mb-4">

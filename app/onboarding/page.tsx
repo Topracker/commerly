@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { salvarNichoCustom } from '../lib/nicheStore'
 import { MODULOS, type ModuloKey } from '../lib/nichos'
 import { EnderecoAutocomplete } from '../components/EnderecoAutocomplete'
-import { FachadaUpload } from '../components/FachadaUpload'
+import { FachadaUpload, type FachadaItem } from '../components/FachadaUpload'
 import { uploadFachada } from '../lib/fachada'
 import {
   validarCPF, validarCNPJ, formatarDocumento,
@@ -50,7 +50,7 @@ export default function Onboarding() {
   const [instagram, setInstagram] = useState('')
   const [horarioAbertura, setHorarioAbertura] = useState('08:00')
   const [horarioFechamento, setHorarioFechamento] = useState('18:00')
-  const [fachadaFile, setFachadaFile] = useState<File | null>(null)
+  const [fachadaItems, setFachadaItems] = useState<FachadaItem[]>([])
 
   const [erroDoc, setErroDoc] = useState('')
   const [erroTel, setErroTel] = useState('')
@@ -174,13 +174,19 @@ export default function Onboarding() {
       return
     }
 
-    // Foto da fachada: só dá pra subir agora que temos o loja_id (o caminho no
-    // Storage é "{loja_id}/fachada.jpg"). Se falhar, segue o fluxo — a foto
-    // pode ser adicionada depois nas Configurações.
-    if (fachadaFile && lojaInserida?.id) {
-      const res = await uploadFachada(supabase, lojaInserida.id, fachadaFile)
-      if ('url' in res) {
-        await supabase.from('lojas').update({ foto_fachada_url: res.url }).eq('id', lojaInserida.id)
+    // Fotos da fachada: só dá pra subir agora que temos o loja_id (o caminho no
+    // Storage inclui o "{loja_id}/"). Se falhar, segue o fluxo — dá pra
+    // adicionar depois nas Configurações.
+    if (fachadaItems.length && lojaInserida?.id) {
+      const urls: string[] = []
+      for (const it of fachadaItems) {
+        if (it.tipo === 'file') {
+          const res = await uploadFachada(supabase, lojaInserida.id, it.file)
+          if ('url' in res) urls.push(res.url)
+        }
+      }
+      if (urls.length) {
+        await supabase.from('lojas').update({ fotos_fachada: urls }).eq('id', lojaInserida.id)
       }
     }
 
@@ -288,8 +294,8 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Foto da fachada */}
-          <FachadaUpload nome={nome} tipo={tipo} onSelect={setFachadaFile} />
+          {/* Fotos da fachada */}
+          <FachadaUpload nome={nome} tipo={tipo} onChange={setFachadaItems} />
 
           {/* CPF / CNPJ */}
           <div>

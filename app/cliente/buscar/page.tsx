@@ -57,7 +57,7 @@ export default function ClienteBuscar() {
     setBuscando(true)
     let query = supabase
       .from('lojas_publicas')
-      .select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, foto_fachada_url')
+      .select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada')
       .order('nome', { ascending: true })
       .limit(50)
 
@@ -177,9 +177,9 @@ export default function ClienteBuscar() {
               className="bg-gray-900 rounded-2xl p-4 text-left hover:bg-gray-800 transition"
             >
               <div className="flex items-start gap-3">
-                {loja.foto_fachada_url ? (
+                {loja.fotos_fachada?.[0] ? (
                   <img
-                    src={loja.foto_fachada_url}
+                    src={loja.fotos_fachada[0]}
                     alt={`Fachada de ${loja.nome}`}
                     className="w-16 h-16 rounded-xl object-cover shrink-0"
                   />
