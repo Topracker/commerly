@@ -15,6 +15,7 @@ const ROTAS_COMERCIANTE = [
   '/feedback',
   '/assistente',
   '/integracoes',
+  '/servicos',
 ]
 
 export async function proxy(request: NextRequest) {
@@ -78,6 +79,7 @@ export const config = {
     '/feedback/:path*',
     '/assistente/:path*',
     '/integracoes/:path*',
+    '/servicos/:path*',
     '/onboarding/:path*',
   ],
 }
