@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { createAdminClient } from '../../lib/supabase-admin'
 import { Estrelas } from '../../components/Estrelas'
 import { MiniMapa } from '../../components/MiniMapa'
+import { FachadaBanner } from '../../components/FachadaBanner'
 import { Phone, AtSign, MapPin, Clock } from 'lucide-react'
 
 // Página pública da loja — acessível sem login. Lê os dados via service role
@@ -20,12 +21,13 @@ type Loja = {
   horario: string | null
   latitude: number | null
   longitude: number | null
+  foto_fachada_url: string | null
 }
 
 async function carregar(id: string) {
   const supabase = createAdminClient()
   const [lojaRes, prodRes, avalRes] = await Promise.all([
-    supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude').eq('id', id).maybeSingle(),
+    supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, foto_fachada_url').eq('id', id).maybeSingle(),
     supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
     supabase.from('avaliacoes_lojas').select('nota, comentario, created_at').eq('loja_id', id).order('created_at', { ascending: false }),
   ])
@@ -71,6 +73,8 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
       </header>
 
       <div className="max-w-2xl mx-auto p-4">
+        <FachadaBanner url={loja.foto_fachada_url} nome={loja.nome} tipo={loja.tipo} />
+
         {/* Cabeçalho da loja */}
         <div className="bg-gray-900 rounded-2xl p-5 mb-4">
           <div className="flex items-start justify-between gap-3 mb-3">

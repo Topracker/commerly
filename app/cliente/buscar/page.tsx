@@ -6,7 +6,7 @@ import { ClienteLayout } from '../../components/ClienteLayout'
 import { getRatingsPorLoja } from '../../lib/avaliacoes'
 import { MapaLojas } from '../../components/MapaLojas'
 import { distanciaKm, formatarDistancia } from '../../lib/geo'
-import { Search, MapPin, Phone, Star, List, Map as MapIcon, Navigation } from 'lucide-react'
+import { Search, MapPin, Phone, Star, List, Map as MapIcon, Navigation, Store } from 'lucide-react'
 
 const TIPOS = ['Todos', 'Barbearia', 'Distribuidora de bebidas', 'Mercado', 'Loja de roupas', 'Lanchonete', 'Salão de beleza', 'Eletrônicos', 'Outro']
 
@@ -57,7 +57,7 @@ export default function ClienteBuscar() {
     setBuscando(true)
     let query = supabase
       .from('lojas_publicas')
-      .select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude')
+      .select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, foto_fachada_url')
       .order('nome', { ascending: true })
       .limit(50)
 
@@ -176,7 +176,18 @@ export default function ClienteBuscar() {
               onClick={() => router.push(`/cliente/loja/${loja.id}`)}
               className="bg-gray-900 rounded-2xl p-4 text-left hover:bg-gray-800 transition"
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                {loja.foto_fachada_url ? (
+                  <img
+                    src={loja.foto_fachada_url}
+                    alt={`Fachada de ${loja.nome}`}
+                    className="w-16 h-16 rounded-xl object-cover shrink-0"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-xl shrink-0 flex items-center justify-center bg-gradient-to-br from-blue-600/30 via-gray-800 to-green-600/20">
+                    <Store size={22} className="text-white/60" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-white font-semibold">{loja.nome}</p>

@@ -7,6 +7,8 @@ import { Toast } from '../components/Toast'
 import { salvarNichoCustom, carregarNichoCustom } from '../lib/nicheStore'
 import { MODULOS, type ModuloKey } from '../lib/nichos'
 import { EnderecoAutocomplete } from '../components/EnderecoAutocomplete'
+import { FachadaUpload } from '../components/FachadaUpload'
+import { uploadFachada } from '../lib/fachada'
 import { Eye, EyeOff, Store, Copy, ExternalLink } from 'lucide-react'
 
 // Módulos que a IA pode sugerir / o comerciante pode escolher no fluxo "Outro".
@@ -118,6 +120,7 @@ export default function Configuracoes() {
   const [horarioAbertura, setHorarioAbertura] = useState('08:00')
   const [horarioFechamento, setHorarioFechamento] = useState('18:00')
   const [metaMensal, setMetaMensal] = useState(5000)
+  const [fachadaFile, setFachadaFile] = useState<File | null>(null)
 
   const [erroDoc, setErroDoc] = useState('')
   const [erroTel, setErroTel] = useState('')
@@ -248,8 +251,18 @@ export default function Configuracoes() {
     const lngFinal = coordRef.current.lng ?? longitude
 
     setSalvando(true)
+
+    // Foto da fachada: sobe pro Storage ("{loja_id}/fachada.jpg") e grava a URL.
+    // Mantém a atual se nada novo foi escolhido.
+    let fotoFachadaUrl = loja.foto_fachada_url ?? null
+    if (fachadaFile) {
+      const res = await uploadFachada(supabase, loja.id, fachadaFile)
+      if ('error' in res) { mostrarToast(res.error, 'erro'); setSalvando(false); return }
+      fotoFachadaUrl = res.url
+    }
+
     const { error } = await supabase.from('lojas').update({
-      nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal,
+      nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, foto_fachada_url: fotoFachadaUrl,
     }).eq('id', loja.id)
     if (error) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
 
@@ -279,7 +292,8 @@ export default function Configuracoes() {
     // nicho na hora (useNicho recomputa a partir do tipo atualizado). Reflete
     // também as coordenadas efetivamente gravadas.
     setLatitude(latFinal); setLongitude(lngFinal)
-    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal })
+    setFachadaFile(null)
+    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, foto_fachada_url: fotoFachadaUrl })
 
     // (o toast de confirmação com as coordenadas já foi mostrado acima)
     setSalvando(false)
@@ -387,6 +401,9 @@ export default function Configuracoes() {
             )}
           </div>
         )}
+
+        {/* Foto da fachada */}
+        <FachadaUpload atual={loja.foto_fachada_url} nome={nome} tipo={tipo} onSelect={setFachadaFile} />
 
         {/* CPF / CNPJ com olhinho */}
         <div>

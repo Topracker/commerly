@@ -8,6 +8,7 @@ import { useToast } from '../../../hooks/useToast'
 import { Toast } from '../../../components/Toast'
 import { isFavorito, toggleFavorito } from '../../../lib/favoritos'
 import { MiniMapa } from '../../../components/MiniMapa'
+import { FachadaBanner } from '../../../components/FachadaBanner'
 import { Phone, AtSign, MapPin, Clock, MessageCircle, ArrowLeft, Heart } from 'lucide-react'
 
 export default function ClienteLoja() {
@@ -42,7 +43,7 @@ export default function ClienteLoja() {
 
   async function carregarLoja() {
     const [lojaRes, prodRes, avalRes] = await Promise.all([
-      supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude').eq('id', id).single(),
+      supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, foto_fachada_url').eq('id', id).single(),
       supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
       supabase.from('avaliacoes_lojas').select('nota, comentario, created_at, cliente_id').eq('loja_id', id).order('created_at', { ascending: false }),
     ])
@@ -104,6 +105,8 @@ export default function ClienteLoja() {
       </header>
 
       <div className="max-w-2xl mx-auto p-4">
+        <FachadaBanner url={loja.foto_fachada_url} nome={loja.nome} tipo={loja.tipo} />
+
         <div className="bg-gray-900 rounded-2xl p-5 mb-4">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div>
