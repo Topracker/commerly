@@ -5,7 +5,7 @@ import { useEntregador } from '../../hooks/useEntregador'
 import { useToast } from '../../hooks/useToast'
 import { Toast } from '../../components/Toast'
 import { EntregadorLayout } from '../../components/EntregadorLayout'
-import { isDelivery, STATUS_META, type PedidoCliente } from '../../lib/pedidosClientes'
+import { STATUS_META, type PedidoCliente } from '../../lib/pedidosClientes'
 import { STATUS_PARCERIA_META, GPS_INTERVALO_MS, type ParceriaEntregador } from '../../lib/entregadores'
 import { Store, MapPin, Navigation, CircleDollarSign, Check, Handshake, PackageCheck, Star, History } from 'lucide-react'
 
@@ -47,13 +47,17 @@ function EntregadorDashboard() {
 
   async function carregar() {
     const [lojasRes, parceriasRes, pedidosRes, avalRes] = await Promise.all([
-      supabase.from('lojas_publicas').select('id, nome, tipo, localizacao'),
+      // Lojas de delivery via API service role (a view lojas_publicas está sob
+      // RLS em produção e retorna vazio para o entregador — ver a rota).
+      fetch('/api/entregador/lojas-delivery')
+        .then(r => (r.ok ? r.json() : { lojas: [] }))
+        .catch(() => ({ lojas: [] })),
       supabase.from('entregador_parcerias').select('*').eq('entregador_id', entregador!.id),
       supabase.from('pedidos_clientes').select('*').order('created_at', { ascending: false }),
       supabase.from('avaliacoes_entregadores').select('nota, comentario, created_at')
         .eq('entregador_id', entregador!.id).order('created_at', { ascending: false }),
     ])
-    setLojas((lojasRes.data || []).filter((l: any) => isDelivery(l.tipo)))
+    setLojas(lojasRes.lojas || [])
     setParcerias((parceriasRes.data || []) as ParceriaEntregador[])
     setPedidos((pedidosRes.data || []) as PedidoCliente[])
     setAvaliacoes((avalRes.data || []) as Avaliacao[])

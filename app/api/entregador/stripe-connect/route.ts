@@ -37,12 +37,11 @@ export async function GET(request: NextRequest) {
   try {
     let accountId = entregador.stripe_account_id
     if (!accountId) {
+      // Mínimo possível para isolar a causa do erro de criação. Se funcionar,
+      // reintroduzir capabilities.transfers (necessário para o payout).
       const account = await stripe.accounts.create({
         type: 'express',
         country: 'BR',
-        email: user.email,
-        business_type: 'individual',
-        capabilities: { transfers: { requested: true } },
         metadata: { entregador_id: entregador.id },
       })
       accountId = account.id
@@ -57,7 +56,19 @@ export async function GET(request: NextRequest) {
     })
     return NextResponse.redirect(link.url, { status: 303 })
   } catch (e) {
-    console.error('[entregador/stripe-connect] erro:', e)
+    // Log detalhado nos logs da Vercel (mensagem exata da Stripe).
+    const err = e as {
+      message?: string; type?: string; code?: string; statusCode?: number
+      requestId?: string; raw?: { message?: string }
+    }
+    console.error('[entregador/stripe-connect] falha ao criar conta/link:', {
+      message: err?.message,
+      type: err?.type,
+      code: err?.code,
+      statusCode: err?.statusCode,
+      requestId: err?.requestId,
+      raw: err?.raw?.message,
+    })
     return NextResponse.redirect(new URL('/entregador-delivery/dashboard?stripe=erro', request.url))
   }
 }
