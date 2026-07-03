@@ -5,9 +5,12 @@ import Stripe from 'stripe'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
 
-// Onboarding do entregador no Stripe Connect (conta Express). Cria a conta (se
-// ainda não existir) e redireciona para o fluxo de cadastro da Stripe. Ao
-// concluir, a Stripe volta para o dashboard, que confere o status.
+// Onboarding do entregador no Stripe Connect (novo modelo de contas conectadas
+// v2). Cria a conta v2 (se ainda não existir) com as configurações merchant
+// (card_payments) e recipient (repasses/transferências para o saldo Stripe),
+// país Brasil e pessoa física; depois redireciona para o fluxo de cadastro
+// (account_onboarding). Ao concluir, a Stripe volta para o dashboard, que
+// confere o status.
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies()
   const origin = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin
@@ -37,12 +40,30 @@ export async function GET(request: NextRequest) {
   try {
     let accountId = entregador.stripe_account_id
     if (!accountId) {
-      const account = await stripe.accounts.create({
-        type: 'express',
-        country: 'BR',
-        email: user.email,
-        business_type: 'individual',
-        capabilities: { transfers: { requested: true } },
+      const account = await stripe.v2.core.accounts.create({
+        contact_email: user.email ?? undefined,
+        display_name: entregador.nome,
+        dashboard: 'express',
+        identity: {
+          country: 'br',
+          entity_type: 'individual',
+        },
+        configuration: {
+          // Merchant: cobrança de cartão (card_payments).
+          merchant: {
+            capabilities: {
+              card_payments: { requested: true },
+            },
+          },
+          // Recipient: recebe repasses/transferências no saldo Stripe.
+          recipient: {
+            capabilities: {
+              stripe_balance: {
+                stripe_transfers: { requested: true },
+              },
+            },
+          },
+        },
         metadata: { entregador_id: entregador.id },
       })
       accountId = account.id
