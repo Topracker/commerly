@@ -131,6 +131,13 @@ export default function PedidosComerciante() {
             <p className="flex justify-between"><span>Taxa de entrega</span><span>R$ {Number(p.taxa_entrega).toFixed(2)}</span></p>
           )}
           <p className="font-display text-white font-bold text-sm mt-1">Total: R$ {Number(p.total).toFixed(2)}</p>
+          <p className="mt-1">
+            {p.pagamento_metodo === 'online' ? (
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-300 font-medium">💳 Pago online</span>
+            ) : (
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-medium">💵 Recebe na entrega</span>
+            )}
+          </p>
         </div>
 
         {/* Entrega por entregador parceiro */}

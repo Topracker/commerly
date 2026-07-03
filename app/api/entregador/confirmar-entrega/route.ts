@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
   const { data: pedido } = await admin
     .from('pedidos_clientes')
-    .select('id, entregador_id, status, codigo_confirmacao, valor_corrida, pagamento_corrida')
+    .select('*') // '*' evita erro se as colunas de pagamento ainda não existirem (pré-migração)
     .eq('id', pedido_id).single()
   if (!pedido) return NextResponse.json({ error: 'Pedido não encontrado' }, { status: 404 })
   if (pedido.entregador_id !== entregador.id) return NextResponse.json({ error: 'Este pedido não é seu.' }, { status: 403 })
@@ -47,9 +47,15 @@ export async function POST(request: NextRequest) {
 
   // Payout da corrida via Stripe Connect (best-effort — a entrega já foi
   // confirmada; se o transfer falhar, pagamento_corrida fica 'pendente').
+  //
+  // Só transfere quando o pedido foi PAGO ONLINE: aí a plataforma reteve a taxa
+  // de entrega (destination charge com transfer_data.amount=subtotal) e tem saldo
+  // para repassar. Em pedidos "na entrega" (dinheiro/Pix) o entregador recebe a
+  // corrida direto do cliente — não há transfer via Stripe.
   let pago = false
   const valor = Number(pedido.valor_corrida) || 0
-  if (process.env.STRIPE_SECRET_KEY && entregador.stripe_account_id && entregador.stripe_onboarded && valor > 0) {
+  const pagoOnline = pedido.pagamento_metodo === 'online' && pedido.pagamento_status === 'pago'
+  if (pagoOnline && process.env.STRIPE_SECRET_KEY && entregador.stripe_account_id && entregador.stripe_onboarded && valor > 0) {
     try {
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
       await stripe.transfers.create({

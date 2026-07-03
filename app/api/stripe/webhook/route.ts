@@ -24,6 +24,46 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient()
 
+  // --- Pagamento ONLINE de um pedido de delivery -> cria o pedido real. -----
+  // "O pedido só é criado após o pagamento confirmado": aqui movemos o pedido
+  // pendente para pedidos_clientes (o que também dispara a notificação da loja).
+  if (event.type === 'checkout.session.completed' && (event.data.object as any).metadata?.tipo === 'pedido_online') {
+    const session = event.data.object as Stripe.Checkout.Session
+    if (session.payment_status !== 'paid') return NextResponse.json({ ok: true })
+
+    const pendenteId = session.metadata?.pendente_id
+    if (!pendenteId) return NextResponse.json({ ok: true })
+
+    const { data: pend } = await supabase.from('pedidos_pendentes').select('*').eq('id', pendenteId).single()
+    if (!pend) return NextResponse.json({ ok: true }) // já processado ou inexistente
+
+    const paymentIntent = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id
+
+    const { error: insErr } = await supabase.from('pedidos_clientes').insert({
+      loja_id: pend.loja_id,
+      cliente_id: pend.cliente_id,
+      itens: pend.itens,
+      total: pend.total,               // recalculado pelo guard (bate com o cobrado)
+      taxa_entrega: pend.taxa_entrega,
+      endereco_entrega: pend.endereco_entrega,
+      entrega_latitude: pend.entrega_latitude,
+      entrega_longitude: pend.entrega_longitude,
+      observacao: pend.observacao,
+      cliente_nome: pend.cliente_nome,
+      cliente_telefone: pend.cliente_telefone,
+      pagamento_metodo: 'online',
+      pagamento_status: 'pago',
+      stripe_session_id: session.id,
+      stripe_payment_intent: paymentIntent,
+    })
+    if (insErr) {
+      console.error('[stripe/webhook] erro ao criar pedido pago:', insErr.message)
+      return NextResponse.json({ ok: false }, { status: 500 }) // Stripe re-tenta
+    }
+    await supabase.from('pedidos_pendentes').delete().eq('id', pendenteId)
+    return NextResponse.json({ ok: true })
+  }
+
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
     const lojaId = session.client_reference_id || session.metadata?.loja_id

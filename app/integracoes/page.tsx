@@ -176,18 +176,41 @@ export default function Integracoes() {
   const [modalWebhookAberto, setModalWebhookAberto] = useState(false)
   const [webhookCopiado, setWebhookCopiado] = useState(false)
 
+  const [stripeConectado, setStripeConectado] = useState(false)
+  const [stripeOnboarded, setStripeOnboarded] = useState(false)
+  const [stripeChecando, setStripeChecando] = useState(true)
+
   useEffect(() => {
     if (loja) {
       carregarStatusMP()
       carregarStatusPB()
+      carregarStatusStripe()
     }
   }, [loja])
 
   useEffect(() => {
-    const mp = new URLSearchParams(window.location.search).get('mp')
+    const params = new URLSearchParams(window.location.search)
+    const mp = params.get('mp')
     if (mp === 'conectado') mostrarToast('Mercado Pago conectado com sucesso!', 'sucesso')
     else if (mp === 'erro') mostrarToast('Erro ao conectar Mercado Pago. Tente novamente.', 'erro')
+    const st = params.get('stripe')
+    if (st === 'ok') mostrarToast('Conta Stripe conectada! Confirmando status...', 'sucesso')
+    else if (st === 'erro') mostrarToast('Erro ao conectar a Stripe. Tente novamente.', 'erro')
+    else if (st === 'indisponivel') mostrarToast('Pagamento online indisponível no momento.', 'erro')
   }, [])
+
+  async function carregarStatusStripe() {
+    setStripeChecando(true)
+    try {
+      const res = await fetch('/api/loja/stripe-status')
+      const d = await res.json().catch(() => ({}))
+      setStripeConectado(!!d.conectado)
+      setStripeOnboarded(!!d.onboarded)
+    } catch {
+      /* mantém o estado padrão */
+    }
+    setStripeChecando(false)
+  }
 
   async function carregarStatusMP() {
     const { data } = await supabase.from('mercadopago_conexoes').select('mp_user_id').eq('loja_id', loja.id).maybeSingle()
@@ -363,6 +386,52 @@ export default function Integracoes() {
             <button onClick={conectarPB} disabled={pbSalvando} className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
               {pbSalvando ? 'Conectando...' : 'Conectar PagBank'}
             </button>
+          </div>
+        )}
+      </div>
+
+      {/* Stripe — pagamento online dos pedidos de delivery */}
+      <div className="bg-gray-900 rounded-2xl p-6 mt-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-[#635BFF] flex items-center justify-center text-white font-bold text-xs">S</div>
+          <div>
+            <h2 className="text-white font-semibold">Stripe — Pagamento online</h2>
+            <p className="text-gray-500 text-xs">Receba os pedidos de delivery pagos no cartão pelo app</p>
+          </div>
+        </div>
+
+        {stripeChecando ? (
+          <p className="text-gray-500 text-sm">Verificando status...</p>
+        ) : stripeOnboarded ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2 bg-green-950 border border-green-800 rounded-xl px-4 py-3">
+              <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
+              <p className="text-green-300 text-sm">Pronto para receber pagamentos online</p>
+            </div>
+            <p className="text-gray-400 text-xs">
+              Quando um cliente paga o pedido no cartão, o valor dos produtos cai na sua conta Stripe automaticamente. A taxa de entrega vai separada para o entregador.
+            </p>
+            <a href="/api/loja/stripe-connect" className="block text-center bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold py-3 rounded-xl transition text-sm">
+              Gerenciar conta Stripe
+            </a>
+          </div>
+        ) : stripeConectado ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2 bg-yellow-950 border border-yellow-800 rounded-xl px-4 py-3">
+              <span className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" />
+              <p className="text-yellow-300 text-sm">Configuração incompleta</p>
+            </div>
+            <p className="text-gray-400 text-xs">Falta concluir o cadastro na Stripe para começar a receber. Continue de onde parou:</p>
+            <a href="/api/loja/stripe-connect" className="block text-center bg-[#635BFF] hover:bg-[#5147e6] text-white font-semibold py-3 rounded-xl transition">
+              Concluir cadastro na Stripe
+            </a>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <p className="text-gray-400 text-sm">Conecte sua conta Stripe para aceitar pagamento no cartão nos pedidos de delivery. Sem isso, os clientes só podem pagar na entrega (dinheiro/Pix).</p>
+            <a href="/api/loja/stripe-connect" className="block text-center bg-[#635BFF] hover:bg-[#5147e6] text-white font-semibold py-3 rounded-xl transition">
+              Conectar Stripe
+            </a>
           </div>
         )}
       </div>

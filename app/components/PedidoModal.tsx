@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { X, Plus, Minus, ShoppingBag, MapPin, Check } from 'lucide-react'
+import { X, Plus, Minus, ShoppingBag, MapPin, Check, CreditCard, Banknote } from 'lucide-react'
 import type { ItemPedidoCliente } from '../lib/pedidosClientes'
 import { distanciaKm, taxaEntregaPorDistancia, formatarDistancia } from '../lib/geo'
 import { MapaConfirmar } from './MapaConfirmar'
@@ -10,7 +10,7 @@ type Produto = { id: string; nome: string; preco_venda: number | string; categor
 type Sugestao = { lat: number; lng: number; display_name: string }
 
 type Props = {
-  loja: { id: string; nome: string; latitude?: number | null; longitude?: number | null }
+  loja: { id: string; nome: string; latitude?: number | null; longitude?: number | null; aceita_pagamento_online?: boolean }
   cliente: { id: string; nome?: string | null; telefone?: string | null }
   produtos: Produto[]
   supabase: any
@@ -26,6 +26,11 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   const [endereco, setEndereco] = useState('')
   const [observacao, setObservacao] = useState('')
   const [enviando, setEnviando] = useState(false)
+  // Forma de pagamento: 'online' (cartão via Stripe) ou 'entrega' (dinheiro/Pix).
+  // Oferece online, exceto quando a loja sinaliza explicitamente que não aceita.
+  // (A prontidão real é validada no servidor ao criar o checkout — 409 amigável.)
+  const aceitaOnline = loja.aceita_pagamento_online !== false
+  const [pagamento, setPagamento] = useState<'online' | 'entrega'>('entrega')
 
   // Autocomplete de endereço (/api/geocode?suggest=1) + confirmação no mapa.
   const [sugestoes, setSugestoes] = useState<Sugestao[]>([])
@@ -107,6 +112,38 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
     if (!endereco.trim()) { onErro('Informe o endereço de entrega.'); return }
     if (!coord) { onErro('Selecione o endereço nas sugestões e confirme o ponto no mapa para calcular a taxa.'); return }
     setEnviando(true)
+
+    // Pagamento ONLINE: cria a sessão de checkout no servidor e vai pro Stripe.
+    // O pedido só é criado após o pagamento confirmado (webhook).
+    if (pagamento === 'online') {
+      try {
+        const res = await fetch('/api/cliente/pedido-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            loja_id: loja.id,
+            itens,
+            endereco_entrega: endereco.trim(),
+            entrega_latitude: coord.lat,
+            entrega_longitude: coord.lng,
+            observacao: observacao.trim() || null,
+          }),
+        })
+        const d = await res.json().catch(() => ({}))
+        if (!res.ok || !d.url) {
+          onErro(d.error || 'Não foi possível iniciar o pagamento online.')
+          setEnviando(false)
+          return
+        }
+        window.location.href = d.url // redireciona para o Stripe Checkout
+      } catch {
+        onErro('Erro de rede ao iniciar o pagamento. Tente novamente.')
+        setEnviando(false)
+      }
+      return
+    }
+
+    // Pagamento NA ENTREGA (dinheiro/Pix): cria o pedido direto.
     const { error } = await supabase.from('pedidos_clientes').insert({
       loja_id: loja.id,
       cliente_id: cliente.id,
@@ -121,6 +158,8 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
       observacao: observacao.trim() || null,
       cliente_nome: cliente.nome || null,
       cliente_telefone: cliente.telefone || null,
+      // pagamento_metodo default 'entrega' no banco — omitido para não quebrar
+      // caso a coluna ainda não exista (pré-migração).
     })
     if (error) { onErro('Não foi possível enviar o pedido. Tente novamente.'); setEnviando(false); return }
     setEnviando(false)
@@ -234,6 +273,48 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
               className="w-full bg-[#171C22] border border-[#232A32] text-white rounded-xl px-4 py-3 outline-none focus:border-[#C1441E]/60 resize-none text-sm"
             />
           </div>
+
+          {/* Forma de pagamento */}
+          <div>
+            <p className="text-gray-300 text-sm font-medium mb-2">Forma de pagamento</p>
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                type="button"
+                onClick={() => setPagamento('entrega')}
+                className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${pagamento === 'entrega' ? 'border-[#6FD98F]/60 bg-[#6FD98F]/10' : 'border-[#232A32] bg-[#171C22] hover:border-[#2b3440]'}`}
+              >
+                <Banknote size={20} className="text-[#6FD98F] shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-medium">Pagar na entrega</p>
+                  <p className="text-gray-500 text-xs">Dinheiro ou Pix direto com o entregador</p>
+                </div>
+                {pagamento === 'entrega' && <Check size={16} className="text-[#6FD98F] shrink-0" />}
+              </button>
+
+              {aceitaOnline ? (
+                <button
+                  type="button"
+                  onClick={() => setPagamento('online')}
+                  className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${pagamento === 'online' ? 'border-[#6FD98F]/60 bg-[#6FD98F]/10' : 'border-[#232A32] bg-[#171C22] hover:border-[#2b3440]'}`}
+                >
+                  <CreditCard size={20} className="text-[#6FD98F] shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium">Pagar online agora</p>
+                    <p className="text-gray-500 text-xs">Cartão de crédito ou débito (Stripe)</p>
+                  </div>
+                  {pagamento === 'online' && <Check size={16} className="text-[#6FD98F] shrink-0" />}
+                </button>
+              ) : (
+                <div className="flex items-center gap-3 rounded-xl border border-[#232A32] bg-[#171C22]/50 p-3 opacity-60">
+                  <CreditCard size={20} className="text-gray-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-gray-400 text-sm font-medium">Pagamento online</p>
+                    <p className="text-gray-600 text-xs">Esta loja ainda não aceita cartão pelo app</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="border-t border-[#232A32] px-5 py-4 shrink-0">
@@ -265,8 +346,10 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
             disabled={enviando || itens.length === 0}
             className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
           >
-            <ShoppingBag size={18} />
-            {enviando ? 'Enviando...' : 'Enviar pedido'}
+            {pagamento === 'online' ? <CreditCard size={18} /> : <ShoppingBag size={18} />}
+            {enviando
+              ? (pagamento === 'online' ? 'Redirecionando...' : 'Enviando...')
+              : (pagamento === 'online' ? 'Ir para pagamento' : 'Enviar pedido')}
           </button>
         </div>
       </div>

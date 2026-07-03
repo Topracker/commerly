@@ -45,6 +45,22 @@ export default function ClientePedidos() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [temAndamento])
 
+  // Volta do Stripe Checkout. Em ?pagamento=sucesso o pedido é criado pelo
+  // webhook (assíncrono) — recarrega algumas vezes até ele aparecer.
+  useEffect(() => {
+    if (!cliente) return
+    const pg = new URLSearchParams(window.location.search).get('pagamento')
+    if (pg === 'sucesso') {
+      mostrarToast('Pagamento confirmado! Preparando seu pedido...', 'sucesso')
+      const t1 = setTimeout(() => carregar(true), 2500)
+      const t2 = setTimeout(() => carregar(true), 6000)
+      return () => { clearTimeout(t1); clearTimeout(t2) }
+    } else if (pg === 'cancelado') {
+      mostrarToast('Pagamento cancelado. Seu pedido não foi feito.', 'erro')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cliente])
+
   async function carregar(silencioso: boolean) {
     if (!silencioso) setCarregando(true)
     const { data } = await supabase
@@ -234,6 +250,17 @@ export default function ClientePedidos() {
                       <MapPin size={13} className="shrink-0" /><span className="truncate">{p.endereco_entrega}</span>
                     </p>
                     <p className="font-display text-white font-bold shrink-0">R$ {Number(p.total).toFixed(2)}</p>
+                  </div>
+                  <div className="flex justify-end mt-1.5">
+                    {p.pagamento_metodo === 'online' ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-300 font-medium">
+                        💳 Pago online
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-medium">
+                        💵 Pagar na entrega
+                      </span>
+                    )}
                   </div>
                   {p.observacao && <p className="text-gray-500 text-xs mt-2 italic">"{p.observacao}"</p>}
 
