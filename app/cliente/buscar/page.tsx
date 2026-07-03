@@ -60,12 +60,12 @@ export default function ClienteBuscar() {
     const params = new URLSearchParams()
     if (tipoFiltro !== 'Todos') params.set('tipo', tipoFiltro)
     if (busca.trim()) params.set('busca', busca.trim())
-    const base = await fetch(`/api/cliente/lojas?${params.toString()}`)
+    const base: any[] = await fetch(`/api/cliente/lojas?${params.toString()}`)
       .then(r => (r.ok ? r.json() : { lojas: [] }))
       .then(d => d.lojas || [])
       .catch(() => [])
     const ratings = await getRatingsPorLoja(supabase, base.map(l => l.id))
-    const comNota = base.map(l => ({
+    const comNota = base.map((l: any) => ({
       ...l,
       media: ratings[l.id]?.media ?? 0,
       totalAval: ratings[l.id]?.total ?? 0,

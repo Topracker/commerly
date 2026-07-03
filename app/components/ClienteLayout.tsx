@@ -2,11 +2,14 @@
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
-import { Search, Heart, MessageCircle, User, LogOut, Menu, X, Trophy, ShoppingBag } from 'lucide-react'
+import { useNotificacoes } from '../hooks/useNotificacoes'
+import { NotificacaoToast } from './NotificacaoToast'
+import { Search, Heart, MessageCircle, User, LogOut, Menu, X, Trophy, ShoppingBag, Bell } from 'lucide-react'
 
 const MENU = [
   { label: 'Buscar lojas', path: '/cliente/buscar', icon: Search },
   { label: 'Meus pedidos', path: '/cliente/pedidos', icon: ShoppingBag },
+  { label: 'Notificações', path: '/cliente/notificacoes', icon: Bell },
   { label: 'Ranking', path: '/cliente/ranking', icon: Trophy },
   { label: 'Lojas favoritas', path: '/cliente/favoritas', icon: Heart },
   { label: 'Mensagens', path: '/cliente/mensagens', icon: MessageCircle },
@@ -24,6 +27,7 @@ type Props = {
 export function ClienteLayout({ cliente, sair, children, noPadding = false, fullHeight = false }: Props) {
   const [menuAberto, setMenuAberto] = useState(false)
   const [naoLidas, setNaoLidas] = useState(0)
+  const { naoLidas: notifNaoLidas, toastNotif, fecharToast } = useNotificacoes()
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
@@ -66,6 +70,11 @@ export function ClienteLayout({ cliente, sair, children, noPadding = false, full
                 {naoLidas}
               </span>
             )}
+            {item.label === 'Notificações' && notifNaoLidas > 0 && (
+              <span className="bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
+                {notifNaoLidas}
+              </span>
+            )}
           </button>
         )
       })}
@@ -83,6 +92,7 @@ export function ClienteLayout({ cliente, sair, children, noPadding = false, full
 
   return (
     <div className={`${fullHeight ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-gray-950 flex`}>
+      <NotificacaoToast notif={toastNotif} onFechar={fecharToast} />
       <aside className="hidden md:flex w-56 bg-gray-900 flex-col fixed h-full z-10">
         <SidebarConteudo />
       </aside>

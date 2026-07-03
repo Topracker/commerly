@@ -3,15 +3,18 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
 import { useNicho } from '../hooks/useNicho'
+import { useNotificacoes } from '../hooks/useNotificacoes'
+import { NotificacaoToast } from './NotificacaoToast'
 import { isDelivery } from '../lib/pedidosClientes'
 import {
   TrendingDown, Clock, Users,
-  MessageSquare, MessageCircle, Settings, LogOut, Menu, X, Wallet, Home, Sparkles, Plug, Crown, ShoppingBag
+  MessageSquare, MessageCircle, Settings, LogOut, Menu, X, Wallet, Home, Sparkles, Plug, Crown, ShoppingBag, Bell
 } from 'lucide-react'
 
 // Itens sempre visíveis no topo.
 const MENU_TOPO = [
   { label: 'Dashboard', path: '/dashboard', icon: Home },
+  { label: 'Notificações', sub: 'Pedidos e avisos', path: '/notificacoes', icon: Bell },
   { label: 'Assistente IA', sub: 'Perguntas sobre a loja', path: '/assistente', icon: Sparkles },
 ]
 
@@ -41,6 +44,7 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
   const [menuAberto, setMenuAberto] = useState(false)
   const [naoLidas, setNaoLidas] = useState(0)
   const [pedidosNovos, setPedidosNovos] = useState(0)
+  const { naoLidas: notifNaoLidas, toastNotif, fecharToast } = useNotificacoes()
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
@@ -124,6 +128,11 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
                   {naoLidas}
                 </span>
               )}
+              {item.label === 'Notificações' && notifNaoLidas > 0 && (
+                <span className="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
+                  {notifNaoLidas}
+                </span>
+              )}
               {item.label === 'Pedidos online' && pedidosNovos > 0 && (
                 <span className="bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
                   {pedidosNovos}
@@ -147,6 +156,7 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
 
   return (
     <div className="min-h-screen bg-gray-950 flex">
+      <NotificacaoToast notif={toastNotif} onFechar={fecharToast} />
       <aside className="hidden md:flex w-56 bg-gray-900 flex-col fixed h-full">
         <SidebarConteudo />
       </aside>
