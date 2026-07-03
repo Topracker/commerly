@@ -121,7 +121,6 @@ export default function Configuracoes() {
   const [horarioAbertura, setHorarioAbertura] = useState('08:00')
   const [horarioFechamento, setHorarioFechamento] = useState('18:00')
   const [metaMensal, setMetaMensal] = useState(5000)
-  const [taxaEntrega, setTaxaEntrega] = useState(0)
   const [fachadaItems, setFachadaItems] = useState<FachadaItem[]>([])
 
   const [erroDoc, setErroDoc] = useState('')
@@ -188,7 +187,6 @@ export default function Configuracoes() {
       setHorarioAbertura(ab)
       setHorarioFechamento(fe)
       setMetaMensal(Number(loja.meta_mensal) || 5000)
-      setTaxaEntrega(Number(loja.taxa_entrega) || 0)
     }
   }, [loja])
 
@@ -269,7 +267,7 @@ export default function Configuracoes() {
     await Promise.all(removidas.map(u => removerFachada(supabase, u)))
 
     const { error } = await supabase.from('lojas').update({
-      nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, taxa_entrega: taxaEntrega, fotos_fachada: fotosFinais,
+      nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais,
     }).eq('id', loja.id)
     if (error) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
 
@@ -299,7 +297,7 @@ export default function Configuracoes() {
     // nicho na hora (useNicho recomputa a partir do tipo atualizado). Reflete
     // também as coordenadas efetivamente gravadas.
     setLatitude(latFinal); setLongitude(lngFinal)
-    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, taxa_entrega: taxaEntrega, fotos_fachada: fotosFinais })
+    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais })
 
     // (o toast de confirmação com as coordenadas já foi mostrado acima)
     setSalvando(false)
@@ -517,17 +515,13 @@ export default function Configuracoes() {
 
         {/* Taxa de entrega — só para nichos de delivery */}
         {isDelivery(tipo) && (
-          <div>
-            <label className="block text-gray-400 text-xs mb-1.5">🛵 Taxa de entrega (R$)</label>
-            <input
-              type="number"
-              min={0}
-              step={0.5}
-              value={taxaEntrega}
-              onChange={e => setTaxaEntrega(Math.max(0, Number(e.target.value)))}
-              className={`w-full ${inputClass}`}
-            />
-            <p className="text-gray-600 text-xs mt-1">Somada ao subtotal dos produtos no pedido do cliente. Use 0 para entrega grátis.</p>
+          <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4">
+            <label className="block text-gray-300 text-sm font-medium mb-1">🛵 Taxa de entrega automática</label>
+            <p className="text-gray-500 text-xs">
+              A taxa é calculada automaticamente pela distância entre a sua loja e o endereço do cliente
+              (até 2 km R$ 5 · 2–5 km R$ 8 · 5–10 km R$ 12 · acima de 10 km R$ 15) e vai integralmente ao
+              entregador. Certifique-se de que o endereço/pino da sua loja esteja correto no mapa acima.
+            </p>
           </div>
         )}
 

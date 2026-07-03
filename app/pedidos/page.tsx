@@ -6,7 +6,7 @@ import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { isDelivery, STATUS_META, FLUXO_STATUS, proximoStatus, pedidoEmAndamento, type PedidoCliente, type StatusPedidoCliente } from '../lib/pedidosClientes'
 import type { ParceriaEntregador } from '../lib/entregadores'
-import { MapPin, Phone, ShoppingBag, ChevronRight, Ban, Bike, Check, X, CircleDollarSign } from 'lucide-react'
+import { MapPin, Phone, ShoppingBag, ChevronRight, Ban, Bike, Check, X } from 'lucide-react'
 
 type EntregadorPublico = { id: string; nome: string; foto_url: string | null; telefone: string | null }
 
@@ -19,7 +19,6 @@ export default function PedidosComerciante() {
   // Entregadores: solicitações de parceria + cache de nomes por id.
   const [parcerias, setParcerias] = useState<ParceriaEntregador[]>([])
   const [entregadores, setEntregadores] = useState<Record<string, EntregadorPublico>>({})
-  const [corridas, setCorridas] = useState<Record<string, string>>({})
 
   useEffect(() => { if (loja) carregar() }, [loja])
 
@@ -32,10 +31,6 @@ export default function PedidosComerciante() {
     const pars = (parceriasRes.data || []) as ParceriaEntregador[]
     setPedidos(lista)
     setParcerias(pars)
-    // Semeia os inputs de corrida com o valor já salvo.
-    const cmap: Record<string, string> = {}
-    for (const p of lista) if (Number(p.valor_corrida) > 0) cmap[p.id] = String(Number(p.valor_corrida))
-    setCorridas(cmap)
 
     // Nomes/fotos dos entregadores (parceiros + atribuídos) via view pública.
     const ids = [...new Set([
@@ -58,16 +53,6 @@ export default function PedidosComerciante() {
     if (error) { mostrarToast('Erro ao responder a solicitação', 'erro'); return }
     setParcerias(prev => prev.map(p => (p.id === parceria.id ? { ...p, status } : p)))
     mostrarToast(status === 'aceita' ? 'Entregador aceito como parceiro!' : 'Solicitação recusada', 'sucesso')
-  }
-
-  async function salvarCorrida(pedido: PedidoCliente) {
-    const valor = Math.max(0, Number(corridas[pedido.id] || 0))
-    setSalvando(pedido.id)
-    const { error } = await supabase.from('pedidos_clientes').update({ valor_corrida: valor }).eq('id', pedido.id)
-    setSalvando(null)
-    if (error) { mostrarToast('Erro ao salvar o valor da corrida', 'erro'); return }
-    setPedidos(prev => prev.map(p => (p.id === pedido.id ? { ...p, valor_corrida: valor } : p)))
-    mostrarToast(`Valor da corrida: R$ ${valor.toFixed(2)}`, 'sucesso')
   }
 
   async function mudarStatus(pedido: PedidoCliente, novo: StatusPedidoCliente) {
@@ -164,27 +149,13 @@ export default function PedidosComerciante() {
             <p className="text-gray-500 text-xs">Nenhum entregador aceitou ainda.</p>
           ) : null}
 
-          {pedidoEmAndamento(p.status) && (
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <CircleDollarSign size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
-                <input
-                  value={corridas[p.id] || ''}
-                  onChange={e => setCorridas(prev => ({ ...prev, [p.id]: e.target.value.replace(/[^\d.,]/g, '').replace(',', '.') }))}
-                  inputMode="decimal"
-                  placeholder="Valor da corrida (R$)"
-                  className="w-full bg-[#171C22] border border-[#232A32] text-white rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:border-[#C1441E]/60"
-                />
-              </div>
-              <button
-                onClick={() => salvarCorrida(p)}
-                disabled={salvando === p.id}
-                className="shrink-0 bg-[#1B2129] border border-[#232A32] hover:border-[#C1441E]/60 text-white text-sm font-semibold px-3 py-2 rounded-lg transition disabled:opacity-50"
-              >
-                Salvar
-              </button>
-            </div>
-          )}
+          {/* Corrida do entregador = taxa de entrega (automática por distância).
+              Paga direto ao entregador via Stripe; o comerciante não define. */}
+          <p className="text-xs text-gray-500">
+            Corrida do entregador: <strong className="text-gray-300">R$ {Number(p.valor_corrida).toFixed(2)}</strong>
+            {p.distancia_km != null && <span> · {Number(p.distancia_km).toFixed(1).replace('.', ',')} km</span>}
+            <span className="text-gray-600"> (taxa de entrega, paga via Stripe)</span>
+          </p>
         </div>
 
         {pedidoEmAndamento(p.status) && (

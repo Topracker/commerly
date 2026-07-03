@@ -28,3 +28,21 @@ export function formatarDistancia(km: number | null): string {
   if (km < 1) return `${Math.round(km * 1000)} m`
   return `${km.toFixed(1).replace('.', ',')} km`
 }
+
+/**
+ * Taxa de entrega por distância (R$). Tabela oficial do delivery:
+ *   até 2 km = 5 | 2–5 km = 8 | 5–10 km = 12 | acima de 10 km = 15
+ * Sem distância (null) usa a faixa base (R$ 5).
+ *
+ * ATENÇÃO: esta tabela é apenas para EXIBIR a taxa ao cliente antes de
+ * confirmar. O valor gravado é recalculado no servidor (trigger
+ * `pedidos_clientes_guard` / `calcular_taxa_entrega` em
+ * sql/2026-07-03-taxa-distancia.sql). Mantenha as duas em sincronia.
+ */
+export function taxaEntregaPorDistancia(km: number | null): number {
+  if (km == null) return 5
+  if (km <= 2) return 5
+  if (km <= 5) return 8
+  if (km <= 10) return 12
+  return 15
+}

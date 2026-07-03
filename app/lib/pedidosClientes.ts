@@ -18,6 +18,10 @@ export type PedidoCliente = {
   total: number
   taxa_entrega: number
   endereco_entrega: string
+  // Ponto de entrega + distância loja→entrega (taxa calculada no servidor).
+  entrega_latitude?: number | null
+  entrega_longitude?: number | null
+  distancia_km?: number | null
   observacao: string | null
   cliente_nome: string | null
   cliente_telefone: string | null

@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { X, Plus, Minus, ShoppingBag, MapPin, Check } from 'lucide-react'
 import type { ItemPedidoCliente } from '../lib/pedidosClientes'
+import { distanciaKm, taxaEntregaPorDistancia, formatarDistancia } from '../lib/geo'
 import { MapaConfirmar } from './MapaConfirmar'
 
 type Produto = { id: string; nome: string; preco_venda: number | string; categoria?: string | null }
@@ -9,7 +10,7 @@ type Produto = { id: string; nome: string; preco_venda: number | string; categor
 type Sugestao = { lat: number; lng: number; display_name: string }
 
 type Props = {
-  loja: { id: string; nome: string; taxa_entrega?: number | string | null }
+  loja: { id: string; nome: string; latitude?: number | null; longitude?: number | null }
   cliente: { id: string; nome?: string | null; telefone?: string | null }
   produtos: Produto[]
   supabase: any
@@ -91,20 +92,31 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   )
 
   const subtotal = useMemo(() => itens.reduce((s, i) => s + i.preco * i.quantidade, 0), [itens])
-  const taxaEntrega = Math.max(0, parseFloat(String(loja.taxa_entrega ?? 0)) || 0)
-  const total = subtotal + taxaEntrega
+  // Taxa AUTOMÁTICA por distância loja→entrega. Só dá pra calcular depois que o
+  // cliente confirma o ponto no mapa (coord). O valor definitivo é recalculado
+  // no servidor (trigger) — aqui é só a prévia para o cliente ver antes.
+  const distancia = coord
+    ? distanciaKm({ latitude: loja.latitude, longitude: loja.longitude }, { latitude: coord.lat, longitude: coord.lng })
+    : null
+  const taxaEntrega = coord ? taxaEntregaPorDistancia(distancia) : null
+  const total = subtotal + (taxaEntrega ?? 0)
   const totalItens = itens.reduce((s, i) => s + i.quantidade, 0)
 
   async function enviar() {
     if (itens.length === 0) { onErro('Escolha pelo menos um produto.'); return }
     if (!endereco.trim()) { onErro('Informe o endereço de entrega.'); return }
+    if (!coord) { onErro('Selecione o endereço nas sugestões e confirme o ponto no mapa para calcular a taxa.'); return }
     setEnviando(true)
     const { error } = await supabase.from('pedidos_clientes').insert({
       loja_id: loja.id,
       cliente_id: cliente.id,
       itens,
+      // total/taxa são recalculados no servidor (trigger) — enviados só por
+      // completude; o valor autoritativo vem do banco.
       total,
       taxa_entrega: taxaEntrega,
+      entrega_latitude: coord.lat,
+      entrega_longitude: coord.lng,
       endereco_entrega: endereco.trim(),
       observacao: observacao.trim() || null,
       cliente_nome: cliente.nome || null,
@@ -231,12 +243,21 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
               <span className="tabular-nums">R$ {subtotal.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between text-gray-400">
-              <span>Taxa de entrega</span>
-              <span className="tabular-nums">{taxaEntrega > 0 ? `R$ ${taxaEntrega.toFixed(2)}` : 'Grátis'}</span>
+              <span>
+                Taxa de entrega
+                {distancia != null && <span className="text-gray-500"> ({formatarDistancia(distancia)})</span>}
+              </span>
+              <span className="tabular-nums">
+                {taxaEntrega == null
+                  ? <span className="text-gray-500 text-xs">confirme o endereço</span>
+                  : `R$ ${taxaEntrega.toFixed(2)}`}
+              </span>
             </div>
             <div className="flex items-center justify-between border-t border-[#232A32] pt-1.5 mt-0.5">
               <span className="text-white font-medium">Total</span>
-              <span className="font-display text-white font-bold text-lg tabular-nums">R$ {total.toFixed(2)}</span>
+              <span className="font-display text-white font-bold text-lg tabular-nums">
+                {taxaEntrega == null ? `R$ ${subtotal.toFixed(2)} + taxa` : `R$ ${total.toFixed(2)}`}
+              </span>
             </div>
           </div>
           <button
