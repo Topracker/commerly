@@ -46,6 +46,9 @@ export type Entregador = {
   cnh_foto_url: string | null
   stripe_account_id: string | null
   stripe_onboarded: boolean
+  // Fallback quando o Stripe Connect não pôde ser configurado: comerciante paga
+  // a corrida manualmente. Opcional pois a coluna pode não existir ainda.
+  pagamento_manual?: boolean
   created_at: string
 }
 

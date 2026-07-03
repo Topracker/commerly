@@ -5,9 +5,17 @@ import Stripe from 'stripe'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
 
-// Onboarding do entregador no Stripe Connect (conta Express, API v1). Cria a
-// conta (se ainda não existir) e redireciona para o fluxo de cadastro da
-// Stripe. Ao concluir, a Stripe volta para o dashboard, que confere o status.
+// Onboarding do entregador no Stripe Connect (conta STANDARD, API v1).
+//
+// Por que Standard e não Express: contas Express/Custom exigem que a plataforma
+// preencha o "platform profile" (responsabilidade por perdas) no dashboard da
+// Stripe — sem isso, o create falha com "review the responsibilities of
+// managing losses..." (StripeInvalidRequestError 400). Na conta Standard a
+// própria conta conectada assume a responsabilidade, então não há esse pré-req.
+//
+// Cria a conta (se ainda não existir) e redireciona para o onboarding da
+// Stripe. Se a criação falhar mesmo assim, aciona o fallback de pagamento
+// manual (flag no banco + mensagem no dashboard).
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies()
   const origin = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin
@@ -37,10 +45,8 @@ export async function GET(request: NextRequest) {
   try {
     let accountId = entregador.stripe_account_id
     if (!accountId) {
-      // Mínimo possível para isolar a causa do erro de criação. Se funcionar,
-      // reintroduzir capabilities.transfers (necessário para o payout).
       const account = await stripe.accounts.create({
-        type: 'express',
+        type: 'standard',
         country: 'BR',
         metadata: { entregador_id: entregador.id },
       })
@@ -54,6 +60,9 @@ export async function GET(request: NextRequest) {
       return_url: `${origin}/entregador-delivery/dashboard?stripe=ok`,
       type: 'account_onboarding',
     })
+    // Deu certo criar/linkar: garante que o flag de pagamento manual esteja
+    // desligado (best-effort — a coluna pode ainda não existir em produção).
+    await admin.from('entregadores').update({ pagamento_manual: false }).eq('id', entregador.id)
     return NextResponse.redirect(link.url, { status: 303 })
   } catch (e) {
     // Log detalhado nos logs da Vercel (mensagem exata da Stripe).
@@ -69,6 +78,11 @@ export async function GET(request: NextRequest) {
       requestId: err?.requestId,
       raw: err?.raw?.message,
     })
-    return NextResponse.redirect(new URL('/entregador-delivery/dashboard?stripe=erro', request.url))
+    // Fallback: liga o pagamento manual (comerciante paga a corrida por fora)
+    // para o entregador não ficar travado. Best-effort — a coluna pode ainda
+    // não existir em produção até o SQL ser aplicado; o update simplesmente
+    // não faz nada nesse caso, e a mensagem ainda aparece via ?stripe=manual.
+    await admin.from('entregadores').update({ pagamento_manual: true }).eq('id', entregador.id)
+    return NextResponse.redirect(new URL('/entregador-delivery/dashboard?stripe=manual', request.url))
   }
 }

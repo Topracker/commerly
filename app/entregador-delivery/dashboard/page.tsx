@@ -36,14 +36,20 @@ function EntregadorDashboard() {
   // Stripe Connect
   const [stripeOnboarded, setStripeOnboarded] = useState(false)
   const [stripeHasAccount, setStripeHasAccount] = useState(false)
+  // Fallback: Stripe não pôde ser configurado -> pagamento manual pelo comerciante.
+  const [pagamentoManual, setPagamentoManual] = useState(false)
 
   useEffect(() => { if (entregador) { carregar(); checarStripe() } }, [entregador])
+  useEffect(() => { if (entregador?.pagamento_manual) setPagamentoManual(true) }, [entregador])
 
   useEffect(() => {
-    if (params.get('stripe') === 'ok') { checarStripe(); mostrarToast('Conta Stripe conectada!', 'sucesso') }
+    if (params.get('stripe') === 'ok') { checarStripe(); setPagamentoManual(false); mostrarToast('Conta Stripe conectada!', 'sucesso') }
     if (params.get('stripe') === 'erro') mostrarToast('Não foi possível conectar a Stripe. Tente de novo.', 'erro')
+    if (params.get('stripe') === 'manual') { setPagamentoManual(true); mostrarToast('Não foi possível conectar ao Stripe agora. Combine o pagamento das corridas com o suporte.', 'erro') }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  function conectarStripe() { window.location.href = '/api/entregador/stripe-connect' }
 
   async function carregar() {
     const [lojasRes, parceriasRes, pedidosRes, avalRes] = await Promise.all([
@@ -214,18 +220,22 @@ function EntregadorDashboard() {
       </div>
 
       {/* Stripe Connect */}
-      <div className={`rounded-2xl p-4 mb-5 border ${stripeOnboarded ? 'bg-green-500/10 border-green-500/40' : 'bg-[#12161B] border-[#232A32]'}`}>
+      <div className={`rounded-2xl p-4 mb-5 border ${stripeOnboarded ? 'bg-green-500/10 border-green-500/40' : pagamentoManual && !stripeOnboarded ? 'bg-amber-500/10 border-amber-500/40' : 'bg-[#12161B] border-[#232A32]'}`}>
         <div className="flex items-center gap-3">
           <CircleDollarSign size={20} className={stripeOnboarded ? 'text-green-400' : 'text-[#E0632C]'} />
           <div className="flex-1 min-w-0">
             <p className="text-white font-semibold text-sm">Recebimento das corridas</p>
             <p className="text-gray-400 text-xs">
-              {stripeOnboarded ? 'Conta pronta para receber via Stripe.' : 'Conecte sua conta para receber o valor das corridas.'}
+              {stripeOnboarded
+                ? 'Conta pronta para receber via Stripe.'
+                : pagamentoManual
+                  ? 'Pagamento manual pelo comerciante (por enquanto).'
+                  : 'Conecte sua conta para receber o valor das corridas.'}
             </p>
           </div>
-          {!stripeOnboarded && (
+          {!stripeOnboarded && !pagamentoManual && (
             <button
-              onClick={() => { window.location.href = '/api/entregador/stripe-connect' }}
+              onClick={conectarStripe}
               className="shrink-0 bg-[#635BFF] hover:bg-[#5249e0] text-white text-xs font-semibold px-3 py-2 rounded-lg transition"
             >
               {stripeHasAccount ? 'Continuar' : 'Conectar'}
@@ -233,6 +243,17 @@ function EntregadorDashboard() {
           )}
           {stripeOnboarded && <Check size={18} className="text-green-400 shrink-0" />}
         </div>
+
+        {!stripeOnboarded && pagamentoManual && (
+          <div className="mt-3 pt-3 border-t border-amber-500/20">
+            <p className="text-amber-200 text-xs">
+              💳 Configure seus dados bancários diretamente com o suporte. Enquanto isso, o comerciante pode pagar suas corridas manualmente.
+            </p>
+            <button onClick={conectarStripe} className="mt-2 text-[#8b83ff] text-xs font-semibold hover:underline">
+              Tentar conectar ao Stripe de novo
+            </button>
+          </div>
+        )}
       </div>
 
       {carregando ? (
