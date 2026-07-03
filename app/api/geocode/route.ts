@@ -41,6 +41,53 @@ async function nominatim(params: Record<string, string>): Promise<Geo | null> {
   }
 }
 
+// ---- Sugestões (autocomplete): lista de resultados, não só o melhor --------
+async function nominatimList(q: string, limit: number): Promise<Geo[]> {
+  const url = new URL('https://nominatim.openstreetmap.org/search')
+  url.searchParams.set('format', 'json')
+  url.searchParams.set('limit', String(limit))
+  url.searchParams.set('addressdetails', '0')
+  url.searchParams.set('countrycodes', 'br')
+  url.searchParams.set('q', q)
+  try {
+    const res = await fetch(url.toString(), {
+      headers: { 'User-Agent': USER_AGENT, Accept: 'application/json', 'Accept-Language': 'pt-BR' },
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    if (!Array.isArray(data)) return []
+    return data
+      .filter((h) => h?.lat && h?.lon)
+      .map((h) => ({ lat: parseFloat(h.lat), lng: parseFloat(h.lon), display_name: h.display_name || '' }))
+  } catch (e: any) {
+    console.error('[geocode] nominatimList erro:', e?.message || e)
+    return []
+  }
+}
+
+async function photonList(q: string, limit: number): Promise<Geo[]> {
+  const url = `https://photon.komoot.io/api/?limit=${limit}&lang=default&q=${encodeURIComponent(q)}`
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' } })
+    if (!res.ok) return []
+    const data = await res.json()
+    const feats: any[] = Array.isArray(data?.features) ? data.features : []
+    return feats
+      // Prioriza resultados no Brasil, mantendo a ordem original entre eles.
+      .filter((f) => Array.isArray(f?.geometry?.coordinates) && f.geometry.coordinates.length >= 2)
+      .sort((a, b) => (b?.properties?.countrycode === 'BR' ? 1 : 0) - (a?.properties?.countrycode === 'BR' ? 1 : 0))
+      .map((f) => {
+        const p = f.properties || {}
+        const c = f.geometry.coordinates
+        const label = [p.name, p.street, p.district, p.city, p.state].filter(Boolean).join(', ')
+        return { lat: Number(c[1]), lng: Number(c[0]), display_name: label }
+      })
+  } catch (e: any) {
+    console.error('[geocode] photonList erro:', e?.message || e)
+    return []
+  }
+}
+
 // ---- Provedor 2: Photon (fallback, funciona de IPs de datacenter) ---------
 async function photon(q: string): Promise<Geo | null> {
   const url = `https://photon.komoot.io/api/?limit=5&lang=default&q=${encodeURIComponent(q)}`
@@ -73,6 +120,15 @@ export async function GET(req: NextRequest) {
 
   if (!q && !postalcode) {
     return NextResponse.json({ erro: 'Informe q ou postalcode.' }, { status: 400 })
+  }
+
+  // Modo autocomplete: devolve uma LISTA de sugestões (não só o melhor match).
+  // Usado pelo campo de endereço com typeahead. Sempre 200 com { results: [] }.
+  if (sp.get('suggest') === '1') {
+    if (!q || q.length < 3) return NextResponse.json({ results: [] })
+    let results = await nominatimList(q, 6)
+    if (results.length === 0) results = await photonList(q, 6)
+    return NextResponse.json({ results }, { headers: { 'Cache-Control': 'public, max-age=3600' } })
   }
 
   // Ordem de tentativas: Nominatim (endereço → CEP) e, se tudo falhar, Photon.

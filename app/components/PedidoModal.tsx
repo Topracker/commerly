@@ -1,9 +1,12 @@
 'use client'
-import { useMemo, useState } from 'react'
-import { X, Plus, Minus, ShoppingBag, MapPin } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { X, Plus, Minus, ShoppingBag, MapPin, Check } from 'lucide-react'
 import type { ItemPedidoCliente } from '../lib/pedidosClientes'
+import { MapaConfirmar } from './MapaConfirmar'
 
 type Produto = { id: string; nome: string; preco_venda: number | string; categoria?: string | null }
+
+type Sugestao = { lat: number; lng: number; display_name: string }
 
 type Props = {
   loja: { id: string; nome: string; taxa_entrega?: number | string | null }
@@ -22,6 +25,46 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   const [endereco, setEndereco] = useState('')
   const [observacao, setObservacao] = useState('')
   const [enviando, setEnviando] = useState(false)
+
+  // Autocomplete de endereço (/api/geocode?suggest=1) + confirmação no mapa.
+  const [sugestoes, setSugestoes] = useState<Sugestao[]>([])
+  const [buscandoSug, setBuscandoSug] = useState(false)
+  // Coordenada confirmada da entrega — quando definida, mostra o mini mapa.
+  const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(null)
+
+  // Busca sugestões conforme o cliente digita (debounce). Não busca depois de
+  // uma seleção (coord já definida) — só volta a buscar se ele editar o texto.
+  useEffect(() => {
+    if (coord) return
+    const q = endereco.trim()
+    if (q.length < 4) { setSugestoes([]); setBuscandoSug(false); return }
+    let ativo = true
+    setBuscandoSug(true)
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/geocode?suggest=1&q=${encodeURIComponent(q)}`)
+        const d = await res.json()
+        if (ativo) setSugestoes(Array.isArray(d.results) ? d.results : [])
+      } catch {
+        if (ativo) setSugestoes([])
+      } finally {
+        if (ativo) setBuscandoSug(false)
+      }
+    }, 450)
+    return () => { ativo = false; clearTimeout(t) }
+  }, [endereco, coord])
+
+  function mudarEndereco(v: string) {
+    setEndereco(v)
+    // Texto mudou → a confirmação anterior não vale mais.
+    if (coord) setCoord(null)
+  }
+
+  function selecionarSugestao(s: Sugestao) {
+    setEndereco(s.display_name)
+    setCoord({ lat: s.lat, lng: s.lng })
+    setSugestoes([])
+  }
 
   function mudarQtd(id: string, delta: number) {
     setQtds(prev => {
@@ -126,13 +169,47 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
             <label className="text-gray-300 text-sm font-medium mb-2 flex items-center gap-1.5">
               <MapPin size={14} className="text-gray-500" /> Endereço de entrega
             </label>
-            <textarea
-              value={endereco}
-              onChange={e => setEndereco(e.target.value)}
-              rows={2}
-              placeholder="Rua, número, bairro, complemento..."
-              className="w-full bg-[#171C22] border border-[#232A32] text-white rounded-xl px-4 py-3 outline-none focus:border-[#C1441E]/60 resize-none text-sm"
-            />
+            <div className="relative">
+              <input
+                value={endereco}
+                onChange={e => mudarEndereco(e.target.value)}
+                placeholder="Digite rua, número, bairro, cidade..."
+                autoComplete="off"
+                className="w-full bg-[#171C22] border border-[#232A32] text-white rounded-xl px-4 py-3 pr-24 outline-none focus:border-[#C1441E]/60 text-sm"
+              />
+              {buscandoSug && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">buscando...</span>
+              )}
+            </div>
+
+            {/* Sugestões (in-flow pra não serem cortadas pelo scroll do modal). */}
+            {sugestoes.length > 0 && (
+              <ul className="mt-1.5 flex flex-col gap-0.5 rounded-xl border border-[#232A32] bg-[#171C22] p-1">
+                {sugestoes.map((s, i) => (
+                  <li key={`${s.lat},${s.lng},${i}`}>
+                    <button
+                      type="button"
+                      onClick={() => selecionarSugestao(s)}
+                      className="w-full text-left px-3 py-2 rounded-lg text-gray-300 text-sm hover:bg-[#232A32] transition flex items-start gap-2"
+                    >
+                      <MapPin size={14} className="text-gray-500 shrink-0 mt-0.5" />
+                      <span className="min-w-0">{s.display_name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* Mini mapa de confirmação — pino arrastável pra ajustar o ponto. */}
+            {coord && (
+              <div className="mt-2 flex flex-col gap-1.5">
+                <p className="text-gray-400 text-xs flex items-center gap-1.5">
+                  <Check size={12} className="text-green-500 shrink-0" />
+                  Confirme o ponto de entrega — <strong>arraste</strong> o pino ou clique no mapa para ajustar.
+                </p>
+                <MapaConfirmar lat={coord.lat} lng={coord.lng} onMove={(lat, lng) => setCoord({ lat, lng })} altura="h-44" />
+              </div>
+            )}
           </div>
 
           <div>
