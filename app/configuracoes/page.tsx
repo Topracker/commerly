@@ -9,6 +9,7 @@ import { MODULOS, type ModuloKey } from '../lib/nichos'
 import { EnderecoAutocomplete } from '../components/EnderecoAutocomplete'
 import { FachadaUpload, type FachadaItem } from '../components/FachadaUpload'
 import { uploadFachada, removerFachada } from '../lib/fachada'
+import { isDelivery } from '../lib/pedidosClientes'
 import { Eye, EyeOff, Store, Copy, ExternalLink } from 'lucide-react'
 
 // Módulos que a IA pode sugerir / o comerciante pode escolher no fluxo "Outro".
@@ -120,6 +121,7 @@ export default function Configuracoes() {
   const [horarioAbertura, setHorarioAbertura] = useState('08:00')
   const [horarioFechamento, setHorarioFechamento] = useState('18:00')
   const [metaMensal, setMetaMensal] = useState(5000)
+  const [taxaEntrega, setTaxaEntrega] = useState(0)
   const [fachadaItems, setFachadaItems] = useState<FachadaItem[]>([])
 
   const [erroDoc, setErroDoc] = useState('')
@@ -186,6 +188,7 @@ export default function Configuracoes() {
       setHorarioAbertura(ab)
       setHorarioFechamento(fe)
       setMetaMensal(Number(loja.meta_mensal) || 5000)
+      setTaxaEntrega(Number(loja.taxa_entrega) || 0)
     }
   }, [loja])
 
@@ -266,7 +269,7 @@ export default function Configuracoes() {
     await Promise.all(removidas.map(u => removerFachada(supabase, u)))
 
     const { error } = await supabase.from('lojas').update({
-      nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais,
+      nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, taxa_entrega: taxaEntrega, fotos_fachada: fotosFinais,
     }).eq('id', loja.id)
     if (error) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
 
@@ -296,7 +299,7 @@ export default function Configuracoes() {
     // nicho na hora (useNicho recomputa a partir do tipo atualizado). Reflete
     // também as coordenadas efetivamente gravadas.
     setLatitude(latFinal); setLongitude(lngFinal)
-    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais })
+    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, taxa_entrega: taxaEntrega, fotos_fachada: fotosFinais })
 
     // (o toast de confirmação com as coordenadas já foi mostrado acima)
     setSalvando(false)
@@ -511,6 +514,22 @@ export default function Configuracoes() {
           />
           <p className="text-gray-600 text-xs mt-1">Padrão: R$ 5.000. Aparece como barra de progresso no dashboard.</p>
         </div>
+
+        {/* Taxa de entrega — só para nichos de delivery */}
+        {isDelivery(tipo) && (
+          <div>
+            <label className="block text-gray-400 text-xs mb-1.5">🛵 Taxa de entrega (R$)</label>
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              value={taxaEntrega}
+              onChange={e => setTaxaEntrega(Math.max(0, Number(e.target.value)))}
+              className={`w-full ${inputClass}`}
+            />
+            <p className="text-gray-600 text-xs mt-1">Somada ao subtotal dos produtos no pedido do cliente. Use 0 para entrega grátis.</p>
+          </div>
+        )}
 
         <button
           onClick={salvar}

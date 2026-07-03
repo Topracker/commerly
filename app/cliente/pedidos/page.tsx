@@ -96,6 +96,13 @@ export default function ClientePedidos() {
                     ))}
                   </div>
 
+                  {Number(p.taxa_entrega) > 0 && (
+                    <div className="flex justify-between gap-2 text-xs text-gray-500 mt-1">
+                      <span>Taxa de entrega</span>
+                      <span>R$ {Number(p.taxa_entrega).toFixed(2)}</span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-[#232A32]">
                     <p className="text-gray-500 text-xs flex items-center gap-1.5 min-w-0">
                       <MapPin size={13} className="shrink-0" /><span className="truncate">{p.endereco_entrega}</span>

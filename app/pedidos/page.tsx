@@ -97,6 +97,9 @@ export default function PedidosComerciante() {
             </a>
           )}
           {p.observacao && <p className="italic">"{p.observacao}"</p>}
+          {Number(p.taxa_entrega) > 0 && (
+            <p className="flex justify-between"><span>Taxa de entrega</span><span>R$ {Number(p.taxa_entrega).toFixed(2)}</span></p>
+          )}
           <p className="font-display text-white font-bold text-sm mt-1">Total: R$ {Number(p.total).toFixed(2)}</p>
         </div>
 

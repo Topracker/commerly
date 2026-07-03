@@ -6,7 +6,7 @@ import type { ItemPedidoCliente } from '../lib/pedidosClientes'
 type Produto = { id: string; nome: string; preco_venda: number | string; categoria?: string | null }
 
 type Props = {
-  loja: { id: string; nome: string }
+  loja: { id: string; nome: string; taxa_entrega?: number | string | null }
   cliente: { id: string; nome?: string | null; telefone?: string | null }
   produtos: Produto[]
   supabase: any
@@ -47,7 +47,9 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
     [produtos, qtds],
   )
 
-  const total = useMemo(() => itens.reduce((s, i) => s + i.preco * i.quantidade, 0), [itens])
+  const subtotal = useMemo(() => itens.reduce((s, i) => s + i.preco * i.quantidade, 0), [itens])
+  const taxaEntrega = Math.max(0, parseFloat(String(loja.taxa_entrega ?? 0)) || 0)
+  const total = subtotal + taxaEntrega
   const totalItens = itens.reduce((s, i) => s + i.quantidade, 0)
 
   async function enviar() {
@@ -59,6 +61,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
       cliente_id: cliente.id,
       itens,
       total,
+      taxa_entrega: taxaEntrega,
       endereco_entrega: endereco.trim(),
       observacao: observacao.trim() || null,
       cliente_nome: cliente.nome || null,
@@ -145,9 +148,19 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
         </div>
 
         <div className="border-t border-[#232A32] px-5 py-4 shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-gray-400 text-sm">{totalItens} {totalItens === 1 ? 'item' : 'itens'}</span>
-            <span className="font-display text-white font-bold text-lg">R$ {total.toFixed(2)}</span>
+          <div className="flex flex-col gap-1.5 mb-3 text-sm">
+            <div className="flex items-center justify-between text-gray-400">
+              <span>Subtotal <span className="text-gray-500">({totalItens} {totalItens === 1 ? 'item' : 'itens'})</span></span>
+              <span className="tabular-nums">R$ {subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between text-gray-400">
+              <span>Taxa de entrega</span>
+              <span className="tabular-nums">{taxaEntrega > 0 ? `R$ ${taxaEntrega.toFixed(2)}` : 'Grátis'}</span>
+            </div>
+            <div className="flex items-center justify-between border-t border-[#232A32] pt-1.5 mt-0.5">
+              <span className="text-white font-medium">Total</span>
+              <span className="font-display text-white font-bold text-lg tabular-nums">R$ {total.toFixed(2)}</span>
+            </div>
           </div>
           <button
             onClick={enviar}

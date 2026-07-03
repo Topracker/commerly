@@ -16,6 +16,7 @@ export type PedidoCliente = {
   cliente_id: string
   itens: ItemPedidoCliente[]
   total: number
+  taxa_entrega: number
   endereco_entrega: string
   observacao: string | null
   cliente_nome: string | null
