@@ -48,11 +48,16 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
 
   const delivery = isDelivery(loja?.tipo)
 
+  // Para delivery, o novo "Pedidos online" (/pedidos) substitui o módulo antigo
+  // "Pedidos - Comandas e pedidos" (→ /vendas), que duplicava o conceito. Demais
+  // nichos (ex.: Sorveteria) mantêm o módulo "Pedidos" original.
+  const modulosMenu = delivery ? modulos.filter(m => m.key !== 'pedidos') : modulos
+
   // Menu = topo fixo + (Pedidos online, se delivery) + módulos + administrativo.
   const MENU = [
     ...MENU_TOPO,
     ...(delivery ? [{ label: 'Pedidos online', sub: 'Entregas dos clientes', path: '/pedidos', icon: ShoppingBag }] : []),
-    ...modulos.map(m => ({ label: m.label, sub: m.sub, path: m.path, icon: m.icon })),
+    ...modulosMenu.map(m => ({ label: m.label, sub: m.sub, path: m.path, icon: m.icon })),
     ...MENU_ADMIN,
   ]
 
