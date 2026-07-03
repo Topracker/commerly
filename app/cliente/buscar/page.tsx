@@ -55,19 +55,15 @@ export default function ClienteBuscar() {
 
   async function buscarLojas() {
     setBuscando(true)
-    let query = supabase
-      .from('lojas_publicas')
-      .select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada')
-      .order('nome', { ascending: true })
-      .limit(50)
-
-    if (tipoFiltro !== 'Todos') query = query.eq('tipo', tipoFiltro)
-    if (busca.trim()) query = query.ilike('nome', `%${busca.trim()}%`)
-
-    const { data, error } = await query
-    if (error) console.error('[buscar] lojas_publicas error:', error)
-
-    const base = data || []
+    // Lojas via API service role — a view lojas_publicas está sob RLS em
+    // produção e retorna vazio para o cliente (ver a rota).
+    const params = new URLSearchParams()
+    if (tipoFiltro !== 'Todos') params.set('tipo', tipoFiltro)
+    if (busca.trim()) params.set('busca', busca.trim())
+    const base = await fetch(`/api/cliente/lojas?${params.toString()}`)
+      .then(r => (r.ok ? r.json() : { lojas: [] }))
+      .then(d => d.lojas || [])
+      .catch(() => [])
     const ratings = await getRatingsPorLoja(supabase, base.map(l => l.id))
     const comNota = base.map(l => ({
       ...l,
