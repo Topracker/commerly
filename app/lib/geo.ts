@@ -30,19 +30,21 @@ export function formatarDistancia(km: number | null): string {
 }
 
 /**
- * Taxa de entrega por distância (R$). Tabela oficial do delivery:
- *   até 2 km = 5 | 2–5 km = 8 | 5–10 km = 12 | acima de 10 km = 15
- * Sem distância (null) usa a faixa base (R$ 5).
+ * Taxa de entrega DINÂMICA por km (modelo iFood), em R$:
+ *   taxa = base + (preço_por_km * km), limitada entre mínimo e máximo.
+ *   base = R$ 3,00 | R$ 1,00 por km | mínimo R$ 3,00 | máximo R$ 25,00
+ * Ex.: 2,3 km → 5,30 | 8,7 km → 11,70. Sem distância (null) → base R$ 3,00.
  *
- * ATENÇÃO: esta tabela é apenas para EXIBIR a taxa ao cliente antes de
- * confirmar. O valor gravado é recalculado no servidor (trigger
- * `pedidos_clientes_guard` / `calcular_taxa_entrega` em
- * sql/2026-07-03-taxa-distancia.sql). Mantenha as duas em sincronia.
+ * ATENÇÃO: isto é apenas para EXIBIR a prévia ao cliente. O valor gravado é
+ * recalculado no servidor (trigger `pedidos_clientes_guard` /
+ * `calcular_taxa_entrega` em sql/2026-07-03-taxa-dinamica-km.sql). Mantenha
+ * as duas fórmulas em sincronia.
  */
 export function taxaEntregaPorDistancia(km: number | null): number {
-  if (km == null) return 5
-  if (km <= 2) return 5
-  if (km <= 5) return 8
-  if (km <= 10) return 12
-  return 15
+  const BASE = 3
+  const POR_KM = 1
+  const MIN = 3
+  const MAX = 25
+  const taxa = BASE + POR_KM * (km ?? 0)
+  return Math.min(MAX, Math.max(MIN, Math.round(taxa * 100) / 100))
 }
