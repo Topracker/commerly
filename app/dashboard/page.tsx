@@ -50,6 +50,11 @@ export default function Dashboard() {
   const [graficoData, setGraficoData] = useState<GraficoDia[]>([])
   const [pedidosAtivos, setPedidosAtivos] = useState(0)
 
+  // Pedidos online (delivery) do mês — card dedicado
+  const [pedidosMesQtd, setPedidosMesQtd] = useState(0)
+  const [pedidosMesTotal, setPedidosMesTotal] = useState(0)
+  const [pedidosMesAndamento, setPedidosMesAndamento] = useState(0)
+
   // Metas e conquistas
   const [faturamentoMes, setFaturamentoMes] = useState(0)
   const [metaMensal, setMetaMensal] = useState(5000)
@@ -99,7 +104,12 @@ export default function Dashboard() {
 
     const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1)
 
-    const [vendasRes, gastosRes, produtosRes, recentesRes, fiadoRes, vendasSemanaRes, vendasMesRes, conquistasRes] = await Promise.all([
+    // Data mais antiga que precisamos dos pedidos online: cobre o período do
+    // card, o gráfico de 7 dias e o mês (meta) numa única query; filtramos por
+    // range em JS depois.
+    const menorData = new Date(Math.min(desde.getTime(), seteAtras.getTime(), inicioMes.getTime()))
+
+    const [vendasRes, gastosRes, produtosRes, recentesRes, fiadoRes, vendasSemanaRes, vendasMesRes, conquistasRes, pedidosRes] = await Promise.all([
       // Faturamento, lucro bruto, top produtos: todas as origens
       supabase.from('vendas').select('*, produtos(nome)').eq('loja_id', loja.id).gte('created_at', desde.toISOString()),
       supabase.from('gastos').select('*').eq('loja_id', loja.id).gte('created_at', desde.toISOString()),
@@ -112,6 +122,9 @@ export default function Dashboard() {
       // Meta mensal e conquistas: todas as origens (manual + integrações)
       supabase.from('vendas').select('valor_total').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()),
       supabase.from('conquistas').select('tipo').eq('loja_id', loja.id),
+      // Pedidos online (delivery) — faturamento entra no card, gráfico e meta.
+      // Cancelados não contam como faturamento.
+      supabase.from('pedidos_clientes').select('total, status, created_at').eq('loja_id', loja.id).neq('status', 'cancelado').gte('created_at', menorData.toISOString()),
     ])
 
     if (vendasRes.error) mostrarToast('Erro ao carregar vendas', 'erro')
@@ -119,8 +132,15 @@ export default function Dashboard() {
 
     const vendas = vendasRes.data || []
     const gastosData = gastosRes.data || []
+    const pedidosOnline = pedidosRes.data || []
 
-    setFaturamento(vendas.reduce((a: number, v: any) => a + v.valor_total, 0))
+    // Pedidos online do período selecionado (mesmo range do card de faturamento).
+    const fatPedidosPeriodo = pedidosOnline
+      .filter((p: any) => new Date(p.created_at) >= desde)
+      .reduce((a: number, p: any) => a + Number(p.total || 0), 0)
+
+    // Faturamento = vendas manuais/integrações + pedidos online do período.
+    setFaturamento(vendas.reduce((a: number, v: any) => a + v.valor_total, 0) + fatPedidosPeriodo)
     setLucro(vendas.reduce((a: number, v: any) => a + v.lucro, 0))
     setGastos(gastosData.reduce((a: number, g: any) => a + g.valor, 0))
 
@@ -150,10 +170,24 @@ export default function Dashboard() {
       const isoKey = (v.created_at as string).slice(0, 10)
       if (diasMap[isoKey]) diasMap[isoKey].faturamento += v.valor_total
     }
+    // Pedidos online também entram no gráfico de faturamento dos 7 dias.
+    for (const p of pedidosOnline) {
+      if (new Date(p.created_at) < seteAtras) continue
+      const isoKey = (p.created_at as string).slice(0, 10)
+      if (diasMap[isoKey]) diasMap[isoKey].faturamento += Number(p.total || 0)
+    }
     setGraficoData(Object.values(diasMap))
 
-    // Progresso da meta mensal
-    const fatMes = (vendasMesRes.data || []).reduce((a: number, v: any) => a + v.valor_total, 0)
+    // Pedidos online do mês (card dedicado + meta + desconto).
+    const pedidosMes = pedidosOnline.filter((p: any) => new Date(p.created_at) >= inicioMes)
+    const fatPedidosMes = pedidosMes.reduce((a: number, p: any) => a + Number(p.total || 0), 0)
+    setPedidosMesQtd(pedidosMes.length)
+    setPedidosMesTotal(fatPedidosMes)
+    // "Em andamento" = ainda não entregue (cancelados já foram excluídos na query).
+    setPedidosMesAndamento(pedidosMes.filter((p: any) => p.status !== 'entregue').length)
+
+    // Progresso da meta mensal — soma vendas + pedidos online do mês.
+    const fatMes = (vendasMesRes.data || []).reduce((a: number, v: any) => a + v.valor_total, 0) + fatPedidosMes
     setFaturamentoMes(fatMes)
 
     // Conquistas
@@ -287,7 +321,7 @@ export default function Dashboard() {
               <span>R$ {faturamentoMes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               <span>Meta: R$ {metaMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
             </div>
-            <p className="text-gray-600 text-xs mt-2">Conta todas as vendas do mês (manuais + integrações)</p>
+            <p className="text-gray-600 text-xs mt-2">Conta todas as vendas do mês (manuais + integrações + pedidos online)</p>
             <div className="border-t border-gray-800 mt-3 pt-3 flex items-center gap-2">
               <span className="text-base">🏷️</span>
               <p className={`text-xs font-medium ${descontoFidelidade.cor}`}>{descontoFidelidade.texto}</p>
@@ -334,6 +368,38 @@ export default function Dashboard() {
               <p className="text-lg font-bold text-yellow-400">R$ {totalFiado.toFixed(2)}</p>
             </div>
           </div>
+
+          {/* Pedidos online do mês (delivery) */}
+          {isDelivery(loja.tipo) && (
+            <div
+              className="bg-[#12161B] border border-[#232A32] rounded-2xl p-5 mb-3 cursor-pointer hover:border-[#C1441E]/60 transition"
+              onClick={() => window.location.href = '/pedidos'}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-[#C1441E]/15 flex items-center justify-center shrink-0">
+                    <ShoppingBag size={18} className="text-[#E0632C]" />
+                  </div>
+                  <p className="text-white font-semibold">Pedidos online</p>
+                </div>
+                <ChevronRight size={18} className="text-gray-500" />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <p className="text-gray-500 text-xs mb-1">Pedidos no mês</p>
+                  <p className="text-lg font-bold text-white">{pedidosMesQtd}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs mb-1">Valor total</p>
+                  <p className="text-lg font-bold text-[#6FD98F]">R$ {pedidosMesTotal.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs mb-1">Em andamento</p>
+                  <p className="text-lg font-bold text-[#E0632C]">{pedidosMesAndamento}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Resultado líquido */}
           <div className={`rounded-2xl p-4 mb-3 ${resultadoLiquido >= 0 ? 'bg-green-950 border border-green-800' : 'bg-red-950 border border-red-800'}`}>
