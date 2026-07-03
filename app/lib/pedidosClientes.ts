@@ -22,6 +22,11 @@ export type PedidoCliente = {
   cliente_nome: string | null
   cliente_telefone: string | null
   status: StatusPedidoCliente
+  // Entrega por entregador parceiro (opcional).
+  entregador_id: string | null
+  valor_corrida: number
+  codigo_confirmacao: string | null
+  pagamento_corrida: 'pendente' | 'pago'
   created_at: string
   updated_at: string
 }

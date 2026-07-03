@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Store, User, Truck } from 'lucide-react'
+import { Store, User, Truck, Bike } from 'lucide-react'
 import AnimatedBackground from './components/AnimatedBackground'
 
 export default function Home() {
@@ -44,6 +44,18 @@ export default function Home() {
             <div>
               <p className="text-lg font-bold">Sou Fornecedor</p>
               <p className="text-purple-200 text-sm">Oferecer produtos e serviços</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link href="/entregador-delivery/login">
+          <div className="w-full bg-[#C1441E] hover:bg-[#a83a19] text-white font-semibold py-4 px-6 rounded-2xl transition flex items-center gap-4 cursor-pointer">
+            <div className="w-10 h-10 bg-[#E0632C] rounded-xl flex items-center justify-center shrink-0">
+              <Bike size={20} />
+            </div>
+            <div>
+              <p className="text-lg font-bold">Sou Entregador</p>
+              <p className="text-orange-200 text-sm">Fazer entregas e ganhar por corrida</p>
             </div>
           </div>
         </Link>
