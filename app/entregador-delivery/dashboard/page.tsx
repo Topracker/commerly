@@ -7,7 +7,9 @@ import { Toast } from '../../components/Toast'
 import { EntregadorLayout } from '../../components/EntregadorLayout'
 import { isDelivery, STATUS_META, type PedidoCliente } from '../../lib/pedidosClientes'
 import { STATUS_PARCERIA_META, GPS_INTERVALO_MS, type ParceriaEntregador } from '../../lib/entregadores'
-import { Store, MapPin, Navigation, CircleDollarSign, Check, Handshake, PackageCheck } from 'lucide-react'
+import { Store, MapPin, Navigation, CircleDollarSign, Check, Handshake, PackageCheck, Star, History } from 'lucide-react'
+
+type Avaliacao = { nota: number; comentario: string | null; created_at: string }
 
 export default function EntregadorDashboardPage() {
   return (
@@ -25,6 +27,7 @@ function EntregadorDashboard() {
   const [lojas, setLojas] = useState<any[]>([])
   const [parcerias, setParcerias] = useState<ParceriaEntregador[]>([])
   const [pedidos, setPedidos] = useState<PedidoCliente[]>([])
+  const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([])
   const [carregando, setCarregando] = useState(true)
   const [acao, setAcao] = useState<string | null>(null)
   const [codigos, setCodigos] = useState<Record<string, string>>({})
@@ -43,14 +46,17 @@ function EntregadorDashboard() {
   }, [])
 
   async function carregar() {
-    const [lojasRes, parceriasRes, pedidosRes] = await Promise.all([
+    const [lojasRes, parceriasRes, pedidosRes, avalRes] = await Promise.all([
       supabase.from('lojas_publicas').select('id, nome, tipo, localizacao'),
       supabase.from('entregador_parcerias').select('*').eq('entregador_id', entregador!.id),
       supabase.from('pedidos_clientes').select('*').order('created_at', { ascending: false }),
+      supabase.from('avaliacoes_entregadores').select('nota, comentario, created_at')
+        .eq('entregador_id', entregador!.id).order('created_at', { ascending: false }),
     ])
     setLojas((lojasRes.data || []).filter((l: any) => isDelivery(l.tipo)))
     setParcerias((parceriasRes.data || []) as ParceriaEntregador[])
     setPedidos((pedidosRes.data || []) as PedidoCliente[])
+    setAvaliacoes((avalRes.data || []) as Avaliacao[])
     setCarregando(false)
   }
 
@@ -75,9 +81,36 @@ function EntregadorDashboard() {
     return m
   }, [parcerias])
 
+  // Lojas com parceria ACEITA — base para os pedidos disponíveis.
+  const lojasAceitasIds = useMemo(
+    () => new Set(parcerias.filter(p => p.status === 'aceita').map(p => p.loja_id)),
+    [parcerias],
+  )
+  const temParceriaAceita = lojasAceitasIds.size > 0
+
   const ativas = pedidos.filter(p => p.entregador_id === entregador?.id && p.status !== 'entregue' && p.status !== 'cancelado')
-  const disponiveis = pedidos.filter(p => !p.entregador_id && p.status !== 'entregue' && p.status !== 'cancelado')
-  const entregasFeitas = pedidos.filter(p => p.entregador_id === entregador?.id && p.status === 'entregue').length
+  // Disponíveis: sem entregador, prontos p/ rota (preparando/saiu) e de loja parceira aceita.
+  const disponiveis = pedidos.filter(p =>
+    !p.entregador_id &&
+    (p.status === 'preparando' || p.status === 'saiu') &&
+    lojasAceitasIds.has(p.loja_id),
+  )
+  const historico = pedidos
+    .filter(p => p.entregador_id === entregador?.id && p.status === 'entregue')
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+  const entregasFeitas = historico.length
+  const totalRecebido = historico
+    .filter(p => p.pagamento_corrida === 'pago')
+    .reduce((s, p) => s + (Number(p.valor_corrida) || 0), 0)
+
+  // Avaliação média recebida dos clientes.
+  const mediaNota = avaliacoes.length
+    ? avaliacoes.reduce((s, a) => s + a.nota, 0) / avaliacoes.length
+    : 0
+  const comentarios = avaliacoes.filter(a => a.comentario && a.comentario.trim())
+
+  // Parcerias existentes (qualquer status) para a seção "Minhas parcerias".
+  const lojasSemParceria = lojas.filter(l => !parceriaPorLoja[l.id])
 
   // ---- GPS em tempo real: enquanto houver entrega "saiu para entrega" ----
   const emRotaKey = ativas.filter(p => p.status === 'saiu').map(p => p.id).join(',')
@@ -168,8 +201,11 @@ function EntregadorDashboard() {
           <p className="text-gray-500 text-[11px]">Entregues</p>
         </div>
         <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-3 text-center">
-          <p className="text-lg font-bold text-white">{parcerias.filter(p => p.status === 'aceita').length}</p>
-          <p className="text-gray-500 text-[11px]">Parcerias</p>
+          <p className="text-lg font-bold text-amber-300 flex items-center justify-center gap-1">
+            <Star size={14} className="fill-amber-300 text-amber-300" />
+            {avaliacoes.length ? mediaNota.toFixed(1) : '—'}
+          </p>
+          <p className="text-gray-500 text-[11px]">{avaliacoes.length ? `${avaliacoes.length} avaliação${avaliacoes.length > 1 ? 'ões' : ''}` : 'Sem avaliações'}</p>
         </div>
       </div>
 
@@ -199,11 +235,11 @@ function EntregadorDashboard() {
         <p className="text-gray-500 text-sm">Carregando...</p>
       ) : (
         <div className="flex flex-col gap-6">
-          {/* Entregas ativas */}
+          {/* Minhas entregas ativas */}
           {ativas.length > 0 && (
             <section>
               <h2 className="text-white font-semibold mb-2 flex items-center gap-2">
-                <Navigation size={16} className="text-[#E0632C]" /> Minhas entregas
+                <Navigation size={16} className="text-[#E0632C]" /> Minhas entregas ativas
                 {gpsAtivo && <span className="text-[10px] font-medium text-green-400 bg-green-500/15 px-2 py-0.5 rounded-full">● GPS ao vivo</span>}
               </h2>
               <div className="flex flex-col gap-3">
@@ -253,65 +289,156 @@ function EntregadorDashboard() {
             </section>
           )}
 
-          {/* Pedidos disponíveis */}
+          {/* Pedidos disponíveis — só para quem tem parceria aceita */}
+          {temParceriaAceita && (
+            <section>
+              <h2 className="text-white font-semibold mb-2 flex items-center gap-2"><PackageCheck size={16} className="text-[#E0632C]" /> Pedidos disponíveis</h2>
+              {disponiveis.length === 0 ? (
+                <p className="text-gray-500 text-sm">Nenhum pedido disponível nas suas lojas parceiras agora.</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {disponiveis.map(p => {
+                    const meta = STATUS_META[p.status]
+                    return (
+                      <div key={p.id} className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <p className="text-white font-semibold truncate">{nomeLoja[p.loja_id] || 'Loja'}</p>
+                          <span className="text-[#6FD98F] font-bold text-sm shrink-0">{Number(p.valor_corrida) > 0 ? `R$ ${Number(p.valor_corrida).toFixed(2)}` : 'Corrida a definir'}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${meta.classes}`}>{meta.emoji} {meta.label}</span>
+                        </div>
+                        <p className="text-gray-400 text-xs flex items-start gap-1.5"><MapPin size={13} className="shrink-0 mt-0.5" />{p.endereco_entrega}</p>
+                        <button
+                          onClick={() => aceitarPedido(p.id)}
+                          disabled={acao === p.id}
+                          className="mt-3 w-full bg-[#C1441E] hover:bg-[#a83a19] disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition text-sm"
+                        >
+                          {acao === p.id ? 'Aceitando...' : 'Aceitar pedido'}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Minhas parcerias */}
           <section>
-            <h2 className="text-white font-semibold mb-2 flex items-center gap-2"><PackageCheck size={16} className="text-[#E0632C]" /> Pedidos disponíveis</h2>
-            {disponiveis.length === 0 ? (
-              <p className="text-gray-500 text-sm">Nenhum pedido disponível nas suas lojas parceiras agora.</p>
+            <h2 className="text-white font-semibold mb-2 flex items-center gap-2"><Handshake size={16} className="text-[#E0632C]" /> Minhas parcerias</h2>
+            {parcerias.length === 0 ? (
+              <p className="text-gray-500 text-sm mb-2">Você ainda não tem parcerias. Solicite parceria a uma loja de delivery abaixo para começar a receber pedidos.</p>
             ) : (
-              <div className="flex flex-col gap-3">
-                {disponiveis.map(p => (
-                  <div key={p.id} className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <p className="text-white font-semibold truncate">{nomeLoja[p.loja_id] || 'Loja'}</p>
-                      <span className="text-[#6FD98F] font-bold text-sm shrink-0">{Number(p.valor_corrida) > 0 ? `R$ ${Number(p.valor_corrida).toFixed(2)}` : 'Corrida a definir'}</span>
+              <div className="flex flex-col gap-2 mb-3">
+                {parcerias.map(parceria => {
+                  const meta = STATUS_PARCERIA_META[parceria.status]
+                  return (
+                    <div key={parceria.id} className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-[#C1441E]/15 flex items-center justify-center shrink-0"><Store size={16} className="text-[#E0632C]" /></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-semibold text-sm truncate">{nomeLoja[parceria.loja_id] || 'Loja'}</p>
+                        <p className="text-gray-500 text-xs">
+                          {parceria.status === 'pendente' && 'Aguardando a loja aceitar'}
+                          {parceria.status === 'aceita' && 'Você recebe os pedidos desta loja'}
+                          {parceria.status === 'recusada' && 'A loja recusou a parceria'}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${meta.classes}`}>{meta.label}</span>
                     </div>
-                    <p className="text-gray-400 text-xs flex items-start gap-1.5"><MapPin size={13} className="shrink-0 mt-0.5" />{p.endereco_entrega}</p>
-                    <button
-                      onClick={() => aceitarPedido(p.id)}
-                      disabled={acao === p.id}
-                      className="mt-3 w-full bg-[#C1441E] hover:bg-[#a83a19] disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition text-sm"
-                    >
-                      {acao === p.id ? 'Aceitando...' : 'Aceitar entrega'}
-                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Solicitar nova parceria */}
+            {lojasSemParceria.length > 0 && (
+              <>
+                <p className="text-gray-400 text-xs font-semibold mb-2 mt-1">Solicitar nova parceria</p>
+                <div className="flex flex-col gap-2">
+                  {lojasSemParceria.map(l => (
+                    <div key={l.id} className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-[#1B2129] flex items-center justify-center shrink-0"><Store size={16} className="text-gray-400" /></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-semibold text-sm truncate">{l.nome}</p>
+                        {l.localizacao && <p className="text-gray-500 text-xs truncate">{l.localizacao}</p>}
+                      </div>
+                      <button
+                        onClick={() => solicitarParceria(l.id)}
+                        disabled={acao === l.id}
+                        className="shrink-0 bg-[#1B2129] border border-[#232A32] hover:border-[#C1441E]/60 text-white text-xs font-semibold px-3 py-2 rounded-lg transition disabled:opacity-50"
+                      >
+                        {acao === l.id ? '...' : 'Solicitar'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+
+          {/* Histórico de entregas concluídas */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-white font-semibold flex items-center gap-2"><History size={16} className="text-[#E0632C]" /> Histórico de entregas</h2>
+              {totalRecebido > 0 && (
+                <span className="text-[#6FD98F] font-bold text-sm">R$ {totalRecebido.toFixed(2)} recebido</span>
+              )}
+            </div>
+            {historico.length === 0 ? (
+              <p className="text-gray-500 text-sm">Você ainda não concluiu nenhuma entrega.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {historico.map(p => (
+                  <div key={p.id} className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-white font-semibold text-sm truncate">{nomeLoja[p.loja_id] || 'Loja'}</p>
+                        <p className="text-gray-500 text-xs">{new Date(p.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[#6FD98F] font-bold text-sm">{Number(p.valor_corrida) > 0 ? `R$ ${Number(p.valor_corrida).toFixed(2)}` : '—'}</p>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${p.pagamento_corrida === 'pago' ? 'bg-green-500/15 text-green-300 border-green-500/40' : 'bg-amber-500/15 text-amber-300 border-amber-500/40'}`}>
+                          {p.pagamento_corrida === 'pago' ? 'Pago' : 'Pendente'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </section>
 
-          {/* Lojas para parceria */}
+          {/* Avaliações recebidas */}
           <section>
-            <h2 className="text-white font-semibold mb-2 flex items-center gap-2"><Handshake size={16} className="text-[#E0632C]" /> Lojas de delivery</h2>
-            {lojas.length === 0 ? (
-              <p className="text-gray-500 text-sm">Nenhuma loja de delivery disponível no momento.</p>
+            <h2 className="text-white font-semibold mb-2 flex items-center gap-2"><Star size={16} className="text-[#E0632C]" /> Avaliação dos clientes</h2>
+            {avaliacoes.length === 0 ? (
+              <p className="text-gray-500 text-sm">Você ainda não recebeu avaliações.</p>
             ) : (
-              <div className="flex flex-col gap-2">
-                {lojas.map(l => {
-                  const parceria = parceriaPorLoja[l.id]
-                  return (
-                    <div key={l.id} className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4 flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-[#C1441E]/15 flex items-center justify-center shrink-0"><Store size={16} className="text-[#E0632C]" /></div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white font-semibold text-sm truncate">{l.nome}</p>
-                        {l.localizacao && <p className="text-gray-500 text-xs truncate">{l.localizacao}</p>}
+              <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+                <div className="flex items-center gap-3 mb-1">
+                  <span className="text-2xl font-bold text-amber-300">{mediaNota.toFixed(1)}</span>
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map(n => (
+                      <Star key={n} size={16} className={n <= Math.round(mediaNota) ? 'fill-amber-300 text-amber-300' : 'text-gray-600'} />
+                    ))}
+                  </div>
+                  <span className="text-gray-500 text-xs ml-auto">{avaliacoes.length} avaliação{avaliacoes.length > 1 ? 'ões' : ''}</span>
+                </div>
+                {comentarios.length > 0 && (
+                  <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-[#232A32]">
+                    {comentarios.slice(0, 5).map((a, i) => (
+                      <div key={i}>
+                        <div className="flex items-center gap-1 mb-0.5">
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <Star key={n} size={11} className={n <= a.nota ? 'fill-amber-300 text-amber-300' : 'text-gray-700'} />
+                          ))}
+                        </div>
+                        <p className="text-gray-300 text-xs">{a.comentario}</p>
                       </div>
-                      {parceria ? (
-                        <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${STATUS_PARCERIA_META[parceria.status].classes}`}>
-                          {STATUS_PARCERIA_META[parceria.status].label}
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => solicitarParceria(l.id)}
-                          disabled={acao === l.id}
-                          className="shrink-0 bg-[#1B2129] border border-[#232A32] hover:border-[#C1441E]/60 text-white text-xs font-semibold px-3 py-2 rounded-lg transition disabled:opacity-50"
-                        >
-                          {acao === l.id ? '...' : 'Solicitar'}
-                        </button>
-                      )}
-                    </div>
-                  )
-                })}
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </section>
