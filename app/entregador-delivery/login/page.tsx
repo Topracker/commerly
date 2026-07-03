@@ -17,16 +17,26 @@ export default function EntregadorLogin() {
   const supabase = createClient()
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) return
-      await rotearPorPapel(session.user.id, false)
+    // getUser() valida o token no servidor e garante que ele esteja anexado às
+    // queries seguintes. Com getSession() havia uma corrida em cold-mount: a
+    // leitura de entregadores rodava sem token e voltava vazia por RLS (sem
+    // erro), mandando um entregador já cadastrado para o onboarding.
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      await rotearPorPapel(user.id, false)
     })
   }, [])
 
   // Descobre o papel da conta e roteia. Entregador é uma conta EXCLUSIVA: se o
   // e-mail já é loja/cliente/fornecedor, bloqueia (use a área correta).
   async function rotearPorPapel(userId: string, mostrarErro: boolean): Promise<boolean> {
-    const { data: entregador } = await supabase.from('entregadores').select('id').eq('user_id', userId).maybeSingle()
+    const { data: entregador, error: entErr } = await supabase.from('entregadores').select('id').eq('user_id', userId).maybeSingle()
+    // Falha ao ler o perfil (rede/sessão): não mande um entregador existente
+    // para o onboarding — deixe-o tentar novamente.
+    if (entErr) {
+      if (mostrarErro) setErro('Não foi possível carregar seu perfil. Tente novamente.')
+      return false
+    }
     if (entregador) { router.push('/entregador-delivery/dashboard'); return true }
 
     const [{ data: loja }, { data: cliente }, { data: fornecedor }] = await Promise.all([

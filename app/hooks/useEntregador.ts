@@ -15,7 +15,10 @@ export function useEntregador() {
   async function init() {
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) { router.push('/entregador-delivery/login'); return }
-    const { data } = await supabase.from('entregadores').select('*').eq('user_id', user.id).single()
+    const { data, error: entErr } = await supabase.from('entregadores').select('*').eq('user_id', user.id).maybeSingle()
+    // Erro de leitura (rede/sessão) não é "sem cadastro": volta ao login em vez
+    // de mandar um entregador existente para o onboarding.
+    if (entErr) { router.push('/entregador-delivery/login'); return }
     if (!data) { router.push('/entregador-delivery/onboarding'); return }
     setEntregador(data as Entregador)
     setLoading(false)
