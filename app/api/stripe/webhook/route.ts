@@ -27,7 +27,16 @@ export async function POST(request: NextRequest) {
   // --- Pagamento ONLINE de um pedido de delivery -> cria o pedido real. -----
   // "O pedido só é criado após o pagamento confirmado": aqui movemos o pedido
   // pendente para pedidos_clientes (o que também dispara a notificação da loja).
-  if (event.type === 'checkout.session.completed' && (event.data.object as any).metadata?.tipo === 'pedido_online') {
+  //
+  // Cartão confirma na hora (`checkout.session.completed`, payment_status=paid).
+  // Pix é ASSÍNCRONO: o `completed` chega com payment_status=unpaid (cliente
+  // ainda vai escanear o QR) e a confirmação vem depois em
+  // `async_payment_succeeded`. Tratamos os dois; o teste de payment_status
+  // abaixo garante que o pedido só nasce quando de fato está pago.
+  if (
+    (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded')
+    && (event.data.object as any).metadata?.tipo === 'pedido_online'
+  ) {
     const session = event.data.object as Stripe.Checkout.Session
     if (session.payment_status !== 'paid') return NextResponse.json({ ok: true })
 
@@ -61,6 +70,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false }, { status: 500 }) // Stripe re-tenta
     }
     await supabase.from('pedidos_pendentes').delete().eq('id', pendenteId)
+    return NextResponse.json({ ok: true })
+  }
+
+  // Pix expirou ou falhou -> descarta o pedido pendente (não vira pedido real).
+  if (event.type === 'checkout.session.async_payment_failed' && (event.data.object as any).metadata?.tipo === 'pedido_online') {
+    const session = event.data.object as Stripe.Checkout.Session
+    const pendenteId = session.metadata?.pendente_id
+    if (pendenteId) await supabase.from('pedidos_pendentes').delete().eq('id', pendenteId)
     return NextResponse.json({ ok: true })
   }
 

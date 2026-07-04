@@ -305,7 +305,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                   <CreditCard size={20} className="text-[#6FD98F] shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-medium">Pagar online agora</p>
-                    <p className="text-gray-500 text-xs">Cartão de crédito ou débito (Stripe)</p>
+                    <p className="text-gray-500 text-xs">Cartão ou Pix (Stripe)</p>
                   </div>
                   {pagamento === 'online' && <Check size={16} className="text-[#6FD98F] shrink-0" />}
                 </button>

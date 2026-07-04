@@ -120,7 +120,11 @@ export async function POST(request: NextRequest) {
     const meta = { tipo: 'pedido_online', pendente_id: pend.id, loja_id: loja.id, cliente_id: cliente.id }
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      payment_method_types: ['card'],
+      // Cartão + Pix. Pix é assíncrono: o pedido só nasce no webhook, ao receber
+      // `checkout.session.async_payment_succeeded` (ver app/api/stripe/webhook).
+      payment_method_types: ['card', 'pix'],
+      // Prazo do QR do Pix (30 min): evita pedido pendente parado por muito tempo.
+      payment_method_options: { pix: { expires_after_seconds: 1800 } },
       customer_email: user.email || undefined,
       line_items: [
         { quantity: 1, price_data: { currency: 'brl', unit_amount: subtotalCents, product_data: { name: `Pedido — ${loja.nome}` } } },
