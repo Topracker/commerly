@@ -13,7 +13,7 @@ import { RatingBadge } from '../../../components/RatingBadge'
 import { ProdutoCard } from '../../../components/ProdutoCard'
 import { PedidoModal } from '../../../components/PedidoModal'
 import { isDelivery } from '../../../lib/pedidosClientes'
-import { Phone, AtSign, MapPin, Clock, MessageCircle, ArrowLeft, Heart, ShoppingBag } from 'lucide-react'
+import { Phone, AtSign, MapPin, Clock, MessageCircle, ArrowLeft, Heart, ShoppingBag, Globe } from 'lucide-react'
 
 export default function ClienteLoja() {
   const { id } = useParams<{ id: string }>()
@@ -48,7 +48,7 @@ export default function ClienteLoja() {
 
   async function carregarLoja() {
     const [lojaRes, prodRes, avalRes] = await Promise.all([
-      supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega').eq('id', id).single(),
+      supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, website_url').eq('id', id).single(),
       supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
       supabase.from('avaliacoes_lojas').select('nota, comentario, created_at, cliente_id').eq('loja_id', id).order('created_at', { ascending: false }),
     ])
@@ -183,6 +183,18 @@ export default function ClienteLoja() {
                 <ShoppingBag size={18} />
                 Fazer Pedido
               </button>
+            )}
+
+            {loja.website_url && (
+              <a
+                href={loja.website_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2.5 w-full bg-[#1B2129] border border-[#232A32] hover:bg-[#232A32] text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+              >
+                <Globe size={18} />
+                Visitar site
+              </a>
             )}
           </div>
 

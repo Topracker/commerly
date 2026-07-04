@@ -1,6 +1,10 @@
 import Link from 'next/link'
-import { Store, User, Truck, Bike } from 'lucide-react'
+import { Store, User, Truck, Bike, Globe, ArrowRight } from 'lucide-react'
 import AnimatedBackground from './components/AnimatedBackground'
+
+// Link do parceiro que cria sites profissionais para as lojas.
+// TODO: trocar pelo endereço final do parceiro.
+const SITE_PARCEIRO = 'https://exemplo-parceiro.com'
 
 export default function Home() {
   return (
@@ -60,6 +64,23 @@ export default function Home() {
           </div>
         </Link>
       </div>
+
+      {/* Parceiros — criação de site profissional para a loja. Discreto, não intrusivo. */}
+      <a
+        href={SITE_PARCEIRO}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group relative z-10 mt-8 w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 hover:bg-white/[0.07] backdrop-blur-sm px-5 py-4 transition flex items-center gap-4"
+      >
+        <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+          <Globe size={18} className="text-gray-300" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-white text-sm font-semibold">Quer um site profissional para sua loja?</p>
+          <p className="text-gray-400 text-xs mt-0.5">Conheça nosso parceiro de criação de sites.</p>
+        </div>
+        <ArrowRight size={16} className="text-gray-500 group-hover:text-gray-300 group-hover:translate-x-0.5 transition shrink-0" />
+      </a>
     </main>
   )
 }

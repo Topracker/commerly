@@ -10,7 +10,7 @@ import { uploadFachada } from '../lib/fachada'
 import {
   validarCPF, validarCNPJ, formatarDocumento,
   formatarTelefone, erroTelefone, checarDuplicidade, MSG_DUPLICADO,
-  registrarCadastroIp, AVISO_VERIFICACAO,
+  registrarCadastroIp, AVISO_VERIFICACAO, normalizarWebsite, erroWebsite,
 } from '../lib/validacoes'
 
 // Módulos que a IA pode sugerir / o usuário pode escolher no fluxo "Outro".
@@ -48,6 +48,7 @@ export default function Onboarding() {
   const coordRef = useRef<{ lat: number | null; lng: number | null }>({ lat: null, lng: null })
   const [telefone, setTelefone] = useState('')
   const [instagram, setInstagram] = useState('')
+  const [website, setWebsite] = useState('')
   const [horarioAbertura, setHorarioAbertura] = useState('08:00')
   const [horarioFechamento, setHorarioFechamento] = useState('18:00')
   const [fachadaItems, setFachadaItems] = useState<FachadaItem[]>([])
@@ -55,6 +56,7 @@ export default function Onboarding() {
   const [erroDoc, setErroDoc] = useState('')
   const [erroTel, setErroTel] = useState('')
   const [erroIG, setErroIG] = useState('')
+  const [erroSite, setErroSite] = useState('')
   const [loading, setLoading] = useState(false)
 
   // Fluxo de IA para tipo "Outro"
@@ -97,6 +99,11 @@ export default function Onboarding() {
     setErroIG(erroInstagram(valor))
   }
 
+  function handleWebsite(valor: string) {
+    setWebsite(valor)
+    setErroSite(erroWebsite(valor))
+  }
+
   async function consultarIA() {
     if (!iaDescricao.trim()) { setIaErro('Conta um pouco sobre o seu negócio.'); return }
     setIaLoading(true); setIaErro('')
@@ -130,6 +137,7 @@ export default function Onboarding() {
     if (nums.length !== 11 && nums.length !== 14) return alert('Informe um CPF ou CNPJ válido!')
     if (telefone && erroTelefone(telefone)) return alert('Telefone inválido!')
     if (instagram && erroInstagram(instagram)) return alert('Formato de Instagram inválido!')
+    if (website && erroWebsite(website)) return alert('Endereço de site inválido!')
 
     const horario = horarioAbertura && horarioFechamento
       ? `${horarioAbertura} - ${horarioFechamento}`
@@ -163,6 +171,7 @@ export default function Onboarding() {
     const { data: lojaInserida, error } = await supabase.from('lojas').insert({
       user_id: user?.id,
       nome, tipo: tipoFinal, documento, localizacao, telefone, instagram, horario,
+      website_url: normalizarWebsite(website),
       latitude: coordRef.current.lat ?? latitude,
       longitude: coordRef.current.lng ?? longitude,
       plano: 'inativo',
@@ -345,6 +354,17 @@ export default function Onboarding() {
             {erroIG && <p className="text-red-400 text-sm mt-1">{erroIG}</p>}
           </div>
 
+          {/* Website da loja (opcional) */}
+          <div>
+            <input
+              placeholder="Website da loja (ex: minhaloja.com.br)"
+              value={website}
+              onChange={e => handleWebsite(e.target.value)}
+              className={`w-full ${inputClass} ${erroSite ? 'ring-2 ring-red-500 focus:ring-red-500' : ''}`}
+            />
+            {erroSite && <p className="text-red-400 text-sm mt-1">{erroSite}</p>}
+          </div>
+
           {/* Horário de funcionamento */}
           <div>
             <p className="text-gray-400 text-xs mb-2">Horário de funcionamento</p>
@@ -362,7 +382,7 @@ export default function Onboarding() {
           <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
           <button
             onClick={salvar}
-            disabled={loading || !!erroDoc || !!erroTel || !!erroIG}
+            disabled={loading || !!erroDoc || !!erroTel || !!erroIG || !!erroSite}
             className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition mt-2"
           >
             {loading ? 'Salvando...' : 'Começar a usar o Commerly'}

@@ -10,6 +10,7 @@ import { EnderecoAutocomplete } from '../components/EnderecoAutocomplete'
 import { FachadaUpload, type FachadaItem } from '../components/FachadaUpload'
 import { uploadFachada, removerFachada } from '../lib/fachada'
 import { isDelivery } from '../lib/pedidosClientes'
+import { normalizarWebsite, erroWebsite } from '../lib/validacoes'
 import { Eye, EyeOff, Store, Copy, ExternalLink, FileText, Download } from 'lucide-react'
 
 type Fatura = {
@@ -129,6 +130,7 @@ export default function Configuracoes() {
   const coordRef = useRef<{ lat: number | null; lng: number | null }>({ lat: null, lng: null })
   const [telefone, setTelefone] = useState('')
   const [instagram, setInstagram] = useState('')
+  const [website, setWebsite] = useState('')
   const [horarioAbertura, setHorarioAbertura] = useState('08:00')
   const [horarioFechamento, setHorarioFechamento] = useState('18:00')
   const [metaMensal, setMetaMensal] = useState(5000)
@@ -139,6 +141,7 @@ export default function Configuracoes() {
   const [erroDoc, setErroDoc] = useState('')
   const [erroTel, setErroTel] = useState('')
   const [erroIG, setErroIG] = useState('')
+  const [erroSite, setErroSite] = useState('')
   const [salvando, setSalvando] = useState(false)
 
   // Blur/reveal
@@ -216,6 +219,7 @@ export default function Configuracoes() {
       coordRef.current = { lat: loja.latitude ?? null, lng: loja.longitude ?? null }
       setTelefone(formatarTelefone(loja.telefone || ''))
       setInstagram(loja.instagram || '')
+      setWebsite(loja.website_url || '')
       const [ab, fe] = parseHorario(loja.horario || '')
       setHorarioAbertura(ab)
       setHorarioFechamento(fe)
@@ -277,6 +281,11 @@ export default function Configuracoes() {
     setErroIG(erroInstagram(valor))
   }
 
+  function handleWebsite(valor: string) {
+    setWebsite(valor)
+    setErroSite(erroWebsite(valor))
+  }
+
   async function salvar() {
     if (!nome || !tipo) { mostrarToast('Nome e tipo são obrigatórios!', 'erro'); return }
     const nums = documento.replace(/\D/g, '')
@@ -284,6 +293,9 @@ export default function Configuracoes() {
     if (nums.length === 14 && !validarCNPJ(nums)) { mostrarToast('CNPJ inválido!', 'erro'); return }
     if (erroTel) { mostrarToast('Telefone inválido!', 'erro'); return }
     if (erroIG) { mostrarToast('Formato de Instagram inválido!', 'erro'); return }
+    if (erroSite) { mostrarToast('Endereço de site inválido!', 'erro'); return }
+
+    const websiteFinal = normalizarWebsite(website)
 
     const horario = `${horarioAbertura} - ${horarioFechamento}`
     // Para "Outro", o ramo sugerido pela IA (se houver) vira o tipo da loja.
@@ -310,7 +322,7 @@ export default function Configuracoes() {
     await Promise.all(removidas.map(u => removerFachada(supabase, u)))
 
     const { error } = await supabase.from('lojas').update({
-      nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais,
+      nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, website_url: websiteFinal, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais,
     }).eq('id', loja.id)
     if (error) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
 
@@ -348,7 +360,8 @@ export default function Configuracoes() {
     // nicho na hora (useNicho recomputa a partir do tipo atualizado). Reflete
     // também as coordenadas efetivamente gravadas.
     setLatitude(latFinal); setLongitude(lngFinal)
-    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais })
+    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, website_url: websiteFinal, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais })
+    setWebsite(websiteFinal)
 
     // (o toast de confirmação com as coordenadas já foi mostrado acima)
     setSalvando(false)
@@ -536,6 +549,20 @@ export default function Configuracoes() {
           {erroIG && <p className="text-red-400 text-sm mt-1">{erroIG}</p>}
         </div>
 
+        {/* Website da loja (opcional) */}
+        <div>
+          <label className="block text-gray-400 text-xs mb-1.5">🌐 Website da loja (opcional)</label>
+          <input
+            placeholder="Ex: minhaloja.com.br"
+            value={website}
+            onChange={e => handleWebsite(e.target.value)}
+            className={`w-full ${inputClass} ${erroSite ? 'ring-2 ring-red-500 focus:ring-red-500' : ''}`}
+          />
+          {erroSite
+            ? <p className="text-red-400 text-sm mt-1">{erroSite}</p>
+            : <p className="text-gray-600 text-xs mt-1">Aparece como botão &quot;Visitar site&quot; na sua página pública.</p>}
+        </div>
+
         {/* Horário de funcionamento */}
         <div>
           <p className="text-gray-400 text-xs mb-2">Horário de funcionamento</p>
@@ -597,7 +624,7 @@ export default function Configuracoes() {
 
         <button
           onClick={salvar}
-          disabled={salvando || !!erroDoc || !!erroTel || !!erroIG}
+          disabled={salvando || !!erroDoc || !!erroTel || !!erroIG || !!erroSite}
           className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition"
         >
           {salvando ? 'Salvando...' : 'Salvar alterações'}

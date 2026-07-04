@@ -179,6 +179,33 @@ export function erroTelefone(valor: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Website da loja (URL opcional)
+// ---------------------------------------------------------------------------
+
+// Normaliza o que o comerciante digitou numa URL gravável: aceita "loja.com",
+// "www.loja.com" ou "https://loja.com" e sempre devolve com esquema http(s).
+// Devolve '' quando vazio (campo é opcional).
+export function normalizarWebsite(valor: string): string {
+  const t = (valor || '').trim()
+  if (!t) return ''
+  return /^https?:\/\//i.test(t) ? t : `https://${t}`
+}
+
+// '' quando válido ou vazio; mensagem de erro caso contrário. Exige um host
+// com ponto (ex.: "loja.com") pra barrar digitação incompleta.
+export function erroWebsite(valor: string): string {
+  const t = (valor || '').trim()
+  if (!t) return ''
+  try {
+    const u = new URL(normalizarWebsite(t))
+    if (!u.hostname.includes('.') || u.hostname.endsWith('.')) return 'Endereço de site inválido'
+    return ''
+  } catch {
+    return 'Endereço de site inválido'
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Checagem de duplicidade (client → /api/cadastro/checar)
 // ---------------------------------------------------------------------------
 

@@ -6,7 +6,7 @@ import { MiniMapa } from '../../components/MiniMapa'
 import { FachadaBanner } from '../../components/FachadaBanner'
 import { RatingBadge } from '../../components/RatingBadge'
 import { ProdutoCard } from '../../components/ProdutoCard'
-import { Phone, AtSign, MapPin, Clock } from 'lucide-react'
+import { Phone, AtSign, MapPin, Clock, Globe } from 'lucide-react'
 
 // Página pública da loja — acessível sem login. Lê os dados via service role
 // (a view lojas_publicas é pública, mas produtos/avaliações têm RLS para
@@ -24,12 +24,13 @@ type Loja = {
   latitude: number | null
   longitude: number | null
   fotos_fachada: string[] | null
+  website_url: string | null
 }
 
 async function carregar(id: string) {
   const supabase = createAdminClient()
   const [lojaRes, prodRes, avalRes] = await Promise.all([
-    supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada').eq('id', id).maybeSingle(),
+    supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, website_url').eq('id', id).maybeSingle(),
     supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
     supabase.from('avaliacoes_lojas').select('nota, comentario, created_at').eq('loja_id', id).order('created_at', { ascending: false }),
   ])
@@ -112,6 +113,18 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
               >
                 <Phone size={18} />
                 Falar no WhatsApp
+              </a>
+            )}
+
+            {loja.website_url && (
+              <a
+                href={loja.website_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2.5 w-full bg-[#1B2129] border border-[#232A32] hover:bg-[#232A32] text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+              >
+                <Globe size={18} />
+                Visitar site
               </a>
             )}
           </div>
