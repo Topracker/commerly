@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createAdminClient } from '../../../lib/supabase-admin'
+import { dispatchPushPedido } from '../../../lib/pushDispatch'
 
 export async function POST(request: NextRequest) {
   const secret = process.env.STRIPE_SECRET_KEY
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     const paymentIntent = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id
 
-    const { error: insErr } = await supabase.from('pedidos_clientes').insert({
+    const { data: novoPedido, error: insErr } = await supabase.from('pedidos_clientes').insert({
       loja_id: pend.loja_id,
       cliente_id: pend.cliente_id,
       itens: pend.itens,
@@ -67,12 +68,14 @@ export async function POST(request: NextRequest) {
       pagamento_status: 'pago',
       stripe_session_id: session.id,
       stripe_payment_intent: paymentIntent,
-    })
-    if (insErr) {
-      console.error('[stripe/webhook] erro ao criar pedido pago:', insErr.message)
+    }).select('id').single()
+    if (insErr || !novoPedido) {
+      console.error('[stripe/webhook] erro ao criar pedido pago:', insErr?.message)
       return NextResponse.json({ ok: false }, { status: 500 }) // Stripe re-tenta
     }
     await supabase.from('pedidos_pendentes').delete().eq('id', pendenteId)
+    // Push nativo para o comerciante (o trigger já gravou a notificação in-app).
+    await dispatchPushPedido(supabase, novoPedido.id)
     return NextResponse.json({ ok: true })
   }
 

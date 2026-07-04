@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import Stripe from 'stripe'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
+import { dispatchPushPedido } from '../../../lib/pushDispatch'
 
 // Entregador digita o código de 4 dígitos do cliente para confirmar a entrega.
 // Confere o código, marca o pedido como 'entregue' e paga a corrida via
@@ -44,6 +45,9 @@ export async function POST(request: NextRequest) {
 
   const { error: updErr } = await admin.from('pedidos_clientes').update({ status: 'entregue' }).eq('id', pedido_id)
   if (updErr) return NextResponse.json({ error: 'Erro ao confirmar a entrega.' }, { status: 500 })
+
+  // Push do "Pedido entregue" para o cliente (o trigger já gravou a notificação).
+  await dispatchPushPedido(admin, pedido_id)
 
   // Payout da corrida via Stripe Connect (best-effort — a entrega já foi
   // confirmada; se o transfer falhar, pagamento_corrida fica 'pendente').

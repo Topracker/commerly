@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import Stripe from 'stripe'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
+import { dispatchPushPedido } from '../../../lib/pushDispatch'
 
 // Cliente cancela o próprio pedido enquanto ainda está em "recebido" (a loja
 // nem começou a preparar). Se foi pago online via Stripe, faz o estorno total
@@ -77,6 +78,9 @@ export async function POST(request: NextRequest) {
     // O estorno pode já ter saído; peça para o cliente conferir com o suporte.
     return NextResponse.json({ error: 'O pedido não pôde ser cancelado. Fale com o suporte.' }, { status: 500 })
   }
+
+  // Push do novo status (o trigger já gravou a notificação in-app do cliente).
+  await dispatchPushPedido(admin, pedido.id)
 
   return NextResponse.json({ ok: true, estornado })
 }

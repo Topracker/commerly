@@ -2,14 +2,16 @@
 --
 -- Guarda as "subscriptions" (endpoint + chaves) de cada dispositivo/navegador
 -- de um usuário. Um usuário pode ter várias (celular, desktop, etc.). O envio
--- do push é feito no servidor Next (rota /api/push/send) com as VAPID keys.
+-- do push é feito no servidor Next com as VAPID keys.
 --
--- A ponte banco -> servidor reusa a tabela `notificacoes` que já existe
--- (sql/2026-07-03-notificacoes.sql): toda notificação criada pelos triggers
--- (pedido novo -> comerciante, status -> cliente, parceria -> entregador)
--- dispara AQUI um trigger que chama /api/push/send via pg_net. Ou seja: um
--- único ponto central envia push para os TRÊS papéis, inclusive com o app
--- fechado (o push é entregue pelo push service do navegador).
+-- ARQUITETURA DO DISPARO (sem pg_net):
+--   O push é disparado no CÓDIGO DO SERVIDOR, logo após cada escrita que gera
+--   notificação. As rotas server-side (webhook do Stripe, cancelar-pedido,
+--   confirmar-entrega) chamam lib/pushDispatch diretamente; as ações feitas no
+--   navegador (novo pedido na entrega, avanço de status, aceite de parceria)
+--   chamam a rota autenticada /api/push/dispatch. Em ambos os casos o
+--   destinatário e o texto vêm das linhas que os triggers já gravaram em
+--   `notificacoes` — nada é duplicado e não é preciso GUC nem pg_net.
 --
 -- Rode no SQL Editor do Supabase (produção). Tudo é idempotente.
 
@@ -54,64 +56,17 @@ create policy "push_delete_dono" on public.push_subscriptions
   for delete to authenticated using (user_id = auth.uid());
 
 -- ===========================================================================
--- 3. PONTE banco -> servidor via pg_net.
---    A cada nova linha em `notificacoes`, chama /api/push/send passando o
---    destinatário e o texto. O servidor busca as subscriptions e dispara o push.
---
---    CONFIGURAÇÃO (rode UMA vez, com os seus valores reais — NÃO versionar o
---    segredo). Preferimos GUCs para manter o segredo fora do corpo da função:
---
---      alter database postgres set app.settings.push_endpoint =
---        'https://SEU-DOMINIO/api/push/send';
---      alter database postgres set app.settings.push_secret =
---        'MESMO_VALOR_DE_PUSH_DISPATCH_SECRET';
---
---    Depois rode `select pg_reload_conf();` (ou reconecte) para os GUCs valerem.
+-- 3. Limpeza da abordagem anterior (pg_net + GUCs), caso tenha sido aplicada.
+--    O disparo agora é 100% no servidor Next — este trigger não é mais usado.
+--    (Não removemos a extensão pg_net: pode estar em uso por outra coisa.)
 -- ===========================================================================
-create extension if not exists pg_net;
-
-create or replace function public.push_dispatch_notificacao()
-returns trigger language plpgsql security definer set search_path = public, extensions as $$
-declare
-  endpoint text := current_setting('app.settings.push_endpoint', true);
-  secret   text := current_setting('app.settings.push_secret', true);
-begin
-  -- Sem configuração, não faz nada (a notificação in-app continua funcionando).
-  if endpoint is null or endpoint = '' then
-    return new;
-  end if;
-
-  perform net.http_post(
-    url     := endpoint,
-    headers := jsonb_build_object(
-                 'Content-Type', 'application/json',
-                 'Authorization', 'Bearer ' || coalesce(secret, '')
-               ),
-    body    := jsonb_build_object(
-                 'user_id',  new.user_id,
-                 'tipo',     new.tipo,
-                 'titulo',   new.titulo,
-                 'mensagem', new.mensagem,
-                 'link',     new.link,
-                 'dados',    new.dados
-               )
-  );
-  return new;
-exception when others then
-  -- Push é um extra: nunca deixe a falha do envio quebrar o INSERT da notificação.
-  return new;
-end; $$;
-
 drop trigger if exists trg_push_dispatch on public.notificacoes;
-create trigger trg_push_dispatch after insert on public.notificacoes
-  for each row execute function public.push_dispatch_notificacao();
+drop function if exists public.push_dispatch_notificacao();
 
 -- ===========================================================================
--- 4. Verificação (após configurar os GUCs e publicar o app):
---   select current_setting('app.settings.push_endpoint', true);   -- sua URL
---   -- Dispare um teste inserindo uma notificação de teste para o seu user:
---   -- insert into public.notificacoes (user_id, tipo, titulo, mensagem, link)
---   --   values ('<seu-auth-uid>', 'pedido_novo', 'Teste', 'Push funcionando!', '/');
---   -- e confira o push no dispositivo inscrito. Veja a fila do pg_net:
---   -- select * from net._http_response order by created desc limit 5;
+-- 4. Verificação:
+--   -- Após habilitar as notificações no app (com permissão concedida),
+--   -- deve aparecer 1 linha por dispositivo inscrito:
+--   select user_id, left(endpoint, 40) as endpoint, created_at
+--     from public.push_subscriptions order by created_at desc limit 10;
 -- ===========================================================================

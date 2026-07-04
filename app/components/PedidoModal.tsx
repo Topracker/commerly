@@ -169,7 +169,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
     }
 
     // Pagamento NA ENTREGA (dinheiro/Pix): cria o pedido direto.
-    const { error } = await supabase.from('pedidos_clientes').insert({
+    const { data: novoPedido, error } = await supabase.from('pedidos_clientes').insert({
       loja_id: loja.id,
       cliente_id: cliente.id,
       itens,
@@ -188,8 +188,19 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
       pontos_usados: pontosUsados,
       // pagamento_metodo default 'entrega' no banco — omitido para não quebrar
       // caso a coluna ainda não exista (pré-migração).
-    })
+    }).select('id').single()
     if (error) { onErro('Não foi possível enviar o pedido. Tente novamente.'); setEnviando(false); return }
+
+    // Push nativo para o comerciante (o trigger já gravou a notificação in-app).
+    // Best-effort: não bloqueia nem quebra o fluxo se falhar.
+    if (novoPedido?.id) {
+      fetch('/api/push/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pedido_id: novoPedido.id }),
+      }).catch(() => {})
+    }
+
     setEnviando(false)
     onSucesso('Pedido enviado! Acompanhe em "Meus pedidos".')
     onFechar()

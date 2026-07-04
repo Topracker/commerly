@@ -53,6 +53,14 @@ export default function PedidosComerciante() {
     if (error) { mostrarToast('Erro ao responder a solicitação', 'erro'); return }
     setParcerias(prev => prev.map(p => (p.id === parceria.id ? { ...p, status } : p)))
     mostrarToast(status === 'aceita' ? 'Entregador aceito como parceiro!' : 'Solicitação recusada', 'sucesso')
+    // Push nativo para o entregador quando a parceria é aceita (best-effort).
+    if (status === 'aceita') {
+      fetch('/api/push/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parceria_id: parceria.id }),
+      }).catch(() => {})
+    }
   }
 
   async function mudarStatus(pedido: PedidoCliente, novo: StatusPedidoCliente) {
@@ -62,6 +70,12 @@ export default function PedidosComerciante() {
     if (error) { mostrarToast('Erro ao atualizar o pedido', 'erro'); return }
     setPedidos(prev => prev.map(p => (p.id === pedido.id ? { ...p, status: novo } : p)))
     mostrarToast(`Pedido: ${STATUS_META[novo].label}`, 'sucesso')
+    // Push nativo do novo status para o cliente (best-effort).
+    fetch('/api/push/dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pedido_id: pedido.id }),
+    }).catch(() => {})
   }
 
   if (loading) return (
