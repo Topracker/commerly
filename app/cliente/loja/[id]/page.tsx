@@ -57,6 +57,16 @@ export default function ClienteLoja() {
     setLoja(lojaRes.data)
     setProdutos(prodRes.data || [])
 
+    // Distância máxima da loja em separado e tolerante: a coluna da view pode
+    // não existir (pré-migração) — nesse caso o modal não bloqueia no cliente
+    // (o trigger continua sendo a barreira definitiva no servidor).
+    supabase.from('lojas_publicas').select('distancia_maxima_entrega').eq('id', id).maybeSingle()
+      .then(({ data }: any) => {
+        if (data?.distancia_maxima_entrega != null) {
+          setLoja((prev: any) => (prev ? { ...prev, distancia_maxima_entrega: Number(data.distancia_maxima_entrega) } : prev))
+        }
+      })
+
     const avals = avalRes.data || []
     setAvaliacoes(avals)
     if (avals.length > 0) setMediaAval(avals.reduce((s: number, a: any) => s + a.nota, 0) / avals.length)

@@ -121,6 +121,8 @@ export default function Configuracoes() {
   const [horarioAbertura, setHorarioAbertura] = useState('08:00')
   const [horarioFechamento, setHorarioFechamento] = useState('18:00')
   const [metaMensal, setMetaMensal] = useState(5000)
+  // Distância máxima de entrega (km) — só nichos de delivery. Padrão 10.
+  const [distanciaMax, setDistanciaMax] = useState(10)
   const [fachadaItems, setFachadaItems] = useState<FachadaItem[]>([])
 
   const [erroDoc, setErroDoc] = useState('')
@@ -189,6 +191,16 @@ export default function Configuracoes() {
       setMetaMensal(Number(loja.meta_mensal) || 5000)
     }
   }, [loja])
+
+  // Carrega a distância máxima em separado e tolerante: a coluna pode ainda não
+  // existir (pré-migração) — nesse caso mantém o padrão de 10 km sem quebrar.
+  useEffect(() => {
+    if (!loja?.id) return
+    supabase.from('lojas').select('distancia_maxima_entrega').eq('id', loja.id).maybeSingle()
+      .then(({ data }) => {
+        if (data?.distancia_maxima_entrega != null) setDistanciaMax(Number(data.distancia_maxima_entrega))
+      })
+  }, [loja?.id])
 
   async function consultarIA() {
     if (!iaDescricao.trim()) { setIaErro('Conta um pouco sobre o seu negócio.'); return }
@@ -270,6 +282,14 @@ export default function Configuracoes() {
       nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais,
     }).eq('id', loja.id)
     if (error) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
+
+    // Distância máxima (delivery). Update separado e best-effort: se a coluna
+    // ainda não existir (pré-migração) o erro é ignorado — não quebra o salvar.
+    if (isDelivery(tipoFinal)) {
+      const { error: eDist } = await supabase.from('lojas')
+        .update({ distancia_maxima_entrega: distanciaMax }).eq('id', loja.id)
+      if (eDist) console.warn('[config] distancia_maxima_entrega pendente de migração:', eDist.message)
+    }
 
     // Confirmação visível (sem precisar do console): relê do banco o que ficou
     // gravado em latitude/longitude e avisa se veio nulo.
@@ -512,6 +532,25 @@ export default function Configuracoes() {
           />
           <p className="text-gray-600 text-xs mt-1">Padrão: R$ 5.000. Aparece como barra de progresso no dashboard.</p>
         </div>
+
+        {/* Distância máxima de entrega — só para nichos de delivery */}
+        {isDelivery(tipo) && (
+          <div>
+            <label className="block text-gray-400 text-xs mb-1.5">📍 Distância máxima de entrega (km)</label>
+            <select
+              value={distanciaMax}
+              onChange={e => setDistanciaMax(Number(e.target.value))}
+              className={`w-full ${selectClass}`}
+            >
+              {Array.from({ length: 50 }, (_, i) => i + 1).map(km => (
+                <option key={km} value={km}>{km} km</option>
+              ))}
+            </select>
+            <p className="text-gray-600 text-xs mt-1">
+              Padrão: 10 km. Pedidos com endereço além desta distância da sua loja serão recusados automaticamente.
+            </p>
+          </div>
+        )}
 
         {/* Taxa de entrega — só para nichos de delivery */}
         {isDelivery(tipo) && (

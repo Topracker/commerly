@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
   // Loja: precisa ser delivery e estar apta a receber online (Connect concluído).
   const { data: loja } = await admin
-    .from('lojas').select('id, nome, tipo, latitude, longitude, stripe_account_id, stripe_onboarded').eq('id', loja_id).single()
+    .from('lojas').select('id, nome, tipo, latitude, longitude, stripe_account_id, stripe_onboarded, distancia_maxima_entrega').eq('id', loja_id).single()
   if (!loja) return NextResponse.json({ error: 'Loja não encontrada.' }, { status: 404 })
   if (!isDelivery(loja.tipo)) return NextResponse.json({ error: 'Esta loja não aceita pedidos de delivery.' }, { status: 400 })
   if (!loja.stripe_account_id || !loja.stripe_onboarded) {
@@ -84,6 +84,13 @@ export async function POST(request: NextRequest) {
     { latitude: loja.latitude, longitude: loja.longitude },
     { latitude: Number(entrega_latitude), longitude: Number(entrega_longitude) },
   )
+  // Fora da área de entrega -> recusa ANTES de cobrar (o trigger também barra,
+  // mas aqui evita cobrar o cliente e o pedido ser rejeitado no webhook depois).
+  const distMax = loja.distancia_maxima_entrega != null ? Number(loja.distancia_maxima_entrega) : null
+  if (dist != null && distMax != null && dist > distMax) {
+    return NextResponse.json({ error: `Endereço fora da área de entrega. Esta loja entrega até ${distMax} km.` }, { status: 409 })
+  }
+
   const taxa = taxaEntregaPorDistancia(dist)
   const total = subtotal + taxa
   const subtotalCents = Math.round(subtotal * 100)

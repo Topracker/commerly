@@ -10,7 +10,7 @@ type Produto = { id: string; nome: string; preco_venda: number | string; categor
 type Sugestao = { lat: number; lng: number; display_name: string }
 
 type Props = {
-  loja: { id: string; nome: string; latitude?: number | null; longitude?: number | null; aceita_pagamento_online?: boolean }
+  loja: { id: string; nome: string; latitude?: number | null; longitude?: number | null; aceita_pagamento_online?: boolean; distancia_maxima_entrega?: number | null }
   cliente: { id: string; nome?: string | null; telefone?: string | null }
   produtos: Produto[]
   supabase: any
@@ -107,10 +107,15 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   const total = subtotal + (taxaEntrega ?? 0)
   const totalItens = itens.reduce((s, i) => s + i.quantidade, 0)
 
+  // Distância máxima da loja (km). Fora da área -> bloqueia o pedido.
+  const distMax = loja.distancia_maxima_entrega != null ? Number(loja.distancia_maxima_entrega) : null
+  const foraDeArea = distancia != null && distMax != null && distancia > distMax
+
   async function enviar() {
     if (itens.length === 0) { onErro('Escolha pelo menos um produto.'); return }
     if (!endereco.trim()) { onErro('Informe o endereço de entrega.'); return }
     if (!coord) { onErro('Selecione o endereço nas sugestões e confirme o ponto no mapa para calcular a taxa.'); return }
+    if (foraDeArea) { onErro(`Endereço fora da área de entrega. Esta loja entrega até ${distMax} km.`); return }
     setEnviando(true)
 
     // Pagamento ONLINE: cria a sessão de checkout no servidor e vai pro Stripe.
@@ -341,9 +346,18 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
               </span>
             </div>
           </div>
+
+          {foraDeArea && (
+            <div className="mb-3 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5">
+              <p className="text-red-400 text-xs font-medium">
+                Endereço fora da área de entrega. Esta loja entrega até {distMax} km.
+              </p>
+            </div>
+          )}
+
           <button
             onClick={enviar}
-            disabled={enviando || itens.length === 0}
+            disabled={enviando || itens.length === 0 || foraDeArea}
             className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
           >
             {pagamento === 'online' ? <CreditCard size={18} /> : <ShoppingBag size={18} />}
