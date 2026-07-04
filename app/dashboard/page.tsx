@@ -6,10 +6,20 @@ import { useNicho } from '../hooks/useNicho'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { isDelivery } from '../lib/pedidosClientes'
-import { ShoppingBag, ChevronRight } from 'lucide-react'
+import { carregarAgendamentosProximos, minutosAteAgendamento, type Agendamento } from '../lib/nicheStore'
+import { ShoppingBag, ChevronRight, Clock } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 type GraficoDia = { dia: string; faturamento: number }
+
+// "em X minutos" amigável para os lembretes de agendamento (0–120 min).
+function rotuloAntecedencia(min: number): string {
+  if (min <= 0) return 'agora'
+  if (min < 60) return `em ${min} min`
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return m === 0 ? `em ${h}h` : `em ${h}h${String(m).padStart(2, '0')}`
+}
 
 const BADGES = [
   {
@@ -50,6 +60,10 @@ export default function Dashboard() {
   const [graficoData, setGraficoData] = useState<GraficoDia[]>([])
   const [pedidosAtivos, setPedidosAtivos] = useState(0)
 
+  // Lembretes: agendamentos nas próximas 2h (só nichos com módulo de agenda).
+  const temAgenda = modulos.some(m => m.key === 'agenda')
+  const [agProximos, setAgProximos] = useState<Agendamento[]>([])
+
   // Pedidos online (delivery) do mês — card dedicado
   const [pedidosMesQtd, setPedidosMesQtd] = useState(0)
   const [pedidosMesTotal, setPedidosMesTotal] = useState(0)
@@ -81,6 +95,20 @@ export default function Dashboard() {
       }
     }
   }, [loja, periodo])
+
+  // Lembretes de agendamento: carrega no mount e revalida a cada 60s para os
+  // rótulos "em X min" e a janela de 2h ficarem sempre atualizados.
+  useEffect(() => {
+    if (!loja || !temAgenda) { setAgProximos([]); return }
+    let ativo = true
+    const buscar = () =>
+      carregarAgendamentosProximos(loja.id)
+        .then(l => { if (ativo) setAgProximos(l) })
+        .catch(() => { /* silencioso: não atrapalha o dashboard */ })
+    buscar()
+    const iv = setInterval(buscar, 60_000)
+    return () => { ativo = false; clearInterval(iv) }
+  }, [loja, temAgenda])
 
   // Limpa animação dos badges novos após 3s
   useEffect(() => {
@@ -238,6 +266,31 @@ export default function Dashboard() {
   return (
     <AppLayout loja={loja} sair={sair} titulo="Dashboard" maxWidth="max-w-3xl">
       <Toast toast={toast} />
+
+      {/* Lembretes de agendamento — próximas 2 horas */}
+      {agProximos.length > 0 && (
+        <button
+          onClick={() => window.location.href = '/agenda'}
+          className="w-full mb-6 bg-amber-950 border border-amber-800 hover:border-amber-600 rounded-2xl p-4 flex items-start gap-3 transition text-left"
+        >
+          <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+            <Clock size={20} className="text-amber-300" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-amber-200 font-semibold text-sm mb-1">
+              {agProximos.length === 1 ? 'Agendamento chegando' : `${agProximos.length} agendamentos nas próximas 2h`}
+            </p>
+            <div className="flex flex-col gap-0.5">
+              {agProximos.map(a => (
+                <p key={a.id} className="text-amber-100/90 text-sm truncate">
+                  ⏰ Agendamento <strong>{rotuloAntecedencia(minutosAteAgendamento(a))}</strong> com {a.cliente} — {a.servico}
+                </p>
+              ))}
+            </div>
+          </div>
+          <ChevronRight size={20} className="text-amber-500/70 shrink-0" />
+        </button>
+      )}
 
       {isDelivery(loja.tipo) && (
         <button

@@ -6,6 +6,7 @@ import { useNicho } from '../hooks/useNicho'
 import { useNotificacoes } from '../hooks/useNotificacoes'
 import { NotificacaoToast } from './NotificacaoToast'
 import { isDelivery } from '../lib/pedidosClientes'
+import { carregarAgendamentosProximos } from '../lib/nicheStore'
 import {
   TrendingDown, Clock, Users,
   MessageSquare, MessageCircle, Settings, LogOut, Menu, X, Wallet, Home, Sparkles, Plug, Crown, ShoppingBag, Bell
@@ -44,6 +45,7 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
   const [menuAberto, setMenuAberto] = useState(false)
   const [naoLidas, setNaoLidas] = useState(0)
   const [pedidosNovos, setPedidosNovos] = useState(0)
+  const [agProximos, setAgProximos] = useState(0)
   const { naoLidas: notifNaoLidas, toastNotif, fecharToast } = useNotificacoes()
   const router = useRouter()
   const pathname = usePathname()
@@ -51,6 +53,7 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
   const { modulos } = useNicho(loja)
 
   const delivery = isDelivery(loja?.tipo)
+  const temAgenda = modulos.some(m => m.key === 'agenda')
 
   // Para delivery, o novo "Pedidos online" (/pedidos) substitui o módulo antigo
   // "Pedidos - Comandas e pedidos" (→ /vendas), que duplicava o conceito. Demais
@@ -95,8 +98,17 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
         .not('status', 'in', '(entregue,cancelado)')
         .then(({ count }) => { if (ativo) setPedidosNovos(count || 0) })
     }
+
+    // Badge do menu Agenda: agendamentos nas próximas 2h (só nichos com agenda).
+    if (temAgenda) {
+      carregarAgendamentosProximos(loja.id)
+        .then(l => { if (ativo) setAgProximos(l.length) })
+        .catch(() => { if (ativo) setAgProximos(0) })
+    } else {
+      setAgProximos(0)
+    }
     return () => { ativo = false }
-  }, [loja?.id, pathname, delivery])
+  }, [loja?.id, pathname, delivery, temAgenda])
 
   function navegar(path: string) {
     setMenuAberto(false)
@@ -136,6 +148,11 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
               {item.label === 'Pedidos online' && pedidosNovos > 0 && (
                 <span className="bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
                   {pedidosNovos}
+                </span>
+              )}
+              {item.label === 'Agenda' && agProximos > 0 && (
+                <span className="bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
+                  {agProximos}
                 </span>
               )}
             </button>

@@ -110,6 +110,37 @@ export async function removerAgendamento(lojaId: string, id: string): Promise<Ag
   return carregarAgendamentos(lojaId)
 }
 
+// ── Lembretes de agendamento (próximas horas) ───────────────────────────────
+
+/** Minutos (arredondados) daqui até o horário do agendamento. Negativo = já passou. */
+export function minutosAteAgendamento(ag: Pick<Agendamento, 'data' | 'hora'>): number {
+  const alvo = new Date(`${ag.data}T${ag.hora}:00`)
+  return Math.round((alvo.getTime() - Date.now()) / 60000)
+}
+
+/**
+ * Agendamentos com status 'agendado' que começam dentro dos próximos
+ * `janelaMin` minutos (padrão 120 = 2h), do dia de hoje. Ordenados por horário.
+ * Usado no card de lembrete do dashboard e no badge do menu Agenda.
+ */
+export async function carregarAgendamentosProximos(lojaId: string, janelaMin = 120): Promise<Agendamento[]> {
+  const hojeIso = new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD local
+  const { data, error } = await supabase
+    .from('agendamentos')
+    .select('*')
+    .eq('loja_id', lojaId)
+    .eq('data', hojeIso)
+    .eq('status', 'agendado')
+  if (error) throw error
+  return ordenarAgenda((data || []) as Agendamento[])
+    .filter(a => {
+      const m = minutosAteAgendamento(a)
+      // -5 de folga: um agendamento que acabou de começar ainda aparece como
+      // "agora" (não some no minuto exato do horário por arredondamento).
+      return m >= -5 && m <= janelaMin
+    })
+}
+
 // ── Serviços (Supabase) ─────────────────────────────────────────────────────
 
 export type Servico = {
