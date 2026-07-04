@@ -1,8 +1,9 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { X, Plus, Minus, ShoppingBag, MapPin, Check, CreditCard, Banknote } from 'lucide-react'
+import { X, Plus, Minus, ShoppingBag, MapPin, Check, CreditCard, Banknote, Sparkles } from 'lucide-react'
 import type { ItemPedidoCliente } from '../lib/pedidosClientes'
 import { distanciaKm, taxaEntregaPorDistancia, formatarDistancia } from '../lib/geo'
+import { descontoDePontos, maxPontosResgataveis } from '../lib/fidelidade'
 import { MapaConfirmar } from './MapaConfirmar'
 
 type Produto = { id: string; nome: string; preco_venda: number | string; categoria?: string | null }
@@ -31,6 +32,19 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   // (A prontidão real é validada no servidor ao criar o checkout — 409 amigável.)
   const aceitaOnline = loja.aceita_pagamento_online !== false
   const [pagamento, setPagamento] = useState<'online' | 'entrega'>('entrega')
+
+  // Fidelidade: saldo de pontos do cliente NESTA loja + opção de resgatar.
+  const [saldoPontos, setSaldoPontos] = useState(0)
+  const [usarPontos, setUsarPontos] = useState(false)
+
+  useEffect(() => {
+    let ativo = true
+    supabase
+      .from('pontos_clientes').select('pontos')
+      .eq('cliente_id', cliente.id).eq('loja_id', loja.id).maybeSingle()
+      .then(({ data }: any) => { if (ativo) setSaldoPontos(Number(data?.pontos) || 0) })
+    return () => { ativo = false }
+  }, [loja.id, cliente.id, supabase])
 
   // Autocomplete de endereço (/api/geocode?suggest=1) + confirmação no mapa.
   const [sugestoes, setSugestoes] = useState<Sugestao[]>([])
@@ -104,7 +118,12 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
     ? distanciaKm({ latitude: loja.latitude, longitude: loja.longitude }, { latitude: coord.lat, longitude: coord.lng })
     : null
   const taxaEntrega = coord ? taxaEntregaPorDistancia(distancia) : null
-  const total = subtotal + (taxaEntrega ?? 0)
+  // Pontos resgatáveis dependem do subtotal atual (não descontam mais que ele).
+  const pontosResgataveis = useMemo(() => maxPontosResgataveis(saldoPontos, subtotal), [saldoPontos, subtotal])
+  const podeResgatar = pontosResgataveis >= 100
+  const pontosUsados = usarPontos && podeResgatar ? pontosResgataveis : 0
+  const desconto = descontoDePontos(pontosUsados)
+  const total = Math.max(subtotal - desconto, 0) + (taxaEntrega ?? 0)
   const totalItens = itens.reduce((s, i) => s + i.quantidade, 0)
 
   // Distância máxima da loja (km). Fora da área -> bloqueia o pedido.
@@ -132,6 +151,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
             entrega_latitude: coord.lat,
             entrega_longitude: coord.lng,
             observacao: observacao.trim() || null,
+            pontos_resgatar: pontosUsados,
           }),
         })
         const d = await res.json().catch(() => ({}))
@@ -163,6 +183,9 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
       observacao: observacao.trim() || null,
       cliente_nome: cliente.nome || null,
       cliente_telefone: cliente.telefone || null,
+      // Resgate de pontos: o guard valida contra o saldo, calcula o desconto e
+      // ajusta o total no servidor (aqui é só a intenção do cliente).
+      pontos_usados: pontosUsados,
       // pagamento_metodo default 'entrega' no banco — omitido para não quebrar
       // caso a coluna ainda não exista (pré-migração).
     })
@@ -279,6 +302,24 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
             />
           </div>
 
+          {/* Fidelidade — resgate de pontos (só aparece com saldo suficiente) */}
+          {podeResgatar && (
+            <button
+              type="button"
+              onClick={() => setUsarPontos(v => !v)}
+              className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${usarPontos ? 'border-[#F5C34B]/60 bg-[#F5C34B]/10' : 'border-[#232A32] bg-[#171C22] hover:border-[#2b3440]'}`}
+            >
+              <Sparkles size={20} className="text-[#F5C34B] shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-sm font-medium">Usar meus pontos</p>
+                <p className="text-gray-500 text-xs">
+                  {saldoPontos} pontos disponíveis · resgatar {pontosResgataveis} = R$ {descontoDePontos(pontosResgataveis).toFixed(2)} de desconto
+                </p>
+              </div>
+              {usarPontos && <Check size={16} className="text-[#F5C34B] shrink-0" />}
+            </button>
+          )}
+
           {/* Forma de pagamento */}
           <div>
             <p className="text-gray-300 text-sm font-medium mb-2">Forma de pagamento</p>
@@ -339,10 +380,16 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                   : `R$ ${taxaEntrega.toFixed(2)}`}
               </span>
             </div>
+            {desconto > 0 && (
+              <div className="flex items-center justify-between text-[#F5C34B]">
+                <span className="flex items-center gap-1.5"><Sparkles size={13} /> Desconto ({pontosUsados} pontos)</span>
+                <span className="tabular-nums">− R$ {desconto.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between border-t border-[#232A32] pt-1.5 mt-0.5">
               <span className="text-white font-medium">Total</span>
               <span className="font-display text-white font-bold text-lg tabular-nums">
-                {taxaEntrega == null ? `R$ ${subtotal.toFixed(2)} + taxa` : `R$ ${total.toFixed(2)}`}
+                {taxaEntrega == null ? `R$ ${Math.max(subtotal - desconto, 0).toFixed(2)} + taxa` : `R$ ${total.toFixed(2)}`}
               </span>
             </div>
           </div>

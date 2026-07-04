@@ -6,6 +6,7 @@ import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
 import { distanciaKm, taxaEntregaPorDistancia } from '../../../lib/geo'
 import { isDelivery } from '../../../lib/pedidosClientes'
+import { descontoDePontos, maxPontosResgataveis } from '../../../lib/fidelidade'
 
 // Inicia o pagamento ONLINE de um pedido de delivery via Stripe Checkout.
 //
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const { loja_id, itens, endereco_entrega, entrega_latitude, entrega_longitude, observacao } = body || {}
+  const { loja_id, itens, endereco_entrega, entrega_latitude, entrega_longitude, observacao, pontos_resgatar } = body || {}
   if (!loja_id || !Array.isArray(itens) || itens.length === 0 || !endereco_entrega?.trim()) {
     return NextResponse.json({ error: 'Dados do pedido incompletos.' }, { status: 400 })
   }
@@ -92,8 +93,25 @@ export async function POST(request: NextRequest) {
   }
 
   const taxa = taxaEntregaPorDistancia(dist)
-  const total = subtotal + taxa
-  const subtotalCents = Math.round(subtotal * 100)
+
+  // Resgate de pontos (fidelidade). Valida o saldo do cliente NESTA loja no
+  // servidor e limita ao subtotal — nunca confia no valor do cliente. O guard
+  // do banco revalida na criação do pedido (webhook), então os números batem.
+  let pontosUsados = 0
+  let desconto = 0
+  const pontosPedidos = Math.max(0, Math.floor(Number(pontos_resgatar) || 0))
+  if (pontosPedidos > 0) {
+    const { data: saldoRow } = await admin
+      .from('pontos_clientes').select('pontos').eq('cliente_id', cliente.id).eq('loja_id', loja.id).maybeSingle()
+    const saldo = Number(saldoRow?.pontos) || 0
+    const maxUsavel = maxPontosResgataveis(saldo, subtotal)
+    pontosUsados = Math.min(pontosPedidos - (pontosPedidos % 100), maxUsavel)
+    desconto = descontoDePontos(pontosUsados)
+  }
+
+  const subtotalComDesconto = Math.max(subtotal - desconto, 0)
+  const total = subtotalComDesconto + taxa
+  const subtotalCents = Math.round(subtotalComDesconto * 100)
   const taxaCents = Math.round(taxa * 100)
   if (subtotalCents <= 0) return NextResponse.json({ error: 'Valor do pedido inválido.' }, { status: 400 })
 
@@ -109,6 +127,7 @@ export async function POST(request: NextRequest) {
     cliente_nome: cliente.nome || null,
     cliente_telefone: cliente.telefone || null,
     subtotal, taxa_entrega: taxa, total,
+    pontos_usados: pontosUsados, desconto_pontos: desconto,
   }).select('id').single()
   if (pendErr || !pend) {
     console.error('[pedido-checkout] erro ao gravar pendente:', pendErr?.message)
@@ -123,15 +142,22 @@ export async function POST(request: NextRequest) {
       // Cartão + Pix. Pix é assíncrono: o pedido só nasce no webhook, ao receber
       // `checkout.session.async_payment_succeeded` (ver app/api/stripe/webhook).
       payment_method_types: ['card', 'pix'],
-      // Prazo do QR do Pix (30 min): evita pedido pendente parado por muito tempo.
-      payment_method_options: { pix: { expires_after_seconds: 1800 } },
+      payment_method_options: {
+        // Prazo do QR do Pix (30 min): evita pedido pendente parado por muito tempo.
+        pix: { expires_after_seconds: 1800 },
+        // Parcelamento no cartão (Brasil): o Checkout mostra as opções de
+        // parcelas (até 12x, conforme elegibilidade do cartão) antes de
+        // confirmar. O comerciante recebe o valor total — a Stripe/emissor
+        // cuidam do parcelamento para o cliente.
+        card: { installments: { enabled: true } },
+      },
       // Antifraude (Stripe Radar): coletar o endereço de cobrança dá o CEP à
       // verificação de risco. O CVC já é sempre exigido pelo Checkout no cartão.
       // Regras de bloqueio (cartão de alto risco / 3DS) ficam no painel do Radar.
       billing_address_collection: 'required',
       customer_email: user.email || undefined,
       line_items: [
-        { quantity: 1, price_data: { currency: 'brl', unit_amount: subtotalCents, product_data: { name: `Pedido — ${loja.nome}` } } },
+        { quantity: 1, price_data: { currency: 'brl', unit_amount: subtotalCents, product_data: { name: desconto > 0 ? `Pedido — ${loja.nome} (−R$ ${desconto} em pontos)` : `Pedido — ${loja.nome}` } } },
         ...(taxaCents > 0
           ? [{ quantity: 1, price_data: { currency: 'brl' as const, unit_amount: taxaCents, product_data: { name: 'Taxa de entrega' } } }]
           : []),

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Sora, Inter } from "next/font/google";
 import "./globals.css";
 import DevtoolsBlocker from "./components/DevtoolsBlocker";
 import PWARegister from "./components/PWARegister";
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "./lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,9 +30,40 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Commerly",
-  description: "Gerencie seu comércio com simplicidade",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} — Gestão completa para o seu comércio`,
+    template: `%s — ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
   manifest: "/manifest.json",
+  keywords: [
+    "gestão de comércio", "sistema para loja", "controle de estoque",
+    "delivery", "vendas", "pagamentos", "fidelidade", "PDV", "Commerly",
+  ],
+  authors: [{ name: SITE_NAME }],
+  alternates: { canonical: "/" },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
+  },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — Gestão completa para o seu comércio`,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    locale: "pt_BR",
+    images: [{ url: "/icon-512.png", width: 512, height: 512, alt: SITE_NAME }],
+  },
+  twitter: {
+    card: "summary",
+    title: `${SITE_NAME} — Gestão completa para o seu comércio`,
+    description: SITE_DESCRIPTION,
+    images: ["/icon-512.png"],
+  },
 };
 
 export default function RootLayout({

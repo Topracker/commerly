@@ -49,10 +49,33 @@ async function carregar(id: string) {
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
   const dados = await carregar(id)
-  if (!dados) return { title: 'Loja não encontrada — Commerly' }
+  if (!dados) return { title: 'Loja não encontrada', robots: { index: false, follow: false } }
+
+  const { loja } = dados
+  const local = loja.localizacao ? ` · ${loja.localizacao}` : ''
+  const descricao = `${loja.nome} — ${loja.tipo}${local}. Veja produtos, avaliações e fale direto pelo WhatsApp. Página no Commerly.`
+  const url = `/loja/${id}`
+  const foto = loja.fotos_fachada?.[0]
+
   return {
-    title: `${dados.loja.nome} — Commerly`,
-    description: `${dados.loja.tipo}${dados.loja.localizacao ? ' · ' + dados.loja.localizacao : ''}`,
+    title: loja.nome,
+    description: descricao,
+    alternates: { canonical: url },
+    openGraph: {
+      type: 'website',
+      title: `${loja.nome} — ${loja.tipo}`,
+      description: descricao,
+      url,
+      locale: 'pt_BR',
+      siteName: 'Commerly',
+      images: foto ? [{ url: foto, alt: loja.nome }] : undefined,
+    },
+    twitter: {
+      card: foto ? 'summary_large_image' : 'summary',
+      title: `${loja.nome} — ${loja.tipo}`,
+      description: descricao,
+      images: foto ? [foto] : undefined,
+    },
   }
 }
 

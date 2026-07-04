@@ -60,6 +60,9 @@ export async function POST(request: NextRequest) {
       observacao: pend.observacao,
       cliente_nome: pend.cliente_nome,
       cliente_telefone: pend.cliente_telefone,
+      // Resgate de pontos: o guard reaplica o mesmo desconto (determinístico a
+      // partir de pontos_usados) e o trigger de acúmulo debita/credita o saldo.
+      pontos_usados: pend.pontos_usados || 0,
       pagamento_metodo: 'online',
       pagamento_status: 'pago',
       stripe_session_id: session.id,
