@@ -125,6 +125,10 @@ export async function POST(request: NextRequest) {
       payment_method_types: ['card', 'pix'],
       // Prazo do QR do Pix (30 min): evita pedido pendente parado por muito tempo.
       payment_method_options: { pix: { expires_after_seconds: 1800 } },
+      // Antifraude (Stripe Radar): coletar o endereço de cobrança dá o CEP à
+      // verificação de risco. O CVC já é sempre exigido pelo Checkout no cartão.
+      // Regras de bloqueio (cartão de alto risco / 3DS) ficam no painel do Radar.
+      billing_address_collection: 'required',
       customer_email: user.email || undefined,
       line_items: [
         { quantity: 1, price_data: { currency: 'brl', unit_amount: subtotalCents, product_data: { name: `Pedido — ${loja.nome}` } } },

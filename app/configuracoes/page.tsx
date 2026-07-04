@@ -10,7 +10,18 @@ import { EnderecoAutocomplete } from '../components/EnderecoAutocomplete'
 import { FachadaUpload, type FachadaItem } from '../components/FachadaUpload'
 import { uploadFachada, removerFachada } from '../lib/fachada'
 import { isDelivery } from '../lib/pedidosClientes'
-import { Eye, EyeOff, Store, Copy, ExternalLink } from 'lucide-react'
+import { Eye, EyeOff, Store, Copy, ExternalLink, FileText, Download } from 'lucide-react'
+
+type Fatura = {
+  id: string
+  numero: string | null
+  criada_em: number
+  valor: number
+  moeda: string
+  status: string | null
+  pdf: string | null
+  link: string | null
+}
 
 // Módulos que a IA pode sugerir / o comerciante pode escolher no fluxo "Outro".
 const MODULOS_ESCOLHIVEIS: ModuloKey[] = ['agenda', 'servicos', 'pedidos', 'estoque', 'produtos', 'vendas', 'fornecedores']
@@ -145,12 +156,32 @@ export default function Configuracoes() {
   // Link da loja pública (montado no client pra usar o origin correto)
   const [linkPublico, setLinkPublico] = useState('')
 
+  // Faturas da assinatura (Stripe Invoices) — carregadas sob demanda.
+  const [faturas, setFaturas] = useState<Fatura[] | null>(null)
+  const [carregandoFaturas, setCarregandoFaturas] = useState(false)
+
   useEffect(() => {
     if (loja?.id) {
       const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
       setLinkPublico(`${base}/loja/${loja.id}`)
     }
   }, [loja?.id])
+
+  // Alterna a lista de faturas; busca uma vez e reusa (toggle fecha).
+  async function verFaturas() {
+    if (faturas !== null) { setFaturas(null); return }
+    setCarregandoFaturas(true)
+    try {
+      const res = await fetch('/api/stripe/faturas')
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) { mostrarToast(d.error || 'Não foi possível carregar as faturas.', 'erro'); return }
+      setFaturas(Array.isArray(d.faturas) ? d.faturas : [])
+    } catch {
+      mostrarToast('Erro de rede ao carregar as faturas.', 'erro')
+    } finally {
+      setCarregandoFaturas(false)
+    }
+  }
 
   async function copiarLink() {
     try {
@@ -610,6 +641,64 @@ export default function Configuracoes() {
             </a>
           </div>
         </div>
+      </div>
+
+      {/* Assinatura e faturas (Stripe Invoices) */}
+      <div className="bg-gray-900 rounded-2xl p-6 mb-6">
+        <div className="flex items-center gap-2 mb-1">
+          <FileText size={18} className="text-blue-400" />
+          <h2 className="text-white font-semibold">Faturas da mensalidade</h2>
+        </div>
+        <p className="text-gray-400 text-sm mb-4">
+          A cada pagamento da mensalidade, a Stripe emite uma fatura automaticamente.
+          Veja o histórico e baixe o PDF de cada uma.
+        </p>
+
+        <button
+          onClick={verFaturas}
+          disabled={carregandoFaturas}
+          className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white font-medium px-4 py-3 rounded-xl transition flex items-center gap-2"
+        >
+          <FileText size={16} />
+          {carregandoFaturas ? 'Carregando...' : faturas !== null ? 'Ocultar faturas' : 'Ver faturas'}
+        </button>
+
+        {faturas !== null && (
+          faturas.length === 0 ? (
+            <p className="text-gray-500 text-sm mt-4">
+              Nenhuma fatura ainda. As faturas aparecem aqui depois do primeiro pagamento da mensalidade.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2 mt-4">
+              {faturas.map(f => (
+                <div key={f.id} className="bg-gray-950 border border-gray-800 rounded-xl p-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">
+                      {f.numero || 'Fatura'}
+                      <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${f.status === 'paid' ? 'bg-green-500/15 text-green-300' : 'bg-amber-500/15 text-amber-300'}`}>
+                        {f.status === 'paid' ? 'Paga' : f.status === 'open' ? 'Em aberto' : f.status || '—'}
+                      </span>
+                    </p>
+                    <p className="text-gray-500 text-xs">
+                      {new Date(f.criada_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {' · '}{f.moeda} {f.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  {f.pdf && (
+                    <a
+                      href={f.pdf}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-2 rounded-lg transition flex items-center gap-1.5"
+                    >
+                      <Download size={14} /> PDF
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )
+        )}
       </div>
     </AppLayout>
   )

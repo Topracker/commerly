@@ -5,11 +5,12 @@ import { useCliente } from '../../hooks/useCliente'
 import { useToast } from '../../hooks/useToast'
 import { Toast } from '../../components/Toast'
 import { ClienteLayout } from '../../components/ClienteLayout'
+import { ConfirmModal } from '../../components/ConfirmModal'
 import { Estrelas } from '../../components/Estrelas'
 import { MapaAoVivo } from '../../components/MapaAoVivo'
 import { STATUS_META, FLUXO_STATUS, pedidoEmAndamento, type PedidoCliente } from '../../lib/pedidosClientes'
 import type { LocalizacaoEntrega } from '../../lib/entregadores'
-import { ShoppingBag, MapPin, ChevronRight, Bike, KeyRound } from 'lucide-react'
+import { ShoppingBag, MapPin, ChevronRight, Bike, KeyRound, XCircle } from 'lucide-react'
 
 type EntregadorPublico = { id: string; nome: string; foto_url: string | null; telefone: string | null }
 
@@ -30,6 +31,10 @@ export default function ClientePedidos() {
   const [notaLoja, setNotaLoja] = useState<Record<string, number>>({})
   const [comentLoja, setComentLoja] = useState<Record<string, string>>({})
   const [enviando, setEnviando] = useState<string | null>(null)
+
+  // Cancelamento de pedido (só enquanto "recebido").
+  const [cancelarId, setCancelarId] = useState<string | null>(null)
+  const [cancelando, setCancelando] = useState(false)
 
   const router = useRouter()
 
@@ -56,7 +61,9 @@ export default function ClientePedidos() {
       const t2 = setTimeout(() => carregar(true), 6000)
       return () => { clearTimeout(t1); clearTimeout(t2) }
     } else if (pg === 'cancelado') {
-      mostrarToast('Pagamento cancelado. Seu pedido não foi feito.', 'erro')
+      // Cobre desistência E recusa/bloqueio antifraude (Radar) no Checkout: em
+      // ambos o cliente volta por aqui sem pedido criado.
+      mostrarToast('Pagamento não concluído. Se o cartão foi recusado, tente outro cartão ou escolha pagar na entrega.', 'erro')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cliente])
@@ -144,6 +151,26 @@ export default function ClientePedidos() {
     mostrarToast('Avaliação do produto enviada!', 'sucesso')
   }
 
+  async function cancelarPedido() {
+    if (!cancelarId) return
+    setCancelando(true)
+    try {
+      const res = await fetch('/api/cliente/cancelar-pedido', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pedido_id: cancelarId }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) { mostrarToast(d.error || 'Não foi possível cancelar o pedido.', 'erro'); return }
+      mostrarToast(d.estornado ? 'Pedido cancelado. O estorno já foi solicitado no seu cartão.' : 'Pedido cancelado.', 'sucesso')
+      setCancelarId(null)
+      carregar(true)
+    } catch {
+      mostrarToast('Erro de rede ao cancelar. Tente novamente.', 'erro')
+    } finally {
+      setCancelando(false)
+    }
+  }
+
   if (loading) return (
     <main className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-400">Carregando...</p></main>
   )
@@ -152,6 +179,18 @@ export default function ClientePedidos() {
   return (
     <ClienteLayout cliente={cliente} sair={sair}>
       <Toast toast={toast} />
+      <ConfirmModal
+        aberto={!!cancelarId}
+        titulo="Cancelar pedido"
+        mensagem={
+          pedidos.find(p => p.id === cancelarId)?.pagamento_metodo === 'online'
+            ? 'Tem certeza? O pedido será cancelado e o valor pago será estornado no seu cartão.'
+            : 'Tem certeza que deseja cancelar este pedido?'
+        }
+        textoBotao={cancelando ? 'Cancelando...' : 'Cancelar pedido'}
+        onConfirm={cancelarPedido}
+        onCancel={() => { if (!cancelando) setCancelarId(null) }}
+      />
       <div className="max-w-2xl mx-auto font-body">
         <h1 className="font-display text-2xl font-bold text-white mb-1">Meus pedidos</h1>
         <p className="text-gray-400 text-sm mb-6">Acompanhe o status das suas entregas em tempo real</p>
@@ -263,6 +302,16 @@ export default function ClientePedidos() {
                     )}
                   </div>
                   {p.observacao && <p className="text-gray-500 text-xs mt-2 italic">"{p.observacao}"</p>}
+
+                  {/* Cancelar — só enquanto a loja ainda não começou a preparar */}
+                  {p.status === 'recebido' && (
+                    <button
+                      onClick={() => setCancelarId(p.id)}
+                      className="mt-3 w-full flex items-center justify-center gap-1.5 bg-[#1B2129] border border-[#232A32] hover:bg-red-500/15 hover:border-red-500/40 text-gray-300 hover:text-red-400 text-sm font-medium py-2.5 rounded-xl transition"
+                    >
+                      <XCircle size={15} /> Cancelar pedido
+                    </button>
+                  )}
 
                   {/* Avaliação pós-entrega */}
                   {p.status === 'entregue' && (
