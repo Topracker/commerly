@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '../../lib/supabase-admin'
 import { Estrelas } from '../../components/Estrelas'
@@ -6,7 +7,8 @@ import { MiniMapa } from '../../components/MiniMapa'
 import { FachadaBanner } from '../../components/FachadaBanner'
 import { RatingBadge } from '../../components/RatingBadge'
 import { ProdutoCard } from '../../components/ProdutoCard'
-import { Phone, AtSign, MapPin, Clock, Globe } from 'lucide-react'
+import { Phone, AtSign, MapPin, Clock, Globe, UtensilsCrossed } from 'lucide-react'
+import { isDelivery } from '../../lib/pedidosClientes'
 
 // Página pública da loja — acessível sem login. Lê os dados via service role
 // (a view lojas_publicas é pública, mas produtos/avaliações têm RLS para
@@ -137,6 +139,16 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
                 <Phone size={18} />
                 Falar no WhatsApp
               </a>
+            )}
+
+            {isDelivery(loja.tipo) && produtos.length > 0 && (
+              <Link
+                href={`/cardapio/${id}`}
+                className="mt-2.5 w-full bg-[#C1441E] hover:bg-[#a83a19] text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+              >
+                <UtensilsCrossed size={18} />
+                Ver cardápio
+              </Link>
             )}
 
             {loja.website_url && (

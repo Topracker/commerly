@@ -8,6 +8,7 @@ import { salvarNichoCustom, carregarNichoCustom } from '../lib/nicheStore'
 import { MODULOS, type ModuloKey } from '../lib/nichos'
 import { EnderecoAutocomplete } from '../components/EnderecoAutocomplete'
 import { FachadaUpload, type FachadaItem } from '../components/FachadaUpload'
+import { CardapioQR } from '../components/CardapioQR'
 import { uploadFachada, removerFachada } from '../lib/fachada'
 import { isDelivery } from '../lib/pedidosClientes'
 import { normalizarWebsite, erroWebsite } from '../lib/validacoes'
@@ -669,6 +670,9 @@ export default function Configuracoes() {
           </div>
         </div>
       </div>
+
+      {/* QR code do cardápio digital — só para nichos de delivery */}
+      {isDelivery(tipo) && <CardapioQR lojaId={loja.id} lojaNome={loja.nome} />}
 
       {/* Assinatura e faturas (Stripe Invoices) */}
       <div className="bg-gray-900 rounded-2xl p-6 mb-6">

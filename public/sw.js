@@ -1,5 +1,5 @@
 /* Commerly service worker — minimal & conservative */
-const VERSION = 'commerly-v2';
+const VERSION = 'commerly-v3';
 const STATIC_CACHE = `${VERSION}-static`;
 
 const PRECACHE = [
@@ -76,4 +76,48 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
+// ── Web Push ────────────────────────────────────────────────────────────────
+// Recebe o push enviado pelo servidor (rota /api/push/send) e mostra a
+// notificação nativa — funciona mesmo com o app/aba fechado.
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (_) {
+    data = { titulo: 'Commerly', mensagem: event.data ? event.data.text() : '' };
+  }
+
+  const titulo = data.titulo || 'Commerly';
+  const options = {
+    body: data.mensagem || '',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: data.tag || 'commerly',
+    renotify: true,
+    data: { link: data.link || '/', tipo: data.tipo || 'geral' },
+    vibrate: [80, 40, 80],
+  };
+
+  event.waitUntil(self.registration.showNotification(titulo, options));
+});
+
+// Ao clicar na notificação: foca uma aba existente do app ou abre a rota alvo.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const link = (event.notification.data && event.notification.data.link) || '/';
+  const target = new URL(link, self.location.origin).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.navigate ? client.navigate(target) : null;
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+    })
+  );
 });
