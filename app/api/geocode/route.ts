@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '../../lib/rate-limit'
 
 // Proxy de geocodificação (endereço → lat/long). 100% gratuito, sem API key.
 //
@@ -120,6 +121,14 @@ export async function GET(req: NextRequest) {
 
   if (!q && !postalcode) {
     return NextResponse.json({ erro: 'Informe q ou postalcode.' }, { status: 400 })
+  }
+
+  // Rota pública (sem login) — protege contra abuso como proxy gratuito, por IP.
+  // Limite generoso: o autocomplete dispara várias buscas por endereço digitado.
+  const ip = (req.headers.get('x-forwarded-for')?.split(',')[0].trim())
+    || req.headers.get('x-real-ip') || 'desconhecido'
+  if (!rateLimit(`geocode:${ip}`, 90, 60_000)) {
+    return NextResponse.json({ erro: 'Muitas buscas. Aguarde um instante.' }, { status: 429 })
   }
 
   // Modo autocomplete: devolve uma LISTA de sugestões (não só o melhor match).

@@ -53,6 +53,17 @@ export default function ChatComerciante_Cliente() {
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
         return data
       })
+      // Marca como lidas as mensagens do cliente que chegam com a conversa
+      // aberta — mantém o badge de não lidas correto (não só no init).
+      if (data.some(m => m.remetente === 'cliente' && !m.lida)) {
+        supabase.from('mensagens_clientes')
+          .update({ lida: true })
+          .eq('loja_id', lojaId)
+          .eq('cliente_id', cliente_id)
+          .eq('remetente', 'cliente')
+          .eq('lida', false)
+          .then(() => {})
+      }
     }
   }
 

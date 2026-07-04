@@ -53,6 +53,17 @@ export default function ChatComercianteFornecedor() {
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
         return data
       })
+      // Marca como lidas as mensagens do fornecedor que chegam com a conversa
+      // aberta — mantém o badge de não lidas correto (não só no init).
+      if (data.some(m => m.remetente === 'fornecedor' && !m.lida)) {
+        supabase.from('mensagens')
+          .update({ lida: true })
+          .eq('loja_id', lojaId)
+          .eq('fornecedor_id', fornecedor_id)
+          .eq('remetente', 'fornecedor')
+          .eq('lida', false)
+          .then(() => {})
+      }
     }
   }
 
