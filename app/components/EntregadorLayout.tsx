@@ -18,7 +18,7 @@ export function EntregadorLayout({ entregador, sair, titulo, children }: Props) 
   const { naoLidas, toastNotif, fecharToast } = useNotificacoes()
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-[#0a0f1a]">
       <NotificacaoToast notif={toastNotif} onFechar={fecharToast} />
       <header className="sticky top-0 z-20 bg-[#12161B] border-b border-[#232A32] px-4 py-3 flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-[#C1441E]/15 flex items-center justify-center shrink-0 overflow-hidden">

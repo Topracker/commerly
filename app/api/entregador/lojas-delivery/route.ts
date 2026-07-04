@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   if (!entregador) return NextResponse.json({ error: 'Perfil de entregador não encontrado' }, { status: 403 })
 
   const { data: lojas, error } = await admin
-    .from('lojas_publicas').select('id, nome, tipo, localizacao')
+    .from('lojas_publicas').select('id, nome, tipo, localizacao, latitude, longitude')
   if (error) {
     console.error('[entregador/lojas-delivery] erro ao ler lojas:', error.message)
     return NextResponse.json({ error: 'Erro ao carregar lojas.' }, { status: 500 })
