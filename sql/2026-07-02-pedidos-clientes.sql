@@ -1,20 +1,20 @@
 -- Sistema de pedidos do cliente para o comerciante (delivery).
 --
--- Cliente monta um pedido (itens + endereço de entrega) numa loja de delivery
+-- Cliente monta um pedido (itens + endereco de entrega) numa loja de delivery
 -- e o comerciante acompanha/atualiza o status:
---   recebido → preparando → saiu → entregue   (+ cancelado)
+--   recebido -> preparando -> saiu -> entregue   (+ cancelado)
 --
--- Rode este SQL no SQL Editor do Supabase (produção).
--- Tudo é idempotente — pode rodar mais de uma vez sem problema.
+-- Rode este SQL no SQL Editor do Supabase (producao).
+-- Tudo e idempotente -- pode rodar mais de uma vez sem problema.
 --
--- MODELO DE ACESSO (dois papéis, ambos `authenticated`):
---   • Cliente (dono de clientes.user_id): CRIA e VÊ os próprios pedidos.
---   • Comerciante (dono de lojas.user_id): VÊ e ATUALIZA o status dos pedidos
---     da sua loja — só o campo `status`, nunca itens/total/endereço.
---   A separação é feita pelas POLICIES (owner-check), pois o Postgres não
---   distingue os dois papéis por `current_user` (os dois são `authenticated`).
---   O TRIGGER trava os campos imutáveis e força `status='recebido'` na criação
---   (impede um cliente de inserir um pedido já "entregue" pelo console).
+-- MODELO DE ACESSO (dois papeis, ambos authenticated):
+--   - Cliente (dono de clientes.user_id): CRIA e VE os proprios pedidos.
+--   - Comerciante (dono de lojas.user_id): VE e ATUALIZA o status dos pedidos
+--     da sua loja -- so o campo status, nunca itens/total/endereco.
+--   A separacao e feita pelas POLICIES (owner-check), pois o Postgres nao
+--   distingue os dois papeis por current_user (os dois sao authenticated).
+--   O TRIGGER trava os campos imutaveis e forca status='recebido' na criacao
+--   (impede um cliente de inserir um pedido ja "entregue" pelo console).
 
 -- ---------------------------------------------------------------------------
 -- 1. Tabela
@@ -28,8 +28,8 @@ create table if not exists public.pedidos_clientes (
   total numeric(10,2) not null default 0,
   endereco_entrega text not null,
   observacao text,
-  -- Contato do cliente denormalizado: o comerciante não lê a tabela `clientes`
-  -- (RLS), então guardamos o necessário pra ele entrar em contato/entregar.
+  -- Contato do cliente denormalizado: o comerciante nao le a tabela clientes
+  -- (RLS), entao guardamos o necessario pra ele entrar em contato/entregar.
   cliente_nome text,
   cliente_telefone text,
   status text not null default 'recebido'
@@ -38,17 +38,17 @@ create table if not exists public.pedidos_clientes (
   updated_at timestamptz not null default now()
 );
 
-create index if not exists idx_pedidos_clientes_loja    on public.pedidos_clientes (loja_id, created_at desc);
+create index if not exists idx_pedidos_clientes_loja on public.pedidos_clientes (loja_id, created_at desc);
 create index if not exists idx_pedidos_clientes_cliente on public.pedidos_clientes (cliente_id, created_at desc);
-create index if not exists idx_pedidos_clientes_status  on public.pedidos_clientes (loja_id, status);
+create index if not exists idx_pedidos_clientes_status on public.pedidos_clientes (loja_id, status);
 
 -- ---------------------------------------------------------------------------
--- 2. TRIGGER: força status inicial, mantém updated_at e trava campos imutáveis.
+-- 2. TRIGGER: forca status inicial, mantem updated_at e trava campos imutaveis.
 --
---    INSERT: status sempre começa 'recebido' (o cliente não escolhe o status).
---    UPDATE: só `status` (e updated_at) muda — itens/total/endereço/ids são
---            preservados do valor antigo, então nem o comerciante nem o cliente
---            conseguem reescrever o conteúdo do pedido depois de criado.
+--    INSERT: status sempre comeca 'recebido' (o cliente nao escolhe o status).
+--    UPDATE: so status (e updated_at) muda -- itens/total/endereco/ids sao
+--            preservados do valor antigo, entao nem o comerciante nem o cliente
+--            conseguem reescrever o conteudo do pedido depois de criado.
 -- ---------------------------------------------------------------------------
 create or replace function public.pedidos_clientes_guard()
 returns trigger
@@ -87,7 +87,7 @@ create trigger trg_pedidos_clientes_guard
 -- ---------------------------------------------------------------------------
 alter table public.pedidos_clientes enable row level security;
 
--- Remove policies antigas pra este arquivo ser a definição autoritativa.
+-- Remove policies antigas pra este arquivo ser a definicao autoritativa.
 do $$
 declare pol record;
 begin
@@ -101,28 +101,28 @@ end $$;
 
 grant select, insert, update, delete on public.pedidos_clientes to authenticated;
 
--- Cliente cria o próprio pedido.
+-- Cliente cria o proprio pedido.
 create policy "pedidos_cli_insert_dono" on public.pedidos_clientes
   for insert to authenticated
   with check (
     exists (select 1 from public.clientes c where c.id = cliente_id and c.user_id = auth.uid())
   );
 
--- Cliente vê os próprios pedidos.
+-- Cliente ve os proprios pedidos.
 create policy "pedidos_cli_select_dono" on public.pedidos_clientes
   for select to authenticated
   using (
     exists (select 1 from public.clientes c where c.id = cliente_id and c.user_id = auth.uid())
   );
 
--- Comerciante vê os pedidos da própria loja.
+-- Comerciante ve os pedidos da propria loja.
 create policy "pedidos_loja_select_dono" on public.pedidos_clientes
   for select to authenticated
   using (
     exists (select 1 from public.lojas l where l.id = loja_id and l.user_id = auth.uid())
   );
 
--- Comerciante atualiza (o trigger garante que só o status muda de fato).
+-- Comerciante atualiza (o trigger garante que so o status muda de fato).
 create policy "pedidos_loja_update_dono" on public.pedidos_clientes
   for update to authenticated
   using (
@@ -133,7 +133,7 @@ create policy "pedidos_loja_update_dono" on public.pedidos_clientes
   );
 
 -- ---------------------------------------------------------------------------
--- 4. Verificação (rode manualmente após aplicar):
+-- 4. Verificacao (rode manualmente apos aplicar):
 --   select policyname, cmd from pg_policies
 --     where schemaname='public' and tablename='pedidos_clientes' order by policyname;
 -- ---------------------------------------------------------------------------
