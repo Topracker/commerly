@@ -7,6 +7,8 @@ import { MODULOS, type ModuloKey } from '../lib/nichos'
 import { EnderecoAutocomplete } from '../components/EnderecoAutocomplete'
 import { FachadaUpload, type FachadaItem } from '../components/FachadaUpload'
 import { uploadFachada } from '../lib/fachada'
+import { useToast } from '../hooks/useToast'
+import { Toast } from '../components/Toast'
 import {
   validarCPF, validarCNPJ, formatarDocumento,
   formatarTelefone, erroTelefone, checarDuplicidade, MSG_DUPLICADO,
@@ -69,6 +71,7 @@ export default function Onboarding() {
 
   const router = useRouter()
   const supabase = createClient()
+  const { toast, mostrarToast } = useToast()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -129,15 +132,15 @@ export default function Onboarding() {
   }
 
   async function salvar() {
-    if (!nome || !tipo) return alert('Preencha o nome e tipo da loja!')
+    if (!nome || !tipo) return mostrarToast('Preencha o nome e tipo da loja!', 'erro')
     const nums = documento.replace(/\D/g, '')
-    if (!nums) return alert('Informe seu CPF ou CNPJ!')
-    if (nums.length === 11 && !validarCPF(nums)) return alert('CPF inválido!')
-    if (nums.length === 14 && !validarCNPJ(nums)) return alert('CNPJ inválido!')
-    if (nums.length !== 11 && nums.length !== 14) return alert('Informe um CPF ou CNPJ válido!')
-    if (telefone && erroTelefone(telefone)) return alert('Telefone inválido!')
-    if (instagram && erroInstagram(instagram)) return alert('Formato de Instagram inválido!')
-    if (website && erroWebsite(website)) return alert('Endereço de site inválido!')
+    if (!nums) return mostrarToast('Informe seu CPF ou CNPJ!', 'erro')
+    if (nums.length === 11 && !validarCPF(nums)) return mostrarToast('CPF inválido!', 'erro')
+    if (nums.length === 14 && !validarCNPJ(nums)) return mostrarToast('CNPJ inválido!', 'erro')
+    if (nums.length !== 11 && nums.length !== 14) return mostrarToast('Informe um CPF ou CNPJ válido!', 'erro')
+    if (telefone && erroTelefone(telefone)) return mostrarToast('Telefone inválido!', 'erro')
+    if (instagram && erroInstagram(instagram)) return mostrarToast('Formato de Instagram inválido!', 'erro')
+    if (website && erroWebsite(website)) return mostrarToast('Endereço de site inválido!', 'erro')
 
     const horario = horarioAbertura && horarioFechamento
       ? `${horarioAbertura} - ${horarioFechamento}`
@@ -150,23 +153,23 @@ export default function Onboarding() {
       supabase.from('clientes').select('id').eq('user_id', user!.id).maybeSingle(),
       supabase.from('fornecedores').select('id').eq('user_id', user!.id).maybeSingle(),
     ])
-    if (clienteExiste) { alert('Este e-mail já está cadastrado como cliente. Faça login para acessar sua conta.'); setLoading(false); return }
-    if (fornecedorExiste) { alert('Este e-mail já está cadastrado como fornecedor. Faça login para acessar sua conta.'); setLoading(false); return }
+    if (clienteExiste) { mostrarToast('Este e-mail já está cadastrado como cliente. Faça login para acessar sua conta.', 'erro'); setLoading(false); return }
+    if (fornecedorExiste) { mostrarToast('Este e-mail já está cadastrado como fornecedor. Faça login para acessar sua conta.', 'erro'); setLoading(false); return }
 
     // CPF/CNPJ e telefone não podem se repetir em outra conta do Commerly.
     const dup = await checarDuplicidade({
       ...(nums.length === 11 ? { cpf: documento } : { cnpj: documento }),
       ...(telefone ? { telefone } : {}),
     })
-    if (dup.erro) { alert(dup.erro); setLoading(false); return }
-    if (dup.duplicado) { alert(MSG_DUPLICADO[dup.duplicado]); setLoading(false); return }
+    if (dup.erro) { mostrarToast(dup.erro, 'erro'); setLoading(false); return }
+    if (dup.duplicado) { mostrarToast(MSG_DUPLICADO[dup.duplicado], 'erro'); setLoading(false); return }
 
     // Para "Outro", usa o ramo sugerido pela IA (se houver) como tipo da loja.
     const tipoFinal = tipo === 'Outro' && tipoCustom.trim() ? tipoCustom.trim() : tipo
 
     // Anti-spam: no máx. 1 conta por dia por IP.
     const lim = await registrarCadastroIp('comerciante')
-    if (!lim.ok) { alert(lim.erro); setLoading(false); return }
+    if (!lim.ok) { mostrarToast(lim.erro!, 'erro'); setLoading(false); return }
 
     const { data: lojaInserida, error } = await supabase.from('lojas').insert({
       user_id: user?.id,
@@ -177,8 +180,8 @@ export default function Onboarding() {
       plano: 'inativo',
     }).select('id').single()
     if (error) {
-      if (error.code === '23505') alert('Este CPF/CNPJ já está cadastrado no Commerly!')
-      else alert('Erro ao salvar!')
+      if (error.code === '23505') mostrarToast('Este CPF/CNPJ já está cadastrado no Commerly!', 'erro')
+      else mostrarToast('Não foi possível salvar seu cadastro. Tente novamente.', 'erro')
       setLoading(false)
       return
     }
@@ -217,6 +220,7 @@ export default function Onboarding() {
 
   return (
     <main className="min-h-screen bg-gray-950 flex items-center justify-center p-6">
+      <Toast toast={toast} />
       <div className="bg-gray-900 rounded-3xl p-8 w-full max-w-md">
         <h1 className="text-2xl font-bold text-white mb-1">Cadastro da loja</h1>
         <p className="text-gray-400 mb-6">Conta pra gente sobre o seu negócio</p>

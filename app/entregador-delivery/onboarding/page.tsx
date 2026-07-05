@@ -24,7 +24,7 @@ function FotoUpload({ label, hint, preview, onPick, captura = 'environment', red
       <button
         type="button"
         onClick={() => ref.current?.click()}
-        className={`bg-gray-800 border-2 border-dashed border-gray-700 hover:border-[#C1441E] overflow-hidden flex items-center justify-center transition ${
+        className={`bg-[#171C22] border-2 border-dashed border-[#232A32] hover:border-[#C1441E] overflow-hidden flex items-center justify-center transition ${
           redondo ? 'w-24 h-24 rounded-full mx-auto' : 'w-full h-36 rounded-xl'
         }`}
       >
@@ -164,12 +164,12 @@ export default function EntregadorOnboarding() {
     router.push('/entregador-delivery/dashboard')
   }
 
-  const inp = 'bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#C1441E]'
+  const inp = 'bg-[#171C22] border border-[#232A32] text-white rounded-xl px-4 py-3 outline-none focus:border-[#C1441E]/60 transition'
   const label = 'block text-gray-400 text-xs mb-1.5'
 
   return (
-    <main className="min-h-screen bg-gray-950 flex items-center justify-center p-6">
-      <div className="bg-gray-900 rounded-3xl p-8 w-full max-w-md">
+    <main className="min-h-screen bg-[#0a0f1a] flex items-center justify-center p-6">
+      <div className="bg-[#12161B] border border-[#232A32] rounded-3xl p-8 w-full max-w-md">
         <p className="text-[#E0632C] text-sm font-semibold mb-1">🛵 Área do Entregador</p>
         <h1 className="text-2xl font-bold text-white mb-1">Complete seu cadastro</h1>
         <p className="text-gray-400 mb-6">Precisamos verificar seus dados antes de liberar as entregas.</p>
@@ -215,14 +215,14 @@ export default function EntregadorOnboarding() {
           </div>
 
           {/* Documento de identidade */}
-          <div className="border-t border-gray-800 pt-4">
+          <div className="border-t border-[#232A32] pt-4">
             <p className="text-white font-semibold text-sm mb-3">Documento de identidade</p>
             <div className="flex flex-col gap-3">
               <div className="flex gap-2">
                 {(['RG', 'CNH'] as const).map(t => (
                   <button key={t} type="button" onClick={() => setDocumentoTipo(t)}
                     className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition ${
-                      documentoTipo === t ? 'bg-[#C1441E] border-[#C1441E] text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'
+                      documentoTipo === t ? 'bg-[#C1441E] border-[#C1441E] text-white' : 'bg-[#1B2129] border-[#232A32] text-gray-400 hover:bg-[#232A32]'
                     }`}>
                     {t}
                   </button>
@@ -240,13 +240,13 @@ export default function EntregadorOnboarding() {
           </div>
 
           {/* Veículo */}
-          <div className="border-t border-gray-800 pt-4">
+          <div className="border-t border-[#232A32] pt-4">
             <label className={label}>Tipo de veículo *</label>
             <div className="grid grid-cols-2 gap-2">
               {VEICULOS.map(v => (
                 <button key={v.valor} type="button" onClick={() => setVeiculoTipo(v.valor)}
                   className={`py-3 rounded-xl text-sm font-semibold border transition flex items-center justify-center gap-2 ${
-                    veiculoTipo === v.valor ? 'bg-[#C1441E] border-[#C1441E] text-white' : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                    veiculoTipo === v.valor ? 'bg-[#C1441E] border-[#C1441E] text-white' : 'bg-[#1B2129] border-[#232A32] text-gray-300 hover:bg-[#232A32]'
                   }`}>
                   <span>{v.emoji}</span> {v.label}
                 </button>
@@ -256,7 +256,7 @@ export default function EntregadorOnboarding() {
 
           {/* CNH (obrigatório p/ moto e carro) */}
           {precisaCNH && (
-            <div className="border-t border-gray-800 pt-4">
+            <div className="border-t border-[#232A32] pt-4">
               <p className="text-white font-semibold text-sm mb-1">CNH (obrigatória para {veiculoTipo === 'moto' ? 'moto' : 'carro'})</p>
               <div className="flex flex-col gap-3 mt-2">
                 <input type="text" inputMode="numeric" placeholder="Número da CNH" value={cnhNumero}
