@@ -2,6 +2,28 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type Rating = { media: number; total: number }
 
+/**
+ * Sobe uma foto de avaliação (cliente) ou comprovante de entrega (entregador)
+ * pro bucket público "avaliacoes" e devolve a URL pública. `pasta` separa o
+ * caminho por autor (id do cliente/entregador) e finalidade.
+ */
+export async function uploadFotoAvaliacao(
+  supabase: SupabaseClient,
+  pasta: string,
+  file: File,
+): Promise<{ url: string } | { error: string }> {
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+  const path = `${pasta}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+  const { error } = await supabase.storage.from('avaliacoes').upload(path, file, {
+    cacheControl: '3600',
+    upsert: true,
+    contentType: file.type || 'image/jpeg',
+  })
+  if (error) return { error: 'Não foi possível enviar a foto. Tente novamente.' }
+  const { data } = supabase.storage.from('avaliacoes').getPublicUrl(path)
+  return { url: data.publicUrl }
+}
+
 // Busca as avaliações em avaliacoes_lojas e devolve média + total por loja_id.
 // Sem lojaIds, agrega todas as lojas (usado no ranking). Com lojaIds, restringe
 // à lista informada (usado na busca, para não puxar avaliações de tudo).

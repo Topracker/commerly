@@ -10,7 +10,9 @@ import { Estrelas } from '../../components/Estrelas'
 import { MapaAoVivo } from '../../components/MapaAoVivo'
 import { STATUS_META, FLUXO_STATUS, pedidoEmAndamento, type PedidoCliente } from '../../lib/pedidosClientes'
 import type { LocalizacaoEntrega } from '../../lib/entregadores'
-import { ShoppingBag, MapPin, ChevronRight, Bike, KeyRound, XCircle } from 'lucide-react'
+import { distanciaKm, etaMinutos, formatarEta, formatarDistancia } from '../../lib/geo'
+import { uploadFotoAvaliacao } from '../../lib/avaliacoes'
+import { ShoppingBag, MapPin, ChevronRight, Bike, KeyRound, XCircle, Clock, Camera } from 'lucide-react'
 
 type EntregadorPublico = { id: string; nome: string; foto_url: string | null; telefone: string | null }
 
@@ -25,11 +27,13 @@ export default function ClientePedidos() {
 
   // Avaliações
   const [ratedEntregador, setRatedEntregador] = useState<Set<string>>(new Set())
-  const [avalLoja, setAvalLoja] = useState<Record<string, { nota: number; comentario: string | null }>>({})
+  const [avalLoja, setAvalLoja] = useState<Record<string, { nota: number; comentario: string | null; foto_url: string | null }>>({})
   const [notaEnt, setNotaEnt] = useState<Record<string, number>>({})
   const [comentEnt, setComentEnt] = useState<Record<string, string>>({})
   const [notaLoja, setNotaLoja] = useState<Record<string, number>>({})
   const [comentLoja, setComentLoja] = useState<Record<string, string>>({})
+  // Foto opcional anexada à avaliação da loja (câmera ou galeria).
+  const [fotoLoja, setFotoLoja] = useState<Record<string, { file: File; preview: string }>>({})
   const [enviando, setEnviando] = useState<string | null>(null)
 
   // Cancelamento de pedido (só enquanto "recebido").
@@ -113,9 +117,9 @@ export default function ClientePedidos() {
       const { data: av } = await supabase.from('avaliacoes_entregadores').select('pedido_id').in('pedido_id', comEntregador)
       setRatedEntregador(new Set((av || []).map((a: any) => a.pedido_id)))
     }
-    const { data: avl } = await supabase.from('avaliacoes_lojas').select('loja_id, nota, comentario').eq('cliente_id', cliente.id)
-    const am: Record<string, { nota: number; comentario: string | null }> = {}
-    for (const a of (avl || []) as any[]) am[a.loja_id] = { nota: a.nota, comentario: a.comentario }
+    const { data: avl } = await supabase.from('avaliacoes_lojas').select('loja_id, nota, comentario, foto_url').eq('cliente_id', cliente.id)
+    const am: Record<string, { nota: number; comentario: string | null; foto_url: string | null }> = {}
+    for (const a of (avl || []) as any[]) am[a.loja_id] = { nota: a.nota, comentario: a.comentario, foto_url: a.foto_url ?? null }
     setAvalLoja(am)
 
     setCarregando(false)
@@ -142,13 +146,30 @@ export default function ClientePedidos() {
     setEnviando(`loja-${p.id}`)
     const comentario = comentLoja[p.loja_id]?.trim() || null
     const existente = avalLoja[p.loja_id]
+
+    // Envia a foto (se anexada) antes de gravar a avaliação.
+    let foto_url = existente?.foto_url ?? null
+    const nova = fotoLoja[p.loja_id]
+    if (nova) {
+      const up = await uploadFotoAvaliacao(supabase, `loja/${cliente.id}`, nova.file)
+      if ('error' in up) { setEnviando(null); mostrarToast(up.error, 'erro'); return }
+      foto_url = up.url
+    }
+
     const { error } = existente
-      ? await supabase.from('avaliacoes_lojas').update({ nota, comentario }).eq('cliente_id', cliente.id).eq('loja_id', p.loja_id)
-      : await supabase.from('avaliacoes_lojas').insert({ cliente_id: cliente.id, loja_id: p.loja_id, nota, comentario })
+      ? await supabase.from('avaliacoes_lojas').update({ nota, comentario, foto_url }).eq('cliente_id', cliente.id).eq('loja_id', p.loja_id)
+      : await supabase.from('avaliacoes_lojas').insert({ cliente_id: cliente.id, loja_id: p.loja_id, nota, comentario, foto_url })
     setEnviando(null)
     if (error) { mostrarToast('Erro ao avaliar o produto', 'erro'); return }
-    setAvalLoja(prev => ({ ...prev, [p.loja_id]: { nota, comentario } }))
+    setAvalLoja(prev => ({ ...prev, [p.loja_id]: { nota, comentario, foto_url } }))
+    setFotoLoja(prev => { const n = { ...prev }; delete n[p.loja_id]; return n })
     mostrarToast('Avaliação do produto enviada!', 'sucesso')
+  }
+
+  function selecionarFotoLoja(lojaId: string, file: File | undefined) {
+    if (!file) return
+    if (file.size > 6 * 1024 * 1024) { mostrarToast('A foto deve ter no máximo 6 MB.', 'erro'); return }
+    setFotoLoja(prev => ({ ...prev, [lojaId]: { file, preview: URL.createObjectURL(file) } }))
   }
 
   async function cancelarPedido() {
@@ -212,6 +233,15 @@ export default function ClientePedidos() {
               const passoAtual = FLUXO_STATUS.indexOf(p.status)
               const entregador = p.entregador_id ? entregadores[p.entregador_id] : null
               const loc = localizacoes[p.id]
+              // ETA dinâmico: distância entre a posição atual do entregador (GPS
+              // ao vivo) e o ponto de entrega → ~5 min/km. Recalcula a cada 10s.
+              const distEta = (p.status === 'saiu' && loc && p.entrega_latitude != null && p.entrega_longitude != null)
+                ? distanciaKm(
+                    { latitude: Number(loc.latitude), longitude: Number(loc.longitude) },
+                    { latitude: Number(p.entrega_latitude), longitude: Number(p.entrega_longitude) },
+                  )
+                : null
+              const eta = etaMinutos(distEta)
               const jaAvaliouLoja = !!avalLoja[p.loja_id]
               const jaAvaliouEnt = ratedEntregador.has(p.id)
               return (
@@ -229,6 +259,19 @@ export default function ClientePedidos() {
                       {FLUXO_STATUS.map((s, i) => (
                         <div key={s} className={`h-1.5 flex-1 rounded-full ${i <= passoAtual ? STATUS_META[s].dot : 'bg-[#232A32]'}`} />
                       ))}
+                    </div>
+                  )}
+
+                  {/* ETA dinâmico — "Chegando em X minutos" (atualiza a cada 10s) */}
+                  {p.status === 'saiu' && eta != null && (
+                    <div className="mb-3 bg-green-500/10 border border-green-500/40 rounded-xl p-3 flex items-center gap-3">
+                      <Clock size={20} className="text-green-400 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-green-300 font-semibold text-sm">Chegando em ~{formatarEta(eta)}</p>
+                        <p className="text-gray-400 text-xs">
+                          Seu entregador está a {formatarDistancia(distEta)} de você
+                        </p>
+                      </div>
                     </div>
                   )}
 
@@ -313,6 +356,16 @@ export default function ClientePedidos() {
                     </button>
                   )}
 
+                  {/* Comprovante de entrega (foto do entregador) */}
+                  {p.status === 'entregue' && p.comprovante_entrega_url && (
+                    <div className="mt-3 pt-3 border-t border-[#232A32]">
+                      <p className="text-gray-400 text-xs mb-1.5 flex items-center gap-1.5"><Camera size={13} className="text-[#6FD98F]" /> Comprovante de entrega</p>
+                      <a href={p.comprovante_entrega_url} target="_blank" rel="noopener noreferrer" className="inline-block">
+                        <img src={p.comprovante_entrega_url} alt="Comprovante de entrega" className="w-28 h-28 rounded-xl object-cover border border-[#232A32]" />
+                      </a>
+                    </div>
+                  )}
+
                   {/* Avaliação pós-entrega */}
                   {p.status === 'entregue' && (
                     <div className="mt-3 pt-3 border-t border-[#232A32] flex flex-col gap-4">
@@ -347,6 +400,19 @@ export default function ClientePedidos() {
                           placeholder="Comentário (opcional)"
                           className="bg-[#171C22] border border-[#232A32] text-white rounded-xl px-3 py-2 outline-none focus:border-[#6FD98F]/60 text-sm"
                         />
+                        {/* Foto opcional (câmera ou galeria) */}
+                        <div className="flex items-center gap-3">
+                          {(fotoLoja[p.loja_id]?.preview || avalLoja[p.loja_id]?.foto_url) && (
+                            <img src={fotoLoja[p.loja_id]?.preview || avalLoja[p.loja_id]?.foto_url || ''} alt="Foto da avaliação"
+                              className="w-14 h-14 rounded-xl object-cover border border-[#232A32]" />
+                          )}
+                          <label className="inline-flex items-center gap-1.5 cursor-pointer bg-[#171C22] border border-[#232A32] hover:border-[#6FD98F]/60 text-gray-300 text-xs font-medium px-3 py-2 rounded-xl transition">
+                            <Camera size={14} className="text-[#6FD98F]" />
+                            {fotoLoja[p.loja_id] || avalLoja[p.loja_id]?.foto_url ? 'Trocar foto' : 'Adicionar foto'}
+                            <input type="file" accept="image/*" capture="environment" className="hidden"
+                              onChange={e => selecionarFotoLoja(p.loja_id, e.target.files?.[0])} />
+                          </label>
+                        </div>
                         <button onClick={() => avaliarLoja(p)} disabled={enviando === `loja-${p.id}`}
                           className="self-start bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-xl transition">
                           {enviando === `loja-${p.id}` ? 'Enviando...' : jaAvaliouLoja ? 'Atualizar avaliação' : 'Avaliar produto'}

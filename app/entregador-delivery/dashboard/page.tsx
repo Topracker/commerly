@@ -7,12 +7,17 @@ import { Toast } from '../../components/Toast'
 import { EntregadorLayout } from '../../components/EntregadorLayout'
 import { MapaEntregas, type PontoMapa } from '../../components/MapaEntregas'
 import { STATUS_META, type PedidoCliente } from '../../lib/pedidosClientes'
-import { STATUS_PARCERIA_META, GPS_INTERVALO_MS, type ParceriaEntregador } from '../../lib/entregadores'
+import {
+  STATUS_PARCERIA_META, GPS_INTERVALO_MS, META_SEMANAL_ENTREGAS,
+  badgesEntregador, type ParceriaEntregador, type RankingEntregador,
+} from '../../lib/entregadores'
+import { uploadFotoAvaliacao } from '../../lib/avaliacoes'
 import { distanciaKm, formatarDistancia } from '../../lib/geo'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import {
   Store, MapPin, Navigation, CircleDollarSign, Check, Handshake, PackageCheck,
   Star, History, Power, Wallet, Bike, MapPinned, TrendingUp,
+  Award, Trophy, Target, Camera, WifiOff, RefreshCw,
 } from 'lucide-react'
 
 type Avaliacao = { nota: number; comentario: string | null; created_at: string }
@@ -46,10 +51,15 @@ function EntregadorDashboard() {
   const [parcerias, setParcerias] = useState<ParceriaEntregador[]>([])
   const [pedidos, setPedidos] = useState<PedidoCliente[]>([])
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([])
+  const [ranking, setRanking] = useState<RankingEntregador[]>([])
   const [carregando, setCarregando] = useState(true)
   const [acao, setAcao] = useState<string | null>(null)
   const [codigos, setCodigos] = useState<Record<string, string>>({})
   const [gpsAtivo, setGpsAtivo] = useState(false)
+  // Comprovante de entrega (foto) por pedido, antes de confirmar.
+  const [comprovantes, setComprovantes] = useState<Record<string, { file: File; preview: string }>>({})
+  // Conexão: 'online' | 'offline' | 'sincronizando' (Modo Offline do GPS).
+  const [conexao, setConexao] = useState<'online' | 'offline' | 'sincronizando'>('online')
 
   // Online/Offline: offline não recebe novos pedidos. Persistido em localStorage
   // (por entregador) — é um estado de sessão/dispositivo, sem coluna no banco.
@@ -106,7 +116,7 @@ function EntregadorDashboard() {
   function conectarStripe() { window.location.href = '/api/entregador/stripe-connect' }
 
   async function carregar() {
-    const [lojasRes, parceriasRes, pedidosRes, avalRes] = await Promise.all([
+    const [lojasRes, parceriasRes, pedidosRes, avalRes, rankingRes] = await Promise.all([
       fetch('/api/entregador/lojas-delivery')
         .then(r => (r.ok ? r.json() : { lojas: [] }))
         .catch(() => ({ lojas: [] })),
@@ -114,11 +124,14 @@ function EntregadorDashboard() {
       supabase.from('pedidos_clientes').select('*').order('created_at', { ascending: false }),
       supabase.from('avaliacoes_entregadores').select('nota, comentario, created_at')
         .eq('entregador_id', entregador!.id).order('created_at', { ascending: false }),
+      // Ranking semanal (view agregada; ignora silenciosamente se ainda não migrada).
+      supabase.from('ranking_entregadores_semana').select('*').order('entregas', { ascending: false }),
     ])
     setLojas((lojasRes.lojas || []) as LojaDelivery[])
     setParcerias((parceriasRes.data || []) as ParceriaEntregador[])
     setPedidos((pedidosRes.data || []) as PedidoCliente[])
     setAvaliacoes((avalRes.data || []) as Avaliacao[])
+    setRanking((rankingRes.data || []) as RankingEntregador[])
     setCarregando(false)
   }
 
@@ -171,6 +184,29 @@ function EntregadorDashboard() {
   // Avaliação média recebida.
   const mediaNota = avaliacoes.length ? avaliacoes.reduce((s, a) => s + a.nota, 0) / avaliacoes.length : 0
   const comentarios = avaliacoes.filter(a => a.comentario && a.comentario.trim())
+  const cincoEstrelas = avaliacoes.filter(a => a.nota === 5).length
+
+  // --- Gamificação ---
+  // Entregas nos últimos 7 dias (meta semanal).
+  const entregasSemana = useMemo(() => {
+    const lim = new Date(); lim.setDate(lim.getDate() - 7)
+    return historico.filter(p => new Date(p.updated_at) >= lim).length
+  }, [historico])
+  const metaAtingida = entregasSemana >= META_SEMANAL_ENTREGAS
+  const progressoMeta = Math.min(100, Math.round((entregasSemana / META_SEMANAL_ENTREGAS) * 100))
+
+  const badges = useMemo(
+    () => badgesEntregador({ entregas: entregasFeitas, mediaNota, totalAvaliacoes: avaliacoes.length, cincoEstrelas }),
+    [entregasFeitas, mediaNota, avaliacoes.length, cincoEstrelas],
+  )
+  const badgesConquistadas = badges.filter(b => b.conquistada).length
+
+  // Ranking semanal: só quem tem entrega na semana; posição do entregador atual.
+  const rankingOrdenado = useMemo(
+    () => [...ranking].filter(r => r.entregas > 0).sort((a, b) => b.entregas - a.entregas || b.ganhos - a.ganhos),
+    [ranking],
+  )
+  const minhaPosicao = rankingOrdenado.findIndex(r => r.entregador_id === entregador?.id)
 
   const lojasSemParceria = lojas.filter(l => !parceriaPorLoja[l.id])
 
@@ -219,6 +255,52 @@ function EntregadorDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minhaPos, JSON.stringify(disponiveis.map(p => p.id)), lojaPorId])
 
+  // ---- MODO OFFLINE: fila local de posições de GPS ----
+  // Quando o envio ao Supabase falha (sem conexão), a posição é guardada em
+  // localStorage e sincronizada assim que a conexão volta. Só interessa a
+  // ÚLTIMA posição de cada pedido (o upsert é por pedido_id).
+  type GpsPonto = { pedido_id: string; entregador_id: string; latitude: number; longitude: number; updated_at: string }
+  const FILA_KEY = 'commerly:entregador:gpsqueue'
+  function lerFila(): GpsPonto[] {
+    try { return JSON.parse(localStorage.getItem(FILA_KEY) || '[]') } catch { return [] }
+  }
+  function gravarFila(fila: GpsPonto[]) {
+    try { localStorage.setItem(FILA_KEY, JSON.stringify(fila)) } catch { /* modo privado */ }
+  }
+  function enfileirar(ponto: GpsPonto) {
+    // Mantém apenas a posição mais recente por pedido.
+    const fila = lerFila().filter(f => f.pedido_id !== ponto.pedido_id)
+    fila.push(ponto)
+    gravarFila(fila)
+  }
+  async function sincronizarFila() {
+    const fila = lerFila()
+    if (fila.length === 0) return
+    setConexao('sincronizando')
+    const pendentes: GpsPonto[] = []
+    for (const ponto of fila) {
+      const { error } = await supabase.from('entregas_localizacao').upsert(ponto)
+      if (error) pendentes.push(ponto)
+    }
+    gravarFila(pendentes)
+    setConexao(pendentes.length === 0 ? 'online' : 'offline')
+  }
+
+  // Reage a reconexão/queda do navegador: ao voltar online, sincroniza a fila.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    setConexao(navigator.onLine ? 'online' : 'offline')
+    const aoVoltar = () => { void sincronizarFila() }
+    const aoCair = () => setConexao('offline')
+    window.addEventListener('online', aoVoltar)
+    window.addEventListener('offline', aoCair)
+    return () => {
+      window.removeEventListener('online', aoVoltar)
+      window.removeEventListener('offline', aoCair)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entregador?.id])
+
   // ---- GPS em tempo real: enquanto houver entrega "saiu para entrega" ----
   const emRotaKey = ativas.filter(p => p.status === 'saiu').map(p => p.id).join(',')
   useEffect(() => {
@@ -232,11 +314,22 @@ function EntregadorDashboard() {
           if (parado) return
           setGpsAtivo(true)
           const { latitude, longitude } = pos.coords
+          const online = navigator.onLine
+          let houveFalha = false
           for (const p of emRota) {
-            await supabase.from('entregas_localizacao').upsert({
+            const ponto: GpsPonto = {
               pedido_id: p.id, entregador_id: entregador!.id,
               latitude, longitude, updated_at: new Date().toISOString(),
-            })
+            }
+            if (!online) { enfileirar(ponto); houveFalha = true; continue }
+            const { error } = await supabase.from('entregas_localizacao').upsert(ponto)
+            if (error) { enfileirar(ponto); houveFalha = true }
+          }
+          if (houveFalha) setConexao('offline')
+          else {
+            // Envio ok: se havia fila acumulada, drena agora.
+            if (lerFila().length > 0) void sincronizarFila()
+            else setConexao('online')
           }
         },
         (err) => { if (err.code === err.PERMISSION_DENIED) setGpsAtivo(false) },
@@ -271,18 +364,34 @@ function EntregadorDashboard() {
     } catch { mostrarToast('Erro de rede.', 'erro') } finally { setAcao(null) }
   }
 
+  function selecionarComprovante(pedidoId: string, file: File | undefined) {
+    if (!file) return
+    if (file.size > 6 * 1024 * 1024) { mostrarToast('A foto deve ter no máximo 6 MB.', 'erro'); return }
+    setComprovantes(prev => ({ ...prev, [pedidoId]: { file, preview: URL.createObjectURL(file) } }))
+  }
+
   async function confirmarEntrega(pedidoId: string) {
     const codigo = (codigos[pedidoId] || '').trim()
     if (codigo.length !== 4) { mostrarToast('Digite o código de 4 dígitos do cliente.', 'erro'); return }
     setAcao(pedidoId)
     try {
+      // Comprovante de entrega (foto): sobe antes de confirmar, se anexado.
+      let comprovante_url: string | null = null
+      const comp = comprovantes[pedidoId]
+      if (comp) {
+        const up = await uploadFotoAvaliacao(supabase, `comprovante/${entregador!.id}`, comp.file)
+        if ('error' in up) { mostrarToast(up.error, 'erro'); return }
+        comprovante_url = up.url
+      }
       const res = await fetch('/api/entregador/confirmar-entrega', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pedido_id: pedidoId, codigo }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pedido_id: pedidoId, codigo, comprovante_url }),
       })
       const d = await res.json()
       if (!res.ok) { mostrarToast(d.error || 'Código incorreto.', 'erro'); return }
       mostrarToast(d.pago ? `Entrega confirmada! R$ ${Number(d.valor).toFixed(2)} a caminho da sua conta.` : 'Entrega confirmada!', 'sucesso')
       setCodigos(prev => { const n = { ...prev }; delete n[pedidoId]; return n })
+      setComprovantes(prev => { const n = { ...prev }; delete n[pedidoId]; return n })
       carregar()
     } catch { mostrarToast('Erro de rede.', 'erro') } finally { setAcao(null) }
   }
@@ -297,6 +406,19 @@ function EntregadorDashboard() {
   return (
     <EntregadorLayout entregador={entregador} sair={sair} titulo={`Olá, ${primeiroNome}`}>
       <Toast toast={toast} />
+
+      {/* MODO OFFLINE — banner de conexão/sincronização do GPS */}
+      {conexao !== 'online' && (
+        <div className={`mb-4 flex items-center gap-2.5 rounded-2xl px-4 py-3 border text-sm font-medium ${
+          conexao === 'sincronizando'
+            ? 'bg-blue-500/10 border-blue-500/40 text-blue-300'
+            : 'bg-amber-500/10 border-amber-500/40 text-amber-300'
+        }`}>
+          {conexao === 'sincronizando'
+            ? <><RefreshCw size={16} className="animate-spin shrink-0" /> Conexão restabelecida — sincronizando localizações...</>
+            : <><WifiOff size={16} className="shrink-0" /> Sem conexão — suas localizações estão sendo salvas e serão sincronizadas.</>}
+        </div>
+      )}
 
       {/* 1. HEADER: foto, nome, avaliação e status Online/Offline */}
       <section className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4 mb-4">
@@ -353,6 +475,68 @@ function EntregadorDashboard() {
           <p className="text-2xl font-bold text-white">{entregasFeitas}</p>
         </div>
       </section>
+
+      {/* META SEMANAL — bônus por bater a meta de entregas */}
+      <section className={`rounded-2xl p-4 mb-4 border ${metaAtingida ? 'bg-green-500/10 border-green-500/40' : 'bg-[#12161B] border-[#232A32]'}`}>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h2 className="text-white font-semibold text-sm flex items-center gap-2">
+            <Target size={16} className={metaAtingida ? 'text-green-400' : 'text-[#E0632C]'} /> Meta da semana
+          </h2>
+          <span className={`text-xs font-bold ${metaAtingida ? 'text-green-300' : 'text-gray-300'}`}>{entregasSemana}/{META_SEMANAL_ENTREGAS} entregas</span>
+        </div>
+        <div className="h-2.5 w-full rounded-full bg-[#1B2129] overflow-hidden">
+          <div className={`h-full rounded-full transition-all ${metaAtingida ? 'bg-green-400' : 'bg-[#C1441E]'}`} style={{ width: `${progressoMeta}%` }} />
+        </div>
+        <p className={`text-xs mt-2 ${metaAtingida ? 'text-green-300' : 'text-gray-400'}`}>
+          {metaAtingida
+            ? '🎉 Meta batida! Você garantiu o bônus semanal desta semana.'
+            : `Faça ${META_SEMANAL_ENTREGAS - entregasSemana} entrega${META_SEMANAL_ENTREGAS - entregasSemana > 1 ? 's' : ''} nesta semana e ganhe o bônus.`}
+        </p>
+      </section>
+
+      {/* BADGES / CONQUISTAS */}
+      <section className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4 mb-4">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <h2 className="text-white font-semibold text-sm flex items-center gap-2"><Award size={16} className="text-[#E0632C]" /> Conquistas</h2>
+          <span className="text-gray-500 text-xs">{badgesConquistadas}/{badges.length}</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {badges.map(b => (
+            <div key={b.id} title={b.descricao}
+              className={`rounded-xl p-2.5 text-center border transition ${b.conquistada ? 'bg-[#1B2129] border-[#C1441E]/40' : 'bg-[#12161B] border-[#232A32] opacity-45 grayscale'}`}>
+              <div className="text-2xl leading-none mb-1">{b.emoji}</div>
+              <p className="text-white text-[11px] font-semibold leading-tight">{b.titulo}</p>
+              <p className="text-gray-500 text-[10px] mt-0.5 leading-tight">{b.descricao}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* RANKING SEMANAL DE ENTREGADORES */}
+      {rankingOrdenado.length > 0 && (
+        <section className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4 mb-4">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h2 className="text-white font-semibold text-sm flex items-center gap-2"><Trophy size={16} className="text-amber-300" /> Ranking da semana</h2>
+            {minhaPosicao >= 0 && <span className="text-amber-300 text-xs font-bold">Você: {minhaPosicao + 1}º</span>}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {rankingOrdenado.slice(0, 5).map((r, i) => {
+              const eu = r.entregador_id === entregador?.id
+              const medalha = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`
+              return (
+                <div key={r.entregador_id} className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 ${eu ? 'bg-[#C1441E]/15 border border-[#C1441E]/40' : 'bg-[#171C22]'}`}>
+                  <span className="w-7 text-center text-sm font-bold shrink-0">{medalha}</span>
+                  <div className="w-8 h-8 rounded-full bg-[#C1441E]/15 overflow-hidden flex items-center justify-center shrink-0">
+                    {r.foto_url ? <img src={r.foto_url} alt="" className="w-full h-full object-cover" /> : <Bike size={14} className="text-[#E0632C]" />}
+                  </div>
+                  <p className={`flex-1 min-w-0 truncate text-sm font-medium ${eu ? 'text-white' : 'text-gray-300'}`}>{eu ? 'Você' : r.nome}</p>
+                  <span className="text-[#6FD98F] text-sm font-bold shrink-0">{r.entregas} <span className="text-gray-500 font-normal text-xs">entregas</span></span>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Stripe Connect (recebimento das corridas) */}
       <section className={`rounded-2xl p-4 mb-4 border ${stripeOnboarded ? 'bg-green-500/10 border-green-500/40' : pagamentoManual && !stripeOnboarded ? 'bg-amber-500/10 border-amber-500/40' : 'bg-[#12161B] border-[#232A32]'}`}>
@@ -441,6 +625,18 @@ function EntregadorDashboard() {
 
                       {p.status === 'saiu' ? (
                         <div className="mt-3">
+                          {/* Comprovante de entrega (foto opcional) */}
+                          <div className="flex items-center gap-3 mb-2.5">
+                            {comprovantes[p.id]?.preview && (
+                              <img src={comprovantes[p.id].preview} alt="Comprovante" className="w-12 h-12 rounded-lg object-cover border border-[#232A32]" />
+                            )}
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer bg-[#171C22] border border-[#232A32] hover:border-[#C1441E]/60 text-gray-300 text-xs font-medium px-3 py-2 rounded-xl transition">
+                              <Camera size={14} className="text-[#E0632C]" />
+                              {comprovantes[p.id] ? 'Trocar comprovante' : 'Foto do comprovante'}
+                              <input type="file" accept="image/*" capture="environment" className="hidden"
+                                onChange={e => selecionarComprovante(p.id, e.target.files?.[0])} />
+                            </label>
+                          </div>
                           <p className="text-gray-400 text-xs mb-1.5">Digite o código de 4 dígitos do cliente para confirmar:</p>
                           <div className="flex gap-2">
                             <input

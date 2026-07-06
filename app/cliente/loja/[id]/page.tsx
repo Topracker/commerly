@@ -50,7 +50,7 @@ export default function ClienteLoja() {
     const [lojaRes, prodRes, avalRes] = await Promise.all([
       supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, website_url').eq('id', id).single(),
       supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
-      supabase.from('avaliacoes_lojas').select('nota, comentario, created_at, cliente_id').eq('loja_id', id).order('created_at', { ascending: false }),
+      supabase.from('avaliacoes_lojas').select('nota, comentario, created_at, cliente_id, foto_url').eq('loja_id', id).order('created_at', { ascending: false }),
     ])
 
     if (lojaRes.error || !lojaRes.data) { router.push('/cliente/buscar'); return }
@@ -249,6 +249,11 @@ export default function ClienteLoja() {
                       <span className="text-gray-500 text-xs shrink-0">{new Date(a.created_at).toLocaleDateString('pt-BR')}</span>
                     </div>
                     {a.comentario && <p className="text-gray-300 text-sm mt-1.5">{a.comentario}</p>}
+                    {a.foto_url && (
+                      <a href={a.foto_url} target="_blank" rel="noopener noreferrer" className="inline-block mt-2">
+                        <img src={a.foto_url} alt="Foto da avaliação" className="w-24 h-24 rounded-xl object-cover border border-[#232A32]" />
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>

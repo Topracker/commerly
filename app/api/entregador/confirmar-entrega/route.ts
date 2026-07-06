@@ -23,8 +23,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Muitas tentativas. Aguarde um instante.' }, { status: 429 })
   }
 
-  const { pedido_id, codigo } = await request.json().catch(() => ({}))
+  const { pedido_id, codigo, comprovante_url } = await request.json().catch(() => ({}))
   if (!pedido_id || !codigo) return NextResponse.json({ error: 'Informe o pedido e o código.' }, { status: 400 })
+  // Comprovante de entrega (foto tirada pelo entregador) — opcional. Aceita só
+  // URL pública do nosso storage; qualquer outra coisa é ignorada.
+  const comprovante = typeof comprovante_url === 'string' && comprovante_url.startsWith('http') ? comprovante_url : null
 
   const admin = createAdminClient()
   const { data: entregador } = await admin
@@ -43,8 +46,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Código incorreto. Confira com o cliente.' }, { status: 400 })
   }
 
-  const { error: updErr } = await admin.from('pedidos_clientes').update({ status: 'entregue' }).eq('id', pedido_id)
-  if (updErr) return NextResponse.json({ error: 'Erro ao confirmar a entrega.' }, { status: 500 })
+  const updatePayload: Record<string, unknown> = { status: 'entregue' }
+  if (comprovante) updatePayload.comprovante_entrega_url = comprovante
+  const { error: updErr } = await admin.from('pedidos_clientes').update(updatePayload).eq('id', pedido_id)
+  // Se a coluna comprovante ainda não existe (pré-migração), refaz sem ela.
+  if (updErr && comprovante) {
+    const { error: e2 } = await admin.from('pedidos_clientes').update({ status: 'entregue' }).eq('id', pedido_id)
+    if (e2) return NextResponse.json({ error: 'Erro ao confirmar a entrega.' }, { status: 500 })
+  } else if (updErr) {
+    return NextResponse.json({ error: 'Erro ao confirmar a entrega.' }, { status: 500 })
+  }
 
   // Push do "Pedido entregue" para o cliente (o trigger já gravou a notificação).
   await dispatchPushPedido(admin, pedido_id)

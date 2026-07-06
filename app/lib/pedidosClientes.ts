@@ -34,6 +34,8 @@ export type PedidoCliente = {
   valor_corrida: number
   codigo_confirmacao: string | null
   pagamento_corrida: 'pendente' | 'pago'
+  // Foto do comprovante de entrega (tirada pelo entregador ao confirmar).
+  comprovante_entrega_url?: string | null
   created_at: string
   updated_at: string
 }

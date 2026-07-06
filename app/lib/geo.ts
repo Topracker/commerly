@@ -22,6 +22,29 @@ export function distanciaKm(a: Coord, b: Coord): number | null {
   return 2 * R * Math.asin(Math.sqrt(h))
 }
 
+// Velocidade média assumida para o ETA da entrega: ~1 km a cada 5 minutos
+// (12 km/h — condizente com moto/bike em trânsito urbano de bairro).
+export const MINUTOS_POR_KM = 5
+
+/**
+ * Tempo estimado de chegada (em minutos) a partir da distância em km.
+ * 1 km ≈ 5 min. Sempre pelo menos 1 min quando há distância; null sem coords.
+ */
+export function etaMinutos(km: number | null): number | null {
+  if (km == null) return null
+  return Math.max(1, Math.round(km * MINUTOS_POR_KM))
+}
+
+/** Formata o ETA de forma amigável: "menos de 1 min", "8 min", "1 h 5 min". */
+export function formatarEta(min: number | null): string {
+  if (min == null) return ''
+  if (min < 1) return 'menos de 1 min'
+  if (min < 60) return `${min} min`
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return m > 0 ? `${h} h ${m} min` : `${h} h`
+}
+
 /** Formata uma distância em km no padrão brasileiro (ex: "2,3 km", "850 m"). */
 export function formatarDistancia(km: number | null): string {
   if (km == null) return ''

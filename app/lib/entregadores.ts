@@ -80,6 +80,52 @@ export const STATUS_PARCERIA_META: Record<StatusParceria, { label: string; class
 /** Intervalo de atualização do GPS (ms) — enunciado: a cada 10 segundos. */
 export const GPS_INTERVALO_MS = 10_000
 
+// ===========================================================================
+// GAMIFICAÇÃO
+// ===========================================================================
+
+/** Meta semanal de entregas que dá bônus. */
+export const META_SEMANAL_ENTREGAS = 10
+
+export type Badge = {
+  id: string
+  emoji: string
+  titulo: string
+  descricao: string
+  conquistada: boolean
+}
+
+/**
+ * Badges do entregador, derivadas do total de entregas concluídas, da nota
+ * média e das avaliações 5★ recebidas. Retorna todas (conquistadas ou não)
+ * para o perfil poder mostrar o progresso.
+ */
+export function badgesEntregador(stats: {
+  entregas: number
+  mediaNota: number
+  totalAvaliacoes: number
+  cincoEstrelas: number
+}): Badge[] {
+  const { entregas, mediaNota, totalAvaliacoes, cincoEstrelas } = stats
+  return [
+    { id: 'primeira',  emoji: '🚀', titulo: 'Primeira entrega', descricao: 'Complete sua 1ª entrega',          conquistada: entregas >= 1 },
+    { id: 'dez',       emoji: '🔟', titulo: '10 entregas',       descricao: 'Complete 10 entregas',              conquistada: entregas >= 10 },
+    { id: 'cinquenta', emoji: '🏅', titulo: '50 entregas',       descricao: 'Complete 50 entregas',              conquistada: entregas >= 50 },
+    { id: 'cem',       emoji: '💯', titulo: '100 entregas',      descricao: 'Complete 100 entregas',             conquistada: entregas >= 100 },
+    { id: 'cinco_est', emoji: '⭐', titulo: 'Nota 5 estrelas',   descricao: 'Receba uma avaliação 5★',           conquistada: cincoEstrelas >= 1 },
+    { id: 'querido',   emoji: '❤️', titulo: 'Queridinho',        descricao: 'Média 4,8★ com 10+ avaliações',      conquistada: totalAvaliacoes >= 10 && mediaNota >= 4.8 },
+  ]
+}
+
+export type RankingEntregador = {
+  entregador_id: string
+  nome: string
+  foto_url: string | null
+  entregas: number
+  ganhos: number
+  media_nota: number
+}
+
 /**
  * Sobe uma foto do entregador (rosto, documento ou CNH) pro bucket
  * "entregadores" e devolve a URL pública. `categoria` organiza o caminho.
