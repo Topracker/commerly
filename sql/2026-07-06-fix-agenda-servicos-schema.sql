@@ -1,7 +1,9 @@
 -- Hotfix (2026-07-06): schema de `agendamentos` e `servicos` divergente do codigo.
 --
--- Sintoma: salvar/carregar agendamento ou servico (features de nicho: agenda,
--- salao, etc.) falha silenciosamente ou grava errado. O app (app/lib/nicheStore.ts)
+-- Sintoma (CONFIRMADO em prod 2026-07-07): TODO insert de agendamento falha com
+-- 23502 'null value in column "data_hora" ... violates not-null constraint'. A
+-- coluna legada `data_hora` continua NOT NULL e o codigo nao a preenche mais, entao
+-- a feature de agenda esta 100% quebrada em producao. O app (app/lib/nicheStore.ts)
 -- escreve/le colunas que NAO existem nas tabelas de producao, porque a DDL da
 -- agenda foi feita manualmente no painel com um schema ANTIGO, enquanto o codigo
 -- evoluiu para outro.
@@ -27,8 +29,24 @@ alter table public.agendamentos
   add column if not exists telefone text,
   add column if not exists obs      text;
 
--- O codigo insere sem `cliente_nome`; se ela seguir NOT NULL, todo insert falha.
-alter table public.agendamentos alter column cliente_nome drop not null;
+-- O codigo insere sem as colunas legadas (cliente_nome, data_hora). Se qualquer
+-- uma seguir NOT NULL, todo insert de agendamento falha em producao com
+-- "null value in column ... violates not-null constraint". Solta o NOT NULL de
+-- TODAS as colunas legadas de forma idempotente e defensiva (so mexe se a coluna
+-- ainda existir), para nao depender da ordem/estado de migracoes anteriores.
+do $$
+declare
+  col text;
+begin
+  foreach col in array array['cliente_nome', 'data_hora'] loop
+    if exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'agendamentos' and column_name = col
+    ) then
+      execute format('alter table public.agendamentos alter column %I drop not null', col);
+    end if;
+  end loop;
+end $$;
 
 -- ===========================================================================
 -- servicos
