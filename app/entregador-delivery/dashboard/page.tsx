@@ -164,10 +164,12 @@ function EntregadorDashboard() {
   const temParceriaAceita = lojasAceitasIds.size > 0
 
   const ativas = pedidos.filter(p => p.entregador_id === entregador?.id && p.status !== 'entregue' && p.status !== 'cancelado')
-  // Disponíveis: sem entregador, prontos p/ rota e de loja parceira aceita.
+  // Disponíveis: TODOS os pedidos ainda sem entregador, prontos para ser
+  // reivindicados (status 'recebido' ou 'preparando'), de loja parceira aceita.
+  // ('saiu' já teve código gerado e não deveria ficar sem entregador.)
   // Offline -> não recebe nada.
   const disponiveis = online
-    ? pedidos.filter(p => !p.entregador_id && (p.status === 'preparando' || p.status === 'saiu') && lojasAceitasIds.has(p.loja_id))
+    ? pedidos.filter(p => !p.entregador_id && (p.status === 'recebido' || p.status === 'preparando') && lojasAceitasIds.has(p.loja_id))
     : []
 
   const historico = pedidos
