@@ -19,7 +19,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import {
   Store, MapPin, Navigation, CircleDollarSign, Check, Handshake, PackageCheck,
   Star, History, Power, Wallet, Bike, MapPinned, TrendingUp,
-  Award, Trophy, Target, Camera, WifiOff, RefreshCw,
+  Award, Trophy, Target, Camera, WifiOff, RefreshCw, X,
 } from 'lucide-react'
 
 type Avaliacao = { nota: number; comentario: string | null; created_at: string }
@@ -447,6 +447,19 @@ function EntregadorDashboard() {
     carregar()
   }
 
+  async function desistirCorrida(pedidoId: string) {
+    setAcao(pedidoId)
+    try {
+      const res = await fetch('/api/entregador/desistir-corrida', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pedido_id: pedidoId }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) { mostrarToast(d.error || 'Não foi possível desistir.', 'erro'); return }
+      mostrarToast('Você desistiu da corrida. Ela voltou para o pool.', 'sucesso')
+      carregar()
+    } catch { mostrarToast('Erro de rede.', 'erro') } finally { setAcao(null) }
+  }
+
   async function aceitarPedido(pedidoId: string) {
     setAcao(pedidoId)
     try {
@@ -717,6 +730,16 @@ function EntregadorDashboard() {
                   const rota: [number, number][] | undefined = temTrajeto
                     ? [[loja!.latitude as number, loja!.longitude as number], [Number(p.entrega_latitude), Number(p.entrega_longitude)]]
                     : undefined
+                  // Navegação externa (Google Maps): rota loja -> cliente.
+                  const destinoNav = p.entrega_latitude != null && p.entrega_longitude != null
+                    ? `${Number(p.entrega_latitude)},${Number(p.entrega_longitude)}` : null
+                  const origemNav = loja?.latitude != null && loja?.longitude != null
+                    ? `${loja.latitude},${loja.longitude}` : null
+                  const navUrl = destinoNav
+                    ? `https://www.google.com/maps/dir/?api=1${origemNav ? `&origin=${origemNav}` : ''}&destination=${destinoNav}&travelmode=driving`
+                    : null
+                  // O entregador só pode desistir ANTES de o preparo começar.
+                  const podeDesistir = p.status === 'recebido'
                   return (
                     <div key={p.id} className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
                       <div className="flex items-center justify-between gap-2 mb-2">
@@ -736,6 +759,14 @@ function EntregadorDashboard() {
                         <span className="text-gray-500 text-xs">Corrida</span>
                         <span className="text-[#6FD98F] font-bold text-sm">{Number(p.valor_corrida) > 0 ? reais(Number(p.valor_corrida)) : 'A definir'}</span>
                       </div>
+
+                      {/* Navegar — abre a rota loja -> cliente no Google Maps/Waze */}
+                      {navUrl && (
+                        <a href={navUrl} target="_blank" rel="noopener noreferrer"
+                          className="mt-3 w-full flex items-center justify-center gap-1.5 bg-[#1B2129] border border-[#232A32] hover:border-[#C1441E]/60 text-white font-semibold py-2.5 rounded-xl transition text-sm">
+                          <Navigation size={16} className="text-[#E0632C]" /> Navegar (Google Maps)
+                        </a>
+                      )}
 
                       {p.status === 'saiu' ? (
                         <div className="mt-3">
@@ -766,7 +797,17 @@ function EntregadorDashboard() {
                           </div>
                         </div>
                       ) : (
-                        <p className="text-gray-500 text-xs mt-3">Aguardando a loja liberar para entrega. Ao sair para entrega, o GPS liga e o código é gerado.</p>
+                        <div className="mt-3">
+                          <p className="text-gray-500 text-xs">Aguardando a loja liberar para entrega. Ao sair para entrega, o GPS liga e o código é gerado.</p>
+                          {podeDesistir ? (
+                            <button onClick={() => desistirCorrida(p.id)} disabled={acao === p.id}
+                              className="mt-2 w-full flex items-center justify-center gap-1.5 bg-[#1B2129] border border-[#232A32] hover:bg-red-500/15 hover:border-red-500/40 text-gray-300 hover:text-red-400 text-xs font-medium py-2 rounded-xl transition disabled:opacity-50">
+                              <X size={14} /> {acao === p.id ? '...' : 'Desistir da corrida'}
+                            </button>
+                          ) : (
+                            <p className="text-gray-600 text-[11px] mt-2">🔒 Pedido em preparo — não é possível desistir agora.</p>
+                          )}
+                        </div>
                       )}
                     </div>
                   )

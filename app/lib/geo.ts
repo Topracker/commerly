@@ -71,3 +71,24 @@ export function taxaEntregaPorDistancia(km: number | null): number {
   const taxa = BASE + POR_KM * (km ?? 0)
   return Math.min(MAX, Math.max(MIN, Math.round(taxa * 100) / 100))
 }
+
+/** Multiplicador da taxa em horário de pico (surge). */
+export const SURGE_PICO = 1.3
+
+/**
+ * Horário de pico: sexta, sábado e domingo das 18h às 22h. A taxa de entrega
+ * sobe SURGE_PICO (+30%). Usa o horário LOCAL do dispositivo (para o cliente BR
+ * bate com o servidor, que calcula em America/Sao_Paulo — ver eh_horario_pico
+ * em sql/2026-07-09-melhorias-delivery.sql). Aqui é só a prévia; o servidor é
+ * a fonte da verdade no INSERT do pedido.
+ */
+export function ehHorarioPico(d: Date = new Date()): boolean {
+  const dow = d.getDay() // 0=domingo, 5=sexta, 6=sábado
+  const h = d.getHours()
+  return (dow === 0 || dow === 5 || dow === 6) && h >= 18 && h < 22
+}
+
+/** Aplica o surge de pico à taxa (arredonda a 2 casas), se for horário de pico. */
+export function taxaComPico(taxaBase: number, pico = ehHorarioPico()): number {
+  return pico ? Math.round(taxaBase * SURGE_PICO * 100) / 100 : taxaBase
+}

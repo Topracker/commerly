@@ -142,6 +142,14 @@ export default function PedidosComerciante() {
     }
   }
 
+  async function atualizarTempoPreparo(pedido: PedidoCliente, minutos: number) {
+    // Atualização otimista; o guard deixa tempo_preparo_min passar no UPDATE.
+    setPedidos(prev => prev.map(p => (p.id === pedido.id ? { ...p, tempo_preparo_min: minutos } : p)))
+    const { error } = await supabase.from('pedidos_clientes').update({ tempo_preparo_min: minutos }).eq('id', pedido.id)
+    if (error) { mostrarToast('Não foi possível atualizar o tempo de preparo.', 'erro'); carregar(); return }
+    mostrarToast(`Tempo de preparo: ${minutos} min`, 'sucesso')
+  }
+
   async function mudarStatus(pedido: PedidoCliente, novo: StatusPedidoCliente) {
     setSalvando(pedido.id)
     const { error } = await supabase.from('pedidos_clientes').update({ status: novo }).eq('id', pedido.id)
@@ -303,6 +311,22 @@ export default function PedidosComerciante() {
             <span className="text-gray-600"> (taxa de entrega, paga via Stripe)</span>
           </p>
         </div>
+
+        {pedidoEmAndamento(p.status) && p.status !== 'saiu' && (
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-gray-400 text-xs flex items-center gap-1.5 shrink-0">⏱️ Preparo</span>
+            <select
+              value={p.tempo_preparo_min ?? 30}
+              onChange={e => atualizarTempoPreparo(p, Number(e.target.value))}
+              disabled={salvando === p.id}
+              className="flex-1 bg-[#171C22] border border-[#232A32] text-white text-sm rounded-lg px-2.5 py-1.5 outline-none focus:border-blue-500/60"
+            >
+              {[10, 15, 20, 25, 30, 40, 45, 60, 75, 90].map(m => (
+                <option key={m} value={m}>{m} min</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {pedidoEmAndamento(p.status) && (
           <div className="flex gap-2 mt-3">

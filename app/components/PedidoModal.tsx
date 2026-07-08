@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { X, Plus, Minus, ShoppingBag, MapPin, Check, CreditCard, Banknote, Sparkles } from 'lucide-react'
 import type { ItemPedidoCliente } from '../lib/pedidosClientes'
-import { distanciaKm, taxaEntregaPorDistancia, formatarDistancia } from '../lib/geo'
+import { distanciaKm, taxaEntregaPorDistancia, taxaComPico, ehHorarioPico, formatarDistancia } from '../lib/geo'
 import { descontoDePontos, maxPontosResgataveis } from '../lib/fidelidade'
 import { MapaConfirmar } from './MapaConfirmar'
 
@@ -117,7 +117,9 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   const distancia = coord
     ? distanciaKm({ latitude: loja.latitude, longitude: loja.longitude }, { latitude: coord.lat, longitude: coord.lng })
     : null
-  const taxaEntrega = coord ? taxaEntregaPorDistancia(distancia) : null
+  // Horário de pico (sex/sáb/dom 18-22): taxa +30%. Prévia; o servidor recalcula.
+  const pico = ehHorarioPico()
+  const taxaEntrega = coord ? taxaComPico(taxaEntregaPorDistancia(distancia), pico) : null
   // Pontos resgatáveis dependem do subtotal atual (não descontam mais que ele).
   const pontosResgataveis = useMemo(() => maxPontosResgataveis(saldoPontos, subtotal), [saldoPontos, subtotal])
   const podeResgatar = pontosResgataveis >= 100
@@ -391,6 +393,11 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                   : `R$ ${taxaEntrega.toFixed(2)}`}
               </span>
             </div>
+            {pico && (
+              <div className="flex items-center gap-1.5 text-[#E0632C] text-xs -mt-0.5">
+                <span>🔥 Horário de pico — taxa de entrega aumentada</span>
+              </div>
+            )}
             {desconto > 0 && (
               <div className="flex items-center justify-between text-[#F5C34B]">
                 <span className="flex items-center gap-1.5"><Sparkles size={13} /> Desconto ({pontosUsados} pontos)</span>

@@ -3,18 +3,11 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
-import { dispatchPushOferta } from '../../../lib/pushDispatch'
-import { distanciaKm } from '../../../lib/geo'
-import { RAIO_BUSCA_KM, TEMPO_RESPOSTA_CORRIDA_S, FRESCOR_LOCALIZACAO_MS } from '../../../lib/entregadores'
+import { ofertarProximoEntregador } from '../../../lib/dispatch'
 
 // Despacho estilo Uber: o comerciante toca "Buscar entregador proximo" num
-// pedido sem entregador. Buscamos entregadores Online (disponivel + posicao
-// recente) num raio de 5 km da loja, ordenamos por distancia e OFERTAMOS a
-// corrida ao mais proximo que ainda nao recebeu oferta deste pedido. A oferta
-// vale 30s; se recusada/expirada, a proxima chamada oferta ao seguinte.
-//
-// Roda com service role: le a posicao dos entregadores (RLS owner-only) e cria
-// a oferta de forma controlada. A leitura do pool nunca e exposta ao client.
+// pedido sem entregador. A oferta vai ao entregador Online mais proximo (raio de
+// 5 km); se recusada/expirada, a proxima chamada oferta ao seguinte.
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -34,7 +27,6 @@ export async function POST(request: NextRequest) {
 
   const admin = createAdminClient()
 
-  // Pedido + loja (o solicitante precisa ser o dono da loja do pedido).
   const { data: pedido } = await admin
     .from('pedidos_clientes').select('id, loja_id, entregador_id, status').eq('id', pedido_id).single()
   if (!pedido) return NextResponse.json({ error: 'Pedido não encontrado' }, { status: 404 })
@@ -52,82 +44,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Cadastre a localização da loja para buscar entregadores.' }, { status: 400 })
   }
 
-  const agora = Date.now()
-
-  // Expira ofertas pendentes vencidas deste pedido (nao bloqueiam o proximo).
-  await admin.from('corrida_ofertas').update({ status: 'expirada' })
-    .eq('pedido_id', pedido_id).eq('status', 'pendente').lt('expira_em', new Date(agora).toISOString())
-
-  // Todas as ofertas ja feitas para este pedido (qualquer status).
-  const { data: ofertasExistentes } = await admin
-    .from('corrida_ofertas').select('id, entregador_id, status, expira_em, distancia_km')
-    .eq('pedido_id', pedido_id)
-
-  // Se ainda ha uma oferta pendente e valida, aguarda a resposta (nao duplica).
-  const pendenteValida = (ofertasExistentes || []).find(
-    o => o.status === 'pendente' && new Date(o.expira_em).getTime() > agora,
-  )
-  if (pendenteValida) {
-    const { data: ent } = await admin.from('entregadores_publicos').select('nome').eq('id', pendenteValida.entregador_id).maybeSingle()
-    return NextResponse.json({ esperando: true, oferta: pendenteValida, entregador: { nome: ent?.nome || 'Entregador' } })
-  }
-
-  const jaOfertados = new Set((ofertasExistentes || []).map(o => o.entregador_id))
-
-  // Entregadores ocupados: com um pedido em andamento atribuido.
-  const { data: ocupadosRows } = await admin
-    .from('pedidos_clientes').select('entregador_id')
-    .not('entregador_id', 'is', null).in('status', ['recebido', 'preparando', 'saiu'])
-  const ocupados = new Set((ocupadosRows || []).map(r => r.entregador_id as string))
-
-  // Pool: entregadores Online com posicao recente.
-  const desde = new Date(agora - FRESCOR_LOCALIZACAO_MS).toISOString()
-  const { data: pool } = await admin
-    .from('entregadores')
-    .select('id, nome, latitude, longitude, localizacao_at')
-    .eq('disponivel', true)
-    .not('latitude', 'is', null)
-    .not('longitude', 'is', null)
-    .gte('localizacao_at', desde)
-
-  const candidatos = (pool || [])
-    .filter(e => !jaOfertados.has(e.id) && !ocupados.has(e.id))
-    .map(e => ({
-      ...e,
-      dist: distanciaKm(
-        { latitude: loja.latitude, longitude: loja.longitude },
-        { latitude: e.latitude, longitude: e.longitude },
-      ),
-    }))
-    .filter(e => e.dist != null && e.dist <= RAIO_BUSCA_KM)
-    .sort((a, b) => (a.dist! - b.dist!))
-
-  if (candidatos.length === 0) {
-    // Sem ninguem novo. Se ja tentamos alguem, e "esgotado"; senao, "vazio".
-    return NextResponse.json({ esgotado: true, tentativas: jaOfertados.size })
-  }
-
-  const escolhido = candidatos[0]
-  const distKm = Math.round((escolhido.dist as number) * 100) / 100
-  const expira_em = new Date(agora + TEMPO_RESPOSTA_CORRIDA_S * 1000).toISOString()
-
-  const { data: oferta, error } = await admin
-    .from('corrida_ofertas')
-    .insert({
-      pedido_id, entregador_id: escolhido.id, loja_id: loja.id,
-      status: 'pendente', distancia_km: distKm, expira_em,
-    })
-    .select('*').single()
-  if (error || !oferta) {
-    console.error('[buscar-entregador] erro ao criar oferta:', error?.message)
+  try {
+    const r = await ofertarProximoEntregador(admin, pedido_id, loja)
+    if (r.tipo === 'sem_localizacao') {
+      return NextResponse.json({ error: 'Cadastre a localização da loja para buscar entregadores.' }, { status: 400 })
+    }
+    if (r.tipo === 'esgotado') return NextResponse.json({ esgotado: true, tentativas: r.tentativas })
+    if (r.tipo === 'esperando') return NextResponse.json({ esperando: true, oferta: r.oferta, entregador: r.entregador })
+    return NextResponse.json({ oferta: r.oferta, entregador: r.entregador })
+  } catch (e) {
+    console.error('[buscar-entregador] erro:', e)
     return NextResponse.json({ error: 'Erro ao ofertar a corrida.' }, { status: 500 })
   }
-
-  // Push nativo (a notificacao ja foi gravada pelo trigger da oferta).
-  await dispatchPushOferta(admin, oferta.id)
-
-  return NextResponse.json({
-    oferta,
-    entregador: { nome: escolhido.nome, distancia_km: distKm },
-  })
 }

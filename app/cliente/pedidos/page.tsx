@@ -12,7 +12,7 @@ import { STATUS_META, FLUXO_STATUS, pedidoEmAndamento, type PedidoCliente } from
 import type { LocalizacaoEntrega } from '../../lib/entregadores'
 import { distanciaKm, etaMinutos, formatarEta, formatarDistancia } from '../../lib/geo'
 import { uploadFotoAvaliacao } from '../../lib/avaliacoes'
-import { ShoppingBag, MapPin, ChevronRight, Bike, KeyRound, XCircle, Clock, Camera } from 'lucide-react'
+import { ShoppingBag, MapPin, ChevronRight, Bike, KeyRound, XCircle, Clock, Camera, Loader2, CalendarClock } from 'lucide-react'
 
 type EntregadorPublico = { id: string; nome: string; foto_url: string | null; telefone: string | null }
 
@@ -106,6 +106,14 @@ export default function ClientePedidos() {
       const lm: Record<string, LocalizacaoEntrega> = {}
       for (const l of (locs || []) as LocalizacaoEntrega[]) lm[l.pedido_id] = l
       setLocalizacoes(lm)
+      // Reentrega automática: pede ao servidor para checar se o entregador sumiu
+      // (10min sem GPS). Só age quando a inatividade é confirmada no servidor.
+      for (const id of saiu) {
+        fetch('/api/entrega/checar-entregador', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pedido_id: id }),
+        }).catch(() => {})
+      }
     } else {
       setLocalizacoes({})
     }
@@ -242,6 +250,14 @@ export default function ClientePedidos() {
                   )
                 : null
               const eta = etaMinutos(distEta)
+              // Previsão de entrega = (preparo, se ainda não saiu) + deslocamento.
+              const emAndamento = pedidoEmAndamento(p.status)
+              const prepMin = p.tempo_preparo_min ?? 30
+              const travelMin = (p.status === 'saiu' && eta != null) ? eta : (etaMinutos(p.distancia_km ?? null) ?? 0)
+              const previsaoMin = p.status === 'saiu' ? travelMin : prepMin + travelMin
+              const previsao = emAndamento && previsaoMin > 0 ? new Date(Date.now() + previsaoMin * 60000) : null
+              // "Aguardando entregador": pronto/preparando/saiu mas sem entregador.
+              const aguardandoEntregador = emAndamento && !p.entregador_id && (p.status === 'preparando' || p.status === 'saiu')
               const jaAvaliouLoja = !!avalLoja[p.loja_id]
               const jaAvaliouEnt = ratedEntregador.has(p.id)
               return (
@@ -259,6 +275,26 @@ export default function ClientePedidos() {
                       {FLUXO_STATUS.map((s, i) => (
                         <div key={s} className={`h-1.5 flex-1 rounded-full ${i <= passoAtual ? STATUS_META[s].dot : 'bg-[#232A32]'}`} />
                       ))}
+                    </div>
+                  )}
+
+                  {/* Previsão de entrega (preparo + deslocamento) */}
+                  {previsao && (
+                    <div className="mb-3 flex items-center gap-2 text-sm">
+                      <CalendarClock size={16} className="text-[#E0632C] shrink-0" />
+                      <span className="text-gray-400">Previsão de entrega:</span>
+                      <span className="text-white font-semibold">{previsao.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  )}
+
+                  {/* AGUARDANDO ENTREGADOR — pronto mas sem entregador atribuído */}
+                  {aguardandoEntregador && (
+                    <div className="mb-3 bg-amber-500/10 border border-amber-500/40 rounded-xl p-3 flex items-center gap-3">
+                      <Loader2 size={20} className="text-amber-300 shrink-0 animate-spin" />
+                      <div className="min-w-0">
+                        <p className="text-amber-200 font-semibold text-sm">Seu pedido está pronto! Buscando entregador...</p>
+                        <p className="text-gray-400 text-xs">Assim que um entregador aceitar, você acompanha em tempo real aqui.</p>
+                      </div>
                     </div>
                   )}
 

@@ -36,6 +36,9 @@ export type PedidoCliente = {
   pagamento_corrida: 'pendente' | 'pago'
   // Foto do comprovante de entrega (tirada pelo entregador ao confirmar).
   comprovante_entrega_url?: string | null
+  // Tempo médio de preparo em minutos (snapshot da loja no INSERT; o comerciante
+  // pode ajustar por pedido). Usado na "Previsão de entrega" do cliente.
+  tempo_preparo_min?: number | null
   created_at: string
   updated_at: string
 }

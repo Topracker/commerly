@@ -137,6 +137,8 @@ export default function Configuracoes() {
   const [metaMensal, setMetaMensal] = useState(5000)
   // Distância máxima de entrega (km) — só nichos de delivery. Padrão 10.
   const [distanciaMax, setDistanciaMax] = useState(10)
+  // Tempo médio de preparo (min) — só nichos de delivery. Padrão 30.
+  const [tempoPreparo, setTempoPreparo] = useState(30)
   const [fachadaItems, setFachadaItems] = useState<FachadaItem[]>([])
 
   const [erroDoc, setErroDoc] = useState('')
@@ -232,9 +234,10 @@ export default function Configuracoes() {
   // existir (pré-migração) — nesse caso mantém o padrão de 10 km sem quebrar.
   useEffect(() => {
     if (!loja?.id) return
-    supabase.from('lojas').select('distancia_maxima_entrega').eq('id', loja.id).maybeSingle()
+    supabase.from('lojas').select('distancia_maxima_entrega, tempo_preparo_min').eq('id', loja.id).maybeSingle()
       .then(({ data }) => {
         if (data?.distancia_maxima_entrega != null) setDistanciaMax(Number(data.distancia_maxima_entrega))
+        if (data?.tempo_preparo_min != null) setTempoPreparo(Number(data.tempo_preparo_min))
       })
   }, [loja?.id])
 
@@ -331,8 +334,8 @@ export default function Configuracoes() {
     // ainda não existir (pré-migração) o erro é ignorado — não quebra o salvar.
     if (isDelivery(tipoFinal)) {
       const { error: eDist } = await supabase.from('lojas')
-        .update({ distancia_maxima_entrega: distanciaMax }).eq('id', loja.id)
-      if (eDist) console.warn('[config] distancia_maxima_entrega pendente de migração:', eDist.message)
+        .update({ distancia_maxima_entrega: distanciaMax, tempo_preparo_min: tempoPreparo }).eq('id', loja.id)
+      if (eDist) console.warn('[config] distancia/tempo_preparo pendente de migração:', eDist.message)
     }
 
     // Confirmação visível (sem precisar do console): relê do banco o que ficou
@@ -607,6 +610,25 @@ export default function Configuracoes() {
             </select>
             <p className="text-gray-600 text-xs mt-1">
               Padrão: 10 km. Pedidos com endereço além desta distância da sua loja serão recusados automaticamente.
+            </p>
+          </div>
+        )}
+
+        {/* Tempo médio de preparo — só para nichos de delivery */}
+        {isDelivery(tipo) && (
+          <div>
+            <label className="block text-gray-400 text-xs mb-1.5">⏱️ Tempo médio de preparo (min)</label>
+            <select
+              value={tempoPreparo}
+              onChange={e => setTempoPreparo(Number(e.target.value))}
+              className={`w-full ${selectClass}`}
+            >
+              {[10, 15, 20, 25, 30, 40, 45, 60, 75, 90].map(m => (
+                <option key={m} value={m}>{m} min</option>
+              ))}
+            </select>
+            <p className="text-gray-600 text-xs mt-1">
+              Padrão: 30 min. Entra na &quot;Previsão de entrega&quot; que o cliente vê. Você pode ajustar por pedido na tela de Pedidos.
             </p>
           </div>
         )}

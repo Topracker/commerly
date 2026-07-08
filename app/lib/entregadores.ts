@@ -70,6 +70,8 @@ export const TEMPO_RESPOSTA_CORRIDA_S = 30
 export const FRESCOR_LOCALIZACAO_MS = 5 * 60_000
 /** Intervalo com que o app do entregador grava a posição no banco enquanto online (ms). */
 export const LOCALIZACAO_PING_MS = 15_000
+/** Sem atualizar o GPS por este tempo (saiu para entrega) => reentrega automática. */
+export const GPS_INATIVIDADE_MS = 10 * 60_000
 
 export type StatusOferta = 'pendente' | 'aceita' | 'recusada' | 'expirada'
 
