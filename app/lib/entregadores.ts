@@ -49,7 +49,40 @@ export type Entregador = {
   // Fallback quando o Stripe Connect não pôde ser configurado: comerciante paga
   // a corrida manualmente. Opcional pois a coluna pode não existir ainda.
   pagamento_manual?: boolean
+  // Despacho estilo Uber (sql/2026-07-08-despacho-corridas.sql). Online = entra
+  // no pool; posição corrente usada para achar o entregador mais próximo da loja.
+  disponivel?: boolean
+  latitude?: number | null
+  longitude?: number | null
+  localizacao_at?: string | null
   created_at: string
+}
+
+// ===========================================================================
+// DESPACHO DE CORRIDAS (pool de entregadores estilo iFood/Uber)
+// ===========================================================================
+
+/** Raio de busca de entregadores a partir da loja (km). */
+export const RAIO_BUSCA_KM = 5
+/** Tempo que o entregador tem para aceitar/recusar uma oferta (segundos). */
+export const TEMPO_RESPOSTA_CORRIDA_S = 30
+/** Idade máxima da posição do entregador para ele ainda contar como "online" (ms). */
+export const FRESCOR_LOCALIZACAO_MS = 5 * 60_000
+/** Intervalo com que o app do entregador grava a posição no banco enquanto online (ms). */
+export const LOCALIZACAO_PING_MS = 15_000
+
+export type StatusOferta = 'pendente' | 'aceita' | 'recusada' | 'expirada'
+
+export type OfertaCorrida = {
+  id: string
+  pedido_id: string
+  entregador_id: string
+  loja_id: string
+  status: StatusOferta
+  distancia_km: number | null
+  expira_em: string
+  created_at: string
+  updated_at: string
 }
 
 export type StatusParceria = 'pendente' | 'aceita' | 'recusada'

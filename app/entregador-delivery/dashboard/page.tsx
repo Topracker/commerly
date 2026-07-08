@@ -1,16 +1,18 @@
 'use client'
-import { useState, useEffect, useMemo, Suspense } from 'react'
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useEntregador } from '../../hooks/useEntregador'
 import { useToast } from '../../hooks/useToast'
 import { Toast } from '../../components/Toast'
 import { EntregadorLayout } from '../../components/EntregadorLayout'
 import { MapaEntregas, type PontoMapa } from '../../components/MapaEntregas'
+import { OfertaCorridaModal } from '../../components/OfertaCorridaModal'
 import { STATUS_META, type PedidoCliente } from '../../lib/pedidosClientes'
 import {
-  STATUS_PARCERIA_META, GPS_INTERVALO_MS, META_SEMANAL_ENTREGAS,
-  badgesEntregador, type ParceriaEntregador, type RankingEntregador,
+  STATUS_PARCERIA_META, GPS_INTERVALO_MS, META_SEMANAL_ENTREGAS, LOCALIZACAO_PING_MS,
+  badgesEntregador, type ParceriaEntregador, type RankingEntregador, type OfertaCorrida,
 } from '../../lib/entregadores'
+import { tocarAlertaCorrida } from '../../lib/notificacoes'
 import { uploadFotoAvaliacao } from '../../lib/avaliacoes'
 import { distanciaKm, formatarDistancia } from '../../lib/geo'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
@@ -61,11 +63,17 @@ function EntregadorDashboard() {
   // Conexão: 'online' | 'offline' | 'sincronizando' (Modo Offline do GPS).
   const [conexao, setConexao] = useState<'online' | 'offline' | 'sincronizando'>('online')
 
-  // Online/Offline: offline não recebe novos pedidos. Persistido em localStorage
-  // (por entregador) — é um estado de sessão/dispositivo, sem coluna no banco.
-  const [online, setOnline] = useState(true)
+  // Online/Offline: agora persistido no banco (entregadores.disponivel) — é o que
+  // coloca o entregador no POOL de despacho. Offline = não recebe corridas.
+  const [online, setOnline] = useState(false)
   // Posição atual do entregador (browser) — centraliza o mapa e mede distâncias.
   const [minhaPos, setMinhaPos] = useState<{ lat: number; lng: number } | null>(null)
+
+  // Oferta de corrida recebida (modelo Uber): modal com contagem de 30s.
+  const [oferta, setOferta] = useState<OfertaCorrida | null>(null)
+  const [ofertaPedido, setOfertaPedido] = useState<PedidoCliente | null>(null)
+  const [respondendo, setRespondendo] = useState(false)
+  const ultimoPing = useRef(0)
   // Filtro de período do histórico.
   const [periodo, setPeriodo] = useState<Periodo>('semana')
 
@@ -77,23 +85,48 @@ function EntregadorDashboard() {
   useEffect(() => { if (entregador) { carregar(); checarStripe() } }, [entregador])
   useEffect(() => { if (entregador?.pagamento_manual) setPagamentoManual(true) }, [entregador])
 
-  // Carrega o estado online salvo (padrão: online).
+  // Estado online vem do banco (entregadores.disponivel).
   useEffect(() => {
-    if (!entregador) return
-    try {
-      const v = localStorage.getItem(`commerly:entregador:online:${entregador.id}`)
-      if (v != null) setOnline(v === '1')
-    } catch { /* modo privado */ }
+    if (entregador) setOnline(!!entregador.disponivel)
   }, [entregador])
 
-  function toggleOnline() {
-    setOnline(prev => {
-      const novo = !prev
-      try { localStorage.setItem(`commerly:entregador:online:${entregador!.id}`, novo ? '1' : '0') } catch {}
-      mostrarToast(novo ? 'Você está online — recebendo pedidos.' : 'Você ficou offline — não receberá novos pedidos.', novo ? 'sucesso' : 'erro')
-      return novo
-    })
+  async function toggleOnline() {
+    if (!entregador) return
+    const novo = !online
+    setOnline(novo) // otimista
+    const patch: Record<string, unknown> = { disponivel: novo }
+    // Ao ficar online, já grava a posição atual (se houver) para entrar no pool.
+    if (novo && minhaPos) {
+      patch.latitude = minhaPos.lat
+      patch.longitude = minhaPos.lng
+      patch.localizacao_at = new Date().toISOString()
+      ultimoPing.current = Date.now()
+    }
+    const { error } = await supabase.from('entregadores').update(patch).eq('id', entregador.id)
+    if (error) {
+      setOnline(!novo) // reverte
+      mostrarToast('Não foi possível mudar seu status. Tente de novo.', 'erro')
+      return
+    }
+    mostrarToast(
+      novo
+        ? (minhaPos ? 'Você está online — pronto para receber corridas.' : 'Você está online. Ative a localização para receber corridas.')
+        : 'Você ficou offline — não receberá corridas.',
+      novo ? 'sucesso' : 'erro',
+    )
   }
+
+  // Enquanto online, grava a posição no banco periodicamente (entra/atualiza no
+  // pool de despacho). Throttle por LOCALIZACAO_PING_MS — o watchPosition dispara
+  // com frequência, mas só escrevemos a cada ~15s.
+  useEffect(() => {
+    if (!online || !entregador || !minhaPos) return
+    if (Date.now() - ultimoPing.current < LOCALIZACAO_PING_MS) return
+    ultimoPing.current = Date.now()
+    void supabase.from('entregadores').update({
+      latitude: minhaPos.lat, longitude: minhaPos.lng, localizacao_at: new Date().toISOString(),
+    }).eq('id', entregador.id)
+  }, [online, minhaPos, entregador, supabase])
 
   // Geolocalização contínua para o mapa e o cálculo de distância até a retirada.
   useEffect(() => {
@@ -344,6 +377,67 @@ function EntregadorDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emRotaKey, entregador?.id])
 
+  // Mostra a oferta: busca os detalhes do pedido (RLS libera enquanto pendente)
+  // e toca o alerta. Ignora ofertas já vencidas.
+  async function abrirOferta(o: OfertaCorrida) {
+    if (o.status !== 'pendente' || new Date(o.expira_em).getTime() <= Date.now()) return
+    const { data: ped } = await supabase.from('pedidos_clientes').select('*').eq('id', o.pedido_id).maybeSingle()
+    setOferta(o)
+    setOfertaPedido((ped as PedidoCliente) || null)
+    tocarAlertaCorrida()
+  }
+
+  // Realtime: recebe a oferta de corrida em tempo real (estilo Uber).
+  useEffect(() => {
+    if (!entregador) return
+    const canal = supabase
+      .channel(`ofertas:${entregador.id}:${Math.random().toString(36).slice(2)}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'corrida_ofertas', filter: `entregador_id=eq.${entregador.id}` },
+        (payload: any) => { void abrirOferta(payload.new as OfertaCorrida) },
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(canal) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entregador?.id])
+
+  // Ao abrir o app, verifica se já existe uma oferta pendente válida (o push
+  // pode ter chegado com o app fechado).
+  useEffect(() => {
+    if (!entregador) return
+    ;(async () => {
+      const { data } = await supabase
+        .from('corrida_ofertas').select('*')
+        .eq('entregador_id', entregador.id).eq('status', 'pendente')
+        .gt('expira_em', new Date().toISOString())
+        .order('created_at', { ascending: false }).limit(1)
+      const o = (data || [])[0] as OfertaCorrida | undefined
+      if (o) void abrirOferta(o)
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entregador?.id])
+
+  async function responderOferta(resposta: 'aceita' | 'recusada') {
+    if (!oferta) return
+    setRespondendo(true)
+    try {
+      const res = await fetch('/api/entregador/responder-corrida', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oferta_id: oferta.id, resposta }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) { mostrarToast(d.error || 'Não foi possível responder à corrida.', 'erro'); setOferta(null); setOfertaPedido(null); return }
+      if (resposta === 'aceita') { mostrarToast('Corrida aceita! Vá até a loja retirar.', 'sucesso'); carregar() }
+      else mostrarToast('Corrida recusada.', 'erro')
+      setOferta(null); setOfertaPedido(null)
+    } catch { mostrarToast('Erro de rede.', 'erro') } finally { setRespondendo(false) }
+  }
+
+  // Contagem esgotada sem resposta: fecha o modal (o servidor expira sozinho e o
+  // comerciante passa a ofertar ao próximo).
+  function expirarOferta() { setOferta(null); setOfertaPedido(null) }
+
   async function solicitarParceria(lojaId: string) {
     setAcao(lojaId)
     const { error } = await supabase.from('entregador_parcerias').insert({ entregador_id: entregador!.id, loja_id: lojaId })
@@ -409,6 +503,19 @@ function EntregadorDashboard() {
     <EntregadorLayout entregador={entregador} sair={sair} titulo={`Olá, ${primeiroNome}`}>
       <Toast toast={toast} />
 
+      {/* OFERTA DE CORRIDA — modal estilo Uber, 30s para aceitar/recusar */}
+      {oferta && (
+        <OfertaCorridaModal
+          oferta={oferta}
+          pedido={ofertaPedido}
+          nomeLoja={nomeLoja(oferta.loja_id)}
+          respondendo={respondendo}
+          onAceitar={() => responderOferta('aceita')}
+          onRecusar={() => responderOferta('recusada')}
+          onExpirar={expirarOferta}
+        />
+      )}
+
       {/* MODO OFFLINE — banner de conexão/sincronização do GPS */}
       {conexao !== 'online' && (
         <div className={`mb-4 flex items-center gap-2.5 rounded-2xl px-4 py-3 border text-sm font-medium ${
@@ -452,10 +559,15 @@ function EntregadorDashboard() {
               : 'bg-[#1B2129] border-[#232A32] text-gray-400 hover:text-white'
           }`}
         >
-          <span className={`w-2.5 h-2.5 rounded-full ${online ? 'bg-green-400' : 'bg-gray-500'}`} />
+          <span className={`w-2.5 h-2.5 rounded-full ${online ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`} />
           <Power size={16} />
-          {online ? 'Online — recebendo pedidos' : 'Offline — toque para ficar online'}
+          {online ? 'Online — recebendo corridas' : 'Offline — toque para ficar disponível'}
         </button>
+        <p className="text-gray-500 text-[11px] text-center mt-2">
+          {online
+            ? 'As lojas próximas podem te chamar. Mantenha a localização ativa.'
+            : 'Fique online para receber corridas das lojas próximas (não precisa de parceria).'}
+        </p>
       </section>
 
       {/* 2. MÉTRICAS */}
@@ -672,7 +784,7 @@ function EntregadorDashboard() {
                 <p className="text-gray-400 text-sm">Você está <strong>offline</strong>. Fique online para receber pedidos.</p>
               </div>
             ) : !temParceriaAceita ? (
-              <p className="text-gray-500 text-sm">Você ainda não tem parceria aceita. Solicite parceria a uma loja abaixo para receber pedidos.</p>
+              <p className="text-gray-500 text-sm">Estando <strong className="text-gray-300">online</strong>, as lojas próximas te chamam automaticamente por aqui — sem precisar de parceria. Você também pode virar parceiro de uma loja abaixo para ver os pedidos dela nesta lista.</p>
             ) : disponiveis.length === 0 ? (
               <p className="text-gray-500 text-sm">Nenhum pedido disponível nas suas lojas parceiras agora.</p>
             ) : (

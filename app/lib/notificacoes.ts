@@ -3,7 +3,7 @@
 // sempre um auth.users.id. Os registros nascem de triggers no banco
 // (sql/2026-07-03-notificacoes.sql); o app só lê, marca como lida e assina.
 
-export type TipoNotificacao = 'pedido_novo' | 'pedido_status' | 'parceria_aceita'
+export type TipoNotificacao = 'pedido_novo' | 'pedido_status' | 'parceria_aceita' | 'corrida_oferta'
 
 export type Notificacao = {
   id: string
@@ -22,6 +22,7 @@ export const EMOJI_NOTIFICACAO: Record<TipoNotificacao, string> = {
   pedido_novo: '🛎️',
   pedido_status: '📦',
   parceria_aceita: '🤝',
+  corrida_oferta: '🛵',
 }
 
 /** Busca as notificações mais recentes do usuário logado. */
@@ -76,6 +77,39 @@ export function tocarSomNotificacao(): void {
       osc.stop(t0 + 0.2)
     }
     setTimeout(() => ctx.close().catch(() => {}), 600)
+  } catch {
+    /* silêncio: som é um extra, nunca deve quebrar a UI */
+  }
+}
+
+/**
+ * Alerta URGENTE de corrida (estilo Uber/iFood): uma sequência de bips mais
+ * insistente que o "ding" comum, para o entregador não perder a oferta. Também
+ * vibra o aparelho (se suportado). Silencioso se o navegador bloquear o áudio.
+ */
+export function tocarAlertaCorrida(): void {
+  try { navigator.vibrate?.([200, 100, 200, 100, 200]) } catch { /* sem vibração */ }
+  try {
+    const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext
+    if (!Ctx) return
+    const ctx = new Ctx()
+    const agora = ctx.currentTime
+    // Três toques ascendentes e brilhantes, repetidos — "chamada" de corrida.
+    const notas = [880, 1175, 1568, 880, 1175, 1568]
+    notas.forEach((freq, i) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'triangle'
+      osc.frequency.value = freq
+      const t0 = agora + i * 0.16
+      gain.gain.setValueAtTime(0, t0)
+      gain.gain.linearRampToValueAtTime(0.25, t0 + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22)
+      osc.connect(gain).connect(ctx.destination)
+      osc.start(t0)
+      osc.stop(t0 + 0.24)
+    })
+    setTimeout(() => ctx.close().catch(() => {}), 1400)
   } catch {
     /* silêncio: som é um extra, nunca deve quebrar a UI */
   }

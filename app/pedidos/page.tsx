@@ -5,10 +5,18 @@ import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { isDelivery, STATUS_META, FLUXO_STATUS, proximoStatus, pedidoEmAndamento, type PedidoCliente, type StatusPedidoCliente } from '../lib/pedidosClientes'
-import type { ParceriaEntregador } from '../lib/entregadores'
-import { MapPin, Phone, ShoppingBag, ChevronRight, Ban, Bike, Check, X } from 'lucide-react'
+import { RAIO_BUSCA_KM, type ParceriaEntregador } from '../lib/entregadores'
+import { formatarDistancia } from '../lib/geo'
+import { MapPin, Phone, ShoppingBag, ChevronRight, Ban, Bike, Check, X, Search, SearchX, Loader2 } from 'lucide-react'
 
 type EntregadorPublico = { id: string; nome: string; foto_url: string | null; telefone: string | null }
+
+// Estado do despacho (busca de entregador) por pedido.
+type Despacho =
+  | { status: 'buscando' }
+  | { status: 'ofertado'; oferta_id: string; nome: string; distancia_km: number | null; expira_em: string }
+  | { status: 'esgotado' }
+  | { status: 'erro'; msg: string }
 
 export default function PedidosComerciante() {
   const { loja, loading, supabase, sair } = useAuth()
@@ -19,8 +27,79 @@ export default function PedidosComerciante() {
   // Entregadores: solicitações de parceria + cache de nomes por id.
   const [parcerias, setParcerias] = useState<ParceriaEntregador[]>([])
   const [entregadores, setEntregadores] = useState<Record<string, EntregadorPublico>>({})
+  // Despacho de corrida (busca de entregador próximo) por pedido.
+  const [despacho, setDespacho] = useState<Record<string, Despacho>>({})
+  // Relógio de 1s só para atualizar a contagem regressiva na tela.
+  const [, setAgora] = useState(0)
 
   useEffect(() => { if (loja) carregar() }, [loja])
+
+  // Tique de 1s enquanto houver alguma oferta em andamento (para o contador).
+  const temOfertaAtiva = Object.values(despacho).some(d => d.status === 'ofertado')
+  useEffect(() => {
+    if (!temOfertaAtiva) return
+    const iv = setInterval(() => setAgora(a => a + 1), 1000)
+    return () => clearInterval(iv)
+  }, [temOfertaAtiva])
+
+  async function buscarEntregador(pedidoId: string) {
+    setDespacho(prev => ({ ...prev, [pedidoId]: { status: 'buscando' } }))
+    try {
+      const res = await fetch('/api/entrega/buscar-entregador', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pedido_id: pedidoId }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) { setDespacho(prev => ({ ...prev, [pedidoId]: { status: 'erro', msg: d.error || 'Erro ao buscar.' } })); return }
+      if (d.atribuido) { setDespacho(prev => { const n = { ...prev }; delete n[pedidoId]; return n }); carregar(); return }
+      if (d.esgotado) { setDespacho(prev => ({ ...prev, [pedidoId]: { status: 'esgotado' } })); return }
+      if (d.oferta) {
+        setDespacho(prev => ({
+          ...prev,
+          [pedidoId]: {
+            status: 'ofertado', oferta_id: d.oferta.id,
+            nome: d.entregador?.nome || 'Entregador',
+            distancia_km: d.oferta.distancia_km ?? d.entregador?.distancia_km ?? null,
+            expira_em: d.oferta.expira_em,
+          },
+        }))
+      }
+    } catch {
+      setDespacho(prev => ({ ...prev, [pedidoId]: { status: 'erro', msg: 'Erro de rede.' } }))
+    }
+  }
+
+  function pararBusca(pedidoId: string) {
+    setDespacho(prev => { const n = { ...prev }; delete n[pedidoId]; return n })
+  }
+
+  // Acompanha as ofertas em andamento: quando aceita -> recarrega; quando
+  // recusada/expirada -> oferta ao próximo automaticamente.
+  useEffect(() => {
+    const ativos = Object.entries(despacho).filter(([, d]) => d.status === 'ofertado') as [string, Extract<Despacho, { status: 'ofertado' }>][]
+    if (ativos.length === 0) return
+    const iv = setInterval(async () => {
+      for (const [pedidoId, d] of ativos) {
+        const { data } = await supabase
+          .from('corrida_ofertas').select('id, status, expira_em')
+          .eq('pedido_id', pedidoId).order('created_at', { ascending: false }).limit(1)
+        const o = (data || [])[0] as { id: string; status: string; expira_em: string } | undefined
+        if (!o) continue
+        if (o.status === 'aceita') {
+          setDespacho(prev => { const n = { ...prev }; delete n[pedidoId]; return n })
+          carregar()
+          continue
+        }
+        const vencida = new Date(o.expira_em).getTime() <= Date.now()
+        if (o.status === 'recusada' || (vencida && o.status === 'pendente') || o.status === 'expirada') {
+          // Passa ao próximo entregador (a própria API expira a atual).
+          buscarEntregador(pedidoId)
+        }
+      }
+    }, 2000)
+    return () => clearInterval(iv)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [despacho, supabase])
 
   async function carregar() {
     const [pedidosRes, parceriasRes] = await Promise.all([
@@ -104,6 +183,10 @@ export default function PedidosComerciante() {
     const meta = STATUS_META[p.status]
     const passo = FLUXO_STATUS.indexOf(p.status)
     const prox = proximoStatus(p.status)
+    const dsp = despacho[p.id]
+    const segRestantes = dsp?.status === 'ofertado'
+      ? Math.max(0, Math.ceil((new Date(dsp.expira_em).getTime() - Date.now()) / 1000))
+      : 0
     return (
       <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
         <div className="flex items-start justify-between gap-3 mb-2">
@@ -167,7 +250,49 @@ export default function PedidosComerciante() {
               )}
             </div>
           ) : pedidoEmAndamento(p.status) ? (
-            <p className="text-gray-500 text-xs">Nenhum entregador aceitou ainda.</p>
+            <div>
+              {(!dsp || dsp.status === 'esgotado' || dsp.status === 'erro') && (
+                <>
+                  {dsp?.status === 'esgotado' && (
+                    <p className="text-amber-300 text-xs mb-2 flex items-center gap-1.5">
+                      <SearchX size={13} className="shrink-0" /> Nenhum entregador disponível num raio de {RAIO_BUSCA_KM} km agora.
+                    </p>
+                  )}
+                  {dsp?.status === 'erro' && <p className="text-red-400 text-xs mb-2">{dsp.msg}</p>}
+                  <button
+                    onClick={() => buscarEntregador(p.id)}
+                    className="w-full flex items-center justify-center gap-1.5 bg-[#C1441E] hover:bg-[#a83a19] text-white font-semibold py-2.5 rounded-xl transition text-sm"
+                  >
+                    <Search size={15} /> {dsp?.status === 'esgotado' || dsp?.status === 'erro' ? 'Tentar de novo' : 'Buscar entregador próximo'}
+                  </button>
+                </>
+              )}
+
+              {dsp?.status === 'buscando' && (
+                <div className="flex items-center gap-2 text-gray-300 text-sm bg-[#171C22] border border-[#232A32] rounded-xl px-3 py-2.5">
+                  <Loader2 size={15} className="animate-spin text-[#E0632C] shrink-0" /> Procurando entregador próximo...
+                </div>
+              )}
+
+              {dsp?.status === 'ofertado' && (
+                <div className="bg-[#171C22] border border-[#C1441E]/40 rounded-xl px-3 py-2.5">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Bike size={15} className="text-[#E0632C] shrink-0" />
+                    <span className="text-white text-sm font-medium truncate">
+                      Chamando {dsp.nome}
+                      {dsp.distancia_km != null && <span className="text-gray-400 font-normal"> · {formatarDistancia(Number(dsp.distancia_km))}</span>}
+                    </span>
+                    <span className={`ml-auto shrink-0 text-xs font-bold ${segRestantes <= 10 ? 'text-red-400' : 'text-amber-300'}`}>{segRestantes}s</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-[#1B2129] overflow-hidden mb-2">
+                    <div className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${segRestantes <= 10 ? 'bg-red-500' : 'bg-[#C1441E]'}`}
+                      style={{ width: `${(segRestantes / 30) * 100}%` }} />
+                  </div>
+                  <p className="text-gray-500 text-[11px] mb-2">Aguardando a resposta. Se recusar ou não responder, chamamos o próximo automaticamente.</p>
+                  <button onClick={() => pararBusca(p.id)} className="text-gray-400 hover:text-white text-xs font-medium">Parar busca</button>
+                </div>
+              )}
+            </div>
           ) : null}
 
           {/* Corrida do entregador = taxa de entrega (automática por distância).

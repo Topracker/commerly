@@ -15,7 +15,7 @@ const JANELA_MS = 45_000
 
 async function enviarNotificacoesRecentes(
   admin: SupabaseClient,
-  campo: 'pedido_id' | 'parceria_id',
+  campo: 'pedido_id' | 'parceria_id' | 'oferta_id',
   valor: string,
 ): Promise<number> {
   if (!pushConfigurado()) return 0
@@ -61,6 +61,14 @@ export function dispatchPushPedido(admin: SupabaseClient, pedidoId: string): Pro
 export function dispatchPushParceria(admin: SupabaseClient, parceriaId: string): Promise<number> {
   return enviarNotificacoesRecentes(admin, 'parceria_id', parceriaId).catch((e) => {
     console.error('[push] dispatch parceria falhou:', e)
+    return 0
+  })
+}
+
+/** Envia push da oferta de corrida recém-criada para o entregador. */
+export function dispatchPushOferta(admin: SupabaseClient, ofertaId: string): Promise<number> {
+  return enviarNotificacoesRecentes(admin, 'oferta_id', ofertaId).catch((e) => {
+    console.error('[push] dispatch oferta falhou:', e)
     return 0
   })
 }
