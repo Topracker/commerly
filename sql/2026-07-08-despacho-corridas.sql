@@ -57,7 +57,7 @@ create index if not exists idx_ofertas_loja on public.corrida_ofertas (loja_id, 
 
 -- Mantem updated_at.
 create or replace function public.corrida_ofertas_touch()
-returns trigger language plpgsql security invoker as $$
+returns trigger language plpgsql security invoker set search_path = public as $$
 begin
   new.updated_at := now();
   return new;
