@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { PaginaLegal, Secao, Lista } from '../components/PaginaLegal'
-import { CONTATO, EMPRESA, PRODUTO } from '../lib/legal'
+import { CONTATO, EMPRESA, PRODUTO, cnpjTexto } from '../lib/legal'
 import { COMISSAO_PCT } from '../lib/b2b'
 
 export const metadata: Metadata = {
@@ -18,7 +18,7 @@ export default function Termos() {
       <Secao titulo="1. Quem somos">
         <p>
           A {PRODUTO.nome} é uma {PRODUTO.descricao}, operada por {EMPRESA.razaoSocial},
-          inscrita no CNPJ {EMPRESA.cnpj}, com sede em {EMPRESA.endereco} (&quot;{EMPRESA.nome}&quot;,
+          {' '}{cnpjTexto()}, com sede em {EMPRESA.endereco} (&quot;{EMPRESA.nome}&quot;,
           &quot;nós&quot;).
         </p>
         <p>

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { PaginaLegal, Secao, Lista } from '../components/PaginaLegal'
-import { CONTATO, EMPRESA, PRODUTO } from '../lib/legal'
+import { CONTATO, EMPRESA, PRODUTO, cnpjTexto } from '../lib/legal'
 
 export const metadata: Metadata = {
   title: 'Política de Privacidade',
@@ -16,7 +16,7 @@ export default function Privacidade() {
     >
       <Secao titulo="1. Controlador dos dados">
         <p>
-          O controlador é {EMPRESA.razaoSocial}, CNPJ {EMPRESA.cnpj}, com sede em {EMPRESA.endereco}.
+          O controlador é {EMPRESA.razaoSocial}, {cnpjTexto()}, com sede em {EMPRESA.endereco}.
         </p>
         <p>
           Encarregado pelo tratamento de dados pessoais (DPO):{' '}

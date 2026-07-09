@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { ArrowLeft, AlertTriangle } from 'lucide-react'
-import { ATUALIZADO_EM, temPendencias } from '../lib/legal'
+import { ArrowLeft } from 'lucide-react'
+import { ATUALIZADO_EM } from '../lib/legal'
 
 type Props = {
   titulo: string
@@ -10,11 +10,7 @@ type Props = {
   children: React.ReactNode
 }
 
-/**
- * Casca das páginas institucionais (/termos, /privacidade, /sobre, /suporte).
- * Quando os dados da empresa ainda têm placeholder, exibe um aviso — assim
- * ninguém publica um documento legal pela metade sem perceber.
- */
+/** Casca das páginas institucionais (/termos, /privacidade, /sobre, /suporte). */
 export function PaginaLegal({ titulo, subtitulo, mostrarData = false, children }: Props) {
   return (
     <main className="min-h-screen bg-gray-950">
@@ -27,17 +23,6 @@ export function PaginaLegal({ titulo, subtitulo, mostrarData = false, children }
         {subtitulo && <p className="text-gray-400 mt-2">{subtitulo}</p>}
         {mostrarData && (
           <p className="text-gray-600 text-xs mt-3">Última atualização: {ATUALIZADO_EM}</p>
-        )}
-
-        {mostrarData && temPendencias() && (
-          <div className="mt-6 flex items-start gap-2 bg-amber-950/50 border border-amber-800 rounded-xl p-3">
-            <AlertTriangle size={15} className="text-amber-300 shrink-0 mt-0.5" />
-            <p className="text-amber-200/90 text-xs leading-relaxed">
-              <strong>Rascunho.</strong> Este documento contém campos entre colchetes que ainda
-              precisam ser preenchidos (razão social, CNPJ, endereço) e deve passar por revisão
-              jurídica antes do lançamento.
-            </p>
-          </div>
         )}
 
         <div className="mt-8 flex flex-col gap-6">{children}</div>

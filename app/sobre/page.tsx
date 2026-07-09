@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { PaginaLegal, Secao, Lista } from '../components/PaginaLegal'
-import { CONTATO, EMPRESA, PRODUTO } from '../lib/legal'
+import { CONTATO, EMPRESA, PRODUTO, cnpjTexto } from '../lib/legal'
 
 export const metadata: Metadata = {
   title: 'Sobre',
@@ -61,8 +61,8 @@ export default function Sobre() {
 
       <Secao titulo={`Sobre a ${EMPRESA.nome}`}>
         <p>
-          A {PRODUTO.nome} é um produto da {EMPRESA.nome} ({EMPRESA.razaoSocial}, CNPJ{' '}
-          {EMPRESA.cnpj}), com sede em {EMPRESA.endereco}.
+          A {PRODUTO.nome} é um produto da {EMPRESA.nome} ({EMPRESA.razaoSocial},{' '}
+          {cnpjTexto()}), com sede em {EMPRESA.endereco}.
         </p>
         <p>
           A {EMPRESA.nome} constrói software para negócios que sustentam a economia local. A

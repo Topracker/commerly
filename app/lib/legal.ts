@@ -1,26 +1,32 @@
 // Dados institucionais usados nas páginas legais (/termos, /privacidade,
 // /suporte, /sobre) e no rodapé.
 //
-// ⚠️ ANTES DE LANÇAR: os valores marcados como PENDENTE precisam ser
-// preenchidos. A LGPD (art. 9º, I e art. 41) exige identificar o controlador
-// dos dados e oferecer um canal de contato do encarregado. Publicar os
-// documentos com os marcadores no ar é pior do que não publicar: é um
-// documento juridicamente inválido apresentado como válido.
-//
 // Estes textos são uma BASE redigida por engenharia, não parecer jurídico.
-// Passe por um advogado antes de colocar no ar.
-
-/** Marcador visível no texto quando o dado ainda não existe. */
-export const PENDENTE = (campo: string) => `[${campo}]`
+// A LGPD (art. 9º, I e art. 41) exige identificar o controlador dos dados e
+// oferecer um canal de contato do encarregado — ambos estão aqui. Vale uma
+// revisão de advogado antes de tratar os documentos como definitivos.
 
 export const EMPRESA = {
   /** Nome fantasia da operadora da plataforma. */
   nome: 'Oryon',
-  /** Razão social completa. PENDENTE. */
-  razaoSocial: PENDENTE('RAZÃO SOCIAL DA ORYON'),
-  cnpj: PENDENTE('CNPJ'),
-  endereco: PENDENTE('ENDEREÇO COMPLETO'),
+  razaoSocial: 'Oryon Tecnologia',
+  /**
+   * CNPJ do MEI. `null` enquanto a abertura não sai — as páginas então dizem
+   * "CNPJ em processo de regularização" em vez de imprimir um número que não
+   * existe. Assim que sair, basta preencher aqui (ver `cnpjTexto`).
+   */
+  cnpj: null as string | null,
+  endereco: 'Goiânia, GO, Brasil',
 } as const
+
+/**
+ * Trecho de identificação do CNPJ, pronto para entrar no meio de uma frase
+ * ("Oryon Tecnologia, {cnpjTexto()}, com sede em ..."). Existe para que os três
+ * documentos digam a mesma coisa enquanto o CNPJ não existe.
+ */
+export function cnpjTexto(): string {
+  return EMPRESA.cnpj ? `CNPJ ${EMPRESA.cnpj}` : 'CNPJ em processo de regularização'
+}
 
 export const PRODUTO = {
   nome: 'Commerly',
@@ -43,8 +49,3 @@ export const LINKS_RODAPE = [
   { href: '/privacidade', label: 'Privacidade' },
   { href: '/suporte', label: 'Suporte' },
 ] as const
-
-/** true quando ainda há placeholder nos dados da empresa. */
-export function temPendencias(): boolean {
-  return [EMPRESA.razaoSocial, EMPRESA.cnpj, EMPRESA.endereco].some(v => v.startsWith('['))
-}
