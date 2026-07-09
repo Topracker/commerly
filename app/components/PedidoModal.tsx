@@ -221,8 +221,8 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onFechar} />
-      <div className="relative z-10 w-full sm:max-w-lg bg-[#12161B] border border-[#232A32] sm:rounded-2xl rounded-t-2xl max-h-[92vh] flex flex-col font-body">
-        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-[#232A32] shrink-0">
+      <div className="relative z-10 w-full sm:max-w-lg bg-card border border-borda sm:rounded-2xl rounded-t-2xl max-h-[92vh] flex flex-col font-body">
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-borda shrink-0">
           <div className="min-w-0">
             <h2 className="font-display text-white font-bold text-lg truncate">Fazer pedido</h2>
             <p className="text-gray-500 text-xs truncate">{loja.nome}</p>
@@ -238,12 +238,12 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                 const q = qtds[p.id] || 0
                 const preco = parseFloat(String(p.preco_venda)) || 0
                 return (
-                  <div key={p.id} className={`flex items-center gap-3 rounded-xl border p-2.5 transition ${q > 0 ? 'border-[#C1441E]/60 bg-[#1B2129]' : 'border-[#232A32] bg-[#171C22]'}`}>
+                  <div key={p.id} className={`flex items-center gap-3 rounded-xl border p-2.5 transition ${q > 0 ? 'border-acento/60 bg-elevado' : 'border-borda bg-superficie'}`}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className="text-white text-sm font-medium truncate">{p.nome}</p>
                         {p.desconto_pct != null && (
-                          <span className="shrink-0 text-[10px] font-bold bg-[#C1441E]/20 text-[#E0632C] px-1.5 py-0.5 rounded">
+                          <span className="shrink-0 text-[10px] font-bold bg-acento/20 text-acento px-1.5 py-0.5 rounded">
                             -{p.desconto_pct}%
                           </span>
                         )}
@@ -252,7 +252,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                         {p.preco_original != null && (
                           <span className="text-gray-500 line-through mr-1.5 font-normal">R$ {p.preco_original.toFixed(2)}</span>
                         )}
-                        <span className="text-[#6FD98F]">R$ {preco.toFixed(2)}</span>
+                        <span className="text-acento">R$ {preco.toFixed(2)}</span>
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -260,7 +260,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                         onClick={() => mudarQtd(p.id, -1)}
                         disabled={q === 0}
                         aria-label="Diminuir"
-                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#232A32] text-white disabled:opacity-30 hover:bg-[#2c343d] transition"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-borda text-white disabled:opacity-30 hover:bg-[#2c343d] transition"
                       >
                         <Minus size={16} />
                       </button>
@@ -268,7 +268,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                       <button
                         onClick={() => mudarQtd(p.id, 1)}
                         aria-label="Aumentar"
-                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#C1441E] text-white hover:bg-[#a83a19] transition"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-acento text-white hover:bg-acento-forte transition"
                       >
                         <Plus size={16} />
                       </button>
@@ -289,7 +289,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                 onChange={e => mudarEndereco(e.target.value)}
                 placeholder="Digite rua, número, bairro, cidade..."
                 autoComplete="off"
-                className="w-full bg-[#171C22] border border-[#232A32] text-white rounded-xl px-4 py-3 pr-24 outline-none focus:border-[#C1441E]/60 text-sm"
+                className="w-full bg-superficie border border-borda text-white rounded-xl px-4 py-3 pr-24 outline-none focus:border-acento/60 text-sm"
               />
               {buscandoSug && (
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">buscando...</span>
@@ -298,13 +298,13 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
 
             {/* Sugestões (in-flow pra não serem cortadas pelo scroll do modal). */}
             {sugestoes.length > 0 && (
-              <ul className="mt-1.5 flex flex-col gap-0.5 rounded-xl border border-[#232A32] bg-[#171C22] p-1">
+              <ul className="mt-1.5 flex flex-col gap-0.5 rounded-xl border border-borda bg-superficie p-1">
                 {sugestoes.map((s, i) => (
                   <li key={`${s.lat},${s.lng},${i}`}>
                     <button
                       type="button"
                       onClick={() => selecionarSugestao(s)}
-                      className="w-full text-left px-3 py-2 rounded-lg text-gray-300 text-sm hover:bg-[#232A32] transition flex items-start gap-2"
+                      className="w-full text-left px-3 py-2 rounded-lg text-gray-300 text-sm hover:bg-borda transition flex items-start gap-2"
                     >
                       <MapPin size={14} className="text-gray-500 shrink-0 mt-0.5" />
                       <span className="min-w-0">{s.display_name}</span>
@@ -333,7 +333,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
               onChange={e => setObservacao(e.target.value)}
               rows={2}
               placeholder="Ex: sem cebola, troco pra R$ 50..."
-              className="w-full bg-[#171C22] border border-[#232A32] text-white rounded-xl px-4 py-3 outline-none focus:border-[#C1441E]/60 resize-none text-sm"
+              className="w-full bg-superficie border border-borda text-white rounded-xl px-4 py-3 outline-none focus:border-acento/60 resize-none text-sm"
             />
           </div>
 
@@ -342,7 +342,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
             <button
               type="button"
               onClick={() => setUsarPontos(v => !v)}
-              className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${usarPontos ? 'border-[#F5C34B]/60 bg-[#F5C34B]/10' : 'border-[#232A32] bg-[#171C22] hover:border-[#2b3440]'}`}
+              className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${usarPontos ? 'border-[#F5C34B]/60 bg-[#F5C34B]/10' : 'border-borda bg-superficie hover:border-[#2b3440]'}`}
             >
               <Sparkles size={20} className="text-[#F5C34B] shrink-0" />
               <div className="flex-1 min-w-0">
@@ -362,31 +362,31 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
               <button
                 type="button"
                 onClick={() => setPagamento('entrega')}
-                className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${pagamento === 'entrega' ? 'border-[#6FD98F]/60 bg-[#6FD98F]/10' : 'border-[#232A32] bg-[#171C22] hover:border-[#2b3440]'}`}
+                className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${pagamento === 'entrega' ? 'border-acento/60 bg-acento/10' : 'border-borda bg-superficie hover:border-[#2b3440]'}`}
               >
-                <Banknote size={20} className="text-[#6FD98F] shrink-0" />
+                <Banknote size={20} className="text-acento shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-medium">Pagar na entrega</p>
                   <p className="text-gray-500 text-xs">Dinheiro ou Pix direto com o entregador</p>
                 </div>
-                {pagamento === 'entrega' && <Check size={16} className="text-[#6FD98F] shrink-0" />}
+                {pagamento === 'entrega' && <Check size={16} className="text-acento shrink-0" />}
               </button>
 
               {aceitaOnline ? (
                 <button
                   type="button"
                   onClick={() => setPagamento('online')}
-                  className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${pagamento === 'online' ? 'border-[#6FD98F]/60 bg-[#6FD98F]/10' : 'border-[#232A32] bg-[#171C22] hover:border-[#2b3440]'}`}
+                  className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${pagamento === 'online' ? 'border-acento/60 bg-acento/10' : 'border-borda bg-superficie hover:border-[#2b3440]'}`}
                 >
-                  <CreditCard size={20} className="text-[#6FD98F] shrink-0" />
+                  <CreditCard size={20} className="text-acento shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-medium">Pagar online agora</p>
                     <p className="text-gray-500 text-xs">Cartão ou Pix (Stripe)</p>
                   </div>
-                  {pagamento === 'online' && <Check size={16} className="text-[#6FD98F] shrink-0" />}
+                  {pagamento === 'online' && <Check size={16} className="text-acento shrink-0" />}
                 </button>
               ) : (
-                <div className="flex items-center gap-3 rounded-xl border border-[#232A32] bg-[#171C22]/50 p-3 opacity-60">
+                <div className="flex items-center gap-3 rounded-xl border border-borda bg-superficie/50 p-3 opacity-60">
                   <CreditCard size={20} className="text-gray-500 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-gray-400 text-sm font-medium">Pagamento online</p>
@@ -398,7 +398,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
           </div>
         </div>
 
-        <div className="border-t border-[#232A32] px-5 py-4 shrink-0">
+        <div className="border-t border-borda px-5 py-4 shrink-0">
           <div className="flex flex-col gap-1.5 mb-3 text-sm">
             <div className="flex items-center justify-between text-gray-400">
               <span>Subtotal <span className="text-gray-500">({totalItens} {totalItens === 1 ? 'item' : 'itens'})</span></span>
@@ -416,7 +416,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
               </span>
             </div>
             {pico && (
-              <div className="flex items-center gap-1.5 text-[#E0632C] text-xs -mt-0.5">
+              <div className="flex items-center gap-1.5 text-acento text-xs -mt-0.5">
                 <span>🔥 Horário de pico — taxa de entrega aumentada</span>
               </div>
             )}
@@ -426,7 +426,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                 <span className="tabular-nums">− R$ {desconto.toFixed(2)}</span>
               </div>
             )}
-            <div className="flex items-center justify-between border-t border-[#232A32] pt-1.5 mt-0.5">
+            <div className="flex items-center justify-between border-t border-borda pt-1.5 mt-0.5">
               <span className="text-white font-medium">Total</span>
               <span className="font-display text-white font-bold text-lg tabular-nums">
                 {taxaEntrega == null ? `R$ ${Math.max(subtotal - desconto, 0).toFixed(2)} + taxa` : `R$ ${total.toFixed(2)}`}

@@ -6,7 +6,7 @@ import { emojiCategoria, corAcentoNicho } from '../lib/temaLoja'
 export function ProdutoCard({ produto, tipoLoja }: { produto: any; tipoLoja: string }) {
   const acento = corAcentoNicho(tipoLoja)
   return (
-    <div className="group rounded-2xl overflow-hidden bg-[#171C22] border border-[#232A32] transition-all duration-200 hover:-translate-y-[3px] hover:border-[#C1441E]">
+    <div className="group rounded-2xl overflow-hidden bg-superficie border border-borda transition-all duration-200 hover:-translate-y-[3px] hover:border-acento">
       {produto.imagem_url ? (
         <div className="w-full h-32 overflow-hidden">
           <img
@@ -29,7 +29,7 @@ export function ProdutoCard({ produto, tipoLoja }: { produto: any; tipoLoja: str
       <div className="p-3">
         <p className="text-white font-medium text-sm truncate">{produto.nome}</p>
         {produto.categoria && <p className="text-gray-500 text-xs truncate">{produto.categoria}</p>}
-        <p className="font-display font-bold text-[#6FD98F] mt-1">R$ {parseFloat(produto.preco_venda).toFixed(2)}</p>
+        <p className="font-display font-bold text-acento mt-1">R$ {parseFloat(produto.preco_venda).toFixed(2)}</p>
       </div>
     </div>
   )

@@ -11,8 +11,8 @@ export function NotificacoesLista({ cor = 'green' }: { cor?: 'green' | 'blue' | 
   const { notificacoes, carregando, naoLidas, marcarLida, marcarTodas } = useNotificacoes({ comLista: true })
   const router = useRouter()
 
-  const acento = cor === 'blue' ? 'text-blue-400' : cor === 'orange' ? 'text-[#E0632C]' : 'text-green-400'
-  const ponto = cor === 'blue' ? 'bg-blue-500' : cor === 'orange' ? 'bg-[#E0632C]' : 'bg-green-500'
+  const acento = cor === 'blue' ? 'text-blue-400' : cor === 'orange' ? 'text-acento' : 'text-green-400'
+  const ponto = cor === 'blue' ? 'bg-blue-500' : cor === 'orange' ? 'bg-acento' : 'bg-green-500'
 
   async function abrir(n: Notificacao) {
     if (!n.lida) await marcarLida(n.id)
@@ -35,7 +35,7 @@ export function NotificacoesLista({ cor = 'green' }: { cor?: 'green' | 'blue' | 
       {carregando ? (
         <p className="text-gray-500 text-sm">Carregando...</p>
       ) : notificacoes.length === 0 ? (
-        <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-8 text-center">
+        <div className="bg-card border border-borda rounded-2xl p-8 text-center">
           <Bell size={38} className="text-gray-600 mx-auto mb-3" />
           <p className="text-gray-400 text-sm">Você ainda não tem notificações.</p>
         </div>
@@ -47,8 +47,8 @@ export function NotificacoesLista({ cor = 'green' }: { cor?: 'green' | 'blue' | 
               onClick={() => abrir(n)}
               className={`w-full text-left rounded-2xl p-4 flex items-start gap-3 transition border ${
                 n.lida
-                  ? 'bg-[#12161B] border-[#232A32] hover:bg-[#171C22]'
-                  : 'bg-[#161B22] border-[#2b3440] hover:bg-[#1B2129]'
+                  ? 'bg-card border-borda hover:bg-superficie'
+                  : 'bg-[#161B22] border-[#2b3440] hover:bg-elevado'
               }`}
             >
               <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0 text-lg">

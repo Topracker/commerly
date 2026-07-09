@@ -85,11 +85,11 @@ export function PostCard({
   const fachada = loja?.fotos_fachada?.[0]
 
   return (
-    <article ref={ref} className="bg-[#12161B] border border-[#232A32] rounded-2xl overflow-hidden">
+    <article ref={ref} className="bg-card border border-borda rounded-2xl overflow-hidden">
       <header className="flex items-center gap-3 p-3">
         <button
           onClick={() => router.push(`/cliente/loja/${post.loja_id}`)}
-          className="w-10 h-10 rounded-full overflow-hidden bg-[#1B2129] flex items-center justify-center shrink-0"
+          className="w-10 h-10 rounded-full overflow-hidden bg-elevado flex items-center justify-center shrink-0"
         >
           {fachada
             ? <img src={fachada} alt="" className="w-full h-full object-cover" />
@@ -139,24 +139,24 @@ export function PostCard({
         )}
 
         {produto && (
-          <div className="flex items-center justify-between gap-3 bg-[#171C22] border border-[#232A32] rounded-xl px-3 py-2 mb-2">
+          <div className="flex items-center justify-between gap-3 bg-superficie border border-borda rounded-xl px-3 py-2 mb-2">
             <div className="min-w-0">
               <p className="text-white text-sm font-medium truncate">{produto.nome}</p>
-              <p className="text-[#6FD98F] text-sm font-bold">{reais(produto.preco_venda)}</p>
+              <p className="text-acento text-sm font-bold">{reais(produto.preco_venda)}</p>
             </div>
           </div>
         )}
 
         <button
           onClick={onPedir}
-          className="w-full bg-[#C1441E] hover:bg-[#a83a19] text-white font-semibold py-2.5 rounded-xl transition text-sm flex items-center justify-center gap-2"
+          className="w-full bg-azul hover:brightness-110 text-white font-semibold py-2.5 rounded-xl transition text-sm flex items-center justify-center gap-2"
         >
           <ShoppingBag size={17} />
           Pedir agora
         </button>
 
         {abrirComentarios && (
-          <div className="mt-3 pt-3 border-t border-[#232A32]">
+          <div className="mt-3 pt-3 border-t border-borda">
             {comentarios.length === 0 ? (
               <p className="text-gray-500 text-xs mb-2">Ninguém comentou ainda. Seja o primeiro.</p>
             ) : (
@@ -179,12 +179,12 @@ export function PostCard({
                 onKeyDown={e => { if (e.key === 'Enter') enviarComentario() }}
                 maxLength={500}
                 placeholder="Escreva um comentário..."
-                className="flex-1 bg-[#171C22] border border-[#232A32] text-white text-sm rounded-xl px-3 py-2 outline-none focus:border-[#C1441E]/60"
+                className="flex-1 bg-superficie border border-borda text-white text-sm rounded-xl px-3 py-2 outline-none focus:border-acento/60"
               />
               <button
                 onClick={enviarComentario}
                 disabled={!texto.trim() || enviando}
-                className="shrink-0 bg-[#C1441E] hover:bg-[#a83a19] disabled:opacity-40 text-white px-3 rounded-xl transition"
+                className="shrink-0 bg-azul hover:brightness-110 disabled:opacity-40 text-white px-3 rounded-xl transition"
               >
                 <Send size={16} />
               </button>

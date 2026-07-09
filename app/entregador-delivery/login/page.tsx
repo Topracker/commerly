@@ -118,14 +118,14 @@ export default function EntregadorLogin() {
     if (!ok) { setTela('escolha'); setCodigo(''); setLoading(false) }
   }
 
-  const inp = 'bg-[#171C22] border border-[#232A32] text-white rounded-xl px-4 py-3 outline-none focus:border-[#C1441E]/60 transition'
-  const btn = 'bg-[#C1441E] hover:bg-[#a83a19] disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition'
-  const link = 'text-[#E0632C] text-sm hover:text-[#f0764a] transition'
+  const inp = 'bg-superficie border border-borda text-white rounded-xl px-4 py-3 outline-none focus:border-acento/60 transition'
+  const btn = 'bg-azul hover:brightness-110 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition'
+  const link = 'text-acento text-sm hover:text-[#f0764a] transition'
 
   return (
-    <main className="min-h-screen bg-[#0a0f1a] flex items-center justify-center p-6">
-      <div className="bg-[#12161B] border border-[#232A32] rounded-3xl p-8 w-full max-w-sm">
-        <p className="text-[#E0632C] text-sm font-semibold mb-1">🛵 Área do Entregador</p>
+    <main className="min-h-screen bg-fundo flex items-center justify-center p-6">
+      <div className="bg-card border border-borda rounded-3xl p-8 w-full max-w-sm">
+        <p className="text-acento text-sm font-semibold mb-1">🛵 Área do Entregador</p>
         <h1 className="text-2xl font-bold text-white mb-6">Commerly</h1>
 
         {erro && <p className="text-red-400 text-sm mb-4">{erro}</p>}
@@ -133,12 +133,12 @@ export default function EntregadorLogin() {
         {tela === 'escolha' && (
           <div className="flex flex-col gap-3">
             <button onClick={() => { setTela('cadastro-senha'); setErro('') }}
-              className="bg-[#C1441E] hover:bg-[#a83a19] text-white py-4 rounded-xl transition text-left px-5">
+              className="bg-azul hover:brightness-110 text-white py-4 rounded-xl transition text-left px-5">
               <p className="font-bold">Quero ser entregador</p>
               <p className="text-orange-200 text-sm">Faça entregas e ganhe por corrida</p>
             </button>
             <button onClick={() => { setTela('login-senha'); setErro('') }}
-              className="bg-[#1B2129] border border-[#232A32] hover:bg-[#232A32] text-white py-4 rounded-xl transition text-left px-5">
+              className="bg-elevado border border-borda hover:bg-borda text-white py-4 rounded-xl transition text-left px-5">
               <p className="font-bold">Fazer login</p>
               <p className="text-gray-400 text-sm">Acessar minha conta existente</p>
             </button>

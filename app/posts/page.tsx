@@ -270,7 +270,7 @@ export default function PostsDaLoja() {
                           </button>
                         </div>
                         {p.produto_id && nomeProduto(p.produto_id) && (
-                          <p className="text-[#6FD98F] text-xs mt-0.5">🏷️ {nomeProduto(p.produto_id)}</p>
+                          <p className="text-acento text-xs mt-0.5">🏷️ {nomeProduto(p.produto_id)}</p>
                         )}
                         <p className="text-gray-600 text-[11px] mt-0.5">{tempoDoPost(p.created_at)}</p>
 
@@ -284,7 +284,7 @@ export default function PostsDaLoja() {
                           <span className="flex items-center gap-1 text-gray-400" title="Comentários">
                             <MessageCircle size={13} /> {m?.comentarios ?? 0}
                           </span>
-                          <span className="flex items-center gap-1 text-[#6FD98F]" title="Cliques em Pedir agora">
+                          <span className="flex items-center gap-1 text-acento" title="Cliques em Pedir agora">
                             <ShoppingBag size={13} /> {m?.cliques_pedir ?? 0}
                           </span>
                         </div>

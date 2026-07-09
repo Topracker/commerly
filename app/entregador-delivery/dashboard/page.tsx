@@ -19,7 +19,7 @@ import { MAX_ENTREGAS_SIMULTANEAS, podemSerAgrupados, type PedidoRota } from '..
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import {
   Store, MapPin, Navigation, CircleDollarSign, Check, Handshake, PackageCheck,
-  Star, History, Power, Wallet, Bike, MapPinned, TrendingUp,
+  Star, History, Power, Wallet, Bike, TrendingUp,
   Award, Trophy, Target, Camera, WifiOff, RefreshCw, X, Layers,
 } from 'lucide-react'
 
@@ -39,7 +39,7 @@ const reais = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDi
 
 export default function EntregadorDashboardPage() {
   return (
-    <Suspense fallback={<main className="min-h-screen bg-[#0a0f1a] flex items-center justify-center"><p className="text-gray-400">Carregando...</p></main>}>
+    <Suspense fallback={<main className="min-h-screen bg-fundo flex items-center justify-center"><p className="text-gray-400">Carregando...</p></main>}>
       <EntregadorDashboard />
     </Suspense>
   )
@@ -542,7 +542,7 @@ function EntregadorDashboard() {
   }
 
   if (loading) return (
-    <main className="min-h-screen bg-[#0a0f1a] flex items-center justify-center"><p className="text-gray-400">Carregando...</p></main>
+    <main className="min-h-screen bg-fundo flex items-center justify-center"><p className="text-gray-400">Carregando...</p></main>
   )
   if (!entregador) return null
 
@@ -579,12 +579,12 @@ function EntregadorDashboard() {
       )}
 
       {/* 1. HEADER: foto, nome, avaliação e status Online/Offline */}
-      <section className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4 mb-4">
+      <section className="bg-card border border-borda rounded-2xl p-4 mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-16 h-16 rounded-2xl bg-[#C1441E]/15 overflow-hidden flex items-center justify-center shrink-0">
+          <div className="w-16 h-16 rounded-2xl bg-acento/15 overflow-hidden flex items-center justify-center shrink-0">
             {entregador.foto_url
               ? <img src={entregador.foto_url} alt="" className="w-full h-full object-cover" />
-              : <Bike size={26} className="text-[#E0632C]" />}
+              : <Bike size={26} className="text-acento" />}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-white font-bold text-lg truncate leading-tight">{entregador.nome}</p>
@@ -600,17 +600,21 @@ function EntregadorDashboard() {
           </div>
         </div>
 
+        {/* Botão principal do app do entregador: grande, com o estado óbvio. */}
         <button
           onClick={toggleOnline}
-          className={`mt-4 w-full flex items-center justify-center gap-2 font-semibold py-2.5 rounded-xl transition border ${
+          className={`mt-4 w-full flex items-center justify-center gap-3 font-bold text-base py-4 rounded-2xl transition border ${
             online
-              ? 'bg-green-500/15 border-green-500/40 text-green-300 hover:bg-green-500/25'
-              : 'bg-[#1B2129] border-[#232A32] text-gray-400 hover:text-white'
+              ? 'bg-azul hover:brightness-110 border-transparent text-white shadow-lg shadow-acento/20'
+              : 'bg-elevado border-borda text-gray-300 hover:text-white hover:border-gray-700'
           }`}
         >
-          <span className={`w-2.5 h-2.5 rounded-full ${online ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`} />
-          <Power size={16} />
-          {online ? 'Online — recebendo corridas' : 'Offline — toque para ficar disponível'}
+          <span className={`relative flex w-3 h-3 ${online ? '' : 'opacity-60'}`}>
+            {online && <span className="absolute inline-flex w-full h-full rounded-full bg-white/70 animate-ping" />}
+            <span className={`relative inline-flex w-3 h-3 rounded-full ${online ? 'bg-white' : 'bg-gray-500'}`} />
+          </span>
+          <Power size={19} />
+          {online ? 'ONLINE — recebendo corridas' : 'OFFLINE — toque para ficar disponível'}
         </button>
         <p className="text-gray-500 text-[11px] text-center mt-2">
           {online
@@ -619,36 +623,53 @@ function EntregadorDashboard() {
         </p>
       </section>
 
-      {/* 2. MÉTRICAS */}
+      {/* 2. MAPA EM TEMPO REAL — no topo: é a informação que ele olha primeiro */}
+      <section className="mb-4">
+        <div className="relative rounded-2xl overflow-hidden border border-borda">
+          <MapaEntregas pontos={pontosMapa} altura="h-72" />
+          <span className={`absolute top-3 left-3 z-[500] text-[10px] font-semibold px-2.5 py-1 rounded-full backdrop-blur ${
+            online ? 'bg-acento/20 text-acento border border-acento/40' : 'bg-black/40 text-gray-300 border border-white/10'
+          }`}>
+            {online ? '● Online' : 'Offline'}
+          </span>
+        </div>
+        <p className="text-gray-500 text-xs mt-1.5">
+          🛵 você · 🏪 lojas com pedidos disponíveis
+          {!minhaPos && ' — ative a localização do navegador para aparecer no mapa.'}
+        </p>
+      </section>
+
+      {/* 3. MÉTRICAS — gradiente vindo da própria cor do número */}
       <section className="grid grid-cols-2 gap-2.5 mb-4">
-        <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-3.5">
-          <div className="flex items-center gap-1.5 text-gray-500 text-[11px] mb-1"><PackageCheck size={13} /> Entregas hoje</div>
-          <p className="text-2xl font-bold text-white">{entregasHoje}</p>
-        </div>
-        <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-3.5">
-          <div className="flex items-center gap-1.5 text-gray-500 text-[11px] mb-1"><Wallet size={13} /> Ganhos hoje</div>
-          <p className="text-2xl font-bold text-[#6FD98F]">{reais(ganhosHoje)}</p>
-        </div>
-        <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-3.5">
-          <div className="flex items-center gap-1.5 text-gray-500 text-[11px] mb-1"><Star size={13} /> Avaliação</div>
-          <p className="text-2xl font-bold text-amber-300">{avaliacoes.length ? mediaNota.toFixed(1) : '—'}</p>
-        </div>
-        <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-3.5">
-          <div className="flex items-center gap-1.5 text-gray-500 text-[11px] mb-1"><Navigation size={13} /> Total entregas</div>
-          <p className="text-2xl font-bold text-white">{entregasFeitas}</p>
-        </div>
+        {[
+          { rotulo: 'Entregas hoje', valor: String(entregasHoje), Icone: PackageCheck, cor: 'text-white', grad: 'from-azul/12' },
+          { rotulo: 'Ganhos hoje', valor: reais(ganhosHoje), Icone: Wallet, cor: 'text-acento', grad: 'from-acento/12' },
+          { rotulo: 'Avaliação', valor: avaliacoes.length ? mediaNota.toFixed(1) : '—', Icone: Star, cor: 'text-amber-300', grad: 'from-amber-500/12' },
+          { rotulo: 'Total entregas', valor: String(entregasFeitas), Icone: Navigation, cor: 'text-white', grad: 'from-purple-500/12' },
+        ].map(({ rotulo, valor, Icone, cor, grad }, i) => (
+          <div
+            key={rotulo}
+            style={{ '--atraso': `${i * 60}ms` } as React.CSSProperties}
+            className={`anima-subir grupo bg-gradient-to-br ${grad} to-transparent bg-card border border-borda rounded-2xl p-3.5`}
+          >
+            <div className="flex items-center gap-1.5 text-gray-500 text-[11px] mb-1">
+              <Icone size={13} className="grupo-icone" /> {rotulo}
+            </div>
+            <p className={`font-display text-2xl font-bold ${cor}`}>{valor}</p>
+          </div>
+        ))}
       </section>
 
       {/* META SEMANAL — bônus por bater a meta de entregas */}
-      <section className={`rounded-2xl p-4 mb-4 border ${metaAtingida ? 'bg-green-500/10 border-green-500/40' : 'bg-[#12161B] border-[#232A32]'}`}>
+      <section className={`rounded-2xl p-4 mb-4 border ${metaAtingida ? 'bg-green-500/10 border-green-500/40' : 'bg-card border-borda'}`}>
         <div className="flex items-center justify-between gap-2 mb-2">
           <h2 className="text-white font-semibold text-sm flex items-center gap-2">
-            <Target size={16} className={metaAtingida ? 'text-green-400' : 'text-[#E0632C]'} /> Meta da semana
+            <Target size={16} className={metaAtingida ? 'text-green-400' : 'text-acento'} /> Meta da semana
           </h2>
           <span className={`text-xs font-bold ${metaAtingida ? 'text-green-300' : 'text-gray-300'}`}>{entregasSemana}/{META_SEMANAL_ENTREGAS} entregas</span>
         </div>
-        <div className="h-2.5 w-full rounded-full bg-[#1B2129] overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${metaAtingida ? 'bg-green-400' : 'bg-[#C1441E]'}`} style={{ width: `${progressoMeta}%` }} />
+        <div className="h-2.5 w-full rounded-full bg-elevado overflow-hidden">
+          <div className={`h-full rounded-full transition-all ${metaAtingida ? 'bg-green-400' : 'bg-acento'}`} style={{ width: `${progressoMeta}%` }} />
         </div>
         <p className={`text-xs mt-2 ${metaAtingida ? 'text-green-300' : 'text-gray-400'}`}>
           {metaAtingida
@@ -658,15 +679,15 @@ function EntregadorDashboard() {
       </section>
 
       {/* BADGES / CONQUISTAS */}
-      <section className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4 mb-4">
+      <section className="bg-card border border-borda rounded-2xl p-4 mb-4">
         <div className="flex items-center justify-between gap-2 mb-3">
-          <h2 className="text-white font-semibold text-sm flex items-center gap-2"><Award size={16} className="text-[#E0632C]" /> Conquistas</h2>
+          <h2 className="text-white font-semibold text-sm flex items-center gap-2"><Award size={16} className="text-acento" /> Conquistas</h2>
           <span className="text-gray-500 text-xs">{badgesConquistadas}/{badges.length}</span>
         </div>
         <div className="grid grid-cols-3 gap-2">
           {badges.map(b => (
             <div key={b.id} title={b.descricao}
-              className={`rounded-xl p-2.5 text-center border transition ${b.conquistada ? 'bg-[#1B2129] border-[#C1441E]/40' : 'bg-[#12161B] border-[#232A32] opacity-45 grayscale'}`}>
+              className={`rounded-xl p-2.5 text-center border transition ${b.conquistada ? 'bg-elevado border-acento/40' : 'bg-card border-borda opacity-45 grayscale'}`}>
               <div className="text-2xl leading-none mb-1">{b.emoji}</div>
               <p className="text-white text-[11px] font-semibold leading-tight">{b.titulo}</p>
               <p className="text-gray-500 text-[10px] mt-0.5 leading-tight">{b.descricao}</p>
@@ -677,7 +698,7 @@ function EntregadorDashboard() {
 
       {/* RANKING SEMANAL DE ENTREGADORES */}
       {rankingOrdenado.length > 0 && (
-        <section className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4 mb-4">
+        <section className="bg-card border border-borda rounded-2xl p-4 mb-4">
           <div className="flex items-center justify-between gap-2 mb-3">
             <h2 className="text-white font-semibold text-sm flex items-center gap-2"><Trophy size={16} className="text-amber-300" /> Ranking da semana</h2>
             {minhaPosicao >= 0 && <span className="text-amber-300 text-xs font-bold">Você: {minhaPosicao + 1}º</span>}
@@ -687,13 +708,13 @@ function EntregadorDashboard() {
               const eu = r.entregador_id === entregador?.id
               const medalha = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`
               return (
-                <div key={r.entregador_id} className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 ${eu ? 'bg-[#C1441E]/15 border border-[#C1441E]/40' : 'bg-[#171C22]'}`}>
+                <div key={r.entregador_id} className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 ${eu ? 'bg-acento/15 border border-acento/40' : 'bg-superficie'}`}>
                   <span className="w-7 text-center text-sm font-bold shrink-0">{medalha}</span>
-                  <div className="w-8 h-8 rounded-full bg-[#C1441E]/15 overflow-hidden flex items-center justify-center shrink-0">
-                    {r.foto_url ? <img src={r.foto_url} alt="" className="w-full h-full object-cover" /> : <Bike size={14} className="text-[#E0632C]" />}
+                  <div className="w-8 h-8 rounded-full bg-acento/15 overflow-hidden flex items-center justify-center shrink-0">
+                    {r.foto_url ? <img src={r.foto_url} alt="" className="w-full h-full object-cover" /> : <Bike size={14} className="text-acento" />}
                   </div>
                   <p className={`flex-1 min-w-0 truncate text-sm font-medium ${eu ? 'text-white' : 'text-gray-300'}`}>{eu ? 'Você' : r.nome}</p>
-                  <span className="text-[#6FD98F] text-sm font-bold shrink-0">{r.entregas} <span className="text-gray-500 font-normal text-xs">entregas</span></span>
+                  <span className="text-acento text-sm font-bold shrink-0">{r.entregas} <span className="text-gray-500 font-normal text-xs">entregas</span></span>
                 </div>
               )
             })}
@@ -702,9 +723,9 @@ function EntregadorDashboard() {
       )}
 
       {/* Stripe Connect (recebimento das corridas) */}
-      <section className={`rounded-2xl p-4 mb-4 border ${stripeOnboarded ? 'bg-green-500/10 border-green-500/40' : pagamentoManual && !stripeOnboarded ? 'bg-amber-500/10 border-amber-500/40' : 'bg-[#12161B] border-[#232A32]'}`}>
+      <section className={`rounded-2xl p-4 mb-4 border ${stripeOnboarded ? 'bg-green-500/10 border-green-500/40' : pagamentoManual && !stripeOnboarded ? 'bg-amber-500/10 border-amber-500/40' : 'bg-card border-borda'}`}>
         <div className="flex items-center gap-3">
-          <CircleDollarSign size={20} className={stripeOnboarded ? 'text-green-400' : 'text-[#E0632C]'} />
+          <CircleDollarSign size={20} className={stripeOnboarded ? 'text-green-400' : 'text-acento'} />
           <div className="flex-1 min-w-0">
             <p className="text-white font-semibold text-sm">Recebimento das corridas</p>
             <p className="text-gray-400 text-xs">
@@ -732,26 +753,13 @@ function EntregadorDashboard() {
         <p className="text-gray-500 text-sm">Carregando...</p>
       ) : (
         <div className="flex flex-col gap-6">
-          {/* 3. MAPA EM TEMPO REAL */}
-          <section>
-            <h2 className="text-white font-semibold mb-2 flex items-center gap-2">
-              <MapPinned size={16} className="text-[#E0632C]" /> Mapa em tempo real
-              {online
-                ? <span className="text-[10px] font-medium text-green-400 bg-green-500/15 px-2 py-0.5 rounded-full">● Online</span>
-                : <span className="text-[10px] font-medium text-gray-400 bg-gray-500/15 px-2 py-0.5 rounded-full">Offline</span>}
-            </h2>
-            <MapaEntregas pontos={pontosMapa} altura="h-64" />
-            <p className="text-gray-500 text-xs mt-1.5">
-              🛵 você · 🏪 lojas com pedidos disponíveis
-              {!minhaPos && ' — ative a localização do navegador para aparecer no mapa.'}
-            </p>
-          </section>
+          {/* (o mapa subiu para o topo — ver seção 2) */}
 
           {/* 5. ENTREGAS ATIVAS (com trajeto loja→cliente) */}
           {ativas.length > 0 && (
             <section>
               <h2 className="text-white font-semibold mb-2 flex items-center gap-2 flex-wrap">
-                <Navigation size={16} className="text-[#E0632C]" /> Minhas entregas ativas
+                <Navigation size={16} className="text-acento" /> Minhas entregas ativas
                 {gpsAtivo && <span className="text-[10px] font-medium text-green-400 bg-green-500/15 px-2 py-0.5 rounded-full">● GPS ao vivo</span>}
                 {emLote && (
                   <span className="text-[10px] font-medium text-sky-300 bg-sky-500/15 border border-sky-500/40 px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -788,7 +796,7 @@ function EntregadorDashboard() {
                   // O entregador só pode desistir ANTES de o preparo começar.
                   const podeDesistir = p.status === 'recebido'
                   return (
-                    <div key={p.id} className={`bg-[#12161B] border rounded-2xl p-4 ${p.lote_entrega_id ? 'border-sky-500/40' : 'border-[#232A32]'}`}>
+                    <div key={p.id} className={`bg-card border rounded-2xl p-4 ${p.lote_entrega_id ? 'border-sky-500/40' : 'border-borda'}`}>
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <p className="text-white font-semibold truncate">{nomeLoja(p.loja_id)}</p>
                         <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${meta.classes}`}>{meta.emoji} {meta.label}</span>
@@ -814,16 +822,16 @@ function EntregadorDashboard() {
                       {p.cliente_telefone && (
                         <a href={`https://wa.me/55${p.cliente_telefone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-green-400 text-xs hover:text-green-300">{p.cliente_telefone}</a>
                       )}
-                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#232A32]">
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-borda">
                         <span className="text-gray-500 text-xs">Corrida</span>
-                        <span className="text-[#6FD98F] font-bold text-sm">{Number(p.valor_corrida) > 0 ? reais(Number(p.valor_corrida)) : 'A definir'}</span>
+                        <span className="text-acento font-bold text-sm">{Number(p.valor_corrida) > 0 ? reais(Number(p.valor_corrida)) : 'A definir'}</span>
                       </div>
 
                       {/* Navegar — abre a rota loja -> cliente no Google Maps/Waze */}
                       {navUrl && (
                         <a href={navUrl} target="_blank" rel="noopener noreferrer"
-                          className="mt-3 w-full flex items-center justify-center gap-1.5 bg-[#1B2129] border border-[#232A32] hover:border-[#C1441E]/60 text-white font-semibold py-2.5 rounded-xl transition text-sm">
-                          <Navigation size={16} className="text-[#E0632C]" /> Navegar (Google Maps)
+                          className="mt-3 w-full flex items-center justify-center gap-1.5 bg-elevado border border-borda hover:border-acento/60 text-white font-semibold py-2.5 rounded-xl transition text-sm">
+                          <Navigation size={16} className="text-acento" /> Navegar (Google Maps)
                         </a>
                       )}
 
@@ -832,10 +840,10 @@ function EntregadorDashboard() {
                           {/* Comprovante de entrega (foto opcional) */}
                           <div className="flex items-center gap-3 mb-2.5">
                             {comprovantes[p.id]?.preview && (
-                              <img src={comprovantes[p.id].preview} alt="Comprovante" className="w-12 h-12 rounded-lg object-cover border border-[#232A32]" />
+                              <img src={comprovantes[p.id].preview} alt="Comprovante" className="w-12 h-12 rounded-lg object-cover border border-borda" />
                             )}
-                            <label className="inline-flex items-center gap-1.5 cursor-pointer bg-[#171C22] border border-[#232A32] hover:border-[#C1441E]/60 text-gray-300 text-xs font-medium px-3 py-2 rounded-xl transition">
-                              <Camera size={14} className="text-[#E0632C]" />
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer bg-superficie border border-borda hover:border-acento/60 text-gray-300 text-xs font-medium px-3 py-2 rounded-xl transition">
+                              <Camera size={14} className="text-acento" />
                               {comprovantes[p.id] ? 'Trocar comprovante' : 'Foto do comprovante'}
                               <input type="file" accept="image/*" capture="environment" className="hidden"
                                 onChange={e => selecionarComprovante(p.id, e.target.files?.[0])} />
@@ -847,7 +855,7 @@ function EntregadorDashboard() {
                               value={codigos[p.id] || ''}
                               onChange={e => setCodigos(prev => ({ ...prev, [p.id]: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
                               inputMode="numeric" maxLength={4} placeholder="0000"
-                              className="w-24 bg-[#171C22] border border-[#232A32] text-white rounded-xl px-3 py-2.5 text-center text-lg tracking-widest outline-none focus:border-[#C1441E]/60"
+                              className="w-24 bg-superficie border border-borda text-white rounded-xl px-3 py-2.5 text-center text-lg tracking-widest outline-none focus:border-acento/60"
                             />
                             <button onClick={() => confirmarEntrega(p.id)} disabled={acao === p.id}
                               className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-xl transition flex items-center justify-center gap-1.5 text-sm">
@@ -860,7 +868,7 @@ function EntregadorDashboard() {
                           <p className="text-gray-500 text-xs">Aguardando a loja liberar para entrega. Ao sair para entrega, o GPS liga e o código é gerado.</p>
                           {podeDesistir ? (
                             <button onClick={() => desistirCorrida(p.id)} disabled={acao === p.id}
-                              className="mt-2 w-full flex items-center justify-center gap-1.5 bg-[#1B2129] border border-[#232A32] hover:bg-red-500/15 hover:border-red-500/40 text-gray-300 hover:text-red-400 text-xs font-medium py-2 rounded-xl transition disabled:opacity-50">
+                              className="mt-2 w-full flex items-center justify-center gap-1.5 bg-elevado border border-borda hover:bg-red-500/15 hover:border-red-500/40 text-gray-300 hover:text-red-400 text-xs font-medium py-2 rounded-xl transition disabled:opacity-50">
                               <X size={14} /> {acao === p.id ? '...' : 'Desistir da corrida'}
                             </button>
                           ) : (
@@ -877,9 +885,9 @@ function EntregadorDashboard() {
 
           {/* 4. PEDIDOS DISPONÍVEIS */}
           <section>
-            <h2 className="text-white font-semibold mb-2 flex items-center gap-2"><PackageCheck size={16} className="text-[#E0632C]" /> Pedidos disponíveis</h2>
+            <h2 className="text-white font-semibold mb-2 flex items-center gap-2"><PackageCheck size={16} className="text-acento" /> Pedidos disponíveis</h2>
             {!online ? (
-              <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-5 text-center">
+              <div className="bg-card border border-borda rounded-2xl p-5 text-center">
                 <Power size={22} className="text-gray-600 mx-auto mb-2" />
                 <p className="text-gray-400 text-sm">Você está <strong>offline</strong>. Fique online para receber pedidos.</p>
               </div>
@@ -893,20 +901,20 @@ function EntregadorDashboard() {
                   const meta = STATUS_META[p.status]
                   const distRet = distAteRetirada(p)
                   return (
-                    <div key={p.id} className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+                    <div key={p.id} className="bg-card border border-borda rounded-2xl p-4">
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <p className="text-white font-semibold truncate">{nomeLoja(p.loja_id)}</p>
-                        <span className="text-[#6FD98F] font-bold text-sm shrink-0">{Number(p.valor_corrida) > 0 ? reais(Number(p.valor_corrida)) : 'A definir'}</span>
+                        <span className="text-acento font-bold text-sm shrink-0">{Number(p.valor_corrida) > 0 ? reais(Number(p.valor_corrida)) : 'A definir'}</span>
                       </div>
                       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                         <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${meta.classes}`}>{meta.emoji} {meta.label}</span>
                         {distRet != null && (
-                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#1B2129] border border-[#232A32] text-gray-300 flex items-center gap-1">
+                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-elevado border border-borda text-gray-300 flex items-center gap-1">
                             <Store size={11} /> {formatarDistancia(distRet)} até a retirada
                           </span>
                         )}
                         {p.distancia_km != null && (
-                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#1B2129] border border-[#232A32] text-gray-300 flex items-center gap-1">
+                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-elevado border border-borda text-gray-300 flex items-center gap-1">
                             <MapPin size={11} /> {formatarDistancia(Number(p.distancia_km))} de entrega
                           </span>
                         )}
@@ -914,7 +922,7 @@ function EntregadorDashboard() {
                       <p className="text-gray-400 text-xs flex items-start gap-1.5"><MapPin size={13} className="shrink-0 mt-0.5" />{p.endereco_entrega}</p>
 
                       {noLimite ? (
-                        <p className="mt-3 text-gray-500 text-xs text-center bg-[#171C22] border border-[#232A32] rounded-xl py-2.5">
+                        <p className="mt-3 text-gray-500 text-xs text-center bg-superficie border border-borda rounded-xl py-2.5">
                           🔒 Você já está com {MAX_ENTREGAS_SIMULTANEAS} entregas. Conclua uma para aceitar outra.
                         </p>
                       ) : (
@@ -929,8 +937,8 @@ function EntregadorDashboard() {
                           <button onClick={() => aceitarPedido(p.id)} disabled={acao === p.id}
                             className={`w-full font-semibold py-2.5 rounded-xl transition text-sm disabled:opacity-50 ${
                               agrupavel(p)
-                                ? 'bg-[#1B2129] border border-[#232A32] hover:border-[#C1441E]/60 text-gray-300'
-                                : 'bg-[#C1441E] hover:bg-[#a83a19] text-white'
+                                ? 'bg-elevado border border-borda hover:border-acento/60 text-gray-300'
+                                : 'bg-azul hover:brightness-110 text-white'
                             }`}>
                             {acao === p.id ? 'Aceitando...' : agrupavel(p) ? 'Aceitar separado' : 'Aceitar pedido'}
                           </button>
@@ -946,10 +954,10 @@ function EntregadorDashboard() {
           {/* 7. GANHOS — gráfico semanal */}
           <section>
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-white font-semibold flex items-center gap-2"><TrendingUp size={16} className="text-[#6FD98F]" /> Ganhos na semana</h2>
-              {totalRecebido > 0 && <span className="text-[#6FD98F] font-bold text-sm">{reais(totalRecebido)} recebido</span>}
+              <h2 className="text-white font-semibold flex items-center gap-2"><TrendingUp size={16} className="text-acento" /> Ganhos na semana</h2>
+              {totalRecebido > 0 && <span className="text-acento font-bold text-sm">{reais(totalRecebido)} recebido</span>}
             </div>
-            <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+            <div className="bg-card border border-borda rounded-2xl p-4">
               <ResponsiveContainer width="100%" height={170}>
                 <BarChart data={graficoSemana} margin={{ top: 4, right: 4, left: -22, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#232A32" vertical={false} />
@@ -970,13 +978,13 @@ function EntregadorDashboard() {
           {/* 6. HISTÓRICO com filtro por período */}
           <section>
             <div className="flex items-center justify-between mb-2 gap-2">
-              <h2 className="text-white font-semibold flex items-center gap-2"><History size={16} className="text-[#E0632C]" /> Histórico</h2>
-              <span className="text-[#6FD98F] font-bold text-sm">{reais(totalGanhoPeriodo)}</span>
+              <h2 className="text-white font-semibold flex items-center gap-2"><History size={16} className="text-acento" /> Histórico</h2>
+              <span className="text-acento font-bold text-sm">{reais(totalGanhoPeriodo)}</span>
             </div>
             <div className="flex gap-1.5 mb-3">
               {([['hoje', 'Hoje'], ['semana', 'Semana'], ['mes', 'Mês'], ['tudo', 'Tudo']] as [Periodo, string][]).map(([val, label]) => (
                 <button key={val} onClick={() => setPeriodo(val)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${periodo === val ? 'bg-[#C1441E] text-white' : 'bg-[#1B2129] text-gray-400 hover:text-white'}`}>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${periodo === val ? 'bg-acento text-white' : 'bg-elevado text-gray-400 hover:text-white'}`}>
                   {label}
                 </button>
               ))}
@@ -986,13 +994,13 @@ function EntregadorDashboard() {
             ) : (
               <div className="flex flex-col gap-2">
                 {historicoFiltrado.map(p => (
-                  <div key={p.id} className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4 flex items-center justify-between gap-2">
+                  <div key={p.id} className="bg-card border border-borda rounded-2xl p-4 flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-white font-semibold text-sm truncate">{nomeLoja(p.loja_id)}</p>
                       <p className="text-gray-500 text-xs">{new Date(p.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-[#6FD98F] font-bold text-sm">{Number(p.valor_corrida) > 0 ? reais(Number(p.valor_corrida)) : '—'}</p>
+                      <p className="text-acento font-bold text-sm">{Number(p.valor_corrida) > 0 ? reais(Number(p.valor_corrida)) : '—'}</p>
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${p.pagamento_corrida === 'pago' ? 'bg-green-500/15 text-green-300 border-green-500/40' : 'bg-amber-500/15 text-amber-300 border-amber-500/40'}`}>
                         {p.pagamento_corrida === 'pago' ? 'Pago' : 'Pendente'}
                       </span>
@@ -1005,7 +1013,7 @@ function EntregadorDashboard() {
 
           {/* Minhas parcerias */}
           <section>
-            <h2 className="text-white font-semibold mb-2 flex items-center gap-2"><Handshake size={16} className="text-[#E0632C]" /> Minhas parcerias</h2>
+            <h2 className="text-white font-semibold mb-2 flex items-center gap-2"><Handshake size={16} className="text-acento" /> Minhas parcerias</h2>
             {parcerias.length === 0 ? (
               <p className="text-gray-500 text-sm mb-2">Você ainda não tem parcerias. Solicite parceria a uma loja de delivery abaixo para começar a receber pedidos.</p>
             ) : (
@@ -1013,8 +1021,8 @@ function EntregadorDashboard() {
                 {parcerias.map(parceria => {
                   const meta = STATUS_PARCERIA_META[parceria.status]
                   return (
-                    <div key={parceria.id} className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4 flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-[#C1441E]/15 flex items-center justify-center shrink-0"><Store size={16} className="text-[#E0632C]" /></div>
+                    <div key={parceria.id} className="bg-card border border-borda rounded-2xl p-4 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-acento/15 flex items-center justify-center shrink-0"><Store size={16} className="text-acento" /></div>
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-semibold text-sm truncate">{nomeLoja(parceria.loja_id)}</p>
                         <p className="text-gray-500 text-xs">
@@ -1034,14 +1042,14 @@ function EntregadorDashboard() {
                 <p className="text-gray-400 text-xs font-semibold mb-2 mt-1">Solicitar nova parceria</p>
                 <div className="flex flex-col gap-2">
                   {lojasSemParceria.map(l => (
-                    <div key={l.id} className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4 flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-[#1B2129] flex items-center justify-center shrink-0"><Store size={16} className="text-gray-400" /></div>
+                    <div key={l.id} className="bg-card border border-borda rounded-2xl p-4 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-elevado flex items-center justify-center shrink-0"><Store size={16} className="text-gray-400" /></div>
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-semibold text-sm truncate">{l.nome}</p>
                         {l.localizacao && <p className="text-gray-500 text-xs truncate">{l.localizacao}</p>}
                       </div>
                       <button onClick={() => solicitarParceria(l.id)} disabled={acao === l.id}
-                        className="shrink-0 bg-[#1B2129] border border-[#232A32] hover:border-[#C1441E]/60 text-white text-xs font-semibold px-3 py-2 rounded-lg transition disabled:opacity-50">
+                        className="shrink-0 bg-elevado border border-borda hover:border-acento/60 text-white text-xs font-semibold px-3 py-2 rounded-lg transition disabled:opacity-50">
                         {acao === l.id ? '...' : 'Solicitar'}
                       </button>
                     </div>
@@ -1053,11 +1061,11 @@ function EntregadorDashboard() {
 
           {/* Avaliações recebidas */}
           <section>
-            <h2 className="text-white font-semibold mb-2 flex items-center gap-2"><Star size={16} className="text-[#E0632C]" /> Avaliação dos clientes</h2>
+            <h2 className="text-white font-semibold mb-2 flex items-center gap-2"><Star size={16} className="text-acento" /> Avaliação dos clientes</h2>
             {avaliacoes.length === 0 ? (
               <p className="text-gray-500 text-sm">Você ainda não recebeu avaliações.</p>
             ) : (
-              <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+              <div className="bg-card border border-borda rounded-2xl p-4">
                 <div className="flex items-center gap-3 mb-1">
                   <span className="text-2xl font-bold text-amber-300">{mediaNota.toFixed(1)}</span>
                   <div className="flex items-center gap-0.5">
@@ -1068,7 +1076,7 @@ function EntregadorDashboard() {
                   <span className="text-gray-500 text-xs ml-auto">{avaliacoes.length} avaliação{avaliacoes.length > 1 ? 'ões' : ''}</span>
                 </div>
                 {comentarios.length > 0 && (
-                  <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-[#232A32]">
+                  <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-borda">
                     {comentarios.slice(0, 5).map((a, i) => (
                       <div key={i}>
                         <div className="flex items-center gap-1 mb-0.5">

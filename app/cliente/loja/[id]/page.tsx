@@ -167,7 +167,7 @@ export default function ClienteLoja() {
   return (
     <ClienteLayout cliente={cliente} sair={sair} noPadding>
       <Toast toast={toast} />
-      <header className="bg-[#12161B] border-b border-[#232A32] px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
+      <header className="bg-card border-b border-borda px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
         <button onClick={() => router.push('/cliente/buscar')} className="shrink-0 text-gray-400 hover:text-white">
           <ArrowLeft size={20} />
         </button>
@@ -179,11 +179,11 @@ export default function ClienteLoja() {
 
         <div className="relative z-10 -mt-10 space-y-[18px]">
           {/* Card de info — sobrepõe o banner */}
-          <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-5">
+          <div className="bg-card border border-borda rounded-2xl p-5">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="min-w-0">
                 <h1 className="font-display text-2xl font-bold text-white truncate">{loja.nome}</h1>
-                <span className="inline-block text-xs bg-[#1B2129] border border-[#232A32] text-gray-300 px-2.5 py-0.5 rounded-full mt-1.5">{loja.tipo}</span>
+                <span className="inline-block text-xs bg-elevado border border-borda text-gray-300 px-2.5 py-0.5 rounded-full mt-1.5">{loja.tipo}</span>
               </div>
               {avaliacoes.length > 0 && <RatingBadge media={mediaAval} total={avaliacoes.length} />}
             </div>
@@ -214,7 +214,7 @@ export default function ClienteLoja() {
               )}
               <button
                 onClick={() => router.push(`/cliente/mensagens/${id}`)}
-                className="flex-1 bg-[#1B2129] border border-[#232A32] hover:bg-[#232A32] text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+                className="flex-1 bg-elevado border border-borda hover:bg-borda text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
               >
                 <MessageCircle size={18} />
                 Mensagem
@@ -225,7 +225,7 @@ export default function ClienteLoja() {
                 className={`shrink-0 w-12 h-12 flex items-center justify-center rounded-xl border transition ${
                   favorito
                     ? 'bg-red-500/15 border-red-500/40 hover:bg-red-500/25'
-                    : 'bg-[#1B2129] border-[#232A32] hover:bg-[#232A32]'
+                    : 'bg-elevado border-borda hover:bg-borda'
                 }`}
               >
                 <Heart size={20} className={favorito ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
@@ -237,8 +237,8 @@ export default function ClienteLoja() {
               disabled={salvandoSeguir}
               className={`mt-2 w-full font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-60 ${
                 seguindo
-                  ? 'bg-[#1B2129] border border-[#232A32] text-gray-300 hover:bg-[#232A32]'
-                  : 'bg-[#C1441E] hover:bg-[#a83a19] text-white'
+                  ? 'bg-elevado border border-borda text-gray-300 hover:bg-borda'
+                  : 'bg-azul hover:brightness-110 text-white'
               }`}
             >
               {seguindo ? <UserCheck size={18} /> : <UserPlus size={18} />}
@@ -253,7 +253,7 @@ export default function ClienteLoja() {
             {isDelivery(loja.tipo) && produtos.length > 0 && (
               <button
                 onClick={() => setPedidoAberto(true)}
-                className="mt-2.5 w-full bg-[#C1441E] hover:bg-[#a83a19] text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+                className="mt-2.5 w-full bg-azul hover:brightness-110 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
               >
                 <ShoppingBag size={18} />
                 Fazer Pedido
@@ -265,7 +265,7 @@ export default function ClienteLoja() {
                 href={loja.website_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2.5 w-full bg-[#1B2129] border border-[#232A32] hover:bg-[#232A32] text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+                className="mt-2.5 w-full bg-elevado border border-borda hover:bg-borda text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
               >
                 <Globe size={18} />
                 Visitar site
@@ -276,7 +276,7 @@ export default function ClienteLoja() {
           <MiniMapa latitude={loja.latitude} longitude={loja.longitude} localizacao={loja.localizacao} nome={loja.nome} />
 
           {produtos.length > 0 && (
-            <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+            <div className="bg-card border border-borda rounded-2xl p-4">
               <h2 className="font-display text-white font-semibold text-lg mb-3">
                 Produtos disponíveis <span className="text-gray-500 font-normal text-sm">({produtos.length})</span>
               </h2>
@@ -286,7 +286,7 @@ export default function ClienteLoja() {
             </div>
           )}
 
-          <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-5">
+          <div className="bg-card border border-borda rounded-2xl p-5">
             <h2 className="font-display text-white font-semibold text-lg mb-4">
               {minhaAvaliacao ? 'Sua avaliação' : 'Avaliar este comércio'}
             </h2>
@@ -297,14 +297,14 @@ export default function ClienteLoja() {
                 value={comentario}
                 onChange={e => setComentario(e.target.value)}
                 rows={3}
-                className="bg-[#171C22] border border-[#232A32] text-white rounded-xl px-4 py-3 outline-none focus:border-[#F5C34B]/60 focus:ring-1 focus:ring-[#F5C34B]/40 resize-none text-sm"
+                className="bg-superficie border border-borda text-white rounded-xl px-4 py-3 outline-none focus:border-[#F5C34B]/60 focus:ring-1 focus:ring-[#F5C34B]/40 resize-none text-sm"
               />
               <button
                 onClick={enviarAvaliacao}
                 disabled={enviandoAval || nota === 0}
                 className={`font-semibold py-3 rounded-xl transition disabled:opacity-50 ${
                   minhaAvaliacao
-                    ? 'bg-[#F5C34B] hover:bg-[#e6b43e] text-[#12161B]'
+                    ? 'bg-[#F5C34B] hover:bg-[#e6b43e] text-card'
                     : 'bg-green-600 hover:bg-green-700 text-white'
                 }`}
               >
@@ -314,9 +314,9 @@ export default function ClienteLoja() {
           </div>
 
           {avaliacoes.length > 0 && (
-            <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-5">
+            <div className="bg-card border border-borda rounded-2xl p-5">
               <h2 className="font-display text-white font-semibold text-lg mb-2">Avaliações ({avaliacoes.length})</h2>
-              <div className="divide-y divide-[#232A32]">
+              <div className="divide-y divide-borda">
                 {avaliacoes.map((a, i) => (
                   <div key={i} className="py-3">
                     <div className="flex items-center justify-between gap-2">
@@ -326,7 +326,7 @@ export default function ClienteLoja() {
                     {a.comentario && <p className="text-gray-300 text-sm mt-1.5">{a.comentario}</p>}
                     {a.foto_url && (
                       <a href={a.foto_url} target="_blank" rel="noopener noreferrer" className="inline-block mt-2">
-                        <img src={a.foto_url} alt="Foto da avaliação" className="w-24 h-24 rounded-xl object-cover border border-[#232A32]" />
+                        <img src={a.foto_url} alt="Foto da avaliação" className="w-24 h-24 rounded-xl object-cover border border-borda" />
                       </a>
                     )}
                   </div>

@@ -1,86 +1,142 @@
 import Link from 'next/link'
-import { Store, User, Truck, Bike, Globe, ArrowRight } from 'lucide-react'
+import {
+  Store, User, Truck, Bike, Globe, ArrowRight,
+  Rss, Gauge, Bot, Wallet, MapPin, GraduationCap,
+} from 'lucide-react'
 import AnimatedBackground from './components/AnimatedBackground'
 
 // Link do parceiro que cria sites profissionais para as lojas.
 // TODO: trocar pelo endereço final do parceiro.
 const SITE_PARCEIRO = 'https://exemplo-parceiro.com'
 
+const PORTAS = [
+  {
+    href: '/login', titulo: 'Sou Comerciante', sub: 'Gerenciar minha loja', Icone: Store,
+    classes: 'bg-azul hover:brightness-110', subCor: 'text-white/70',
+  },
+  {
+    // Verde aqui é cor de PAPEL, não de CTA — por isso não virou azul.
+    href: '/cliente/login', titulo: 'Sou Cliente', sub: 'Descobrir comércios locais', Icone: User,
+    classes: 'bg-acento hover:bg-acento-forte', subCor: 'text-black/55',
+  },
+  {
+    href: '/fornecedor/login', titulo: 'Sou Fornecedor', sub: 'Oferecer produtos e serviços', Icone: Truck,
+    classes: 'bg-purple-600 hover:bg-purple-700', subCor: 'text-white/70',
+  },
+  {
+    href: '/entregador-delivery/login', titulo: 'Sou Entregador', sub: 'Fazer entregas e ganhar por corrida', Icone: Bike,
+    classes: 'bg-elevado hover:bg-borda border border-borda', subCor: 'text-gray-400',
+  },
+] as const
+
+const FEATURES = [
+  { Icone: Gauge, titulo: 'Commerly Score', texto: 'A saúde do seu negócio em 4 pilares, com a próxima ação sugerida.' },
+  { Icone: Bot, titulo: 'Copilot de IA', texto: 'Insights semanais sobre o que vender, quando e para quem.' },
+  { Icone: Rss, titulo: 'Feed Social', texto: 'Posts e stories da sua loja no feed dos clientes por perto.' },
+  { Icone: Wallet, titulo: 'Financeiro real', texto: 'Fluxo de caixa, lucro de verdade e o DAS do MEI calculado.' },
+  { Icone: MapPin, titulo: 'Delivery próprio', texto: 'Entregadores parceiros, GPS ao vivo e taxa por distância.' },
+  { Icone: GraduationCap, titulo: 'Academy', texto: 'Aulas curtas para vender mais, escritas para quem tem o dia cheio.' },
+] as const
+
 export default function Home() {
   return (
-    <main data-theme="dark" className="relative min-h-screen bg-gray-950 flex flex-col items-center justify-center p-6 overflow-hidden">
+    <main data-theme="dark" className="relative min-h-screen bg-fundo overflow-hidden">
       <AnimatedBackground />
-      <div className="relative z-10 mb-10 text-center">
-        <h1 className="text-5xl font-bold text-white mb-2">Commerly</h1>
-        <p className="text-gray-400 text-lg">Gestão completa para o seu comércio</p>
-      </div>
 
-      <div className="relative z-10 flex flex-col gap-4 w-full max-w-sm">
-        <Link href="/login">
-          <div className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-2xl transition flex items-center gap-4 cursor-pointer">
-            <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center shrink-0">
-              <Store size={20} />
-            </div>
-            <div>
-              <p className="text-lg font-bold">Sou Comerciante</p>
-              <p className="text-blue-200 text-sm">Gerenciar minha loja</p>
-            </div>
-          </div>
-        </Link>
+      {/* HERO */}
+      <section className="relative z-10 flex flex-col items-center justify-center px-6 pt-24 pb-16 text-center">
+        <span
+          className="anima-surgir inline-flex items-center gap-2 rounded-full border border-borda bg-card/70 backdrop-blur px-3.5 py-1.5 text-xs text-gray-300"
+          style={{ '--atraso': '0ms' } as React.CSSProperties}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-acento animate-pulse" />
+          Feito para o comércio de bairro
+        </span>
 
-        <Link href="/cliente/login">
-          <div className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-6 rounded-2xl transition flex items-center gap-4 cursor-pointer">
-            <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center shrink-0">
-              <User size={20} />
-            </div>
-            <div>
-              <p className="text-lg font-bold">Sou Cliente</p>
-              <p className="text-green-200 text-sm">Descobrir comércios locais</p>
-            </div>
-          </div>
-        </Link>
+        <h1
+          className="anima-subir font-display text-5xl sm:text-7xl font-bold tracking-tight mt-6 bg-gradient-to-b from-white to-gray-400 bg-clip-text text-transparent"
+          style={{ '--atraso': '80ms' } as React.CSSProperties}
+        >
+          Commerly
+        </h1>
 
-        <Link href="/fornecedor/login">
-          <div className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 px-6 rounded-2xl transition flex items-center gap-4 cursor-pointer">
-            <div className="w-10 h-10 bg-purple-500 rounded-xl flex items-center justify-center shrink-0">
-              <Truck size={20} />
-            </div>
-            <div>
-              <p className="text-lg font-bold">Sou Fornecedor</p>
-              <p className="text-purple-200 text-sm">Oferecer produtos e serviços</p>
-            </div>
-          </div>
-        </Link>
+        <p
+          className="anima-subir font-body text-gray-400 text-lg sm:text-xl mt-4 max-w-xl leading-relaxed"
+          style={{ '--atraso': '160ms' } as React.CSSProperties}
+        >
+          Gestão, delivery, pagamentos e um feed social — tudo o que a sua loja precisa,
+          num app só.
+        </p>
 
-        <Link href="/entregador-delivery/login">
-          <div className="w-full bg-[#C1441E] hover:bg-[#a83a19] text-white font-semibold py-4 px-6 rounded-2xl transition flex items-center gap-4 cursor-pointer">
-            <div className="w-10 h-10 bg-[#E0632C] rounded-xl flex items-center justify-center shrink-0">
-              <Bike size={20} />
-            </div>
-            <div>
-              <p className="text-lg font-bold">Sou Entregador</p>
-              <p className="text-orange-200 text-sm">Fazer entregas e ganhar por corrida</p>
-            </div>
-          </div>
-        </Link>
-      </div>
-
-      {/* Parceiros — criação de site profissional para a loja. Discreto, não intrusivo. */}
-      <a
-        href={SITE_PARCEIRO}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="group relative z-10 mt-8 w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 hover:bg-white/[0.07] backdrop-blur-sm px-5 py-4 transition flex items-center gap-4"
-      >
-        <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-          <Globe size={18} className="text-gray-300" />
+        {/* Portas de entrada por papel */}
+        <div className="w-full max-w-sm flex flex-col gap-3 mt-10">
+          {PORTAS.map(({ href, titulo, sub, Icone, classes, subCor }, i) => (
+            <Link
+              key={href}
+              href={href}
+              className={`anima-subir grupo ${classes} text-white font-semibold py-4 px-5 rounded-2xl transition flex items-center gap-4 text-left`}
+              style={{ '--atraso': `${240 + i * 70}ms` } as React.CSSProperties}
+            >
+              <span className="w-10 h-10 rounded-xl bg-black/15 flex items-center justify-center shrink-0">
+                <Icone size={20} className="grupo-icone" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-lg font-bold leading-tight">{titulo}</span>
+                <span className={`block text-sm ${subCor}`}>{sub}</span>
+              </span>
+              <ArrowRight size={17} className="ml-auto shrink-0 opacity-60" />
+            </Link>
+          ))}
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-white text-sm font-semibold">Quer um site profissional para sua loja?</p>
-          <p className="text-gray-400 text-xs mt-0.5">Conheça nosso parceiro de criação de sites.</p>
+      </section>
+
+      {/* FEATURES */}
+      <section className="relative z-10 px-6 pb-20">
+        <div className="max-w-4xl mx-auto">
+          <h2
+            className="anima-subir font-display text-center text-2xl font-bold text-white mb-2"
+            style={{ '--atraso': '0ms' } as React.CSSProperties}
+          >
+            Tudo o que o iFood cobra caro, e mais
+          </h2>
+          <p className="text-center text-gray-500 text-sm mb-10">
+            Sem comissão sobre cada venda. O bairro é seu.
+          </p>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {FEATURES.map(({ Icone, titulo, texto }, i) => (
+              <div
+                key={titulo}
+                className="anima-subir grupo bg-card border border-borda rounded-2xl p-5 hover:border-acento/40 transition"
+                style={{ '--atraso': `${i * 70}ms` } as React.CSSProperties}
+              >
+                <span className="w-10 h-10 rounded-xl bg-acento/12 flex items-center justify-center mb-3">
+                  <Icone size={19} className="text-acento grupo-icone" />
+                </span>
+                <p className="font-display text-white font-semibold">{titulo}</p>
+                <p className="text-gray-400 text-sm mt-1 leading-relaxed">{texto}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Parceiros — criação de site profissional. Discreto, não intrusivo. */}
+          <a
+            href={SITE_PARCEIRO}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="grupo mt-6 w-full rounded-2xl border border-borda bg-card hover:border-gray-700 px-5 py-4 transition flex items-center gap-4"
+          >
+            <span className="w-9 h-9 rounded-xl bg-elevado flex items-center justify-center shrink-0">
+              <Globe size={18} className="text-gray-300 grupo-icone" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-white text-sm font-semibold">Quer um site profissional para sua loja?</span>
+              <span className="block text-gray-400 text-xs mt-0.5">Conheça nosso parceiro de criação de sites.</span>
+            </span>
+            <ArrowRight size={16} className="text-gray-500 shrink-0" />
+          </a>
         </div>
-        <ArrowRight size={16} className="text-gray-500 group-hover:text-gray-300 group-hover:translate-x-0.5 transition shrink-0" />
-      </a>
+      </section>
     </main>
   )
 }

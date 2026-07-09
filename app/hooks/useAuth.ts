@@ -17,7 +17,9 @@ export function useAuth() {
     if (error || !user) { router.push('/login'); return }
     const { data: lojaData, error: lojaError } = await supabase
       .from('lojas')
-      .select('id, nome, tipo, documento, localizacao, telefone, instagram, horario, meta_mensal, latitude, longitude, fotos_fachada, taxa_entrega, website_url, whatsapp_business')
+      // `plano` e `fundador` alimentam os badges do header do dashboard — sem
+      // eles o badge dizia "INATIVO" para uma loja ativa.
+      .select('id, nome, tipo, documento, localizacao, telefone, instagram, horario, meta_mensal, latitude, longitude, fotos_fachada, taxa_entrega, website_url, whatsapp_business, plano, fundador')
       .eq('user_id', user.id)
       .single()
     if (lojaError || !lojaData) { router.push('/onboarding'); return }

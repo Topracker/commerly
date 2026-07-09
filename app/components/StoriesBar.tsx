@@ -80,9 +80,9 @@ export function StoriesBar({ grupos, lojas, produtos, onPedir }: Props) {
               className="flex flex-col items-center gap-1.5 shrink-0 w-[70px]"
             >
               {/* Anel gradiente = tem story novo, igual ao Instagram. */}
-              <span className="p-[2px] rounded-full bg-gradient-to-tr from-[#C1441E] via-[#E0632C] to-amber-400">
+              <span className="p-[2px] rounded-full bg-gradient-to-tr from-acento via-emerald-400 to-azul">
                 <span className="block p-[2px] rounded-full bg-gray-950">
-                  <span className="w-14 h-14 rounded-full overflow-hidden bg-[#1B2129] flex items-center justify-center">
+                  <span className="w-14 h-14 rounded-full overflow-hidden bg-elevado flex items-center justify-center">
                     {fachada
                       ? <img src={fachada} alt="" className="w-full h-full object-cover" />
                       : <Store size={18} className="text-gray-400" />}
@@ -107,7 +107,7 @@ export function StoriesBar({ grupos, lojas, produtos, onPedir }: Props) {
           </div>
 
           <div className="flex items-center gap-2 px-3 pb-2 shrink-0">
-            <span className="w-8 h-8 rounded-full overflow-hidden bg-[#1B2129] flex items-center justify-center">
+            <span className="w-8 h-8 rounded-full overflow-hidden bg-elevado flex items-center justify-center">
               {lojas.get(grupoAtual.loja_id)?.fotos_fachada?.[0]
                 ? <img src={lojas.get(grupoAtual.loja_id)!.fotos_fachada![0]} alt="" className="w-full h-full object-cover" />
                 : <Store size={14} className="text-gray-400" />}
@@ -147,7 +147,7 @@ export function StoriesBar({ grupos, lojas, produtos, onPedir }: Props) {
             <div className="shrink-0 p-4">
               <button
                 onClick={() => { setAberto(null); onPedir(grupoAtual.loja_id) }}
-                className="w-full bg-[#C1441E] hover:bg-[#a83a19] text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+                className="w-full bg-azul hover:brightness-110 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
               >
                 <ShoppingBag size={18} />
                 Pedir este item — {produtoDoStory.nome}

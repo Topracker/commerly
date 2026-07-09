@@ -135,7 +135,7 @@ export default function Financeiro() {
             </div>
             <div className="bg-gray-900 rounded-2xl p-4">
               <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-1"><Landmark size={13} /> Lucro real</div>
-              <p className={`text-lg font-bold ${mesAtual.lucroReal >= 0 ? 'text-[#6FD98F]' : 'text-red-400'}`}>{reais(mesAtual.lucroReal)}</p>
+              <p className={`text-lg font-bold ${mesAtual.lucroReal >= 0 ? 'text-acento' : 'text-red-400'}`}>{reais(mesAtual.lucroReal)}</p>
             </div>
           </div>
 
@@ -148,7 +148,7 @@ export default function Financeiro() {
               <div className="flex justify-between"><span className="text-gray-400">− Gastos</span><span className="text-red-400">{reais(mesAtual.saidas)}</span></div>
               <div className="flex justify-between border-t border-gray-800 pt-2 mt-1 font-bold">
                 <span className="text-white">= Lucro real</span>
-                <span className={mesAtual.lucroReal >= 0 ? 'text-[#6FD98F]' : 'text-red-400'}>{reais(mesAtual.lucroReal)}</span>
+                <span className={mesAtual.lucroReal >= 0 ? 'text-acento' : 'text-red-400'}>{reais(mesAtual.lucroReal)}</span>
               </div>
             </div>
             <p className="text-gray-600 text-xs mt-3">
@@ -173,8 +173,8 @@ export default function Financeiro() {
                   cursor={{ fill: 'var(--color-gray-800)' }}
                 />
                 <Legend formatter={(v) => <span className="text-xs text-gray-400">{v === 'entradas' ? 'Entradas' : 'Saídas'}</span>} />
-                <Bar dataKey="entradas" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="saidas" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="entradas" fill="var(--color-acento)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="saidas" fill="var(--color-red-400)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

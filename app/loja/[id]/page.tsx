@@ -4,7 +4,6 @@ import { notFound } from 'next/navigation'
 import { createAdminClient } from '../../lib/supabase-admin'
 import { Estrelas } from '../../components/Estrelas'
 import { MiniMapa } from '../../components/MiniMapa'
-import { FachadaBanner } from '../../components/FachadaBanner'
 import { RatingBadge } from '../../components/RatingBadge'
 import { ProdutoCard } from '../../components/ProdutoCard'
 import { Phone, AtSign, MapPin, Clock, Globe, UtensilsCrossed, MessageCircle } from 'lucide-react'
@@ -93,31 +92,53 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
 
   return (
     <main data-theme="dark" className="min-h-screen bg-gray-950 font-body">
-      <header className="bg-[#12161B] border-b border-[#232A32] px-4 py-3 sticky top-0 z-20">
+      <header className="bg-card border-b border-borda px-4 py-3 sticky top-0 z-20">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
           <p className="font-display text-white font-bold truncate">{loja.nome}</p>
           <span className="text-gray-500 text-sm shrink-0">Commerly</span>
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 pt-4 pb-10">
-        <FachadaBanner fotos={loja.fotos_fachada} nome={loja.nome} tipo={loja.tipo} />
+      {/* HERO: fachada em tela cheia, com gradiente escuro subindo até o texto. */}
+      <section className="relative h-[52vh] min-h-[300px] w-full overflow-hidden">
+        {loja.fotos_fachada?.[0] ? (
+          <img src={loja.fotos_fachada[0]} alt={loja.nome} className="absolute inset-0 w-full h-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-elevado to-fundo textura-diagonal" />
+        )}
+        {/* Duas camadas: uma escurece o topo (legibilidade do header sticky),
+            a outra ancora o texto na base. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-fundo/70 via-fundo/10 to-fundo" />
 
-        <div className="relative z-10 -mt-10 space-y-[18px]">
-          {/* Cabeçalho da loja — sobrepõe o banner */}
-          <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-5">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="min-w-0">
-                <h1 className="font-display text-2xl font-bold text-white truncate">{loja.nome}</h1>
-                <span className="inline-block text-xs bg-[#1B2129] border border-[#232A32] text-gray-300 px-2.5 py-0.5 rounded-full mt-1.5">{loja.tipo}</span>
-              </div>
-              {avaliacoes.length > 0 && <RatingBadge media={media} total={avaliacoes.length} />}
-            </div>
-
-            <div className="flex flex-col gap-2 text-sm">
+        <div className="absolute inset-x-0 bottom-0 max-w-2xl mx-auto px-4 pb-6">
+          <div className="anima-subir flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <span className="inline-block text-[11px] bg-white/10 backdrop-blur border border-white/15 text-white/90 px-2.5 py-0.5 rounded-full mb-2">
+                {loja.tipo}
+              </span>
+              <h1 className="font-display text-3xl sm:text-4xl font-bold text-white leading-tight drop-shadow-lg">
+                {loja.nome}
+              </h1>
               {loja.localizacao && (
-                <p className="text-gray-400 flex items-center gap-2.5"><MapPin size={15} className="text-gray-500 shrink-0" />{loja.localizacao}</p>
+                <p className="text-white/70 text-sm mt-1.5 flex items-center gap-1.5">
+                  <MapPin size={14} className="shrink-0" />{loja.localizacao}
+                </p>
               )}
+            </div>
+            {avaliacoes.length > 0 && (
+              <div className="shrink-0"><RatingBadge media={media} total={avaliacoes.length} /></div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <div className="max-w-2xl mx-auto px-4 pt-4 pb-10">
+        <div className="relative z-10 space-y-[18px]">
+          {/* Cabeçalho da loja */}
+          <div className="bg-card border border-borda rounded-2xl p-5">
+
+            {/* A localização já aparece no hero — aqui só o que não está lá. */}
+            <div className="flex flex-col gap-2 text-sm">
               {loja.horario && (
                 <p className="text-gray-400 flex items-center gap-2.5"><Clock size={15} className="text-gray-500 shrink-0" />{loja.horario}</p>
               )}
@@ -144,7 +165,7 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
             {isDelivery(loja.tipo) && produtos.length > 0 && (
               <Link
                 href={`/cardapio/${id}`}
-                className="mt-2.5 w-full bg-[#C1441E] hover:bg-[#a83a19] text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+                className="mt-2.5 w-full bg-azul hover:brightness-110 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
               >
                 <UtensilsCrossed size={18} />
                 Ver cardápio
@@ -156,7 +177,7 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
                 href={loja.website_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2.5 w-full bg-[#1B2129] border border-[#232A32] hover:bg-[#232A32] text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+                className="mt-2.5 w-full bg-elevado border border-borda hover:bg-borda text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
               >
                 <Globe size={18} />
                 Visitar site
@@ -168,7 +189,7 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
 
           {/* Produtos */}
           {produtos.length > 0 && (
-            <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+            <div className="bg-card border border-borda rounded-2xl p-4">
               <h2 className="font-display text-white font-semibold text-lg mb-3">
                 Produtos disponíveis <span className="text-gray-500 font-normal text-sm">({produtos.length})</span>
               </h2>
@@ -180,9 +201,9 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
 
           {/* Avaliações */}
           {avaliacoes.length > 0 && (
-            <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-5">
+            <div className="bg-card border border-borda rounded-2xl p-5">
               <h2 className="font-display text-white font-semibold text-lg mb-2">Avaliações ({avaliacoes.length})</h2>
-              <div className="divide-y divide-[#232A32]">
+              <div className="divide-y divide-borda">
                 {avaliacoes.map((a, i) => (
                   <div key={i} className="py-3">
                     <div className="flex items-center justify-between gap-2">
@@ -192,7 +213,7 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
                     {a.comentario && <p className="text-gray-300 text-sm mt-1.5">{a.comentario}</p>}
                     {a.foto_url && (
                       <a href={a.foto_url} target="_blank" rel="noopener noreferrer" className="inline-block mt-2">
-                        <img src={a.foto_url} alt="Foto da avaliação" className="w-24 h-24 rounded-xl object-cover border border-[#232A32]" />
+                        <img src={a.foto_url} alt="Foto da avaliação" className="w-24 h-24 rounded-xl object-cover border border-borda" />
                       </a>
                     )}
                   </div>

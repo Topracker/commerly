@@ -28,7 +28,7 @@ export function NotificacaoToast({
         tabIndex={0}
         onClick={abrir}
         onKeyDown={(e) => { if (e.key === 'Enter') abrir() }}
-        className="cursor-pointer bg-[#12161B] border border-[#2b3440] rounded-2xl shadow-2xl shadow-black/50 p-3.5 flex items-start gap-3 hover:border-green-500/50 transition"
+        className="cursor-pointer bg-card border border-[#2b3440] rounded-2xl shadow-2xl shadow-black/50 p-3.5 flex items-start gap-3 hover:border-green-500/50 transition"
       >
         <div className="w-10 h-10 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0 text-lg">
           <span aria-hidden>{EMOJI_NOTIFICACAO[notif.tipo] ?? '🔔'}</span>

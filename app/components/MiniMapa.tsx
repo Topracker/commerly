@@ -65,7 +65,7 @@ export function MiniMapa({ latitude, longitude, localizacao, nome, altura = 'h-4
   if (!coord) {
     if (!indisponivel) return null
     return (
-      <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+      <div className="bg-card border border-borda rounded-2xl p-4">
         <h2 className="font-display text-white font-semibold text-lg mb-2">Localização</h2>
         <div className="flex items-center gap-2 text-gray-400 text-sm">
           <MapPinOff size={16} className="text-gray-500 shrink-0" />
@@ -80,9 +80,9 @@ export function MiniMapa({ latitude, longitude, localizacao, nome, altura = 'h-4
   const waze = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
 
   return (
-    <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+    <div className="bg-card border border-borda rounded-2xl p-4">
       <h2 className="font-display text-white font-semibold text-lg mb-3">Localização</h2>
-      <div ref={divRef} className={`w-full ${altura} rounded-xl overflow-hidden bg-[#171C22] z-0`} />
+      <div ref={divRef} className={`w-full ${altura} rounded-xl overflow-hidden bg-superficie z-0`} />
       <div className="flex gap-2 mt-3">
         <a
           href={gmaps}
@@ -97,7 +97,7 @@ export function MiniMapa({ latitude, longitude, localizacao, nome, altura = 'h-4
           href={waze}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 flex items-center justify-center gap-2 bg-[#1B2129] border border-[#232A32] hover:bg-[#232A32] text-white font-semibold py-2.5 rounded-xl transition text-sm"
+          className="flex-1 flex items-center justify-center gap-2 bg-elevado border border-borda hover:bg-borda text-white font-semibold py-2.5 rounded-xl transition text-sm"
         >
           Waze
         </a>

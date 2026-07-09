@@ -8,7 +8,7 @@ export default function NotificacoesEntregador() {
   const { entregador, loading, sair } = useEntregador()
 
   if (loading) return (
-    <main className="min-h-screen bg-[#0a0f1a] flex items-center justify-center">
+    <main className="min-h-screen bg-fundo flex items-center justify-center">
       <p className="text-gray-400">Carregando...</p>
     </main>
   )

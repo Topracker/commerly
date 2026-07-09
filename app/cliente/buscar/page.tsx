@@ -6,7 +6,7 @@ import { ClienteLayout } from '../../components/ClienteLayout'
 import { getRatingsPorLoja } from '../../lib/avaliacoes'
 import { MapaLojas } from '../../components/MapaLojas'
 import { distanciaKm, formatarDistancia } from '../../lib/geo'
-import { Search, MapPin, Phone, Star, List, Map as MapIcon, Navigation, Store, Sparkles } from 'lucide-react'
+import { Search, MapPin, Star, List, Map as MapIcon, Navigation, Store, Sparkles } from 'lucide-react'
 
 const TIPOS = ['Todos', 'Barbearia', 'Distribuidora de bebidas', 'Mercado', 'Loja de roupas', 'Lanchonete', 'Salão de beleza', 'Eletrônicos', 'Outro']
 
@@ -168,66 +168,58 @@ export default function ClienteBuscar() {
       ) : lojasExibidas.length === 0 ? (
         <div className="text-center py-12 text-gray-500">Nenhum comércio encontrado.</div>
       ) : (
-        <div className="flex flex-col gap-3 max-w-2xl mx-auto">
-          {lojasExibidas.map(loja => (
+        <div className="grid sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
+          {lojasExibidas.map((loja, i) => (
             <button
               key={loja.id}
               onClick={() => router.push(`/cliente/loja/${loja.id}`)}
-              className={`rounded-2xl p-4 text-left transition ${
-                loja.destaque
-                  ? 'bg-gray-900 hover:bg-gray-800 border border-yellow-600/40'
-                  : 'bg-gray-900 hover:bg-gray-800'
+              style={{ '--atraso': `${Math.min(i, 8) * 55}ms` } as React.CSSProperties}
+              className={`anima-subir bg-card rounded-2xl overflow-hidden text-left border transition ${
+                loja.destaque ? 'border-yellow-600/50' : 'border-borda'
               }`}
             >
-              <div className="flex items-start gap-3">
+              {/* Fachada grande: é ela que faz o cliente clicar. */}
+              <div className="relative h-36 bg-elevado">
                 {loja.fotos_fachada?.[0] ? (
-                  <img
-                    src={loja.fotos_fachada[0]}
-                    alt={`Fachada de ${loja.nome}`}
-                    className="w-16 h-16 rounded-xl object-cover shrink-0"
-                  />
+                  <img src={loja.fotos_fachada[0]} alt={`Fachada de ${loja.nome}`} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-16 h-16 rounded-xl shrink-0 flex items-center justify-center bg-gradient-to-br from-blue-600/30 via-gray-800 to-green-600/20">
-                    <Store size={22} className="text-white/60" />
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-azul/25 via-elevado to-acento/15">
+                    <Store size={30} className="text-white/40" />
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-white font-semibold">{loja.nome}</p>
-                    {loja.destaque && (
-                      <span className="inline-flex items-center gap-1 text-xs bg-yellow-500/15 text-yellow-300 border border-yellow-600/40 px-2 py-0.5 rounded-full font-semibold">
-                        <Sparkles size={11} /> Destaque
-                      </span>
-                    )}
-                    {loja.totalAval > 0 && (
-                      <span className="inline-flex items-center gap-1 text-xs bg-yellow-500/15 text-yellow-400 px-2 py-0.5 rounded-full font-medium">
-                        <Star size={11} className="fill-yellow-400" />
-                        {loja.media.toFixed(1)}
-                        <span className="text-yellow-400/60">({loja.totalAval})</span>
-                      </span>
-                    )}
-                  </div>
-                  <span className="inline-block text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded-full mt-1 mb-2">{loja.tipo}</span>
-                  {loja.localizacao && (
-                    <p className="text-gray-400 text-sm flex items-center gap-1">
-                      <MapPin size={12} />
-                      {loja.localizacao}
-                    </p>
-                  )}
-                  {loja._dist != null && (
-                    <p className="text-green-400 text-xs flex items-center gap-1 mt-0.5 font-medium">
-                      <Navigation size={11} />
-                      {formatarDistancia(loja._dist)} de você
-                    </p>
-                  )}
-                  {loja.telefone && (
-                    <p className="text-gray-400 text-sm flex items-center gap-1 mt-0.5">
-                      <Phone size={12} />
-                      {loja.telefone}
-                    </p>
-                  )}
-                </div>
-                <span className="text-green-400 text-sm font-medium shrink-0">Ver →</span>
+                <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
+
+                {loja.destaque && (
+                  <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 text-[11px] bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 backdrop-blur px-2 py-0.5 rounded-full font-semibold">
+                    <Sparkles size={11} /> Destaque
+                  </span>
+                )}
+                {loja.totalAval > 0 && (
+                  <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 text-[11px] bg-black/50 backdrop-blur text-yellow-300 border border-yellow-500/30 px-2 py-0.5 rounded-full font-semibold">
+                    <Star size={11} className="fill-yellow-300 text-yellow-300" />
+                    {loja.media.toFixed(1)}
+                    <span className="text-yellow-300/60 font-normal">({loja.totalAval})</span>
+                  </span>
+                )}
+                {loja._dist != null && (
+                  <span className="absolute bottom-2.5 right-2.5 inline-flex items-center gap-1 text-[11px] bg-acento/20 backdrop-blur text-acento border border-acento/40 px-2 py-0.5 rounded-full font-semibold">
+                    <Navigation size={11} />
+                    {formatarDistancia(loja._dist)}
+                  </span>
+                )}
+              </div>
+
+              <div className="p-4 pt-3">
+                <p className="font-display text-white font-semibold truncate">{loja.nome}</p>
+                <span className="inline-block text-[11px] bg-elevado border border-borda text-gray-300 px-2 py-0.5 rounded-full mt-1.5">
+                  {loja.tipo}
+                </span>
+                {loja.localizacao && (
+                  <p className="text-gray-500 text-xs flex items-center gap-1 mt-2 truncate">
+                    <MapPin size={12} className="shrink-0" />
+                    <span className="truncate">{loja.localizacao}</span>
+                  </p>
+                )}
               </div>
             </button>
           ))}

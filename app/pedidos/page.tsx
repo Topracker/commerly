@@ -249,7 +249,7 @@ export default function PedidosComerciante() {
         <div className="mt-3 pt-3 border-t border-gray-800 flex flex-col gap-2">
           {p.entregador_id ? (
             <div className="flex items-center gap-2 text-sm">
-              <Bike size={15} className="text-[#E0632C] shrink-0" />
+              <Bike size={15} className="text-acento shrink-0" />
               <span className="text-gray-300 truncate">Entregador: <strong className="text-white">{entregadores[p.entregador_id]?.nome || 'atribuído'}</strong></span>
               {p.status === 'entregue' && (
                 <span className={`ml-auto shrink-0 text-[11px] px-2 py-0.5 rounded-full ${p.pagamento_corrida === 'pago' ? 'bg-green-500/15 text-green-300' : 'bg-amber-500/15 text-amber-300'}`}>
@@ -269,7 +269,7 @@ export default function PedidosComerciante() {
                   {dsp?.status === 'erro' && <p className="text-red-400 text-xs mb-2">{dsp.msg}</p>}
                   <button
                     onClick={() => buscarEntregador(p.id)}
-                    className="w-full flex items-center justify-center gap-1.5 bg-[#C1441E] hover:bg-[#a83a19] text-white font-semibold py-2.5 rounded-xl transition text-sm"
+                    className="w-full flex items-center justify-center gap-1.5 bg-azul hover:brightness-110 text-white font-semibold py-2.5 rounded-xl transition text-sm"
                   >
                     <Search size={15} /> {dsp?.status === 'esgotado' || dsp?.status === 'erro' ? 'Tentar de novo' : 'Buscar entregador próximo'}
                   </button>
@@ -278,14 +278,14 @@ export default function PedidosComerciante() {
 
               {dsp?.status === 'buscando' && (
                 <div className="flex items-center gap-2 text-gray-300 text-sm bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5">
-                  <Loader2 size={15} className="animate-spin text-[#E0632C] shrink-0" /> Procurando entregador próximo...
+                  <Loader2 size={15} className="animate-spin text-acento shrink-0" /> Procurando entregador próximo...
                 </div>
               )}
 
               {dsp?.status === 'ofertado' && (
-                <div className="bg-gray-900 border border-[#C1441E]/40 rounded-xl px-3 py-2.5">
+                <div className="bg-gray-900 border border-acento/40 rounded-xl px-3 py-2.5">
                   <div className="flex items-center gap-2 mb-1.5">
-                    <Bike size={15} className="text-[#E0632C] shrink-0" />
+                    <Bike size={15} className="text-acento shrink-0" />
                     <span className="text-white text-sm font-medium truncate">
                       Chamando {dsp.nome}
                       {dsp.distancia_km != null && <span className="text-gray-400 font-normal"> · {formatarDistancia(Number(dsp.distancia_km))}</span>}
@@ -293,7 +293,7 @@ export default function PedidosComerciante() {
                     <span className={`ml-auto shrink-0 text-xs font-bold ${segRestantes <= 10 ? 'text-red-400' : 'text-amber-300'}`}>{segRestantes}s</span>
                   </div>
                   <div className="h-1.5 w-full rounded-full bg-gray-800 overflow-hidden mb-2">
-                    <div className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${segRestantes <= 10 ? 'bg-red-500' : 'bg-[#C1441E]'}`}
+                    <div className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${segRestantes <= 10 ? 'bg-red-500' : 'bg-acento'}`}
                       style={{ width: `${(segRestantes / 30) * 100}%` }} />
                   </div>
                   <p className="text-gray-500 text-[11px] mb-2">Aguardando a resposta. Se recusar ou não responder, chamamos o próximo automaticamente.</p>
@@ -361,16 +361,16 @@ export default function PedidosComerciante() {
         {pendentes.length > 0 && (
           <div className="mb-6">
             <h2 className="font-display text-white font-semibold mb-3 flex items-center gap-2">
-              <Bike size={16} className="text-[#E0632C]" /> Solicitações de entregadores
-              <span className="bg-[#C1441E] text-white text-xs rounded-full px-2 py-0.5 font-bold">{pendentes.length}</span>
+              <Bike size={16} className="text-acento" /> Solicitações de entregadores
+              <span className="bg-acento text-white text-xs rounded-full px-2 py-0.5 font-bold">{pendentes.length}</span>
             </h2>
             <div className="flex flex-col gap-2">
               {pendentes.map(par => {
                 const e = entregadores[par.entregador_id]
                 return (
                   <div key={par.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-[#C1441E]/15 overflow-hidden flex items-center justify-center shrink-0">
-                      {e?.foto_url ? <img src={e.foto_url} alt="" className="w-full h-full object-cover" /> : <Bike size={16} className="text-[#E0632C]" />}
+                    <div className="w-9 h-9 rounded-full bg-acento/15 overflow-hidden flex items-center justify-center shrink-0">
+                      {e?.foto_url ? <img src={e.foto_url} alt="" className="w-full h-full object-cover" /> : <Bike size={16} className="text-acento" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white font-semibold text-sm truncate">{e?.nome || 'Entregador'}</p>

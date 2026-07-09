@@ -18,16 +18,16 @@ export function EntregadorLayout({ entregador, sair, titulo, children }: Props) 
   const { naoLidas, toastNotif, fecharToast } = useNotificacoes()
 
   return (
-    <div data-theme="dark" className="min-h-screen bg-[#0a0f1a]">
+    <div data-theme="dark" className="min-h-screen bg-fundo">
       <NotificacaoToast notif={toastNotif} onFechar={fecharToast} />
-      <header className="sticky top-0 z-20 bg-[#12161B] border-b border-[#232A32] px-4 py-3 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-[#C1441E]/15 flex items-center justify-center shrink-0 overflow-hidden">
+      <header className="sticky top-0 z-20 bg-card border-b border-borda px-4 py-3 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-acento/15 flex items-center justify-center shrink-0 overflow-hidden">
           {entregador.foto_url
             ? <img src={entregador.foto_url} alt="" className="w-full h-full object-cover" />
-            : <Bike size={18} className="text-[#E0632C]" />}
+            : <Bike size={18} className="text-acento" />}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] uppercase tracking-wide text-[#E0632C] font-semibold">Entregador</p>
+          <p className="text-[10px] uppercase tracking-wide text-acento font-semibold">Entregador</p>
           <p className="text-white font-semibold text-sm truncate leading-tight">{titulo}</p>
         </div>
         <button
@@ -37,7 +37,7 @@ export function EntregadorLayout({ entregador, sair, titulo, children }: Props) 
         >
           <Bell size={19} />
           {naoLidas > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 bg-[#C1441E] text-white text-[10px] leading-none rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center font-bold">
+            <span className="absolute -top-0.5 -right-0.5 bg-acento text-white text-[10px] leading-none rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center font-bold">
               {naoLidas > 9 ? '9+' : naoLidas}
             </span>
           )}

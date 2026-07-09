@@ -128,7 +128,7 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
 
   return (
     <main data-theme="dark" className="min-h-screen bg-gray-950 font-body">
-      <header className="bg-[#12161B]/90 backdrop-blur border-b border-[#232A32] px-4 py-3 sticky top-0 z-30">
+      <header className="bg-card/90 backdrop-blur border-b border-borda px-4 py-3 sticky top-0 z-30">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <UtensilsCrossed size={18} style={{ color: acento }} className="shrink-0" />
@@ -144,7 +144,7 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
 
         <div className="relative z-10 -mt-10 space-y-[18px]">
           {/* Cabeçalho da loja */}
-          <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-5">
+          <div className="bg-card border border-borda rounded-2xl p-5">
             <h1 className="font-display text-2xl font-bold text-white truncate">{loja.nome}</h1>
             <span
               className="inline-block text-xs border px-2.5 py-0.5 rounded-full mt-1.5"
@@ -167,68 +167,66 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
 
           {/* Produtos por categoria */}
           {total === 0 ? (
-            <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-8 text-center">
+            <div className="bg-card border border-borda rounded-2xl p-8 text-center">
               <p className="text-4xl mb-2">🍽️</p>
               <p className="text-gray-300 font-medium">Cardápio em preparo</p>
               <p className="text-gray-500 text-sm mt-1">Esta loja ainda não cadastrou produtos.</p>
             </div>
           ) : (
             grupos.map((g) => (
-              <section key={g.categoria} className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+              <section key={g.categoria}>
                 <h2 className="font-display text-white font-semibold text-lg mb-3 flex items-center gap-2">
                   <span>{emojiCategoria(g.categoria, loja.tipo)}</span>
                   {g.categoria}
                   <span className="text-gray-500 font-normal text-sm">({g.itens.length})</span>
                 </h2>
-                <div className="flex flex-col divide-y divide-[#232A32]">
-                  {g.itens.map((p) => (
-                    <div key={p.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                      {/* Foto ou emoji temático */}
-                      {p.imagem_url ? (
-                        <img
-                          src={p.imagem_url}
-                          alt={p.nome}
-                          className="w-16 h-16 rounded-xl object-cover shrink-0 border border-[#232A32]"
-                        />
-                      ) : (
-                        <div
-                          className="w-16 h-16 rounded-xl shrink-0 flex items-center justify-center border border-[#232A32]"
-                          style={{ background: `radial-gradient(circle at center, ${acento}2e 0%, transparent 70%)` }}
-                        >
-                          <span className="text-2xl">{emojiCategoria(p.categoria, loja.tipo)}</span>
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white font-medium truncate">{p.nome}</p>
-                        {p.descricao && <p className="text-gray-400 text-sm line-clamp-2">{p.descricao}</p>}
-                        {!p.descricao && p.categoria && (
-                          <p className="text-gray-500 text-xs truncate">{p.categoria}</p>
-                        )}
-                      </div>
-                      {(() => {
-                        const promo = promocoes.get(p.id)
-                        const cheio = parseFloat(String(p.preco_venda))
-                        if (!promo) {
-                          return (
-                            <p className="font-display font-bold text-[#6FD98F] shrink-0">
-                              R$ {cheio.toFixed(2)}
-                            </p>
-                          )
-                        }
-                        return (
-                          <div className="shrink-0 text-right">
-                            <span className="inline-block text-[10px] font-bold bg-[#C1441E]/20 text-[#E0632C] px-1.5 py-0.5 rounded mb-0.5">
+
+                {/* Grid: foto grande manda no cardápio — é ela que vende. */}
+                <div className="grid grid-cols-2 gap-3">
+                  {g.itens.map((p, i) => {
+                    const promo = promocoes.get(p.id)
+                    const cheio = parseFloat(String(p.preco_venda))
+                    return (
+                      <article
+                        key={p.id}
+                        style={{ '--atraso': `${Math.min(i, 8) * 50}ms` } as React.CSSProperties}
+                        className="anima-subir bg-card border border-borda rounded-2xl overflow-hidden flex flex-col"
+                      >
+                        <div className="relative aspect-square bg-elevado">
+                          {p.imagem_url ? (
+                            <img src={p.imagem_url} alt={p.nome} className="w-full h-full object-cover" />
+                          ) : (
+                            <div
+                              className="w-full h-full flex items-center justify-center"
+                              style={{ background: `radial-gradient(circle at center, ${acento}2e 0%, transparent 70%)` }}
+                            >
+                              <span className="text-5xl">{emojiCategoria(p.categoria, loja.tipo)}</span>
+                            </div>
+                          )}
+                          {promo && (
+                            <span className="absolute top-2 left-2 text-[11px] font-bold bg-acento text-[#04231d] px-2 py-0.5 rounded-full">
                               -{promo.desconto_pct}%
                             </span>
-                            <p className="text-gray-500 text-xs line-through leading-none">R$ {cheio.toFixed(2)}</p>
-                            <p className="font-display font-bold text-[#6FD98F]">
-                              R$ {promo.preco_promocional.toFixed(2)}
+                          )}
+                        </div>
+
+                        <div className="p-3 flex-1 flex flex-col">
+                          <p className="text-white font-medium text-sm leading-snug line-clamp-2">{p.nome}</p>
+                          {p.descricao && (
+                            <p className="text-gray-500 text-xs mt-0.5 line-clamp-2">{p.descricao}</p>
+                          )}
+                          <div className="mt-auto pt-2">
+                            {promo && (
+                              <p className="text-gray-600 text-xs line-through leading-none">R$ {cheio.toFixed(2)}</p>
+                            )}
+                            <p className="font-display text-lg font-bold text-acento leading-tight">
+                              R$ {(promo ? promo.preco_promocional : cheio).toFixed(2)}
                             </p>
                           </div>
-                        )
-                      })()}
-                    </div>
-                  ))}
+                        </div>
+                      </article>
+                    )
+                  })}
                 </div>
               </section>
             ))
@@ -245,7 +243,7 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
         <div className="max-w-2xl mx-auto flex flex-col gap-2">
           <Link
             href={`/cliente/loja/${loja.id}`}
-            className="w-full bg-[#C1441E] hover:bg-[#a83a19] text-white font-semibold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-black/40"
+            className="w-full bg-azul hover:brightness-110 text-white font-semibold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-black/40"
           >
             <ShoppingBag size={19} />
             Fazer pedido

@@ -163,7 +163,7 @@ export default function ClienteFeed() {
 
       <div className="max-w-xl mx-auto">
         <h1 className="font-display text-2xl font-bold text-white mb-4 flex items-center gap-2">
-          <Rss size={20} className="text-[#E0632C]" /> Feed
+          <Rss size={20} className="text-acento" /> Feed
         </h1>
 
         {gruposStories.length > 0 && (
@@ -180,7 +180,7 @@ export default function ClienteFeed() {
         {carregando ? (
           <p className="text-gray-500 text-sm">Carregando o feed...</p>
         ) : feed.length === 0 ? (
-          <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-8 text-center">
+          <div className="bg-card border border-borda rounded-2xl p-8 text-center">
             <p className="text-4xl mb-2">📭</p>
             <p className="text-gray-300 font-medium">Nada por aqui ainda</p>
             <p className="text-gray-500 text-sm mt-1">
@@ -188,7 +188,7 @@ export default function ClienteFeed() {
             </p>
             <button
               onClick={() => router.push('/cliente/buscar')}
-              className="mt-4 bg-[#C1441E] hover:bg-[#a83a19] text-white font-semibold px-4 py-2.5 rounded-xl transition text-sm"
+              className="mt-4 bg-azul hover:brightness-110 text-white font-semibold px-4 py-2.5 rounded-xl transition text-sm"
             >
               Descobrir lojas
             </button>

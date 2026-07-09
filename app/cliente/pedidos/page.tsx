@@ -12,7 +12,7 @@ import { STATUS_META, FLUXO_STATUS, pedidoEmAndamento, type PedidoCliente } from
 import type { LocalizacaoEntrega } from '../../lib/entregadores'
 import { distanciaKm, etaMinutos, formatarEta, formatarDistancia } from '../../lib/geo'
 import { uploadFotoAvaliacao } from '../../lib/avaliacoes'
-import { ShoppingBag, MapPin, ChevronRight, Bike, KeyRound, XCircle, Clock, Camera, Loader2, CalendarClock } from 'lucide-react'
+import { ShoppingBag, MapPin, ChevronRight, Bike, KeyRound, XCircle, Clock, Camera, Loader2, CalendarClock, Check } from 'lucide-react'
 
 type EntregadorPublico = { id: string; nome: string; foto_url: string | null; telefone: string | null }
 
@@ -227,7 +227,7 @@ export default function ClientePedidos() {
         {carregando ? (
           <p className="text-gray-500 text-sm">Carregando...</p>
         ) : pedidos.length === 0 ? (
-          <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-8 text-center">
+          <div className="bg-card border border-borda rounded-2xl p-8 text-center">
             <ShoppingBag size={40} className="text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400 text-sm">Você ainda não fez nenhum pedido.</p>
             <button onClick={() => router.push('/cliente/buscar')} className="mt-4 inline-flex items-center gap-1.5 text-green-400 text-sm font-medium hover:text-green-300">
@@ -261,7 +261,7 @@ export default function ClientePedidos() {
               const jaAvaliouLoja = !!avalLoja[p.loja_id]
               const jaAvaliouEnt = ratedEntregador.has(p.id)
               return (
-                <div key={p.id} className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+                <div key={p.id} className="bg-card border border-borda rounded-2xl p-4">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="min-w-0">
                       <p className="text-white font-semibold truncate">{nomesLoja[p.loja_id] || 'Loja'}</p>
@@ -270,18 +270,44 @@ export default function ClientePedidos() {
                     <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${meta.classes}`}>{meta.emoji} {meta.label}</span>
                   </div>
 
+                  {/* Timeline: um marco por etapa, com a atual pulsando. */}
                   {p.status !== 'cancelado' && (
-                    <div className="flex items-center gap-1 mb-3">
-                      {FLUXO_STATUS.map((s, i) => (
-                        <div key={s} className={`h-1.5 flex-1 rounded-full ${i <= passoAtual ? STATUS_META[s].dot : 'bg-[#232A32]'}`} />
-                      ))}
+                    <div className="flex items-start mb-4 mt-1">
+                      {FLUXO_STATUS.map((s, i) => {
+                        const feito = i < passoAtual
+                        const atual = i === passoAtual
+                        const meta_s = STATUS_META[s]
+                        return (
+                          <div key={s} className="flex-1 flex flex-col items-center relative">
+                            {/* Linha até o próximo marco */}
+                            {i < FLUXO_STATUS.length - 1 && (
+                              <span
+                                className={`absolute top-3 left-1/2 w-full h-0.5 ${feito ? meta_s.dot : 'bg-borda'}`}
+                                aria-hidden
+                              />
+                            )}
+                            <span
+                              className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center text-[10px] transition ${
+                                feito ? `${meta_s.dot} text-white`
+                                  : atual ? `${meta_s.dot} text-white ring-4 ring-white/10`
+                                  : 'bg-borda text-gray-600'
+                              }`}
+                            >
+                              {feito ? <Check size={12} /> : atual ? <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> : ''}
+                            </span>
+                            <span className={`mt-1.5 text-[10px] text-center leading-tight ${atual ? 'text-white font-semibold' : feito ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {meta_s.label}
+                            </span>
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
 
                   {/* Previsão de entrega (preparo + deslocamento) */}
                   {previsao && (
                     <div className="mb-3 flex items-center gap-2 text-sm">
-                      <CalendarClock size={16} className="text-[#E0632C] shrink-0" />
+                      <CalendarClock size={16} className="text-acento shrink-0" />
                       <span className="text-gray-400">Previsão de entrega:</span>
                       <span className="text-white font-semibold">{previsao.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
@@ -313,8 +339,8 @@ export default function ClientePedidos() {
 
                   {/* Código de confirmação (quando saiu para entrega) */}
                   {p.status === 'saiu' && p.codigo_confirmacao && (
-                    <div className="mb-3 bg-[#C1441E]/10 border border-[#C1441E]/40 rounded-xl p-3 flex items-center gap-3">
-                      <KeyRound size={20} className="text-[#E0632C] shrink-0" />
+                    <div className="mb-3 bg-acento/10 border border-acento/40 rounded-xl p-3 flex items-center gap-3">
+                      <KeyRound size={20} className="text-acento shrink-0" />
                       <div className="min-w-0">
                         <p className="text-gray-300 text-xs">Passe este código ao entregador na entrega:</p>
                         <p className="font-display text-white font-bold text-2xl tracking-[0.3em]">{p.codigo_confirmacao}</p>
@@ -326,8 +352,8 @@ export default function ClientePedidos() {
                   {entregador && pedidoEmAndamento(p.status) && (
                     <div className="mb-3">
                       <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-[#C1441E]/15 overflow-hidden flex items-center justify-center shrink-0">
-                          {entregador.foto_url ? <img src={entregador.foto_url} alt="" className="w-full h-full object-cover" /> : <Bike size={15} className="text-[#E0632C]" />}
+                        <div className="w-8 h-8 rounded-full bg-acento/15 overflow-hidden flex items-center justify-center shrink-0">
+                          {entregador.foto_url ? <img src={entregador.foto_url} alt="" className="w-full h-full object-cover" /> : <Bike size={15} className="text-acento" />}
                         </div>
                         <div className="min-w-0">
                           <p className="text-white text-sm font-medium truncate">{entregador.nome}</p>
@@ -341,7 +367,7 @@ export default function ClientePedidos() {
                         loc ? (
                           <MapaAoVivo lat={Number(loc.latitude)} lng={Number(loc.longitude)} altura="h-52" label={entregador.nome} />
                         ) : (
-                          <p className="text-gray-500 text-xs bg-[#171C22] border border-[#232A32] rounded-xl p-3">Aguardando o sinal de GPS do entregador...</p>
+                          <p className="text-gray-500 text-xs bg-superficie border border-borda rounded-xl p-3">Aguardando o sinal de GPS do entregador...</p>
                         )
                       )}
                     </div>
@@ -363,7 +389,7 @@ export default function ClientePedidos() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-[#232A32]">
+                  <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-borda">
                     <p className="text-gray-500 text-xs flex items-center gap-1.5 min-w-0">
                       <MapPin size={13} className="shrink-0" /><span className="truncate">{p.endereco_entrega}</span>
                     </p>
@@ -386,7 +412,7 @@ export default function ClientePedidos() {
                   {p.status === 'recebido' && (
                     <button
                       onClick={() => setCancelarId(p.id)}
-                      className="mt-3 w-full flex items-center justify-center gap-1.5 bg-[#1B2129] border border-[#232A32] hover:bg-red-500/15 hover:border-red-500/40 text-gray-300 hover:text-red-400 text-sm font-medium py-2.5 rounded-xl transition"
+                      className="mt-3 w-full flex items-center justify-center gap-1.5 bg-elevado border border-borda hover:bg-red-500/15 hover:border-red-500/40 text-gray-300 hover:text-red-400 text-sm font-medium py-2.5 rounded-xl transition"
                     >
                       <XCircle size={15} /> Cancelar pedido
                     </button>
@@ -394,33 +420,33 @@ export default function ClientePedidos() {
 
                   {/* Comprovante de entrega (foto do entregador) */}
                   {p.status === 'entregue' && p.comprovante_entrega_url && (
-                    <div className="mt-3 pt-3 border-t border-[#232A32]">
-                      <p className="text-gray-400 text-xs mb-1.5 flex items-center gap-1.5"><Camera size={13} className="text-[#6FD98F]" /> Comprovante de entrega</p>
+                    <div className="mt-3 pt-3 border-t border-borda">
+                      <p className="text-gray-400 text-xs mb-1.5 flex items-center gap-1.5"><Camera size={13} className="text-acento" /> Comprovante de entrega</p>
                       <a href={p.comprovante_entrega_url} target="_blank" rel="noopener noreferrer" className="inline-block">
-                        <img src={p.comprovante_entrega_url} alt="Comprovante de entrega" className="w-28 h-28 rounded-xl object-cover border border-[#232A32]" />
+                        <img src={p.comprovante_entrega_url} alt="Comprovante de entrega" className="w-28 h-28 rounded-xl object-cover border border-borda" />
                       </a>
                     </div>
                   )}
 
                   {/* Avaliação pós-entrega */}
                   {p.status === 'entregue' && (
-                    <div className="mt-3 pt-3 border-t border-[#232A32] flex flex-col gap-4">
+                    <div className="mt-3 pt-3 border-t border-borda flex flex-col gap-4">
                       {/* Entregador */}
                       {p.entregador_id && (
                         jaAvaliouEnt ? (
                           <p className="text-green-400 text-xs">✓ Você avaliou o entregador. Obrigado!</p>
                         ) : (
                           <div className="flex flex-col gap-2">
-                            <p className="text-gray-300 text-sm font-medium flex items-center gap-1.5"><Bike size={14} className="text-[#E0632C]" /> Como foi a entrega?</p>
+                            <p className="text-gray-300 text-sm font-medium flex items-center gap-1.5"><Bike size={14} className="text-acento" /> Como foi a entrega?</p>
                             <Estrelas nota={notaEnt[p.id] || 0} onSelect={n => setNotaEnt(prev => ({ ...prev, [p.id]: n }))} tamanho="text-xl" />
                             <input
                               value={comentEnt[p.id] || ''}
                               onChange={e => setComentEnt(prev => ({ ...prev, [p.id]: e.target.value }))}
                               placeholder="Comentário (opcional)"
-                              className="bg-[#171C22] border border-[#232A32] text-white rounded-xl px-3 py-2 outline-none focus:border-[#C1441E]/60 text-sm"
+                              className="bg-superficie border border-borda text-white rounded-xl px-3 py-2 outline-none focus:border-acento/60 text-sm"
                             />
                             <button onClick={() => avaliarEntregador(p)} disabled={enviando === `ent-${p.id}`}
-                              className="self-start bg-[#C1441E] hover:bg-[#a83a19] disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-xl transition">
+                              className="self-start bg-azul hover:brightness-110 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-xl transition">
                               {enviando === `ent-${p.id}` ? 'Enviando...' : 'Avaliar entregador'}
                             </button>
                           </div>
@@ -428,22 +454,22 @@ export default function ClientePedidos() {
                       )}
                       {/* Produto / loja */}
                       <div className="flex flex-col gap-2">
-                        <p className="text-gray-300 text-sm font-medium flex items-center gap-1.5"><ShoppingBag size={14} className="text-[#6FD98F]" /> Avalie o produto {jaAvaliouLoja && <span className="text-green-400 text-xs">(você já avaliou — pode atualizar)</span>}</p>
+                        <p className="text-gray-300 text-sm font-medium flex items-center gap-1.5"><ShoppingBag size={14} className="text-acento" /> Avalie o produto {jaAvaliouLoja && <span className="text-green-400 text-xs">(você já avaliou — pode atualizar)</span>}</p>
                         <Estrelas nota={notaLoja[p.loja_id] ?? avalLoja[p.loja_id]?.nota ?? 0} onSelect={n => setNotaLoja(prev => ({ ...prev, [p.loja_id]: n }))} tamanho="text-xl" />
                         <input
                           value={comentLoja[p.loja_id] ?? avalLoja[p.loja_id]?.comentario ?? ''}
                           onChange={e => setComentLoja(prev => ({ ...prev, [p.loja_id]: e.target.value }))}
                           placeholder="Comentário (opcional)"
-                          className="bg-[#171C22] border border-[#232A32] text-white rounded-xl px-3 py-2 outline-none focus:border-[#6FD98F]/60 text-sm"
+                          className="bg-superficie border border-borda text-white rounded-xl px-3 py-2 outline-none focus:border-acento/60 text-sm"
                         />
                         {/* Foto opcional (câmera ou galeria) */}
                         <div className="flex items-center gap-3">
                           {(fotoLoja[p.loja_id]?.preview || avalLoja[p.loja_id]?.foto_url) && (
                             <img src={fotoLoja[p.loja_id]?.preview || avalLoja[p.loja_id]?.foto_url || ''} alt="Foto da avaliação"
-                              className="w-14 h-14 rounded-xl object-cover border border-[#232A32]" />
+                              className="w-14 h-14 rounded-xl object-cover border border-borda" />
                           )}
-                          <label className="inline-flex items-center gap-1.5 cursor-pointer bg-[#171C22] border border-[#232A32] hover:border-[#6FD98F]/60 text-gray-300 text-xs font-medium px-3 py-2 rounded-xl transition">
-                            <Camera size={14} className="text-[#6FD98F]" />
+                          <label className="inline-flex items-center gap-1.5 cursor-pointer bg-superficie border border-borda hover:border-acento/60 text-gray-300 text-xs font-medium px-3 py-2 rounded-xl transition">
+                            <Camera size={14} className="text-acento" />
                             {fotoLoja[p.loja_id] || avalLoja[p.loja_id]?.foto_url ? 'Trocar foto' : 'Adicionar foto'}
                             <input type="file" accept="image/*" capture="environment" className="hidden"
                               onChange={e => selecionarFotoLoja(p.loja_id, e.target.files?.[0])} />

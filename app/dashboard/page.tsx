@@ -10,7 +10,10 @@ import { AcademyCard } from '../components/AcademyCard'
 import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos, minutosAteAgendamento, type Agendamento } from '../lib/nicheStore'
 import { calcularCommerlyScore, type CommerlyScore } from '../lib/commerlyScore'
-import { ShoppingBag, ChevronRight, Clock, Gauge, Package, Lightbulb, ArrowRight, Trophy, Moon, Rss } from 'lucide-react'
+import {
+  ShoppingBag, ChevronRight, Clock, Gauge, Package, Lightbulb, ArrowRight, Trophy, Moon, Rss,
+  TrendingUp, TrendingDown, Wallet,
+} from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 type RankProduto = { id: string | null; nome: string; quantidade: number; faturamento: number }
@@ -375,6 +378,59 @@ export default function Dashboard() {
     <AppLayout loja={loja} sair={sair} titulo="Dashboard" maxWidth="max-w-3xl">
       <Toast toast={toast} />
 
+      {/* Header da loja: identidade + plano + Score em destaque */}
+      <header className="anima-subir bg-gradient-to-br from-card to-fundo border border-borda rounded-2xl p-5 mb-6">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-elevado flex items-center justify-center shrink-0 ring-1 ring-borda">
+            {loja.fotos_fachada?.[0]
+              ? <img src={loja.fotos_fachada[0]} alt="" className="w-full h-full object-cover" />
+              : <span className="text-2xl">{nicho.emoji}</span>}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h2 className="font-display text-xl font-bold text-white truncate">{loja.nome}</h2>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <span className="text-gray-400 text-xs">{loja.tipo}</span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                loja.plano === 'ativo'
+                  ? 'bg-acento/15 text-acento border-acento/40'
+                  : loja.plano === 'trial'
+                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/40'
+                  : 'bg-gray-800 text-gray-400 border-gray-700'
+              }`}>
+                {loja.plano === 'ativo' ? 'PLANO ATIVO' : loja.plano === 'trial' ? 'TESTE' : 'INATIVO'}
+              </span>
+              {loja.fundador && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/40">
+                  FUNDADOR
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Score em destaque: anel + nota, clicável para os detalhes abaixo. */}
+          {score && (
+            <a href="#commerly-score" className="shrink-0 text-center group" aria-label="Ver o Commerly Score">
+              <div className="relative w-[68px] h-[68px]">
+                <svg width="68" height="68" viewBox="0 0 68 68" className="-rotate-90">
+                  <circle cx="34" cy="34" r="29" fill="none" stroke="var(--color-borda)" strokeWidth="6" />
+                  <circle
+                    cx="34" cy="34" r="29" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round"
+                    className={`${score.cor} transition-all duration-700`}
+                    strokeDasharray={2 * Math.PI * 29}
+                    strokeDashoffset={2 * Math.PI * 29 * (1 - score.total / 100)}
+                  />
+                </svg>
+                <span className={`absolute inset-0 flex items-center justify-center text-lg font-bold ${score.cor}`}>
+                  {score.total}
+                </span>
+              </div>
+              <span className="text-gray-500 text-[10px] group-hover:text-gray-300 transition">Score</span>
+            </a>
+          )}
+        </div>
+      </header>
+
       {/* Lembretes de agendamento — próximas 2 horas */}
       {agProximos.length > 0 && (
         <button
@@ -403,11 +459,11 @@ export default function Dashboard() {
       {isDelivery(loja.tipo) && (
         <button
           onClick={() => window.location.href = '/pedidos'}
-          className="w-full mb-6 bg-gray-900 border border-gray-800 hover:border-[#C1441E]/60 rounded-2xl p-4 flex items-center gap-3 transition text-left"
+          className="w-full mb-6 bg-gray-900 border border-gray-800 hover:border-acento/60 rounded-2xl p-4 flex items-center gap-3 transition text-left"
         >
           <div className="relative shrink-0">
-            <div className="w-11 h-11 rounded-xl bg-[#C1441E]/15 flex items-center justify-center">
-              <ShoppingBag size={20} className="text-[#E0632C]" />
+            <div className="w-11 h-11 rounded-xl bg-acento/15 flex items-center justify-center">
+              <ShoppingBag size={20} className="text-acento" />
             </div>
             {pedidosAtivos > 0 && (
               <span className="absolute -top-1.5 -right-1.5 bg-green-500 text-white text-xs rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center font-bold">
@@ -456,7 +512,7 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 mb-4">
             {score.pilares.map(p => {
-              const corBar = p.pontos >= 18 ? 'bg-[#6FD98F]' : p.pontos >= 12 ? 'bg-amber-400' : 'bg-red-400'
+              const corBar = p.pontos >= 18 ? 'bg-acento' : p.pontos >= 12 ? 'bg-amber-400' : 'bg-red-400'
               return (
                 <div key={p.chave}>
                   <div className="flex items-center justify-between text-xs mb-1">
@@ -490,8 +546,8 @@ export default function Dashboard() {
 
       {/* Feed social: atalho para publicar */}
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-6 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-[#C1441E]/15 flex items-center justify-center shrink-0">
-          <Rss size={17} className="text-[#E0632C]" />
+        <div className="w-9 h-9 rounded-xl bg-acento/15 flex items-center justify-center shrink-0">
+          <Rss size={17} className="text-acento" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white font-bold text-sm">Feed da loja</p>
@@ -499,7 +555,7 @@ export default function Dashboard() {
         </div>
         <button
           onClick={() => (window.location.href = '/posts')}
-          className="shrink-0 bg-[#C1441E] hover:bg-[#a83a19] text-white text-xs font-semibold px-3 py-2 rounded-lg transition"
+          className="shrink-0 bg-azul hover:brightness-110 text-white text-xs font-semibold px-3 py-2 rounded-lg transition"
         >
           Criar post
         </button>
@@ -587,42 +643,49 @@ export default function Dashboard() {
                   formatter={(value) => [`R$ ${Number(value).toFixed(2)}`, 'Faturamento']}
                   cursor={{ fill: 'var(--color-gray-800)' }}
                 />
-                <Bar dataKey="faturamento" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="faturamento" fill="var(--color-azul)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Cards de resumo */}
+          {/* Cards de resumo: ícone colorido + gradiente vindo do próprio acento */}
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <div className="bg-gray-900 rounded-2xl p-4">
-              <p className="text-gray-400 text-xs mb-1">Faturamento</p>
-              <p className="text-lg font-bold text-white">R$ {faturamento.toFixed(2)}</p>
-            </div>
-            <div className="bg-gray-900 rounded-2xl p-4">
-              <p className="text-gray-400 text-xs mb-1">Lucro bruto</p>
-              <p className="text-lg font-bold text-green-400">R$ {lucro.toFixed(2)}</p>
-            </div>
-            <div className="bg-gray-900 rounded-2xl p-4">
-              <p className="text-gray-400 text-xs mb-1">Gastos</p>
-              <p className="text-lg font-bold text-red-400">R$ {gastos.toFixed(2)}</p>
-            </div>
-            <div className="bg-gray-900 rounded-2xl p-4 cursor-pointer hover:bg-gray-800 transition"
-              onClick={() => window.location.href = '/fiado'}>
-              <p className="text-gray-400 text-xs mb-1">Fiado pendente</p>
-              <p className="text-lg font-bold text-yellow-400">R$ {totalFiado.toFixed(2)}</p>
-            </div>
+            {[
+              { rotulo: 'Faturamento', valor: faturamento, Icone: TrendingUp, cor: 'text-azul', grad: 'from-azul/10', href: null },
+              { rotulo: 'Lucro bruto', valor: lucro, Icone: Wallet, cor: 'text-acento', grad: 'from-acento/10', href: '/financeiro' },
+              { rotulo: 'Gastos', valor: gastos, Icone: TrendingDown, cor: 'text-red-400', grad: 'from-red-500/10', href: '/gastos' },
+              { rotulo: 'Fiado pendente', valor: totalFiado, Icone: Clock, cor: 'text-amber-300', grad: 'from-amber-500/10', href: '/fiado' },
+            ].map(({ rotulo, valor, Icone, cor, grad, href }, i) => {
+              const Tag = href ? 'button' : 'div'
+              return (
+                <Tag
+                  key={rotulo}
+                  {...(href ? { onClick: () => (window.location.href = href) } : {})}
+                  style={{ '--atraso': `${i * 60}ms` } as React.CSSProperties}
+                  className={`anima-subir grupo text-left bg-gradient-to-br ${grad} to-transparent bg-gray-900 border border-borda rounded-2xl p-4`}
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Icone size={15} className={`${cor} grupo-icone`} />
+                    <p className="text-gray-400 text-xs">{rotulo}</p>
+                  </div>
+                  <p className={`font-display text-xl font-bold ${cor}`}>
+                    R$ {valor.toFixed(2)}
+                  </p>
+                </Tag>
+              )
+            })}
           </div>
 
           {/* Pedidos online do mês (delivery) */}
           {isDelivery(loja.tipo) && (
             <div
-              className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-3 cursor-pointer hover:border-[#C1441E]/60 transition"
+              className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-3 cursor-pointer hover:border-acento/60 transition"
               onClick={() => window.location.href = '/pedidos'}
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-[#C1441E]/15 flex items-center justify-center shrink-0">
-                    <ShoppingBag size={18} className="text-[#E0632C]" />
+                  <div className="w-9 h-9 rounded-xl bg-acento/15 flex items-center justify-center shrink-0">
+                    <ShoppingBag size={18} className="text-acento" />
                   </div>
                   <p className="text-white font-semibold">Pedidos online</p>
                 </div>
@@ -635,11 +698,11 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <p className="text-gray-500 text-xs mb-1">Valor total</p>
-                  <p className="text-lg font-bold text-[#6FD98F]">R$ {pedidosMesTotal.toFixed(2)}</p>
+                  <p className="text-lg font-bold text-acento">R$ {pedidosMesTotal.toFixed(2)}</p>
                 </div>
                 <div>
                   <p className="text-gray-500 text-xs mb-1">Em andamento</p>
-                  <p className="text-lg font-bold text-[#E0632C]">{pedidosMesAndamento}</p>
+                  <p className="text-lg font-bold text-acento">{pedidosMesAndamento}</p>
                 </div>
               </div>
             </div>

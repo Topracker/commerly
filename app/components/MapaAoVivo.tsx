@@ -53,7 +53,7 @@ export function MapaAoVivo({ lat, lng, altura = 'h-52', label }: Props) {
     }
   }, [lat, lng])
 
-  return <div ref={divRef} className={`w-full ${altura} rounded-xl overflow-hidden bg-[#171C22] z-0`} />
+  return <div ref={divRef} className={`w-full ${altura} rounded-xl overflow-hidden bg-superficie z-0`} />
 }
 
 export default MapaAoVivo

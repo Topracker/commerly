@@ -48,11 +48,11 @@ export function OfertaCorridaModal({ oferta, pedido, nomeLoja, respondendo, onAc
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-5 z-[60] backdrop-blur-sm">
-      <div className="bg-[#12161B] border border-[#C1441E]/50 rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+      <div className="bg-card border border-acento/50 rounded-3xl p-6 w-full max-w-sm shadow-2xl">
         {/* Cabeçalho pulsante */}
         <div className="flex flex-col items-center text-center mb-4">
-          <div className="w-16 h-16 rounded-2xl bg-[#C1441E]/20 flex items-center justify-center mb-3 animate-pulse">
-            <Bike size={30} className="text-[#E0632C]" />
+          <div className="w-16 h-16 rounded-2xl bg-acento/20 flex items-center justify-center mb-3 animate-pulse">
+            <Bike size={30} className="text-acento" />
           </div>
           <h3 className="text-white font-bold text-xl">Nova corrida!</h3>
           <p className="text-gray-400 text-sm">Uma loja próxima está te chamando</p>
@@ -64,18 +64,18 @@ export function OfertaCorridaModal({ oferta, pedido, nomeLoja, respondendo, onAc
             <span className="text-gray-400 text-xs">Responda em</span>
             <span className={`font-bold text-sm ${segundos <= 10 ? 'text-red-400' : 'text-amber-300'}`}>{segundos}s</span>
           </div>
-          <div className="h-2 w-full rounded-full bg-[#1B2129] overflow-hidden">
+          <div className="h-2 w-full rounded-full bg-elevado overflow-hidden">
             <div
-              className={`h-full rounded-full transition-[width] duration-200 ease-linear ${segundos <= 10 ? 'bg-red-500' : 'bg-[#C1441E]'}`}
+              className={`h-full rounded-full transition-[width] duration-200 ease-linear ${segundos <= 10 ? 'bg-red-500' : 'bg-acento'}`}
               style={{ width: `${pct}%` }}
             />
           </div>
         </div>
 
         {/* Detalhes */}
-        <div className="bg-[#171C22] border border-[#232A32] rounded-2xl p-4 mb-5 flex flex-col gap-2.5">
+        <div className="bg-superficie border border-borda rounded-2xl p-4 mb-5 flex flex-col gap-2.5">
           <div className="flex items-center gap-2 text-sm">
-            <Store size={15} className="text-[#E0632C] shrink-0" />
+            <Store size={15} className="text-acento shrink-0" />
             <span className="text-white font-semibold truncate">{nomeLoja}</span>
             {dist != null && <span className="ml-auto text-gray-400 text-xs shrink-0">{formatarDistancia(dist)} de você</span>}
           </div>
@@ -85,9 +85,9 @@ export function OfertaCorridaModal({ oferta, pedido, nomeLoja, respondendo, onAc
               <span className="line-clamp-2">{pedido.endereco_entrega}</span>
             </div>
           )}
-          <div className="flex items-center justify-between pt-2 border-t border-[#232A32]">
+          <div className="flex items-center justify-between pt-2 border-t border-borda">
             <span className="text-gray-500 text-xs">Você recebe</span>
-            <span className="text-[#6FD98F] font-bold text-lg">{valor > 0 ? reais(valor) : 'A definir'}</span>
+            <span className="text-acento font-bold text-lg">{valor > 0 ? reais(valor) : 'A definir'}</span>
           </div>
         </div>
 
@@ -96,7 +96,7 @@ export function OfertaCorridaModal({ oferta, pedido, nomeLoja, respondendo, onAc
           <button
             onClick={onRecusar}
             disabled={respondendo}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-[#1B2129] border border-[#232A32] hover:bg-red-500/15 hover:border-red-500/40 text-gray-300 hover:text-red-400 font-semibold py-3 rounded-xl transition disabled:opacity-50"
+            className="flex-1 flex items-center justify-center gap-1.5 bg-elevado border border-borda hover:bg-red-500/15 hover:border-red-500/40 text-gray-300 hover:text-red-400 font-semibold py-3 rounded-xl transition disabled:opacity-50"
           >
             <X size={17} /> Recusar
           </button>

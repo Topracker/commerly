@@ -39,7 +39,7 @@ export function FachadaBanner({
   }
 
   return (
-    <div className="relative w-full h-44 sm:h-56 rounded-2xl overflow-hidden bg-[#12161B]">
+    <div className="relative w-full h-44 sm:h-56 rounded-2xl overflow-hidden bg-card">
       {lista.length === 1 ? (
         <img src={lista[0]} alt={`Fachada de ${nome}`} className="w-full h-full object-cover" />
       ) : (

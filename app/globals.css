@@ -15,6 +15,35 @@
   --font-body: var(--font-inter);
 }
 
+/* ===========================================================================
+   DESIGN SYSTEM — tokens semânticos
+   ---------------------------------------------------------------------------
+   `@theme` (sem `inline`) gera utilities que REFERENCIAM `var(--color-*)`, então
+   os blocos [data-theme] mais abaixo conseguem retemá-las. Se isto virasse
+   `@theme inline`, o valor seria colado na utility e o tema claro pararia.
+
+   Substituem os hexes soltos que estavam espalhados por 26 telas:
+     bg-fundo / bg-card / bg-superficie / bg-elevado / border-borda
+     text-acento (verde) / bg-azul
+   =========================================================================== */
+@theme {
+  --color-fundo: #0a0f1a;
+  --color-card: #12161b;
+  --color-superficie: #171c22;
+  --color-elevado: #1b2129;
+  --color-borda: #1e2530;
+  --color-acento: #00c896;
+  --color-acento-forte: #00a97e;
+  --color-azul: #0066ff;
+
+  --radius-card: 16px;
+  --radius-input: 12px;
+
+  /* Sombra suave: um contorno curto + uma queda difusa. */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.24), 0 10px 30px -12px rgb(0 0 0 / 0.5);
+  --shadow-card-hover: 0 1px 2px rgb(0 0 0 / 0.28), 0 18px 40px -14px rgb(0 0 0 / 0.6);
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -45,15 +74,29 @@ body {
    =========================================================================== */
 
 [data-theme='dark'] {
+  /* A escala de cinza aponta para os tokens do design system: qualquer tela que
+     use `bg-gray-950/900/800` (o painel do comerciante) ganha o mesmo fundo,
+     card e borda das telas que usam `bg-fundo/card/borda`. */
+  --color-fundo: #0a0f1a;
+  --color-card: #12161b;
+  --color-superficie: #171c22;
+  --color-elevado: #1b2129;
+  --color-borda: #1e2530;
+  --color-acento: #00c896;
+  --color-acento-forte: #00a97e;
+  --color-azul: #0066ff;
+
   --color-gray-100: #f3f4f6;
   --color-gray-300: #d1d5dc;
   --color-gray-400: #99a1af;
   --color-gray-500: #6a7282;
   --color-gray-600: #4a5565;
-  --color-gray-700: #364153;
-  --color-gray-800: #1e2939;
-  --color-gray-900: #101828;
-  --color-gray-950: #030712;
+  --color-gray-700: #263040;
+  --color-gray-800: #1e2530;
+  --color-gray-900: #12161b;
+  --color-gray-950: #0a0f1a;
+  --color-blue-600: #0066ff;
+  --color-blue-700: #0052cc;
 
   --color-blue-200: #bedbff;
   --color-blue-300: #90c5ff;
@@ -88,11 +131,23 @@ body {
   --color-amber-300: #ffd236;
   --color-amber-950: #461901;
 
-  --tema-fundo: #030712;
+  --tema-fundo: #0a0f1a;
   --tema-tinta: #ffffff;
 }
 
 [data-theme='light'] {
+  --color-fundo: #ffffff;
+  --color-card: #f7f8fa;
+  --color-superficie: #f2f4f7;
+  --color-elevado: #e9edf2;
+  --color-borda: #e4e7ec;
+  /* O verde da marca não tem contraste sobre branco (2.2:1). No claro ele
+     escurece para servir de texto; como FUNDO de botão continua legível com
+     tinta escura por cima (ver a regra de `.bg-acento` abaixo). */
+  --color-acento: #00815f;
+  --color-acento-forte: #00694d;
+  --color-azul: #0066ff;
+
   /* Escala de cinza invertida: 950 = fundo da página, 100 = tinta quase preta. */
   --color-gray-950: #ffffff;
   --color-gray-900: #f7f8fa;
@@ -166,14 +221,16 @@ body {
   .bg-green-500, .bg-green-600, .bg-green-700,
   .bg-red-500, .bg-red-600, .bg-amber-500,
   .bg-purple-600, .bg-purple-700,
-  .bg-\[\#635BFF\], .bg-\[\#5147e6\], .bg-\[\#C1441E\], .bg-\[\#a83a19\]
+  .bg-acento, .bg-acento-forte,
+  .bg-\[\#635BFF\], .bg-\[\#5147e6\]
 ) .text-white,
 [data-theme='light'] :is(
   .bg-blue-400, .bg-blue-500, .bg-blue-600, .bg-blue-700,
   .bg-green-500, .bg-green-600, .bg-green-700,
   .bg-red-500, .bg-red-600, .bg-amber-500,
   .bg-purple-600, .bg-purple-700,
-  .bg-\[\#635BFF\], .bg-\[\#5147e6\], .bg-\[\#C1441E\], .bg-\[\#a83a19\]
+  .bg-acento, .bg-acento-forte,
+  .bg-\[\#635BFF\], .bg-\[\#5147e6\]
 ).text-white {
   color: #ffffff;
 }
@@ -181,6 +238,84 @@ body {
 /* O overlay do menu mobile é preto translúcido nos dois temas. */
 [data-theme='light'] .bg-black {
   background-color: #0f172a;
+}
+
+/* ---------------------------------------------------------------------------
+   Contraste do acento verde.
+   #00C896 é claro demais para carregar texto branco (2.4:1). Sobre ele a tinta
+   é escura. No tema claro o acento escurece (#00815f) e aí o branco é que serve.
+   --------------------------------------------------------------------------- */
+[data-theme='dark'] {
+  --tinta-acento: #04231d;
+}
+[data-theme='light'] {
+  --tinta-acento: #ffffff;
+}
+
+:is(.bg-acento, .bg-acento-forte) .text-white,
+:is(.bg-acento, .bg-acento-forte).text-white {
+  color: var(--tinta-acento);
+}
+
+/* ---------------------------------------------------------------------------
+   Cards: raio generoso + sombra suave. Aplicado por composição de classes, sem
+   precisar tocar em cada tela.
+   --------------------------------------------------------------------------- */
+[class*='rounded-2xl']:is([class*='bg-card'], [class*='bg-gray-900']),
+[class*='rounded-2xl'][class*='border-borda'] {
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 220ms ease, transform 220ms ease, border-color 220ms ease;
+}
+
+/* Só sobe quem é clicável — um card estático que "flutua" no hover confunde. */
+button[class*='rounded-2xl']:hover:is([class*='bg-card'], [class*='bg-gray-900']),
+a[class*='rounded-2xl']:hover:is([class*='bg-card'], [class*='bg-gray-900']) {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+}
+
+/* ---------------------------------------------------------------------------
+   Animações de entrada. `--atraso` escalona os itens de uma lista.
+   --------------------------------------------------------------------------- */
+@keyframes subir {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes surgir {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+.anima-subir {
+  animation: subir 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--atraso, 0ms);
+}
+
+.anima-surgir {
+  animation: surgir 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--atraso, 0ms);
+}
+
+/* Ícone que responde ao hover do card/feature que o contém. */
+.grupo-icone {
+  transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.grupo:hover .grupo-icone {
+  transform: translateY(-3px) scale(1.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anima-subir,
+  .anima-surgir,
+  .grupo-icone {
+    animation: none;
+    transition: none;
+  }
+  button[class*='rounded-2xl']:hover,
+  a[class*='rounded-2xl']:hover {
+    transform: none;
+  }
 }
 
 /* Seções do menu lateral: anima a altura sem medir nada em JS. */
