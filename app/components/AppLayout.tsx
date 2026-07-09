@@ -9,7 +9,8 @@ import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos } from '../lib/nicheStore'
 import {
   TrendingDown, Clock, Users, UserRound, Tag, Layers, Landmark, Megaphone,
-  MessageSquare, MessageCircle, Settings, LogOut, Menu, X, Wallet, Home, Sparkles, Plug, Crown, ShoppingBag, Bell
+  MessageSquare, MessageCircle, Settings, LogOut, Menu, X, Wallet, Home, Sparkles, Plug, Crown, ShoppingBag, Bell,
+  GraduationCap
 } from 'lucide-react'
 
 // Itens sempre visíveis no topo.
@@ -17,6 +18,7 @@ const MENU_TOPO = [
   { label: 'Dashboard', path: '/dashboard', icon: Home },
   { label: 'Notificações', sub: 'Pedidos e avisos', path: '/notificacoes', icon: Bell },
   { label: 'Assistente IA', sub: 'Perguntas sobre a loja', path: '/assistente', icon: Sparkles },
+  { label: 'Academy', sub: 'Mini aulas para vender mais', path: '/academy', icon: GraduationCap },
 ]
 
 // Itens administrativos/financeiros, sempre visíveis abaixo dos módulos do nicho.
