@@ -3,7 +3,7 @@
 // sempre um auth.users.id. Os registros nascem de triggers no banco
 // (sql/2026-07-03-notificacoes.sql); o app só lê, marca como lida e assina.
 
-export type TipoNotificacao = 'pedido_novo' | 'pedido_status' | 'parceria_aceita' | 'corrida_oferta'
+export type TipoNotificacao = 'pedido_novo' | 'pedido_status' | 'parceria_aceita' | 'corrida_oferta' | 'cupom'
 
 export type Notificacao = {
   id: string
@@ -23,6 +23,7 @@ export const EMOJI_NOTIFICACAO: Record<TipoNotificacao, string> = {
   pedido_status: '📦',
   parceria_aceita: '🤝',
   corrida_oferta: '🛵',
+  cupom: '🎁',
 }
 
 /** Busca as notificações mais recentes do usuário logado. */

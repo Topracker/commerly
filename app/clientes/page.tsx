@@ -2,8 +2,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
-import { UserRound, MessageCircle, ShoppingBag, TrendingUp, AlertTriangle, Search } from 'lucide-react'
+import { Toast } from '../components/Toast'
+import { UserRound, MessageCircle, ShoppingBag, TrendingUp, AlertTriangle, Search, Gift } from 'lucide-react'
 
 type PedidoRow = {
   cliente_id: string
@@ -30,11 +32,44 @@ const DIAS_INATIVO = 30
 
 export default function ClientesCRM() {
   const { loja, loading, supabase, sair } = useAuth()
+  const { toast, mostrarToast } = useToast()
   const router = useRouter()
   const [clientes, setClientes] = useState<ClienteCRM[]>([])
   const [carregando, setCarregando] = useState(true)
   const [busca, setBusca] = useState('')
   const [soInativos, setSoInativos] = useState(false)
+  const [enviando, setEnviando] = useState<string | null>(null)
+
+  /**
+   * Campanha de retorno: gera cupom e manda pelo chat + push.
+   * Sem `clienteId`, dispara para todos os sumidos elegíveis (a rota respeita
+   * um cooldown de 30 dias por cliente).
+   */
+  async function enviarCampanha(clienteId?: string) {
+    setEnviando(clienteId ?? 'todos')
+    try {
+      const res = await fetch('/api/campanha-retorno', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clienteId ? { cliente_ids: [clienteId] } : {}),
+      })
+      const data = await res.json()
+      if (!res.ok) mostrarToast(data.erro || 'Falha ao enviar', 'erro')
+      else if (data.enviados === 0) {
+        mostrarToast(
+          data.ignorados > 0
+            ? `Nenhum envio: ${data.ignorados} cliente(s) já receberam cupom nos últimos 30 dias.`
+            : 'Nenhum cliente elegível no momento.',
+          'erro',
+        )
+      } else {
+        mostrarToast(`🎁 Cupom enviado para ${data.enviados} cliente(s)!`, 'sucesso')
+      }
+    } catch {
+      mostrarToast('Falha ao enviar', 'erro')
+    }
+    setEnviando(null)
+  }
 
   useEffect(() => { if (loja) carregar() }, [loja])
 
@@ -104,6 +139,8 @@ export default function ClientesCRM() {
 
   return (
     <AppLayout loja={loja} sair={sair} titulo="Clientes (CRM)" maxWidth="max-w-3xl">
+      <Toast toast={toast} />
+
       {/* Resumo */}
       <div className="grid grid-cols-3 gap-3 mb-5">
         <div className="bg-gray-900 rounded-2xl p-4">
@@ -119,6 +156,28 @@ export default function ClientesCRM() {
           <p className="text-2xl font-bold text-red-400">{totais.inativos}</p>
         </div>
       </div>
+
+      {/* Campanha de retorno */}
+      {totais.inativos > 0 && (
+        <div className="bg-purple-950/40 border border-purple-900/60 rounded-2xl p-4 mb-5 flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center shrink-0">
+            <Gift size={18} className="text-purple-300" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-purple-200 font-semibold text-sm">Campanha de retorno</p>
+            <p className="text-purple-100/60 text-xs mt-0.5">
+              {totais.inativos} cliente(s) sem comprar há {DIAS_INATIVO}+ dias. Mande um cupom de 15% pelo chat.
+            </p>
+          </div>
+          <button
+            onClick={() => enviarCampanha()}
+            disabled={enviando !== null}
+            className="shrink-0 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-semibold px-3 py-2 rounded-lg transition"
+          >
+            {enviando === 'todos' ? 'Enviando...' : 'Enviar pra todos'}
+          </button>
+        </div>
+      )}
 
       {/* Busca + filtro */}
       <div className="flex items-center gap-2 mb-4">
@@ -193,12 +252,23 @@ export default function ClientesCRM() {
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => router.push(`/mensagens/cliente/${c.cliente_id}`)}
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition"
-                >
-                  <MessageCircle size={15} /> Enviar mensagem
-                </button>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => router.push(`/mensagens/cliente/${c.cliente_id}`)}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition"
+                  >
+                    <MessageCircle size={15} /> Mensagem
+                  </button>
+                  {inativo && (
+                    <button
+                      onClick={() => enviarCampanha(c.cliente_id)}
+                      disabled={enviando !== null}
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-xl transition"
+                    >
+                      <Gift size={15} /> {enviando === c.cliente_id ? 'Enviando...' : 'Enviar cupom'}
+                    </button>
+                  )}
+                </div>
               </div>
             )
           })}

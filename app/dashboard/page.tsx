@@ -5,6 +5,7 @@ import { useToast } from '../hooks/useToast'
 import { useNicho } from '../hooks/useNicho'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
+import { CopilotCard } from '../components/CopilotCard'
 import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos, minutosAteAgendamento, type Agendamento } from '../lib/nicheStore'
 import { calcularCommerlyScore, type CommerlyScore } from '../lib/commerlyScore'
@@ -479,6 +480,8 @@ export default function Dashboard() {
           </button>
         </div>
       )}
+
+      <CopilotCard />
 
       <div className="flex gap-2 mb-6">
         {[['hoje', 'Hoje'], ['semana', 'Semana'], ['mes', 'Mês']].map(([val, label]) => (
