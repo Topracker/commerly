@@ -96,6 +96,12 @@ export async function salvarAgendamento(lojaId: string, ag: AgendamentoInput): P
     telefone: ag.telefone ?? null,
     obs: ag.obs ?? null,
     status: ag.status,
+    // Coluna legada `data_hora` (timestamp) segue NOT NULL em produção — a DDL
+    // de schema que a torna nullable ainda não foi aplicada (ver
+    // sql/2026-07-06-fix-agenda-servicos-schema.sql). Sem preenchê-la, todo
+    // insert falha com 23502. Derivamos de data+hora; continua compatível
+    // depois que a migration rodar (a coluna só passa a ser nullable).
+    data_hora: `${ag.data} ${ag.hora}:00`,
   }
   const { error } = ag.id
     ? await supabase.from('agendamentos').update(payload).eq('id', ag.id).eq('loja_id', lojaId)

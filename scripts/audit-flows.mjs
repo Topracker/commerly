@@ -23,11 +23,20 @@ const loja = lojas[0]
 log(`Loja de teste: ${loja.nome} (${loja.id})\n`)
 
 // ── agenda ──────────────────────────────────────────────────────────────────
+// Payload IDENTICO ao de nicheStore.salvarAgendamento (inclui data_hora legado).
 {
-  const payload = { loja_id: loja.id, cliente: '__TESTE__', servico: 'Corte', data: '2099-01-01', hora: '09:00', telefone: '11999999999', obs: 'teste', status: 'agendado' }
+  const d = '2099-01-01', h = '09:00'
+  const payload = { loja_id: loja.id, cliente: '__TESTE__', servico: 'Corte', data: d, hora: h, telefone: '11999999999', obs: 'teste', status: 'agendado', data_hora: `${d} ${h}:00` }
   const { data, error } = await admin.from('agendamentos').insert(payload).select().single()
-  if (error) fail('agenda/insert', `${error.code} ${error.message}`)
-  else { ok('agenda/insert'); await admin.from('agendamentos').delete().eq('id', data.id) }
+  if (error) { fail('agenda/insert', `${error.code} ${error.message}`) }
+  else {
+    // edita (troca status + horario) como a UI faz
+    const { error: e2 } = await admin.from('agendamentos')
+      .update({ status: 'concluido', hora: '10:00', data_hora: `${d} 10:00:00` })
+      .eq('id', data.id)
+    if (e2) fail('agenda/update', `${e2.code} ${e2.message}`); else ok('agenda/insert+update')
+    await admin.from('agendamentos').delete().eq('id', data.id)
+  }
 }
 
 // ── servicos ────────────────────────────────────────────────────────────────
