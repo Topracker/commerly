@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
@@ -15,7 +15,21 @@ const BENEFICIOS = [
   { icon: TrendingUp, titulo: 'Mais pedidos', texto: 'Mais visibilidade significa mais gente entrando na sua loja.' },
 ]
 
+// useSearchParams() obriga um limite de Suspense: sem ele o build falha ao
+// pré-renderizar a página (missing-suspense-with-csr-bailout).
 export default function Ads() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <p className="text-gray-400">Carregando...</p>
+      </main>
+    }>
+      <AdsConteudo />
+    </Suspense>
+  )
+}
+
+function AdsConteudo() {
   const { loja, loading, sair } = useAuth()
   const { toast, mostrarToast } = useToast()
   const params = useSearchParams()

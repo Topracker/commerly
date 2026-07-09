@@ -167,6 +167,7 @@ export default function Integracoes() {
   const [pbConectado, setPbConectado] = useState(false)
   const [pbEmail, setPbEmail] = useState('')
   const [pbAmbiente, setPbAmbiente] = useState<'producao' | 'sandbox'>('producao')
+  const [pbOauthDisponivel, setPbOauthDisponivel] = useState(false)
   const [pbEmailInput, setPbEmailInput] = useState('')
   const [pbTokenInput, setPbTokenInput] = useState('')
   const [pbAmbienteInput, setPbAmbienteInput] = useState<'producao' | 'sandbox'>('producao')
@@ -218,8 +219,17 @@ export default function Integracoes() {
   }
 
   async function carregarStatusPB() {
-    const { data } = await supabase.from('pagbank_conexoes').select('email, ambiente').eq('loja_id', loja.id).maybeSingle()
-    if (data) { setPbConectado(true); setPbEmail(data.email); setPbAmbiente(data.ambiente ?? 'producao') }
+    const { data } = await supabase.from('pagbank_conexoes').select('email, ambiente, access_token').eq('loja_id', loja.id).maybeSingle()
+    if (data) {
+      setPbConectado(true)
+      // Conexão OAuth não tem e-mail; mostramos o tipo no lugar.
+      setPbEmail(data.email || (data.access_token ? 'via Connect' : ''))
+      setPbAmbiente(data.ambiente ?? 'producao')
+    }
+    // Só oferecemos o botão de Connect se a Commerly tiver credenciais de
+    // parceiro configuradas (PAGBANK_CLIENT_ID/SECRET).
+    const status = await fetch('/api/pagbank/status').then(r => r.json()).catch(() => null)
+    if (status) setPbOauthDisponivel(!!status.oauth_disponivel)
   }
 
   async function desconectarMP() {
@@ -376,6 +386,24 @@ export default function Integracoes() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
+            {pbOauthDisponivel && (
+              <>
+                <a
+                  href="/api/pagbank/oauth"
+                  className="block text-center bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-xl transition"
+                >
+                  Conectar com PagBank
+                </a>
+                <p className="text-gray-500 text-xs text-center">
+                  Você autoriza a Commerly na sua conta PagBank — sem colar token.
+                </p>
+                <div className="flex items-center gap-3 my-1">
+                  <span className="h-px bg-gray-800 flex-1" />
+                  <span className="text-gray-600 text-xs">ou use um token manual</span>
+                  <span className="h-px bg-gray-800 flex-1" />
+                </div>
+              </>
+            )}
             <p className="text-gray-400 text-sm">Informe as credenciais da sua conta PagBank para registrar pagamentos automaticamente.</p>
             <input placeholder="E-mail da conta PagBank" type="email" value={pbEmailInput} onChange={e => setPbEmailInput(e.target.value)} className={inputClass} />
             <input placeholder="Token Bearer do PagBank" type="password" value={pbTokenInput} onChange={e => setPbTokenInput(e.target.value)} className={inputClass} />

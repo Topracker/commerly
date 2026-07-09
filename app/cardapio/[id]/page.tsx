@@ -33,7 +33,7 @@ type Produto = {
 
 async function carregar(id: string) {
   const supabase = createAdminClient()
-  const [lojaRes, prodRes] = await Promise.all([
+  const [lojaRes, prodRes, promoRes] = await Promise.all([
     supabase
       .from('lojas_publicas')
       .select('id, nome, tipo, localizacao, telefone, horario, fotos_fachada')
@@ -46,10 +46,22 @@ async function carregar(id: string) {
       .gt('quantidade', 0)
       .order('categoria', { ascending: true })
       .order('nome', { ascending: true }),
+    // Promoções ativas (leitura pública) — o cardápio mostra o preço com desconto.
+    supabase
+      .from('promocoes')
+      .select('produto_id, desconto_pct, preco_promocional')
+      .eq('loja_id', id)
+      .eq('ativa', true),
   ])
 
   const loja = lojaRes.data as Loja | null
   if (!loja) return null
+
+  // produto_id -> promoção ativa (índice único parcial garante no máximo uma).
+  const promocoes = new Map<string, { desconto_pct: number; preco_promocional: number }>(
+    (promoRes.data || []).map((p: { produto_id: string; desconto_pct: number; preco_promocional: number }) =>
+      [p.produto_id, { desconto_pct: p.desconto_pct, preco_promocional: Number(p.preco_promocional) }]),
+  )
 
   // Agrupa por categoria preservando a ordem de chegada (já ordenada no SQL).
   const produtos = (prodRes.data || []) as Produto[]
@@ -61,7 +73,7 @@ async function carregar(id: string) {
     g.itens.push(p)
   }
 
-  return { loja, grupos, total: produtos.length }
+  return { loja, grupos, total: produtos.length, promocoes }
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -101,7 +113,7 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
   const dados = await carregar(id)
   if (!dados) notFound()
 
-  const { loja, grupos, total } = dados
+  const { loja, grupos, total, promocoes } = dados
   const acento = corAcentoNicho(loja.tipo)
 
   return (
@@ -182,9 +194,28 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
                           <p className="text-gray-500 text-xs truncate">{p.categoria}</p>
                         )}
                       </div>
-                      <p className="font-display font-bold text-[#6FD98F] shrink-0">
-                        R$ {parseFloat(String(p.preco_venda)).toFixed(2)}
-                      </p>
+                      {(() => {
+                        const promo = promocoes.get(p.id)
+                        const cheio = parseFloat(String(p.preco_venda))
+                        if (!promo) {
+                          return (
+                            <p className="font-display font-bold text-[#6FD98F] shrink-0">
+                              R$ {cheio.toFixed(2)}
+                            </p>
+                          )
+                        }
+                        return (
+                          <div className="shrink-0 text-right">
+                            <span className="inline-block text-[10px] font-bold bg-[#C1441E]/20 text-[#E0632C] px-1.5 py-0.5 rounded mb-0.5">
+                              -{promo.desconto_pct}%
+                            </span>
+                            <p className="text-gray-500 text-xs line-through leading-none">R$ {cheio.toFixed(2)}</p>
+                            <p className="font-display font-bold text-[#6FD98F]">
+                              R$ {promo.preco_promocional.toFixed(2)}
+                            </p>
+                          </div>
+                        )
+                      })()}
                     </div>
                   ))}
                 </div>

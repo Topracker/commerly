@@ -6,7 +6,16 @@ import { distanciaKm, taxaEntregaPorDistancia, taxaComPico, ehHorarioPico, forma
 import { descontoDePontos, maxPontosResgataveis } from '../lib/fidelidade'
 import { MapaConfirmar } from './MapaConfirmar'
 
-type Produto = { id: string; nome: string; preco_venda: number | string; categoria?: string | null }
+// `preco_venda` já vem com o desconto aplicado quando há promoção ativa;
+// `preco_original`/`desconto_pct` existem só para exibir o "de/por".
+type Produto = {
+  id: string
+  nome: string
+  preco_venda: number | string
+  categoria?: string | null
+  preco_original?: number
+  desconto_pct?: number
+}
 
 type Sugestao = { lat: number; lng: number; display_name: string }
 
@@ -231,8 +240,20 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                 return (
                   <div key={p.id} className={`flex items-center gap-3 rounded-xl border p-2.5 transition ${q > 0 ? 'border-[#C1441E]/60 bg-[#1B2129]' : 'border-[#232A32] bg-[#171C22]'}`}>
                     <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-medium truncate">{p.nome}</p>
-                      <p className="text-[#6FD98F] font-display font-bold text-sm">R$ {preco.toFixed(2)}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-white text-sm font-medium truncate">{p.nome}</p>
+                        {p.desconto_pct != null && (
+                          <span className="shrink-0 text-[10px] font-bold bg-[#C1441E]/20 text-[#E0632C] px-1.5 py-0.5 rounded">
+                            -{p.desconto_pct}%
+                          </span>
+                        )}
+                      </div>
+                      <p className="font-display font-bold text-sm">
+                        {p.preco_original != null && (
+                          <span className="text-gray-500 line-through mr-1.5 font-normal">R$ {p.preco_original.toFixed(2)}</span>
+                        )}
+                        <span className="text-[#6FD98F]">R$ {preco.toFixed(2)}</span>
+                      </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button

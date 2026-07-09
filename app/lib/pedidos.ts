@@ -7,6 +7,8 @@ export type ItemPedido = {
   quantidade: number
 }
 
+export type StatusPagamento = 'pendente' | 'pago' | 'reembolsado' | 'falhou'
+
 export type Pedido = {
   id: string
   loja_id: string
@@ -17,6 +19,9 @@ export type Pedido = {
   status: StatusPedido
   created_at: string
   updated_at: string
+  // Pagamento online do B2B (Stripe Connect, 5% de comissão).
+  pagamento_status: StatusPagamento
+  comissao: number | null
 }
 
 export const STATUS_META: Record<StatusPedido, { label: string; classes: string }> = {

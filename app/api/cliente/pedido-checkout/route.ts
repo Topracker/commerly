@@ -61,9 +61,16 @@ export async function POST(request: NextRequest) {
 
   // Preços AUTORITATIVOS: relê os produtos no banco (ignora o preço do cliente).
   const ids = [...new Set(itens.map((i: any) => i.produto_id).filter(Boolean))]
-  const { data: produtos } = await admin
-    .from('produtos').select('id, nome, preco_venda, quantidade').eq('loja_id', loja.id).in('id', ids)
-  const mapa = new Map((produtos || []).map((p: any) => [p.id, p]))
+  const [produtosRes, promocoesRes] = await Promise.all([
+    admin.from('produtos').select('id, nome, preco_venda, quantidade').eq('loja_id', loja.id).in('id', ids),
+    // Promoção ativa vale para o cliente: cobramos o preço com desconto, não o cheio.
+    admin.from('promocoes').select('produto_id, preco_promocional')
+      .eq('loja_id', loja.id).eq('ativa', true).in('produto_id', ids),
+  ])
+  const mapa = new Map((produtosRes.data || []).map((p: any) => [p.id, p]))
+  const promos = new Map(
+    (promocoesRes.data || []).map((p: any) => [p.produto_id as string, Number(p.preco_promocional) || 0]),
+  )
 
   const itensLimpos: { produto_id: string; nome: string; preco: number; quantidade: number }[] = []
   let subtotal = 0
@@ -74,7 +81,8 @@ export async function POST(request: NextRequest) {
     if (p.quantidade != null && qtd > p.quantidade) {
       return NextResponse.json({ error: `Sem estoque suficiente de ${p.nome}.` }, { status: 409 })
     }
-    const preco = Number(p.preco_venda) || 0
+    const promo = promos.get(p.id)
+    const preco = promo && promo > 0 ? promo : Number(p.preco_venda) || 0
     itensLimpos.push({ produto_id: p.id, nome: p.nome, preco, quantidade: qtd })
     subtotal += preco * qtd
   }

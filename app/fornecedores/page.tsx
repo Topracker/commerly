@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { AppLayout } from '../components/AppLayout'
 import { distanciaKm, formatarDistancia } from '../lib/geo'
-import { Search, MapPin, Star, Navigation } from 'lucide-react'
+import { Search, MapPin, Star, Navigation, Scale } from 'lucide-react'
 
 const CATEGORIAS = ['Todos', 'Alimentos e bebidas', 'Limpeza e higiene', 'Eletrônicos', 'Roupas e acessórios', 'Papelaria', 'Construção', 'Serviços', 'Tecnologia', 'Outro']
 
@@ -48,6 +48,19 @@ export default function BuscarFornecedores() {
 
   return (
     <AppLayout loja={loja} sair={sair} titulo="Buscar Fornecedores">
+      <button
+        onClick={() => router.push('/fornecedores/comparar')}
+        className="w-full mb-4 bg-blue-950/40 border border-blue-900/60 hover:border-blue-700 rounded-2xl p-4 flex items-center gap-3 transition text-left"
+      >
+        <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
+          <Scale size={18} className="text-blue-300" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-blue-200 font-semibold text-sm">Comparar preços</p>
+          <p className="text-blue-100/60 text-xs">Veja o mesmo produto em vários fornecedores</p>
+        </div>
+      </button>
+
       <form onSubmit={handleBusca} className="flex gap-2 mb-4">
         <div className="flex-1 relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />

@@ -47,15 +47,29 @@ export default function ClienteLoja() {
   }
 
   async function carregarLoja() {
-    const [lojaRes, prodRes, avalRes] = await Promise.all([
+    const [lojaRes, prodRes, avalRes, promoRes] = await Promise.all([
       supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, website_url').eq('id', id).single(),
       supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
       supabase.from('avaliacoes_lojas').select('nota, comentario, created_at, cliente_id, foto_url').eq('loja_id', id).order('created_at', { ascending: false }),
+      supabase.from('promocoes').select('produto_id, desconto_pct, preco_promocional').eq('loja_id', id).eq('ativa', true),
     ])
 
     if (lojaRes.error || !lojaRes.data) { router.push('/cliente/buscar'); return }
     setLoja(lojaRes.data)
-    setProdutos(prodRes.data || [])
+
+    // Produto em promoção passa a valer o preço com desconto. Trocamos
+    // `preco_venda` aqui para que o PedidoModal (e o total) já usem o valor
+    // certo; guardamos o preço cheio só para exibir riscado. O servidor
+    // reaplica a promoção no checkout, então os números batem.
+    const promos = new Map<string, { desconto_pct: number; preco_promocional: number }>(
+      (promoRes.data || []).map((p: any) => [p.produto_id, { desconto_pct: p.desconto_pct, preco_promocional: Number(p.preco_promocional) }]),
+    )
+    setProdutos((prodRes.data || []).map((p: any) => {
+      const promo = promos.get(p.id)
+      return promo
+        ? { ...p, preco_venda: promo.preco_promocional, preco_original: Number(p.preco_venda), desconto_pct: promo.desconto_pct }
+        : p
+    }))
 
     // Distância máxima da loja em separado e tolerante: a coluna da view pode
     // não existir (pré-migração) — nesse caso o modal não bloqueia no cliente

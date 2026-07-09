@@ -6,7 +6,7 @@ import { Estrelas } from '../../components/Estrelas'
 import { useToast } from '../../hooks/useToast'
 import { Toast } from '../../components/Toast'
 import { STATUS_META, type Pedido } from '../../lib/pedidos'
-import { Phone, AtSign, MapPin, MessageCircle, ArrowLeft, Package, ShoppingCart, Plus, Minus, X } from 'lucide-react'
+import { Phone, AtSign, MapPin, MessageCircle, ArrowLeft, Package, ShoppingCart, Plus, Minus, X, CreditCard } from 'lucide-react'
 
 export default function FornecedorPerfil() {
   const { id } = useParams<{ id: string }>()
@@ -27,6 +27,7 @@ export default function FornecedorPerfil() {
   const [quantidades, setQuantidades] = useState<Record<string, number>>({})
   const [observacao, setObservacao] = useState('')
   const [enviandoPedido, setEnviandoPedido] = useState(false)
+  const [pagando, setPagando] = useState<string | null>(null)
   const viewRegistered = useRef(false)
   const supabase = createClient()
   const router = useRouter()
@@ -151,6 +152,32 @@ export default function FornecedorPerfil() {
     carregarMeusPedidos(lojaId)
   }
 
+  /**
+   * Pagamento online do pedido B2B: o Stripe manda o valor pra conta Connect do
+   * fornecedor e retém 5% de comissão. Se o fornecedor não ativou o recebimento
+   * online, a rota devolve o erro e o comerciante combina o pagamento direto.
+   */
+  async function pagarPedido(pedidoId: string) {
+    setPagando(pedidoId)
+    try {
+      const res = await fetch('/api/b2b/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pedido_id: pedidoId }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.url) {
+        mostrarToast(data.erro || 'Falha ao iniciar o pagamento', 'erro')
+        setPagando(null)
+        return
+      }
+      window.location.href = data.url
+    } catch {
+      mostrarToast('Falha ao iniciar o pagamento', 'erro')
+      setPagando(null)
+    }
+  }
+
   async function registrarContato() {
     if (!fornecedor?.telefone) return
     if (userId && userId !== fornecedor?.user_id) {
@@ -260,7 +287,20 @@ export default function FornecedorPerfil() {
                   <p className="text-gray-300 text-sm">
                     {p.itens.map(i => `${i.quantidade}x ${i.nome}`).join(', ')}
                   </p>
-                  <p className="text-purple-400 font-bold text-sm mt-1">R$ {p.total.toFixed(2)}</p>
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <p className="text-purple-400 font-bold text-sm">R$ {p.total.toFixed(2)}</p>
+                    {p.pagamento_status === 'pago' ? (
+                      <span className="text-xs text-green-400 font-semibold">✓ Pago</span>
+                    ) : p.status !== 'recusado' && (
+                      <button
+                        onClick={() => pagarPedido(p.id)}
+                        disabled={pagando === p.id}
+                        className="flex items-center gap-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                      >
+                        <CreditCard size={12} /> {pagando === p.id ? 'Abrindo...' : 'Pagar online'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
