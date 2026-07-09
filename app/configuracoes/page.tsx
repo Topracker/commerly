@@ -12,6 +12,7 @@ import { CardapioQR } from '../components/CardapioQR'
 import { uploadFachada, removerFachada } from '../lib/fachada'
 import { isDelivery } from '../lib/pedidosClientes'
 import { normalizarWebsite, erroWebsite } from '../lib/validacoes'
+import { numeroWhatsApp } from '../lib/whatsapp'
 import { Eye, EyeOff, Store, Copy, ExternalLink, FileText, Download } from 'lucide-react'
 
 type Fatura = {
@@ -104,6 +105,13 @@ function erroTelefone(valor: string): string {
   return ''
 }
 
+// Valida pelo mesmo critério que monta o link wa.me: se `numeroWhatsApp` recusa,
+// o botão "Pedir pelo WhatsApp" não apareceria — melhor avisar aqui.
+function erroWhatsapp(valor: string): string {
+  if (!valor.replace(/\D/g, '')) return ''
+  return numeroWhatsApp(valor) ? '' : 'Número de WhatsApp inválido'
+}
+
 function erroInstagram(valor: string): string {
   if (!valor) return ''
   if (!/^@[\w.]{1,30}$/.test(valor)) return 'Use o formato @usuario'
@@ -132,6 +140,7 @@ export default function Configuracoes() {
   const [telefone, setTelefone] = useState('')
   const [instagram, setInstagram] = useState('')
   const [website, setWebsite] = useState('')
+  const [whatsappBiz, setWhatsappBiz] = useState('')
   const [horarioAbertura, setHorarioAbertura] = useState('08:00')
   const [horarioFechamento, setHorarioFechamento] = useState('18:00')
   const [metaMensal, setMetaMensal] = useState(5000)
@@ -145,6 +154,7 @@ export default function Configuracoes() {
   const [erroTel, setErroTel] = useState('')
   const [erroIG, setErroIG] = useState('')
   const [erroSite, setErroSite] = useState('')
+  const [erroWhats, setErroWhats] = useState('')
   const [salvando, setSalvando] = useState(false)
 
   // Blur/reveal
@@ -223,6 +233,7 @@ export default function Configuracoes() {
       setTelefone(formatarTelefone(loja.telefone || ''))
       setInstagram(loja.instagram || '')
       setWebsite(loja.website_url || '')
+      setWhatsappBiz(formatarTelefone(loja.whatsapp_business || ''))
       const [ab, fe] = parseHorario(loja.horario || '')
       setHorarioAbertura(ab)
       setHorarioFechamento(fe)
@@ -290,6 +301,12 @@ export default function Configuracoes() {
     setErroSite(erroWebsite(valor))
   }
 
+  function handleWhatsapp(valor: string) {
+    const formatado = formatarTelefone(valor)
+    setWhatsappBiz(formatado)
+    setErroWhats(erroWhatsapp(formatado))
+  }
+
   async function salvar() {
     if (!nome || !tipo) { mostrarToast('Nome e tipo são obrigatórios!', 'erro'); return }
     const nums = documento.replace(/\D/g, '')
@@ -298,8 +315,11 @@ export default function Configuracoes() {
     if (erroTel) { mostrarToast('Telefone inválido!', 'erro'); return }
     if (erroIG) { mostrarToast('Formato de Instagram inválido!', 'erro'); return }
     if (erroSite) { mostrarToast('Endereço de site inválido!', 'erro'); return }
+    if (erroWhats) { mostrarToast('Número de WhatsApp inválido!', 'erro'); return }
 
     const websiteFinal = normalizarWebsite(website)
+    // Vazio grava null: `whatsappDaLoja` então cai no telefone da loja.
+    const whatsappFinal = whatsappBiz.replace(/\D/g, '') ? whatsappBiz : null
 
     const horario = `${horarioAbertura} - ${horarioFechamento}`
     // Para "Outro", o ramo sugerido pela IA (se houver) vira o tipo da loja.
@@ -326,7 +346,7 @@ export default function Configuracoes() {
     await Promise.all(removidas.map(u => removerFachada(supabase, u)))
 
     const { error } = await supabase.from('lojas').update({
-      nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, website_url: websiteFinal, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais,
+      nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, website_url: websiteFinal, whatsapp_business: whatsappFinal, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais,
     }).eq('id', loja.id)
     if (error) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
 
@@ -364,7 +384,7 @@ export default function Configuracoes() {
     // nicho na hora (useNicho recomputa a partir do tipo atualizado). Reflete
     // também as coordenadas efetivamente gravadas.
     setLatitude(latFinal); setLongitude(lngFinal)
-    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, website_url: websiteFinal, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais })
+    setLoja({ ...loja, nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, website_url: websiteFinal, whatsapp_business: whatsappFinal, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais })
     setWebsite(websiteFinal)
 
     // (o toast de confirmação com as coordenadas já foi mostrado acima)
@@ -551,6 +571,21 @@ export default function Configuracoes() {
             className={`w-full ${inputClass} ${erroIG ? 'ring-2 ring-red-500 focus:ring-red-500' : ''}`}
           />
           {erroIG && <p className="text-red-400 text-sm mt-1">{erroIG}</p>}
+        </div>
+
+        {/* WhatsApp Business (opcional) */}
+        <div>
+          <label className="block text-gray-400 text-xs mb-1.5">💬 WhatsApp Business (opcional)</label>
+          <input
+            placeholder="Ex: (62) 98765-4321"
+            value={whatsappBiz}
+            onChange={e => handleWhatsapp(e.target.value)}
+            inputMode="numeric"
+            className={`w-full ${inputClass} ${erroWhats ? 'ring-2 ring-red-500 focus:ring-red-500' : ''}`}
+          />
+          {erroWhats
+            ? <p className="text-red-400 text-sm mt-1">{erroWhats}</p>
+            : <p className="text-gray-600 text-xs mt-1">Botão &quot;Pedir pelo WhatsApp&quot; na sua página pública e no cardápio. Sem isso, usamos o telefone acima.</p>}
         </div>
 
         {/* Website da loja (opcional) */}

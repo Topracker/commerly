@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation'
 import { createAdminClient } from '../../lib/supabase-admin'
 import { FachadaBanner } from '../../components/FachadaBanner'
 import { emojiCategoria, corAcentoNicho } from '../../lib/temaLoja'
-import { MapPin, Clock, Phone, ShoppingBag, UtensilsCrossed } from 'lucide-react'
+import { linkWhatsApp, textoPedidoCardapio, whatsappDaLoja } from '../../lib/whatsapp'
+import { MapPin, Clock, Phone, ShoppingBag, UtensilsCrossed, MessageCircle } from 'lucide-react'
 
 // Cardápio digital público — acessível sem login (ideal para QR code na mesa/
 // balcão). Mostra a loja e todos os produtos disponíveis agrupados por
@@ -20,6 +21,7 @@ type Loja = {
   telefone: string | null
   horario: string | null
   fotos_fachada: string[] | null
+  whatsapp_business: string | null
 }
 
 type Produto = {
@@ -36,7 +38,7 @@ async function carregar(id: string) {
   const [lojaRes, prodRes, promoRes] = await Promise.all([
     supabase
       .from('lojas_publicas')
-      .select('id, nome, tipo, localizacao, telefone, horario, fotos_fachada')
+      .select('id, nome, tipo, localizacao, telefone, horario, fotos_fachada, whatsapp_business')
       .eq('id', id)
       .maybeSingle(),
     supabase
@@ -116,6 +118,14 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
   const { loja, grupos, total, promocoes } = dados
   const acento = corAcentoNicho(loja.tipo)
 
+  // Texto do WhatsApp: os produtos disponíveis, já com o preço promocional
+  // quando houver — é o preço que o cliente vê na tela.
+  const itensWhatsapp = grupos.flatMap(g => g.itens).map(p => ({
+    nome: p.nome,
+    preco: promocoes.get(p.id)?.preco_promocional ?? parseFloat(String(p.preco_venda)),
+  }))
+  const whatsapp = linkWhatsApp(whatsappDaLoja(loja), textoPedidoCardapio(loja.nome, itensWhatsapp))
+
   return (
     <main className="min-h-screen bg-gray-950 font-body">
       <header className="bg-[#12161B]/90 backdrop-blur border-b border-[#232A32] px-4 py-3 sticky top-0 z-30">
@@ -128,7 +138,8 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 pt-4 pb-28">
+      {/* pb acompanha a altura da barra fixa (1 ou 2 botões) */}
+      <div className={`max-w-2xl mx-auto px-4 pt-4 ${whatsapp ? 'pb-44' : 'pb-28'}`}>
         <FachadaBanner fotos={loja.fotos_fachada} nome={loja.nome} tipo={loja.tipo} />
 
         <div className="relative z-10 -mt-10 space-y-[18px]">
@@ -229,9 +240,9 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      {/* CTA fixo "Fazer pedido" */}
+      {/* CTA fixo: pedido pelo app e, quando a loja tem número, pelo WhatsApp */}
       <div className="fixed bottom-0 inset-x-0 z-40 bg-gradient-to-t from-gray-950 via-gray-950/95 to-transparent px-4 pt-6 pb-4">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto flex flex-col gap-2">
           <Link
             href={`/cliente/loja/${loja.id}`}
             className="w-full bg-[#C1441E] hover:bg-[#a83a19] text-white font-semibold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-black/40"
@@ -239,6 +250,17 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
             <ShoppingBag size={19} />
             Fazer pedido
           </Link>
+          {whatsapp && (
+            <a
+              href={whatsapp}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-black/40"
+            >
+              <MessageCircle size={19} />
+              Pedir pelo WhatsApp
+            </a>
+          )}
         </div>
       </div>
     </main>

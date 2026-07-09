@@ -7,8 +7,9 @@ import { MiniMapa } from '../../components/MiniMapa'
 import { FachadaBanner } from '../../components/FachadaBanner'
 import { RatingBadge } from '../../components/RatingBadge'
 import { ProdutoCard } from '../../components/ProdutoCard'
-import { Phone, AtSign, MapPin, Clock, Globe, UtensilsCrossed } from 'lucide-react'
+import { Phone, AtSign, MapPin, Clock, Globe, UtensilsCrossed, MessageCircle } from 'lucide-react'
 import { isDelivery } from '../../lib/pedidosClientes'
+import { linkWhatsApp, textoPedido, whatsappDaLoja } from '../../lib/whatsapp'
 
 // Página pública da loja — acessível sem login. Lê os dados via service role
 // (a view lojas_publicas é pública, mas produtos/avaliações têm RLS para
@@ -27,12 +28,13 @@ type Loja = {
   longitude: number | null
   fotos_fachada: string[] | null
   website_url: string | null
+  whatsapp_business: string | null
 }
 
 async function carregar(id: string) {
   const supabase = createAdminClient()
   const [lojaRes, prodRes, avalRes] = await Promise.all([
-    supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, website_url').eq('id', id).maybeSingle(),
+    supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, website_url, whatsapp_business').eq('id', id).maybeSingle(),
     supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
     supabase.from('avaliacoes_lojas').select('nota, comentario, created_at, foto_url').eq('loja_id', id).order('created_at', { ascending: false }),
   ])
@@ -87,9 +89,7 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
   if (!dados) notFound()
 
   const { loja, produtos, avaliacoes, media } = dados
-  const whatsapp = loja.telefone
-    ? `https://wa.me/55${loja.telefone.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Vi seu comércio no Commerly.')}`
-    : null
+  const whatsapp = linkWhatsApp(whatsappDaLoja(loja), textoPedido(loja.nome))
 
   return (
     <main className="min-h-screen bg-gray-950 font-body">
@@ -136,8 +136,8 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
                 rel="noopener noreferrer"
                 className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
               >
-                <Phone size={18} />
-                Falar no WhatsApp
+                <MessageCircle size={18} />
+                Pedir pelo WhatsApp
               </a>
             )}
 

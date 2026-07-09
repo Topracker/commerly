@@ -13,7 +13,8 @@ import { RatingBadge } from '../../../components/RatingBadge'
 import { ProdutoCard } from '../../../components/ProdutoCard'
 import { PedidoModal } from '../../../components/PedidoModal'
 import { isDelivery } from '../../../lib/pedidosClientes'
-import { Phone, AtSign, MapPin, Clock, MessageCircle, ArrowLeft, Heart, ShoppingBag, Globe } from 'lucide-react'
+import { linkWhatsApp, textoPedido, whatsappDaLoja } from '../../../lib/whatsapp'
+import { AtSign, MapPin, Clock, MessageCircle, ArrowLeft, Heart, ShoppingBag, Globe } from 'lucide-react'
 
 export default function ClienteLoja() {
   const { id } = useParams<{ id: string }>()
@@ -48,7 +49,7 @@ export default function ClienteLoja() {
 
   async function carregarLoja() {
     const [lojaRes, prodRes, avalRes, promoRes] = await Promise.all([
-      supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, website_url').eq('id', id).single(),
+      supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, website_url, whatsapp_business').eq('id', id).single(),
       supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
       supabase.from('avaliacoes_lojas').select('nota, comentario, created_at, cliente_id, foto_url').eq('loja_id', id).order('created_at', { ascending: false }),
       supabase.from('promocoes').select('produto_id, desconto_pct, preco_promocional').eq('loja_id', id).eq('ativa', true),
@@ -102,11 +103,9 @@ export default function ClienteLoja() {
     carregarLoja()
   }
 
-  function abrirWhatsApp() {
-    if (!loja?.telefone) return
-    const num = loja.telefone.replace(/\D/g, '')
-    window.open(`https://wa.me/55${num}?text=Olá! Vi seu comércio no Commerly.`, '_blank')
-  }
+  // WhatsApp Business da loja (ou o telefone, quando não houver). `null` quando
+  // nenhum dos dois forma um número válido — aí o botão nem aparece.
+  const whatsapp = loja ? linkWhatsApp(whatsappDaLoja(loja), textoPedido(loja.nome)) : null
 
   if (loading) return (
     <main className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -160,14 +159,16 @@ export default function ClienteLoja() {
             </div>
 
             <div className="mt-4 flex items-center gap-2">
-              {loja.telefone && (
-                <button
-                  onClick={abrirWhatsApp}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+              {whatsapp && (
+                <a
+                  href={whatsapp}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2 text-center"
                 >
-                  <Phone size={18} />
-                  WhatsApp
-                </button>
+                  <MessageCircle size={18} className="shrink-0" />
+                  Pedir pelo WhatsApp
+                </a>
               )}
               <button
                 onClick={() => router.push(`/cliente/mensagens/${id}`)}
