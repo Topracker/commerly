@@ -3,6 +3,19 @@ import Stripe from 'stripe'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { dispatchPushPedido } from '../../../lib/pushDispatch'
 
+// Um ciclo de destaque do Commerly Ads. 31 dias (e não 30) dá folga para o
+// webhook de renovação chegar sem que o destaque pisque.
+const DIAS_DESTAQUE = 31
+
+/**
+ * Novo `destaque_ate`: soma um ciclo ao vencimento atual quando ele ainda está
+ * no futuro (renovação), ou a partir de agora quando expirou/é a 1ª assinatura.
+ */
+function proximoDestaque(atual: string | null): string {
+  const base = atual && new Date(atual).getTime() > Date.now() ? new Date(atual) : new Date()
+  return new Date(base.getTime() + DIAS_DESTAQUE * 86_400_000).toISOString()
+}
+
 export async function POST(request: NextRequest) {
   const secret = process.env.STRIPE_SECRET_KEY
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
@@ -87,6 +100,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
+  // --- Commerly Ads: assinatura de destaque na busca. ----------------------
+  // Precisa vir ANTES do handler genérico de `checkout.session.completed`,
+  // senão o destaque seria confundido com a mensalidade e ativaria `plano`.
+  if (event.type === 'checkout.session.completed' && (event.data.object as any).metadata?.tipo === 'ads') {
+    const session = event.data.object as Stripe.Checkout.Session
+    const lojaId = session.metadata?.loja_id
+    const subscriptionId = typeof session.subscription === 'string'
+      ? session.subscription
+      : session.subscription?.id
+
+    if (!lojaId || !subscriptionId) return NextResponse.json({ ok: true })
+    if (session.payment_status !== 'paid') return NextResponse.json({ ok: true })
+
+    await supabase
+      .from('lojas')
+      .update({ destaque_ate: proximoDestaque(null), stripe_ads_subscription_id: subscriptionId })
+      .eq('id', lojaId)
+
+    return NextResponse.json({ ok: true })
+  }
+
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
     const lojaId = session.client_reference_id || session.metadata?.loja_id
@@ -112,6 +146,20 @@ export async function POST(request: NextRequest) {
       : (invoice as any).subscription?.id
     if (!subscriptionId) return NextResponse.json({ ok: true })
 
+    // Renovação do Ads: estende o destaque a partir do fim do período atual
+    // (não de hoje), senão o comerciante perderia os dias que já pagou.
+    const { data: lojaAds } = await supabase
+      .from('lojas').select('id, destaque_ate')
+      .eq('stripe_ads_subscription_id', subscriptionId).maybeSingle()
+
+    if (lojaAds) {
+      await supabase
+        .from('lojas')
+        .update({ destaque_ate: proximoDestaque(lojaAds.destaque_ate) })
+        .eq('id', lojaAds.id)
+      return NextResponse.json({ ok: true })
+    }
+
     await supabase
       .from('lojas')
       .update({ plano: 'ativo' })
@@ -122,6 +170,16 @@ export async function POST(request: NextRequest) {
 
   if (event.type === 'customer.subscription.deleted') {
     const sub = event.data.object as Stripe.Subscription
+
+    // Ads cancelado: só solta a assinatura. `destaque_ate` fica como está —
+    // o período já foi pago e expira sozinho.
+    const { data: lojaAds } = await supabase
+      .from('lojas').select('id').eq('stripe_ads_subscription_id', sub.id).maybeSingle()
+    if (lojaAds) {
+      await supabase.from('lojas').update({ stripe_ads_subscription_id: null }).eq('id', lojaAds.id)
+      return NextResponse.json({ ok: true })
+    }
+
     await supabase
       .from('lojas')
       .update({ plano: 'inativo', stripe_subscription_id: null })

@@ -15,7 +15,7 @@ import { createAdminClient } from '../../../lib/supabase-admin'
 //   GET /api/cliente/lojas            -> lista (com filtros ?tipo= e ?busca=)
 //   GET /api/cliente/lojas?id=<uuid>  -> detalhe de uma loja
 const COLS =
-  'id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, created_at'
+  'id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, created_at, destaque'
 
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies()

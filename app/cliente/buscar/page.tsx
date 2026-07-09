@@ -6,7 +6,7 @@ import { ClienteLayout } from '../../components/ClienteLayout'
 import { getRatingsPorLoja } from '../../lib/avaliacoes'
 import { MapaLojas } from '../../components/MapaLojas'
 import { distanciaKm, formatarDistancia } from '../../lib/geo'
-import { Search, MapPin, Phone, Star, List, Map as MapIcon, Navigation, Store } from 'lucide-react'
+import { Search, MapPin, Phone, Star, List, Map as MapIcon, Navigation, Store, Sparkles } from 'lucide-react'
 
 const TIPOS = ['Todos', 'Barbearia', 'Distribuidora de bebidas', 'Mercado', 'Loja de roupas', 'Lanchonete', 'Salão de beleza', 'Eletrônicos', 'Outro']
 
@@ -41,11 +41,13 @@ export default function ClienteBuscar() {
 
   // Quando há localização, ordena por distância (mais perto primeiro; lojas sem
   // coordenadas vão para o fim). Sem localização, mantém a ordem por nota.
+  // Em ambos os casos, quem assina o Commerly Ads vem antes — é o que a loja paga.
   const lojasExibidas = useMemo(() => {
     if (!userPos) return lojas
     return lojas
       .map((l) => ({ ...l, _dist: distanciaKm(userPos, l) }))
       .sort((a, b) => {
+        if (!!b.destaque !== !!a.destaque) return b.destaque ? 1 : -1
         if (a._dist == null && b._dist == null) return 0
         if (a._dist == null) return 1
         if (b._dist == null) return -1
@@ -70,8 +72,9 @@ export default function ClienteBuscar() {
       media: ratings[l.id]?.media ?? 0,
       totalAval: ratings[l.id]?.total ?? 0,
     }))
-    // Maior nota primeiro; empate vai pra quem tem mais avaliações, depois nome.
+    // Lojas com Commerly Ads primeiro. Depois: maior nota, mais avaliações, nome.
     comNota.sort((a, b) =>
+      (b.destaque ? 1 : 0) - (a.destaque ? 1 : 0) ||
       b.media - a.media || b.totalAval - a.totalAval || a.nome.localeCompare(b.nome),
     )
 
@@ -170,7 +173,11 @@ export default function ClienteBuscar() {
             <button
               key={loja.id}
               onClick={() => router.push(`/cliente/loja/${loja.id}`)}
-              className="bg-gray-900 rounded-2xl p-4 text-left hover:bg-gray-800 transition"
+              className={`rounded-2xl p-4 text-left transition ${
+                loja.destaque
+                  ? 'bg-gray-900 hover:bg-gray-800 border border-yellow-600/40'
+                  : 'bg-gray-900 hover:bg-gray-800'
+              }`}
             >
               <div className="flex items-start gap-3">
                 {loja.fotos_fachada?.[0] ? (
@@ -187,6 +194,11 @@ export default function ClienteBuscar() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-white font-semibold">{loja.nome}</p>
+                    {loja.destaque && (
+                      <span className="inline-flex items-center gap-1 text-xs bg-yellow-500/15 text-yellow-300 border border-yellow-600/40 px-2 py-0.5 rounded-full font-semibold">
+                        <Sparkles size={11} /> Destaque
+                      </span>
+                    )}
                     {loja.totalAval > 0 && (
                       <span className="inline-flex items-center gap-1 text-xs bg-yellow-500/15 text-yellow-400 px-2 py-0.5 rounded-full font-medium">
                         <Star size={11} className="fill-yellow-400" />
