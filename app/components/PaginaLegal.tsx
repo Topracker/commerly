@@ -13,7 +13,7 @@ type Props = {
 /** Casca das páginas institucionais (/termos, /privacidade, /sobre, /suporte). */
 export function PaginaLegal({ titulo, subtitulo, mostrarData = false, children }: Props) {
   return (
-    <main className="min-h-screen bg-gray-950">
+    <main data-theme="dark" className="min-h-screen bg-gray-950">
       <div className="max-w-3xl mx-auto px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-gray-500 hover:text-gray-300 text-sm transition mb-6">
           <ArrowLeft size={15} /> Voltar

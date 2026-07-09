@@ -403,7 +403,7 @@ export default function Dashboard() {
       {isDelivery(loja.tipo) && (
         <button
           onClick={() => window.location.href = '/pedidos'}
-          className="w-full mb-6 bg-[#12161B] border border-[#232A32] hover:border-[#C1441E]/60 rounded-2xl p-4 flex items-center gap-3 transition text-left"
+          className="w-full mb-6 bg-gray-900 border border-gray-800 hover:border-[#C1441E]/60 rounded-2xl p-4 flex items-center gap-3 transition text-left"
         >
           <div className="relative shrink-0">
             <div className="w-11 h-11 rounded-xl bg-[#C1441E]/15 flex items-center justify-center">
@@ -425,13 +425,17 @@ export default function Dashboard() {
         </button>
       )}
 
+      {/* Alvo do item "Commerly Score" no menu. Fica fora do `score &&` para a
+          âncora existir mesmo enquanto o Score ainda está carregando. */}
+      <div id="commerly-score" className="scroll-mt-6" />
+
       {/* Commerly Score — saúde do negócio em 4 pilares */}
       {score && (
         <div className="bg-gradient-to-br from-gray-900 to-gray-900/40 border border-gray-800 rounded-2xl p-5 mb-6">
           <div className="flex items-center gap-4 mb-4">
             <div className="relative shrink-0 w-[72px] h-[72px]">
               <svg width="72" height="72" viewBox="0 0 72 72" className="-rotate-90">
-                <circle cx="36" cy="36" r="30" fill="none" stroke="#1f2937" strokeWidth="8" />
+                <circle cx="36" cy="36" r="30" fill="none" stroke="var(--color-gray-800)" strokeWidth="8" />
                 <circle
                   cx="36" cy="36" r="30" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round"
                   className={`${score.cor} transition-all duration-700`}
@@ -555,15 +559,16 @@ export default function Dashboard() {
             <p className="text-white font-semibold mb-4">Faturamento — últimos 7 dias</p>
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={graficoData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
-                <XAxis dataKey="dia" tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false}
+                {/* Cores do gráfico via var() para acompanharem o tema. */}
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-800)" vertical={false} />
+                <XAxis dataKey="dia" tick={{ fill: 'var(--color-gray-500)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: 'var(--color-gray-500)', fontSize: 11 }} axisLine={false} tickLine={false}
                   tickFormatter={(v) => `R$${v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v}`} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: 8 }}
-                  labelStyle={{ color: '#e5e7eb', fontSize: 12 }}
+                  contentStyle={{ backgroundColor: 'var(--color-gray-900)', border: '1px solid var(--color-gray-700)', borderRadius: 8 }}
+                  labelStyle={{ color: 'var(--tema-tinta)', fontSize: 12 }}
                   formatter={(value) => [`R$ ${Number(value).toFixed(2)}`, 'Faturamento']}
-                  cursor={{ fill: '#1f2937' }}
+                  cursor={{ fill: 'var(--color-gray-800)' }}
                 />
                 <Bar dataKey="faturamento" fill="#3b82f6" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -594,7 +599,7 @@ export default function Dashboard() {
           {/* Pedidos online do mês (delivery) */}
           {isDelivery(loja.tipo) && (
             <div
-              className="bg-[#12161B] border border-[#232A32] rounded-2xl p-5 mb-3 cursor-pointer hover:border-[#C1441E]/60 transition"
+              className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-3 cursor-pointer hover:border-[#C1441E]/60 transition"
               onClick={() => window.location.href = '/pedidos'}
             >
               <div className="flex items-center justify-between mb-4">

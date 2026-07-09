@@ -80,7 +80,7 @@ export function FornecedorLayout({ fornecedor, sair, titulo, children }: Props) 
   )
 
   return (
-    <div className="min-h-screen bg-gray-950 flex">
+    <div data-theme="dark" className="min-h-screen bg-gray-950 flex">
       <aside className="hidden md:flex w-56 bg-gray-900 flex-col fixed h-full">
         <SidebarConteudo />
       </aside>

@@ -8,7 +8,7 @@ const SITE_PARCEIRO = 'https://exemplo-parceiro.com'
 
 export default function Home() {
   return (
-    <main className="relative min-h-screen bg-gray-950 flex flex-col items-center justify-center p-6 overflow-hidden">
+    <main data-theme="dark" className="relative min-h-screen bg-gray-950 flex flex-col items-center justify-center p-6 overflow-hidden">
       <AnimatedBackground />
       <div className="relative z-10 mb-10 text-center">
         <h1 className="text-5xl font-bold text-white mb-2">Commerly</h1>

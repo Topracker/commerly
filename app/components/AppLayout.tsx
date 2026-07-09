@@ -4,40 +4,12 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
 import { useNicho } from '../hooks/useNicho'
 import { useNotificacoes } from '../hooks/useNotificacoes'
+import { useTema } from '../hooks/useTema'
 import { NotificacaoToast } from './NotificacaoToast'
 import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos } from '../lib/nicheStore'
-import {
-  TrendingDown, Clock, Users, UserRound, Tag, Layers, Landmark, Megaphone,
-  MessageSquare, MessageCircle, Settings, LogOut, Menu, X, Wallet, Home, Sparkles, Plug, Crown, ShoppingBag, Bell,
-  GraduationCap
-} from 'lucide-react'
-
-// Itens sempre visíveis no topo.
-const MENU_TOPO = [
-  { label: 'Dashboard', path: '/dashboard', icon: Home },
-  { label: 'Notificações', sub: 'Pedidos e avisos', path: '/notificacoes', icon: Bell },
-  { label: 'Assistente IA', sub: 'Perguntas sobre a loja', path: '/assistente', icon: Sparkles },
-  { label: 'Academy', sub: 'Mini aulas para vender mais', path: '/academy', icon: GraduationCap },
-]
-
-// Itens administrativos/financeiros, sempre visíveis abaixo dos módulos do nicho.
-const MENU_ADMIN = [
-  { label: 'Clientes', sub: 'CRM — quem já comprou', path: '/clientes', icon: UserRound },
-  { label: 'Financeiro', sub: 'Fluxo de caixa, lucro real e DAS', path: '/financeiro', icon: Landmark },
-  { label: 'Promoções', sub: 'Descontos automáticos', path: '/promocoes', icon: Tag },
-  { label: 'Combos', sub: 'Sugestões do que vende junto', path: '/combos', icon: Layers },
-  { label: 'Commerly Ads', sub: 'Destaque sua loja na busca', path: '/ads', icon: Megaphone },
-  { label: 'Fiado', sub: 'Controlar fiados', path: '/fiado', icon: Wallet },
-  { label: 'Gastos', sub: 'Controlar despesas', path: '/gastos', icon: TrendingDown },
-  { label: 'Histórico', sub: 'Ver todas as vendas', path: '/historico', icon: Clock },
-  { label: 'Funcionários', sub: 'Gerenciar equipe', path: '/funcionarios', icon: Users },
-  { label: 'Mensagens', sub: 'Chat com clientes e fornecedores', path: '/mensagens', icon: MessageCircle },
-  { label: 'Feedback', sub: 'Enviar sugestão', path: '/feedback', icon: MessageSquare },
-  { label: 'Integrações', sub: 'MP e PagBank', path: '/integracoes', icon: Plug },
-  { label: 'Configurações', sub: 'Editar dados da loja', path: '/configuracoes', icon: Settings },
-  { label: 'Meu Plano', sub: 'Assinatura', path: '/planos', icon: Crown },
-]
+import { montarMenu, secaoDaRota, type BadgeKey } from '../lib/menu'
+import { LogOut, Menu, X, ChevronDown, Sun, Moon } from 'lucide-react'
 
 type Props = {
   loja: any
@@ -48,12 +20,17 @@ type Props = {
   noPadding?: boolean
 }
 
+/** Chave do localStorage com as seções que o comerciante fechou. */
+const SECOES_KEY = 'commerly:menu:fechadas'
+
 export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl', noPadding = false }: Props) {
   const [menuAberto, setMenuAberto] = useState(false)
   const [naoLidas, setNaoLidas] = useState(0)
   const [pedidosNovos, setPedidosNovos] = useState(0)
   const [agProximos, setAgProximos] = useState(0)
+  const [fechadas, setFechadas] = useState<Set<string>>(new Set())
   const { naoLidas: notifNaoLidas, toastNotif, fecharToast } = useNotificacoes()
+  const { tema, alternar } = useTema()
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
@@ -62,23 +39,46 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
   const delivery = isDelivery(loja?.tipo)
   const temAgenda = modulos.some(m => m.key === 'agenda')
 
-  // Para delivery, o novo "Pedidos online" (/pedidos) substitui o módulo antigo
-  // "Pedidos - Comandas e pedidos" (→ /vendas), que duplicava o conceito. Demais
-  // nichos (ex.: Sorveteria) mantêm o módulo "Pedidos" original.
-  const modulosMenu = delivery ? modulos.filter(m => m.key !== 'pedidos') : modulos
+  const secoes = montarMenu({ delivery, modulos })
+  const secaoAtiva = secaoDaRota(secoes, pathname)
 
-  // Menu = topo fixo + (Pedidos online, se delivery) + módulos + administrativo.
-  const MENU = [
-    ...MENU_TOPO,
-    ...(delivery ? [{ label: 'Pedidos online', sub: 'Entregas dos clientes', path: '/pedidos', icon: ShoppingBag }] : []),
-    ...modulosMenu.map(m => ({ label: m.label, sub: m.sub, path: m.path, icon: m.icon })),
-    ...MENU_ADMIN,
-  ]
+  const contadores: Record<BadgeKey, number> = {
+    notificacoes: notifNaoLidas,
+    mensagens: naoLidas,
+    pedidos: pedidosNovos,
+    agenda: agProximos,
+  }
+  const COR_BADGE: Record<BadgeKey, string> = {
+    notificacoes: 'bg-red-500',
+    mensagens: 'bg-blue-500',
+    pedidos: 'bg-green-500',
+    agenda: 'bg-amber-500',
+  }
+
+  // Quais seções o comerciante fechou. A seção da rota atual sempre abre — se
+  // ele está em /combos, esconder "Produtos e Vendas" só o deixaria perdido.
+  useEffect(() => {
+    try {
+      const salvo = JSON.parse(localStorage.getItem(SECOES_KEY) || '[]')
+      if (Array.isArray(salvo)) setFechadas(new Set(salvo))
+    } catch { /* localStorage indisponível: tudo aberto */ }
+  }, [])
+
+  function alternarSecao(chave: string) {
+    setFechadas(prev => {
+      const proximo = new Set(prev)
+      if (proximo.has(chave)) proximo.delete(chave)
+      else proximo.add(chave)
+      try { localStorage.setItem(SECOES_KEY, JSON.stringify([...proximo])) } catch { /* ignora */ }
+      return proximo
+    })
+  }
+
+  const secaoAberta = (chave: string) => chave === secaoAtiva || !fechadas.has(chave)
 
   useEffect(() => {
     if (!loja?.id) return
     let ativo = true
-    // Não-lidas no menu Mensagens = clientes + fornecedores.
     Promise.all([
       supabase
         .from('mensagens_clientes')
@@ -96,7 +96,6 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
       if (ativo) setNaoLidas((clientes.count || 0) + (fornecedores.count || 0))
     })
 
-    // Badge de pedidos online: pedidos em andamento (não entregues/cancelados).
     if (delivery) {
       supabase
         .from('pedidos_clientes')
@@ -106,7 +105,6 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
         .then(({ count }) => { if (ativo) setPedidosNovos(count || 0) })
     }
 
-    // Badge do menu Agenda: agendamentos nas próximas 2h (só nichos com agenda).
     if (temAgenda) {
       carregarAgendamentosProximos(loja.id)
         .then(l => { if (ativo) setAgProximos(l.length) })
@@ -122,50 +120,84 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
     router.push(path)
   }
 
-  const SidebarConteudo = () => (
+  // Elementos, não componentes: um `const X = () => ...` renderizado como <X />
+  // vira um tipo novo a cada render, o React remonta a subárvore e a animação
+  // das seções nunca chega a rodar.
+  const botaoTema = (
+    <button
+      onClick={alternar}
+      title={tema === 'claro' ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'}
+      aria-label={tema === 'claro' ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'}
+      className="shrink-0 w-9 h-9 rounded-xl border border-gray-800 bg-gray-900 text-gray-400 hover:text-white hover:border-gray-700 transition flex items-center justify-center"
+    >
+      {tema === 'claro' ? <Moon size={16} /> : <Sun size={16} />}
+    </button>
+  )
+
+  const sidebar = (
     <div className="flex flex-col h-full p-4">
       <div className="mb-4 px-2 shrink-0">
         <p className="text-white font-bold text-lg truncate">{loja.nome}</p>
         <p className="text-gray-400 text-xs">{loja.tipo}</p>
       </div>
-      <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-0.5">
-        {MENU.map(item => {
-          const ativo = pathname === item.path || (item.path === '/mensagens' && pathname.startsWith('/mensagens'))
+
+      <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-1">
+        {secoes.map(secao => {
+          const aberta = secaoAberta(secao.chave)
           return (
-            <button
-              key={item.path}
-              onClick={() => navegar(item.path)}
-              className={`text-left px-3 py-2.5 rounded-xl transition flex items-center gap-3 ${ativo ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
-            >
-              <item.icon size={16} className={ativo ? 'text-white shrink-0' : 'text-gray-400 shrink-0'} />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white">{item.label}</p>
-                {'sub' in item && <p className="text-gray-400 text-xs">{(item as any).sub}</p>}
+            <div key={secao.chave}>
+              <button
+                onClick={() => alternarSecao(secao.chave)}
+                aria-expanded={aberta}
+                className="w-full flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-500 hover:text-gray-300 transition group"
+              >
+                <span className="text-[11px] font-semibold uppercase tracking-wide flex-1 text-left">
+                  {secao.titulo}
+                </span>
+                <ChevronDown
+                  size={13}
+                  className={`transition-transform duration-200 ${aberta ? '' : '-rotate-90'}`}
+                />
+              </button>
+
+              <div className="secao-menu" data-aberta={aberta}>
+                <div>
+                  <div className="flex flex-col gap-0.5 pb-1">
+                    {secao.itens.map(item => {
+                      const rota = item.path.split('#')[0]
+                      const ancora = item.path.includes('#')
+                      // Um item com âncora não "acende" pela rota: /clientes e
+                      // /clientes#campanha-retorno acenderiam os dois juntos.
+                      const ativo = !ancora
+                        && (pathname === rota || (rota === '/mensagens' && pathname.startsWith('/mensagens')))
+                      const contador = item.badge ? contadores[item.badge] : 0
+                      return (
+                        <button
+                          key={item.path}
+                          onClick={() => navegar(item.path)}
+                          className={`text-left px-3 py-2.5 rounded-xl transition flex items-center gap-3 ${ativo ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
+                        >
+                          <item.icon size={16} className={ativo ? 'text-white shrink-0' : 'text-gray-400 shrink-0'} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-white">{item.label}</p>
+                            {item.sub && <p className="text-gray-400 text-xs">{item.sub}</p>}
+                          </div>
+                          {item.badge && contador > 0 && (
+                            <span className={`${COR_BADGE[item.badge]} text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0`}>
+                              {contador}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
-              {item.label === 'Mensagens' && naoLidas > 0 && (
-                <span className="bg-blue-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
-                  {naoLidas}
-                </span>
-              )}
-              {item.label === 'Notificações' && notifNaoLidas > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
-                  {notifNaoLidas}
-                </span>
-              )}
-              {item.label === 'Pedidos online' && pedidosNovos > 0 && (
-                <span className="bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
-                  {pedidosNovos}
-                </span>
-              )}
-              {item.label === 'Agenda' && agProximos > 0 && (
-                <span className="bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
-                  {agProximos}
-                </span>
-              )}
-            </button>
+            </div>
           )
         })}
       </div>
+
       <div className="pt-2 shrink-0">
         <button
           onClick={sair}
@@ -182,7 +214,7 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
     <div className="min-h-screen bg-gray-950 flex">
       <NotificacaoToast notif={toastNotif} onFechar={fecharToast} />
       <aside className="hidden md:flex w-56 bg-gray-900 flex-col fixed h-full">
-        <SidebarConteudo />
+        {sidebar}
       </aside>
 
       {menuAberto && (
@@ -193,7 +225,7 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
                 <X size={24} />
               </button>
             </div>
-            <SidebarConteudo />
+            {sidebar}
           </div>
           <div className="flex-1 bg-black bg-opacity-50" onClick={() => setMenuAberto(false)} />
         </div>
@@ -206,10 +238,11 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
               <Menu size={24} />
             </button>
             <h1 className="text-xl font-bold text-white">{titulo}</h1>
-            <div className="w-6" />
+            {botaoTema}
           </div>
-          <div className={`hidden md:block mb-6 ${noPadding ? 'px-6 pt-6' : ''}`}>
+          <div className={`hidden md:flex items-center justify-between gap-4 mb-6 ${noPadding ? 'px-6 pt-6' : ''}`}>
             <h1 className="text-3xl font-bold text-white">{titulo}</h1>
+            {botaoTema}
           </div>
           {children}
         </div>

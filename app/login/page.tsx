@@ -187,7 +187,7 @@ export default function Login() {
   const inp = 'bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500'
 
   return (
-    <main className="min-h-screen bg-gray-950 flex items-center justify-center p-6">
+    <main data-theme="dark" className="min-h-screen bg-gray-950 flex items-center justify-center p-6">
       <div className="bg-gray-900 rounded-3xl p-8 w-full max-w-md">
         <p className="text-blue-400 text-sm font-semibold mb-1">Área do Comerciante</p>
         <h1 className="text-2xl font-bold text-white mb-6">Commerly</h1>

@@ -162,15 +162,15 @@ export default function Financeiro() {
             <p className="text-white font-semibold mb-4">Fluxo de caixa — {MESES_GRAFICO} meses</p>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={meses} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
-                <XAxis dataKey="rotulo" tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false}
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-800)" vertical={false} />
+                <XAxis dataKey="rotulo" tick={{ fill: 'var(--color-gray-500)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: 'var(--color-gray-500)', fontSize: 11 }} axisLine={false} tickLine={false}
                   tickFormatter={(v) => `R$${v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v}`} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: 8 }}
-                  labelStyle={{ color: '#e5e7eb', fontSize: 12 }}
+                  contentStyle={{ backgroundColor: 'var(--color-gray-900)', border: '1px solid var(--color-gray-700)', borderRadius: 8 }}
+                  labelStyle={{ color: 'var(--tema-tinta)', fontSize: 12 }}
                   formatter={(v, n) => [reais(Number(v) || 0), n === 'entradas' ? 'Entradas' : 'Saídas']}
-                  cursor={{ fill: '#1f2937' }}
+                  cursor={{ fill: 'var(--color-gray-800)' }}
                 />
                 <Legend formatter={(v) => <span className="text-xs text-gray-400">{v === 'entradas' ? 'Entradas' : 'Saídas'}</span>} />
                 <Bar dataKey="entradas" fill="#22c55e" radius={[4, 4, 0, 0]} />

@@ -74,7 +74,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} ${sora.variable} ${inter.variable} h-full antialiased`}>
+    <html
+      lang="pt-BR"
+      data-theme="dark"
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable} ${sora.variable} ${inter.variable} h-full antialiased`}
+    >
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#030712" />
@@ -82,6 +87,16 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Commerly" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
+        {/*
+          Aplica o tema salvo ANTES da primeira pintura. Sem isto, quem escolheu
+          o tema claro veria um flash do fundo escuro a cada navegação. O default
+          é escuro, então qualquer falha aqui cai no tema atual do app.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{document.documentElement.dataset.theme=localStorage.getItem('commerly:tema')==='claro'?'light':'dark'}catch(e){}`,
+          }}
+        />
       </head>
       <body className="min-h-full flex flex-col">
         <DevtoolsBlocker />

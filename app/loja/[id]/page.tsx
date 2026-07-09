@@ -92,7 +92,7 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
   const whatsapp = linkWhatsApp(whatsappDaLoja(loja), textoPedido(loja.nome))
 
   return (
-    <main className="min-h-screen bg-gray-950 font-body">
+    <main data-theme="dark" className="min-h-screen bg-gray-950 font-body">
       <header className="bg-[#12161B] border-b border-[#232A32] px-4 py-3 sticky top-0 z-20">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
           <p className="font-display text-white font-bold truncate">{loja.nome}</p>

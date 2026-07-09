@@ -28,6 +28,183 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* ===========================================================================
+   TEMA CLARO / ESCURO
+   ---------------------------------------------------------------------------
+   No Tailwind v4 toda utility de cor compila para `var(--color-*)`
+   (`.bg-gray-950 { background-color: var(--color-gray-950) }`). Então redefinir
+   a paleta num ancestral reveste o app inteiro, sem tocar nas ~26 telas.
+
+   O app é escrito "dark-first": `bg-gray-950` é o fundo da página e `text-white`
+   é o texto principal. No tema claro invertemos a escala de cinza — 950 vira
+   branco, 400 vira um cinza escuro de texto secundário, e assim por diante.
+
+   `[data-theme="dark"]` repete os valores padrão do Tailwind de propósito: é o
+   que permite uma subárvore (ex.: as telas públicas de loja) recusar o tema
+   claro do comerciante, já que as vars cascateiam.
+   =========================================================================== */
+
+[data-theme='dark'] {
+  --color-gray-100: #f3f4f6;
+  --color-gray-300: #d1d5dc;
+  --color-gray-400: #99a1af;
+  --color-gray-500: #6a7282;
+  --color-gray-600: #4a5565;
+  --color-gray-700: #364153;
+  --color-gray-800: #1e2939;
+  --color-gray-900: #101828;
+  --color-gray-950: #030712;
+
+  --color-blue-200: #bedbff;
+  --color-blue-300: #90c5ff;
+  --color-blue-400: #54a2ff;
+  --color-blue-600: #155dfc;
+  --color-blue-700: #1447e6;
+  --color-blue-900: #1c398e;
+  --color-blue-950: #162456;
+
+  --color-purple-200: #e9d5ff;
+  --color-purple-300: #d9b3ff;
+  --color-purple-400: #c07eff;
+  --color-purple-900: #59168b;
+  --color-purple-950: #3c0366;
+
+  --color-green-300: #7bf1a8;
+  --color-green-400: #05df72;
+  --color-green-900: #0d542b;
+  --color-green-950: #032e15;
+
+  --color-red-300: #ffa3a3;
+  --color-red-400: #ff6568;
+  --color-red-900: #82181a;
+  --color-red-950: #460809;
+
+  --color-yellow-300: #ffe02a;
+  --color-yellow-400: #fac800;
+  --color-yellow-900: #733e0a;
+  --color-yellow-950: #432004;
+
+  --color-amber-200: #fee685;
+  --color-amber-300: #ffd236;
+  --color-amber-950: #461901;
+
+  --tema-fundo: #030712;
+  --tema-tinta: #ffffff;
+}
+
+[data-theme='light'] {
+  /* Escala de cinza invertida: 950 = fundo da página, 100 = tinta quase preta. */
+  --color-gray-950: #ffffff;
+  --color-gray-900: #f7f8fa;
+  --color-gray-800: #e4e7ec;
+  --color-gray-700: #d3d7de;
+  --color-gray-600: #98a0ad;
+  --color-gray-500: #6b7280;
+  --color-gray-400: #55606f;
+  --color-gray-300: #374151;
+  --color-gray-100: #111827;
+
+  /* Azul Commerly. blue-500 fica saturado: é fundo de badge com texto branco. */
+  --color-blue-600: #0066ff;
+  --color-blue-700: #0052cc;
+
+  /* Os acentos têm dois papéis no dark:
+     - *-200/300/400 são TEXTO sobre fundo escuro → no claro precisam escurecer,
+       senão viram pastel ilegível sobre branco;
+     - *-900/950 são FUNDO de card tingido → no claro viram tintas suaves.
+     Sem isso o "Resultado líquido" continuaria um bloco verde-escuro no meio de
+     uma página branca. */
+  --color-blue-200: #003d99;
+  --color-blue-300: #0047b3;
+  --color-blue-400: #0052cc;
+  --color-blue-900: #cfe0ff;
+  --color-blue-950: #eef4ff;
+
+  --color-purple-200: #5b21b6;
+  --color-purple-300: #6d28d9;
+  --color-purple-400: #7c3aed;
+  --color-purple-900: #ddd6fe;
+  --color-purple-950: #f5f3ff;
+
+  --color-green-300: #166534;
+  --color-green-400: #15803d;
+  --color-green-900: #c9f2da;
+  --color-green-950: #ecfdf3;
+
+  --color-red-300: #b91c1c;
+  --color-red-400: #dc2626;
+  --color-red-900: #fecaca;
+  --color-red-950: #fef2f2;
+
+  --color-yellow-300: #a16207;
+  --color-yellow-400: #a16207;
+  --color-yellow-900: #fde68a;
+  --color-yellow-950: #fffbeb;
+
+  --color-amber-200: #92400e;
+  --color-amber-300: #b45309;
+  --color-amber-950: #fffbeb;
+
+  --tema-fundo: #ffffff;
+  --tema-tinta: #0f172a;
+}
+
+body {
+  background: var(--tema-fundo, var(--background));
+  color: var(--tema-tinta, var(--foreground));
+}
+
+/* `text-white` é o texto principal do app (títulos, rótulos). No claro ele
+   precisa virar tinta escura — MENOS quando está sobre um fundo colorido, onde
+   continua sendo branco sobre azul/verde/vermelho. */
+[data-theme='light'] .text-white {
+  color: var(--tema-tinta);
+}
+
+[data-theme='light'] :is(
+  .bg-blue-400, .bg-blue-500, .bg-blue-600, .bg-blue-700,
+  .bg-green-500, .bg-green-600, .bg-green-700,
+  .bg-red-500, .bg-red-600, .bg-amber-500,
+  .bg-purple-600, .bg-purple-700,
+  .bg-\[\#635BFF\], .bg-\[\#5147e6\], .bg-\[\#C1441E\], .bg-\[\#a83a19\]
+) .text-white,
+[data-theme='light'] :is(
+  .bg-blue-400, .bg-blue-500, .bg-blue-600, .bg-blue-700,
+  .bg-green-500, .bg-green-600, .bg-green-700,
+  .bg-red-500, .bg-red-600, .bg-amber-500,
+  .bg-purple-600, .bg-purple-700,
+  .bg-\[\#635BFF\], .bg-\[\#5147e6\], .bg-\[\#C1441E\], .bg-\[\#a83a19\]
+).text-white {
+  color: #ffffff;
+}
+
+/* O overlay do menu mobile é preto translúcido nos dois temas. */
+[data-theme='light'] .bg-black {
+  background-color: #0f172a;
+}
+
+/* Seções do menu lateral: anima a altura sem medir nada em JS. */
+.secao-menu {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 260ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.secao-menu[data-aberta='true'] {
+  grid-template-rows: 1fr;
+}
+
+.secao-menu > div {
+  overflow: hidden;
+  min-height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .secao-menu {
+    transition: none;
+  }
+}
+
 @keyframes badge-pop {
   0%   { transform: scale(0.4); opacity: 0; }
   65%  { transform: scale(1.18); }

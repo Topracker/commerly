@@ -92,7 +92,7 @@ export function ClienteLayout({ cliente, sair, children, noPadding = false, full
   )
 
   return (
-    <div className={`${fullHeight ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-gray-950 flex`}>
+    <div data-theme="dark" className={`${fullHeight ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-gray-950 flex`}>
       <NotificacaoToast notif={toastNotif} onFechar={fecharToast} />
       <aside className="hidden md:flex w-56 bg-gray-900 flex-col fixed h-full z-10">
         <SidebarConteudo />

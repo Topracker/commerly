@@ -157,6 +157,10 @@ export default function ClientesCRM() {
         </div>
       </div>
 
+      {/* Alvo do item "Campanha de retorno" no menu — sempre presente, mesmo
+          quando não há clientes inativos e o card abaixo não renderiza. */}
+      <div id="campanha-retorno" className="scroll-mt-6" />
+
       {/* Campanha de retorno */}
       {totais.inativos > 0 && (
         <div className="bg-purple-950/40 border border-purple-900/60 rounded-2xl p-4 mb-5 flex items-start gap-3">

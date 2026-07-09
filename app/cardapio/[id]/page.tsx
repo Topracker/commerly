@@ -127,7 +127,7 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
   const whatsapp = linkWhatsApp(whatsappDaLoja(loja), textoPedidoCardapio(loja.nome, itensWhatsapp))
 
   return (
-    <main className="min-h-screen bg-gray-950 font-body">
+    <main data-theme="dark" className="min-h-screen bg-gray-950 font-body">
       <header className="bg-[#12161B]/90 backdrop-blur border-b border-[#232A32] px-4 py-3 sticky top-0 z-30">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">

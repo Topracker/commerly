@@ -175,7 +175,7 @@ export default function PedidosComerciante() {
   if (!isDelivery(loja.tipo)) {
     return (
       <AppLayout loja={loja} sair={sair} titulo="Pedidos online">
-        <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-8 text-center max-w-lg">
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center max-w-lg">
           <ShoppingBag size={40} className="text-gray-600 mx-auto mb-3" />
           <p className="text-gray-400 text-sm">Os pedidos de delivery estão disponíveis para lojas dos nichos de comida (Pizzaria, Hamburgueria, Lanchonete, Restaurante, Delivery).</p>
         </div>
@@ -196,7 +196,7 @@ export default function PedidosComerciante() {
       ? Math.max(0, Math.ceil((new Date(dsp.expira_em).getTime() - Date.now()) / 1000))
       : 0
     return (
-      <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
         <div className="flex items-start justify-between gap-3 mb-2">
           <div className="min-w-0">
             <p className="text-white font-semibold truncate">{p.cliente_nome || 'Cliente'}</p>
@@ -210,7 +210,7 @@ export default function PedidosComerciante() {
         {p.status !== 'cancelado' && (
           <div className="flex items-center gap-1 mb-3">
             {FLUXO_STATUS.map((s, i) => (
-              <div key={s} className={`h-1.5 flex-1 rounded-full ${i <= passo ? STATUS_META[s].dot : 'bg-[#232A32]'}`} />
+              <div key={s} className={`h-1.5 flex-1 rounded-full ${i <= passo ? STATUS_META[s].dot : 'bg-gray-800'}`} />
             ))}
           </div>
         )}
@@ -224,7 +224,7 @@ export default function PedidosComerciante() {
           ))}
         </div>
 
-        <div className="flex flex-col gap-1.5 text-xs text-gray-400 border-t border-[#232A32] pt-3">
+        <div className="flex flex-col gap-1.5 text-xs text-gray-400 border-t border-gray-800 pt-3">
           <p className="flex items-start gap-1.5"><MapPin size={13} className="shrink-0 mt-0.5" /><span>{p.endereco_entrega}</span></p>
           {p.cliente_telefone && (
             <a href={`https://wa.me/55${p.cliente_telefone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-green-400 hover:text-green-300 w-fit">
@@ -246,7 +246,7 @@ export default function PedidosComerciante() {
         </div>
 
         {/* Entrega por entregador parceiro */}
-        <div className="mt-3 pt-3 border-t border-[#232A32] flex flex-col gap-2">
+        <div className="mt-3 pt-3 border-t border-gray-800 flex flex-col gap-2">
           {p.entregador_id ? (
             <div className="flex items-center gap-2 text-sm">
               <Bike size={15} className="text-[#E0632C] shrink-0" />
@@ -277,13 +277,13 @@ export default function PedidosComerciante() {
               )}
 
               {dsp?.status === 'buscando' && (
-                <div className="flex items-center gap-2 text-gray-300 text-sm bg-[#171C22] border border-[#232A32] rounded-xl px-3 py-2.5">
+                <div className="flex items-center gap-2 text-gray-300 text-sm bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5">
                   <Loader2 size={15} className="animate-spin text-[#E0632C] shrink-0" /> Procurando entregador próximo...
                 </div>
               )}
 
               {dsp?.status === 'ofertado' && (
-                <div className="bg-[#171C22] border border-[#C1441E]/40 rounded-xl px-3 py-2.5">
+                <div className="bg-gray-900 border border-[#C1441E]/40 rounded-xl px-3 py-2.5">
                   <div className="flex items-center gap-2 mb-1.5">
                     <Bike size={15} className="text-[#E0632C] shrink-0" />
                     <span className="text-white text-sm font-medium truncate">
@@ -292,7 +292,7 @@ export default function PedidosComerciante() {
                     </span>
                     <span className={`ml-auto shrink-0 text-xs font-bold ${segRestantes <= 10 ? 'text-red-400' : 'text-amber-300'}`}>{segRestantes}s</span>
                   </div>
-                  <div className="h-1.5 w-full rounded-full bg-[#1B2129] overflow-hidden mb-2">
+                  <div className="h-1.5 w-full rounded-full bg-gray-800 overflow-hidden mb-2">
                     <div className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${segRestantes <= 10 ? 'bg-red-500' : 'bg-[#C1441E]'}`}
                       style={{ width: `${(segRestantes / 30) * 100}%` }} />
                   </div>
@@ -319,7 +319,7 @@ export default function PedidosComerciante() {
               value={p.tempo_preparo_min ?? 30}
               onChange={e => atualizarTempoPreparo(p, Number(e.target.value))}
               disabled={salvando === p.id}
-              className="flex-1 bg-[#171C22] border border-[#232A32] text-white text-sm rounded-lg px-2.5 py-1.5 outline-none focus:border-blue-500/60"
+              className="flex-1 bg-gray-900 border border-gray-800 text-white text-sm rounded-lg px-2.5 py-1.5 outline-none focus:border-blue-500/60"
             >
               {[10, 15, 20, 25, 30, 40, 45, 60, 75, 90].map(m => (
                 <option key={m} value={m}>{m} min</option>
@@ -343,7 +343,7 @@ export default function PedidosComerciante() {
               onClick={() => mudarStatus(p, 'cancelado')}
               disabled={salvando === p.id}
               aria-label="Cancelar pedido"
-              className="shrink-0 w-11 flex items-center justify-center bg-[#1B2129] border border-[#232A32] hover:bg-red-500/15 hover:border-red-500/40 text-gray-400 hover:text-red-400 rounded-xl transition"
+              className="shrink-0 w-11 flex items-center justify-center bg-gray-800 border border-gray-800 hover:bg-red-500/15 hover:border-red-500/40 text-gray-400 hover:text-red-400 rounded-xl transition"
             >
               <Ban size={16} />
             </button>
@@ -368,7 +368,7 @@ export default function PedidosComerciante() {
               {pendentes.map(par => {
                 const e = entregadores[par.entregador_id]
                 return (
-                  <div key={par.id} className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4 flex items-center gap-3">
+                  <div key={par.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-[#C1441E]/15 overflow-hidden flex items-center justify-center shrink-0">
                       {e?.foto_url ? <img src={e.foto_url} alt="" className="w-full h-full object-cover" /> : <Bike size={16} className="text-[#E0632C]" />}
                     </div>
@@ -381,7 +381,7 @@ export default function PedidosComerciante() {
                       <Check size={16} />
                     </button>
                     <button onClick={() => responderParceria(par, 'recusada')} disabled={salvando === par.id}
-                      aria-label="Recusar" className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-[#1B2129] border border-[#232A32] hover:bg-red-500/15 text-gray-400 hover:text-red-400 disabled:opacity-50">
+                      aria-label="Recusar" className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-800 hover:bg-red-500/15 text-gray-400 hover:text-red-400 disabled:opacity-50">
                       <X size={16} />
                     </button>
                   </div>
@@ -394,7 +394,7 @@ export default function PedidosComerciante() {
         {carregando ? (
           <p className="text-gray-500 text-sm">Carregando...</p>
         ) : pedidos.length === 0 ? (
-          <div className="bg-[#12161B] border border-[#232A32] rounded-2xl p-8 text-center">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center">
             <ShoppingBag size={40} className="text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400 text-sm">Nenhum pedido ainda. Os pedidos feitos pelos clientes aparecem aqui.</p>
           </div>
