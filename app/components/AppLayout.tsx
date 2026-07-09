@@ -8,7 +8,7 @@ import { NotificacaoToast } from './NotificacaoToast'
 import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos } from '../lib/nicheStore'
 import {
-  TrendingDown, Clock, Users,
+  TrendingDown, Clock, Users, UserRound,
   MessageSquare, MessageCircle, Settings, LogOut, Menu, X, Wallet, Home, Sparkles, Plug, Crown, ShoppingBag, Bell
 } from 'lucide-react'
 
@@ -21,6 +21,7 @@ const MENU_TOPO = [
 
 // Itens administrativos/financeiros, sempre visíveis abaixo dos módulos do nicho.
 const MENU_ADMIN = [
+  { label: 'Clientes', sub: 'CRM — quem já comprou', path: '/clientes', icon: UserRound },
   { label: 'Fiado', sub: 'Controlar fiados', path: '/fiado', icon: Wallet },
   { label: 'Gastos', sub: 'Controlar despesas', path: '/gastos', icon: TrendingDown },
   { label: 'Histórico', sub: 'Ver todas as vendas', path: '/historico', icon: Clock },

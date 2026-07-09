@@ -7,8 +7,12 @@ import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos, minutosAteAgendamento, type Agendamento } from '../lib/nicheStore'
-import { ShoppingBag, ChevronRight, Clock } from 'lucide-react'
+import { calcularCommerlyScore, type CommerlyScore } from '../lib/commerlyScore'
+import { ShoppingBag, ChevronRight, Clock, Gauge, Package, Lightbulb, ArrowRight, Trophy, Moon } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+
+type RankProduto = { id: string | null; nome: string; quantidade: number; faturamento: number }
+type Ranking = { top: RankProduto[]; parados: { id: string; nome: string }[] }
 
 type GraficoDia = { dia: string; faturamento: number }
 
@@ -52,13 +56,16 @@ export default function Dashboard() {
   const [gastos, setGastos] = useState(0)
   const [estoqueBaixo, setEstoqueBaixo] = useState<any[]>([])
   const [ultimasVendas, setUltimasVendas] = useState<any[]>([])
-  const [topProdutos, setTopProdutos] = useState<any[]>([])
   const [totalFiado, setTotalFiado] = useState(0)
   const [periodo, setPeriodo] = useState('mes')
   const [carregando, setCarregando] = useState(false)
   const [mpConectado, setMpConectado] = useState(false)
   const [graficoData, setGraficoData] = useState<GraficoDia[]>([])
   const [pedidosAtivos, setPedidosAtivos] = useState(0)
+
+  // Commerly Score (saúde do negócio 0-100) + Ranking de produtos
+  const [score, setScore] = useState<CommerlyScore | null>(null)
+  const [ranking, setRanking] = useState<Ranking>({ top: [], parados: [] })
 
   // Lembretes: agendamentos nas próximas 2h (só nichos com módulo de agenda).
   const temAgenda = modulos.some(m => m.key === 'agenda')
@@ -130,14 +137,25 @@ export default function Dashboard() {
     seteAtras.setDate(agora.getDate() - 6)
     seteAtras.setHours(0, 0, 0, 0)
 
+    // Janela de 14 dias — o Score compara os últimos 7 dias com os 7 anteriores
+    // (tendência de crescimento).
+    const quatorzeAtras = new Date()
+    quatorzeAtras.setDate(agora.getDate() - 13)
+    quatorzeAtras.setHours(0, 0, 0, 0)
+
+    // Janela de 30 dias — clientes/recorrência/novos e taxa de entrega do Score.
+    const trintaAtras = new Date()
+    trintaAtras.setDate(agora.getDate() - 30)
+    trintaAtras.setHours(0, 0, 0, 0)
+
     const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1)
 
     // Data mais antiga que precisamos dos pedidos online: cobre o período do
-    // card, o gráfico de 7 dias e o mês (meta) numa única query; filtramos por
-    // range em JS depois.
-    const menorData = new Date(Math.min(desde.getTime(), seteAtras.getTime(), inicioMes.getTime()))
+    // card, a janela de tendência (14d) e o mês (meta) numa única query;
+    // filtramos por range em JS depois.
+    const menorData = new Date(Math.min(desde.getTime(), quatorzeAtras.getTime(), inicioMes.getTime()))
 
-    const [vendasRes, gastosRes, produtosRes, recentesRes, fiadoRes, vendasSemanaRes, vendasMesRes, conquistasRes, pedidosRes] = await Promise.all([
+    const [vendasRes, gastosRes, produtosRes, recentesRes, fiadoRes, vendasSemanaRes, vendasMesRes, gastosMesRes, conquistasRes, pedidosRes, avaliacoesRes, pedidosScoreRes, vendas30Res] = await Promise.all([
       // Faturamento, lucro bruto, top produtos: todas as origens
       supabase.from('vendas').select('*, produtos(nome)').eq('loja_id', loja.id).gte('created_at', desde.toISOString()),
       supabase.from('gastos').select('*').eq('loja_id', loja.id).gte('created_at', desde.toISOString()),
@@ -145,14 +163,24 @@ export default function Dashboard() {
       // Histórico: todas as origens
       supabase.from('vendas').select('*, produtos(nome)').eq('loja_id', loja.id).order('created_at', { ascending: false }).limit(5),
       supabase.from('fiado').select('*').eq('loja_id', loja.id).eq('pago', false),
-      // Gráfico 7 dias: todas as origens
-      supabase.from('vendas').select('valor_total, created_at').eq('loja_id', loja.id).gte('created_at', seteAtras.toISOString()),
-      // Meta mensal e conquistas: todas as origens (manual + integrações)
-      supabase.from('vendas').select('valor_total').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()),
+      // Tendência: 14 dias de vendas (o gráfico usa só os últimos 7).
+      supabase.from('vendas').select('valor_total, created_at').eq('loja_id', loja.id).gte('created_at', quatorzeAtras.toISOString()),
+      // Meta mensal + resultado do mês para o Score (lucro do mês).
+      supabase.from('vendas').select('valor_total, lucro').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()),
+      // Gastos do mês para o resultado líquido do Score.
+      supabase.from('gastos').select('valor').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()),
       supabase.from('conquistas').select('tipo').eq('loja_id', loja.id),
       // Pedidos online (delivery) — faturamento entra no card, gráfico e meta.
       // Cancelados não contam como faturamento.
       supabase.from('pedidos_clientes').select('total, status, created_at').eq('loja_id', loja.id).neq('status', 'cancelado').gte('created_at', menorData.toISOString()),
+      // Avaliações da loja (satisfação, pilar Clientes do Score).
+      supabase.from('avaliacoes_lojas').select('nota').eq('loja_id', loja.id),
+      // Pedidos (todos, com cancelados) — clientes, recorrência e clientes novos
+      // (1ª compra nos últimos 30d) do Score. Histórico completo para saber quem
+      // é realmente novo; a taxa de entrega filtra os últimos 30d em JS.
+      supabase.from('pedidos_clientes').select('cliente_id, status, created_at').eq('loja_id', loja.id),
+      // Produtos vendidos nos últimos 30d — para achar os "parados" (encalhados).
+      supabase.from('vendas').select('produto_id').eq('loja_id', loja.id).gte('created_at', trintaAtras.toISOString()),
     ])
 
     if (vendasRes.error) mostrarToast('Erro ao carregar vendas', 'erro')
@@ -172,17 +200,29 @@ export default function Dashboard() {
     setLucro(vendas.reduce((a: number, v: any) => a + v.lucro, 0))
     setGastos(gastosData.reduce((a: number, g: any) => a + g.valor, 0))
 
-    const topMap: any = {}
+    const produtos = produtosRes.data || []
+
+    // Ranking de produtos do período — mais vendidos por faturamento.
+    const rankMap = new Map<string, RankProduto>()
     vendas.forEach((v: any) => {
       const nome = v.produtos?.nome
-      // Ignora vendas sem produto vinculado (ex: pagamentos via integração) no ranking
-      if (!nome) return
-      if (!topMap[nome]) topMap[nome] = { nome, quantidade: 0, lucro: 0 }
-      topMap[nome].quantidade += v.quantidade
-      topMap[nome].lucro += v.lucro
+      // Ignora vendas sem produto vinculado (ex: pagamentos via integração).
+      if (!v.produto_id || !nome) return
+      const cur = rankMap.get(v.produto_id) ?? { id: v.produto_id, nome, quantidade: 0, faturamento: 0 }
+      cur.quantidade += Number(v.quantidade) || 0
+      cur.faturamento += Number(v.valor_total) || 0
+      rankMap.set(v.produto_id, cur)
     })
-    setTopProdutos(Object.values(topMap).sort((a: any, b: any) => b.quantidade - a.quantidade).slice(0, 3))
-    setEstoqueBaixo((produtosRes.data || []).filter((p: any) => p.quantidade <= p.quantidade_minima))
+    const top = [...rankMap.values()].sort((a, b) => b.faturamento - a.faturamento).slice(0, 5)
+
+    // Produtos parados: têm estoque mas não venderam nos últimos 30 dias.
+    const vendidos30 = new Set((vendas30Res.data || []).map((v: any) => v.produto_id).filter(Boolean))
+    const parados = produtos
+      .filter((p: any) => (p.quantidade ?? 0) > 0 && !vendidos30.has(p.id))
+      .map((p: any) => ({ id: p.id as string, nome: p.nome as string }))
+      .slice(0, 5)
+    setRanking({ top, parados })
+    setEstoqueBaixo(produtos.filter((p: any) => p.quantidade <= p.quantidade_minima))
     setUltimasVendas(recentesRes.data || [])
     setTotalFiado((fiadoRes.data || []).reduce((a: number, f: any) => a + f.valor, 0))
 
@@ -239,6 +279,63 @@ export default function Dashboard() {
     setConquistas(conquistasExistentes)
     setNovosBadges(novos)
     setMetaMensal(meta)
+
+    // ---- Commerly Score ----
+    // Tendência: últimos 7 dias vs. os 7 anteriores (vendas + pedidos online).
+    const vend14 = vendasSemanaRes.data || []
+    const somaVendas = (ini: Date, fim?: Date) => vend14
+      .filter((v: any) => { const t = new Date(v.created_at); return t >= ini && (!fim || t < fim) })
+      .reduce((a: number, v: any) => a + Number(v.valor_total || 0), 0)
+    const somaPedidos = (ini: Date, fim?: Date) => pedidosOnline
+      .filter((p: any) => { const t = new Date(p.created_at); return t >= ini && (!fim || t < fim) })
+      .reduce((a: number, p: any) => a + Number(p.total || 0), 0)
+    const fatUltimos7 = somaVendas(seteAtras) + somaPedidos(seteAtras)
+    const fatAnteriores7 = somaVendas(quatorzeAtras, seteAtras) + somaPedidos(quatorzeAtras, seteAtras)
+
+    // Resultado líquido do mês (lucro das vendas do mês - gastos do mês).
+    const lucroMes = (vendasMesRes.data || []).reduce((a: number, v: any) => a + Number(v.lucro || 0), 0)
+    const gastosMes = (gastosMesRes.data || []).reduce((a: number, g: any) => a + Number(g.valor || 0), 0)
+
+    // Clientes (histórico completo) — agrupa por cliente para volume, recorrência
+    // e quem é novo (1ª compra nos últimos 30d). Cancelados não contam.
+    const pedScore = (pedidosScoreRes.data || []).filter((p: any) => p.cliente_id && p.status !== 'cancelado')
+    const porCliente = new Map<string, { qtd: number; primeira: number }>()
+    for (const p of pedScore) {
+      const t = new Date(p.created_at).getTime()
+      const cur = porCliente.get(p.cliente_id) ?? { qtd: 0, primeira: t }
+      cur.qtd += 1
+      cur.primeira = Math.min(cur.primeira, t)
+      porCliente.set(p.cliente_id, cur)
+    }
+    const trintaMs = trintaAtras.getTime()
+    const clientesNovos30 = [...porCliente.values()].filter(c => c.primeira >= trintaMs).length
+
+    // Taxa de entrega (últimos 30d) — entregues vs. cancelados.
+    const ped30 = (pedidosScoreRes.data || []).filter((p: any) => new Date(p.created_at).getTime() >= trintaMs)
+    const pedidosEntregues = ped30.filter((p: any) => p.status === 'entregue').length
+    const pedidosCancelados = ped30.filter((p: any) => p.status === 'cancelado').length
+
+    // Satisfação — avaliações da loja.
+    const notas = (avaliacoesRes.data || []).map((a: any) => Number(a.nota)).filter((n: number) => !isNaN(n))
+    const notaMedia = notas.length ? notas.reduce((a: number, b: number) => a + b, 0) / notas.length : null
+
+    setScore(calcularCommerlyScore({
+      faturamentoMes: fatMes,
+      metaMensal: meta,
+      resultadoLiquido: lucroMes - gastosMes,
+      totalClientes: porCliente.size,
+      clientesRecorrentes: [...porCliente.values()].filter(c => c.qtd >= 2).length,
+      notaMedia,
+      totalAvaliacoes: notas.length,
+      produtosBaixo: produtos.filter((p: any) => p.quantidade <= p.quantidade_minima).length,
+      produtosTotal: produtos.length,
+      pedidosEntregues,
+      pedidosCancelados,
+      fatUltimos7,
+      fatAnteriores7,
+      clientesNovos30,
+    }))
+
     setCarregando(false)
   }
 
@@ -262,6 +359,15 @@ export default function Dashboard() {
       : faturamentoMes >= 5000
         ? { texto: `🎉 10% de desconto garantido! Faltam ${reais(10000 - faturamentoMes)} para 15% off`, cor: 'text-green-400' }
         : { texto: `Faltam ${reais(5000 - faturamentoMes)} para 10% de desconto na mensalidade`, cor: 'text-gray-400' }
+
+  // Ação recomendada do Score leva à tela do pilar mais fraco.
+  const ROTA_PILAR: Record<string, string> = {
+    financeiro: '/gastos',
+    clientes: '/clientes',
+    operacao: '/produtos',
+    crescimento: '/produtos',
+  }
+  const rotuloPeriodo = periodo === 'hoje' ? 'hoje' : periodo === 'semana' ? 'na semana' : 'no mês'
 
   return (
     <AppLayout loja={loja} sair={sair} titulo="Dashboard" maxWidth="max-w-3xl">
@@ -315,6 +421,63 @@ export default function Dashboard() {
           </div>
           <ChevronRight size={20} className="text-gray-500 shrink-0" />
         </button>
+      )}
+
+      {/* Commerly Score — saúde do negócio em 4 pilares */}
+      {score && (
+        <div className="bg-gradient-to-br from-gray-900 to-gray-900/40 border border-gray-800 rounded-2xl p-5 mb-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="relative shrink-0 w-[72px] h-[72px]">
+              <svg width="72" height="72" viewBox="0 0 72 72" className="-rotate-90">
+                <circle cx="36" cy="36" r="30" fill="none" stroke="#1f2937" strokeWidth="8" />
+                <circle
+                  cx="36" cy="36" r="30" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round"
+                  className={`${score.cor} transition-all duration-700`}
+                  strokeDasharray={2 * Math.PI * 30}
+                  strokeDashoffset={2 * Math.PI * 30 * (1 - score.total / 100)}
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className={`text-xl font-bold ${score.cor}`}>{score.total}</span>
+              </div>
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-0.5"><Gauge size={13} /> Commerly Score</div>
+              <p className={`text-lg font-bold ${score.cor}`}>{score.nivel}</p>
+              <p className="text-gray-500 text-xs">Saúde do seu negócio em 4 pilares</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 mb-4">
+            {score.pilares.map(p => {
+              const corBar = p.pontos >= 18 ? 'bg-[#6FD98F]' : p.pontos >= 12 ? 'bg-amber-400' : 'bg-red-400'
+              return (
+                <div key={p.chave}>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="text-gray-300">{p.emoji} {p.nome}</span>
+                    <span className="text-gray-400 font-semibold">{p.pontos}<span className="text-gray-600">/25</span></span>
+                  </div>
+                  <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                    <div className={`h-1.5 rounded-full transition-all duration-700 ${corBar}`} style={{ width: `${(p.pontos / 25) * 100}%` }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="flex items-start gap-2 bg-gray-950/60 rounded-xl p-3 mb-3">
+            <Lightbulb size={15} className="text-amber-300 shrink-0 mt-0.5" />
+            <p className="text-gray-300 text-xs leading-relaxed">{score.insight}</p>
+          </div>
+
+          <button
+            onClick={() => { const r = ROTA_PILAR[score.pilarMaisFraco]; if (r) window.location.href = r }}
+            className="w-full flex items-center gap-2 text-left group"
+          >
+            <ArrowRight size={14} className="text-blue-400 shrink-0" />
+            <p className="text-blue-300 text-xs group-hover:text-blue-200 flex-1">{score.acao}</p>
+          </button>
+        </div>
       )}
 
       <div className="flex gap-2 mb-6">
@@ -514,23 +677,54 @@ export default function Dashboard() {
             </div>
           )}
 
-          {topProdutos.length > 0 && (
+          {(ranking.top.length > 0 || ranking.parados.length > 0) && (
             <div className="bg-gray-900 rounded-2xl p-5 mb-6">
-              <h2 className="text-white font-semibold mb-4">Top produtos</h2>
-              <div className="flex flex-col gap-3">
-                {topProdutos.map((p, i) => (
-                  <div key={p.nome} className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-500 text-sm">#{i + 1}</span>
-                      <p className="text-white text-sm">{p.nome}</p>
-                    </div>
-                    <div className="flex gap-3">
-                      <p className="text-blue-400 text-sm">{p.quantidade}x</p>
-                      <p className="text-green-400 text-sm">R$ {p.lucro.toFixed(2)}</p>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex items-center gap-2 mb-4">
+                <Package size={16} className="text-blue-400" />
+                <h2 className="text-white font-semibold">Ranking de produtos</h2>
               </div>
+
+              {ranking.top.length > 0 && (
+                <div className="mb-1">
+                  <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-3">
+                    <Trophy size={13} className="text-yellow-400" /> Mais vendidos {rotuloPeriodo}
+                  </div>
+                  <div className="flex flex-col gap-2.5">
+                    {ranking.top.map((p, i) => {
+                      const max = ranking.top[0].faturamento || 1
+                      return (
+                        <div key={p.id ?? p.nome}>
+                          <div className="flex justify-between items-center text-sm mb-1 gap-2">
+                            <span className="text-gray-300 truncate min-w-0">
+                              <span className="text-gray-600 mr-1.5">#{i + 1}</span>{p.nome}
+                            </span>
+                            <span className="text-gray-400 shrink-0 text-xs">
+                              {p.quantidade}x · <span className="text-green-400">{reais(p.faturamento)}</span>
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                            <div className="h-1.5 rounded-full bg-blue-500 transition-all duration-700" style={{ width: `${(p.faturamento / max) * 100}%` }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {ranking.parados.length > 0 && (
+                <div className={`border-gray-800 ${ranking.top.length > 0 ? 'border-t mt-4 pt-4' : ''}`}>
+                  <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-2.5">
+                    <Moon size={13} className="text-gray-500" /> Parados (sem vendas há 30 dias)
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {ranking.parados.map(p => (
+                      <span key={p.id} className="text-xs bg-gray-800 text-gray-400 px-2.5 py-1 rounded-full">{p.nome}</span>
+                    ))}
+                  </div>
+                  <p className="text-gray-600 text-xs mt-2.5">💡 Que tal uma promoção pra girar esse estoque?</p>
+                </div>
+              )}
             </div>
           )}
 
