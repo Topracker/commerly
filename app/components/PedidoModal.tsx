@@ -33,18 +33,19 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   const aceitaOnline = loja.aceita_pagamento_online !== false
   const [pagamento, setPagamento] = useState<'online' | 'entrega'>('entrega')
 
-  // Fidelidade: saldo de pontos do cliente NESTA loja + opção de resgatar.
+  // Clube Commerly: o saldo é GLOBAL (vale em qualquer loja), então lemos a
+  // view clube_saldo em vez do saldo desta loja.
   const [saldoPontos, setSaldoPontos] = useState(0)
   const [usarPontos, setUsarPontos] = useState(false)
 
   useEffect(() => {
     let ativo = true
     supabase
-      .from('pontos_clientes').select('pontos')
-      .eq('cliente_id', cliente.id).eq('loja_id', loja.id).maybeSingle()
-      .then(({ data }: any) => { if (ativo) setSaldoPontos(Number(data?.pontos) || 0) })
+      .from('clube_saldo').select('saldo')
+      .eq('cliente_id', cliente.id).maybeSingle()
+      .then(({ data }: any) => { if (ativo) setSaldoPontos(Number(data?.saldo) || 0) })
     return () => { ativo = false }
-  }, [loja.id, cliente.id, supabase])
+  }, [cliente.id, supabase])
 
   // Autocomplete de endereço (/api/geocode?suggest=1) + confirmação no mapa.
   const [sugestoes, setSugestoes] = useState<Sugestao[]>([])

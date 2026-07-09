@@ -207,12 +207,13 @@ create index if not exists pedidos_stripe_session_idx on public.pedidos (stripe_
 
 
 -- ─── 8. CLUBE COMMERLY (pontos valem em qualquer loja) ──────────────────────
--- `pontos_clientes` (saldo por loja) continua sendo a fonte da verdade; o Clube
--- é a camada global: saldo = soma dos saldos, e o resgate debita entre lojas.
+-- ATENÇÃO: a coluna real de saldo em `pontos_clientes` é `pontos` (é a que o
+-- trigger e o app usam). `saldo` sobrou de uma migração parcial e NÃO é mantida.
+-- `total_acumulado` passa a ser mantido de verdade — é o que define o nível.
 create or replace view public.clube_saldo as
   select cliente_id,
-         sum(saldo)::int           as saldo,
-         sum(total_acumulado)::int as total_acumulado
+         sum(pontos)::int                       as saldo,
+         sum(coalesce(total_acumulado, 0))::int as total_acumulado
     from public.pontos_clientes
    group by cliente_id;
 
@@ -239,70 +240,109 @@ create policy clube_mov_select on public.clube_movimentos for select using (
   or loja_id in (select id from public.lojas where user_id = auth.uid())
 );
 
--- Resgata `p_pontos` do saldo GLOBAL do cliente, debitando das lojas com maior
--- saldo primeiro. Retorna quantos pontos foram efetivamente debitados.
--- SECURITY DEFINER: valida o dono (ou aceita chamada com service_role).
-create or replace function public.resgatar_pontos_clube(
-  p_cliente_id uuid,
-  p_loja_id    uuid,
-  p_pontos     int,
-  p_pedido_id  uuid default null
-) returns int
-language plpgsql
-security definer
-set search_path = public
+-- Debita `p_pontos` do saldo GLOBAL (maior saldo primeiro). Helper interno dos
+-- triggers: sem log e sem checagem de permissão.
+create or replace function public.debitar_pontos_clube(p_cliente_id uuid, p_pontos int)
+returns int
+language plpgsql security definer set search_path = public
 as $$
 declare
   v_restante int := p_pontos;
-  v_total    int;
   v_debita   int;
   r          record;
+begin
+  if coalesce(p_pontos, 0) <= 0 then return 0; end if;
+
+  for r in
+    select id, pontos from public.pontos_clientes
+     where cliente_id = p_cliente_id and pontos > 0
+     order by pontos desc for update
+  loop
+    exit when v_restante <= 0;
+    v_debita := least(r.pontos, v_restante);
+    update public.pontos_clientes set pontos = pontos - v_debita, updated_at = now() where id = r.id;
+    v_restante := v_restante - v_debita;
+  end loop;
+
+  return p_pontos - v_restante;
+end;
+$$;
+revoke all on function public.debitar_pontos_clube(uuid, int) from public, anon, authenticated;
+
+-- Resgate avulso (app): valida o dono e loga o movimento.
+create or replace function public.resgatar_pontos_clube(
+  p_cliente_id uuid, p_loja_id uuid, p_pontos int, p_pedido_id uuid default null
+) returns int
+language plpgsql security definer set search_path = public
+as $$
+declare v_total int; v_debitados int;
 begin
   if p_pontos is null or p_pontos <= 0 then
     raise exception 'pontos deve ser positivo';
   end if;
 
-  -- Chamada pelo servidor (service_role) passa; pelo cliente, só o dono.
   if coalesce(auth.role(), '') <> 'service_role'
-     and not exists (
-       select 1 from public.clientes c
-        where c.id = p_cliente_id and c.user_id = auth.uid()
-     )
+     and not exists (select 1 from public.clientes c where c.id = p_cliente_id and c.user_id = auth.uid())
   then
     raise exception 'nao autorizado';
   end if;
 
-  select coalesce(sum(saldo), 0) into v_total
-    from public.pontos_clientes where cliente_id = p_cliente_id;
-
+  select coalesce(sum(pontos), 0) into v_total from public.pontos_clientes where cliente_id = p_cliente_id;
   if v_total < p_pontos then
     raise exception 'saldo insuficiente: % pontos disponiveis', v_total;
   end if;
 
-  for r in
-    select id, saldo from public.pontos_clientes
-     where cliente_id = p_cliente_id and saldo > 0
-     order by saldo desc
-     for update
-  loop
-    exit when v_restante <= 0;
-    v_debita := least(r.saldo, v_restante);
-    update public.pontos_clientes
-       set saldo = saldo - v_debita, updated_at = now()
-     where id = r.id;
-    v_restante := v_restante - v_debita;
-  end loop;
+  v_debitados := public.debitar_pontos_clube(p_cliente_id, p_pontos);
 
   insert into public.clube_movimentos (cliente_id, loja_id, pedido_id, tipo, pontos)
-  values (p_cliente_id, p_loja_id, p_pedido_id, 'resgate', p_pontos - v_restante);
+  values (p_cliente_id, p_loja_id, p_pedido_id, 'resgate', v_debitados);
 
-  return p_pontos - v_restante;
+  return v_debitados;
+end;
+$$;
+revoke all on function public.resgatar_pontos_clube(uuid, uuid, int, uuid) from public, anon;
+grant execute on function public.resgatar_pontos_clube(uuid, uuid, int, uuid) to authenticated, service_role;
+
+-- Acúmulo: credita o ganho NESTA loja e debita o resgate do saldo GLOBAL.
+-- A versão anterior fazia `greatest(0, ganhos - usados)`, o que NUNCA debitava o
+-- saldo — resgatar pontos saía de graça. Ganho e resgate agora são separados.
+create or replace function public.acumular_pontos_pedido()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare
+  subtotal      numeric;
+  pontos_ganhos int;
+  debitados     int;
+begin
+  select coalesce(sum((e->>'preco')::numeric * (e->>'quantidade')::numeric), 0) into subtotal
+    from jsonb_array_elements(coalesce(new.itens, '[]'::jsonb)) e;
+  pontos_ganhos := floor(subtotal)::int;
+
+  if coalesce(new.pontos_usados, 0) > 0 then
+    debitados := public.debitar_pontos_clube(new.cliente_id, new.pontos_usados);
+    insert into public.clube_movimentos (cliente_id, loja_id, pedido_id, tipo, pontos)
+    values (new.cliente_id, new.loja_id, new.id, 'resgate', debitados);
+  end if;
+
+  if pontos_ganhos > 0 then
+    insert into public.pontos_clientes (cliente_id, loja_id, pontos, total_acumulado)
+    values (new.cliente_id, new.loja_id, pontos_ganhos, pontos_ganhos)
+    on conflict (cliente_id, loja_id) do update
+      set pontos          = public.pontos_clientes.pontos + pontos_ganhos,
+          total_acumulado = coalesce(public.pontos_clientes.total_acumulado, 0) + pontos_ganhos,
+          updated_at      = now();
+
+    insert into public.clube_movimentos (cliente_id, loja_id, pedido_id, tipo, pontos)
+    values (new.cliente_id, new.loja_id, new.id, 'ganho', pontos_ganhos);
+  end if;
+
+  return new;
 end;
 $$;
 
-revoke all on function public.resgatar_pontos_clube(uuid, uuid, int, uuid) from public;
-revoke all on function public.resgatar_pontos_clube(uuid, uuid, int, uuid) from anon;
-grant execute on function public.resgatar_pontos_clube(uuid, uuid, int, uuid) to authenticated, service_role;
+-- O guard valida o resgate contra o saldo GLOBAL (não o da loja do pedido).
+-- Ver sql/2026-07-10-guard-pontos-global.sql para a função completa.
 
 
 -- ─── 9. PAGBANK OAUTH ───────────────────────────────────────────────────────

@@ -94,16 +94,17 @@ export async function POST(request: NextRequest) {
 
   const taxa = taxaEntregaPorDistancia(dist)
 
-  // Resgate de pontos (fidelidade). Valida o saldo do cliente NESTA loja no
-  // servidor e limita ao subtotal — nunca confia no valor do cliente. O guard
-  // do banco revalida na criação do pedido (webhook), então os números batem.
+  // Resgate de pontos (Clube Commerly). O saldo é GLOBAL — vale em qualquer
+  // loja — então validamos contra clube_saldo, limitando ao subtotal e nunca
+  // confiando no valor mandado pelo cliente. O guard do banco revalida na
+  // criação do pedido (webhook) e o trigger debita entre as lojas.
   let pontosUsados = 0
   let desconto = 0
   const pontosPedidos = Math.max(0, Math.floor(Number(pontos_resgatar) || 0))
   if (pontosPedidos > 0) {
     const { data: saldoRow } = await admin
-      .from('pontos_clientes').select('pontos').eq('cliente_id', cliente.id).eq('loja_id', loja.id).maybeSingle()
-    const saldo = Number(saldoRow?.pontos) || 0
+      .from('clube_saldo').select('saldo').eq('cliente_id', cliente.id).maybeSingle()
+    const saldo = Number(saldoRow?.saldo) || 0
     const maxUsavel = maxPontosResgataveis(saldo, subtotal)
     pontosUsados = Math.min(pontosPedidos - (pontosPedidos % 100), maxUsavel)
     desconto = descontoDePontos(pontosUsados)

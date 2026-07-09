@@ -4,11 +4,12 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
 import { useNotificacoes } from '../hooks/useNotificacoes'
 import { NotificacaoToast } from './NotificacaoToast'
-import { Search, Heart, MessageCircle, User, LogOut, Menu, X, Trophy, ShoppingBag, Bell } from 'lucide-react'
+import { Search, Heart, MessageCircle, User, LogOut, Menu, X, Trophy, ShoppingBag, Bell, Sparkles } from 'lucide-react'
 
 const MENU = [
   { label: 'Buscar lojas', path: '/cliente/buscar', icon: Search },
   { label: 'Meus pedidos', path: '/cliente/pedidos', icon: ShoppingBag },
+  { label: 'Clube Commerly', path: '/cliente/clube', icon: Sparkles },
   { label: 'Notificações', path: '/cliente/notificacoes', icon: Bell },
   { label: 'Ranking', path: '/cliente/ranking', icon: Trophy },
   { label: 'Lojas favoritas', path: '/cliente/favoritas', icon: Heart },
