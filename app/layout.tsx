@@ -4,6 +4,7 @@ import "./globals.css";
 import DevtoolsBlocker from "./components/DevtoolsBlocker";
 import PWARegister from "./components/PWARegister";
 import PushManager from "./components/PushManager";
+import { Footer } from "./components/Footer";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "./lib/site";
 
 const geistSans = Geist({
@@ -87,6 +88,7 @@ export default function RootLayout({
         <PWARegister />
         <PushManager />
         {children}
+        <Footer />
       </body>
     </html>
   );

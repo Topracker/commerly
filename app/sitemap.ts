@@ -9,6 +9,10 @@ export const revalidate = 3600
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const estaticas: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/`, changeFrequency: 'weekly', priority: 1 },
+    { url: `${SITE_URL}/sobre`, changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${SITE_URL}/suporte`, changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${SITE_URL}/termos`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/privacidade`, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/login`, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/cliente/login`, changeFrequency: 'yearly', priority: 0.3 },
   ]

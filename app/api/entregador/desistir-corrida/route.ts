@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   if (!entregador) return NextResponse.json({ error: 'Perfil de entregador não encontrado' }, { status: 403 })
 
   const { data: pedido } = await admin
-    .from('pedidos_clientes').select('id, entregador_id, status').eq('id', pedido_id).single()
+    .from('pedidos_clientes').select('id, entregador_id, status, lote_entrega_id').eq('id', pedido_id).single()
   if (!pedido) return NextResponse.json({ error: 'Pedido não encontrado' }, { status: 404 })
   if (pedido.entregador_id !== entregador.id) return NextResponse.json({ error: 'Este pedido não é seu.' }, { status: 403 })
   if (pedido.status !== 'recebido') {
@@ -40,6 +40,18 @@ export async function POST(request: NextRequest) {
   const { error } = await admin
     .from('pedidos_clientes').update({ entregador_id: null }).eq('id', pedido_id).eq('entregador_id', entregador.id)
   if (error) return NextResponse.json({ error: 'Erro ao desistir da corrida.' }, { status: 500 })
+
+  // Multi-entrega: sair do lote dissolve o lote inteiro. A rota otimizada foi
+  // calculada para os dois pedidos juntos; com um deles de volta ao pool ela não
+  // vale mais. Sem isto o pedido voltaria ao pool carregando `lote_entrega_id` —
+  // e tanto ele quanto o irmão seriam recusados por /aceitar-junto para sempre.
+  if (pedido.lote_entrega_id) {
+    const { error: loteErr } = await admin
+      .from('pedidos_clientes')
+      .update({ lote_entrega_id: null, ordem_coleta: null, ordem_entrega: null })
+      .eq('lote_entrega_id', pedido.lote_entrega_id)
+    if (loteErr) console.error('[desistir-corrida] falha ao dissolver o lote:', loteErr)
+  }
 
   // Encerra a oferta aceita deste entregador (nao sera re-ofertado o mesmo).
   await admin.from('corrida_ofertas').update({ status: 'expirada' })

@@ -39,6 +39,11 @@ export type PedidoCliente = {
   // Tempo médio de preparo em minutos (snapshot da loja no INSERT; o comerciante
   // pode ajustar por pedido). Usado na "Previsão de entrega" do cliente.
   tempo_preparo_min?: number | null
+  // Multi-entrega: dois pedidos levados na mesma viagem compartilham o
+  // `lote_entrega_id` e guardam a ordem otimizada da rota (ver app/lib/rota.ts).
+  lote_entrega_id?: string | null
+  ordem_coleta?: number | null
+  ordem_entrega?: number | null
   created_at: string
   updated_at: string
 }

@@ -15,11 +15,12 @@ import {
 import { tocarAlertaCorrida } from '../../lib/notificacoes'
 import { uploadFotoAvaliacao } from '../../lib/avaliacoes'
 import { distanciaKm, formatarDistancia } from '../../lib/geo'
+import { MAX_ENTREGAS_SIMULTANEAS, podemSerAgrupados, type PedidoRota } from '../../lib/rota'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import {
   Store, MapPin, Navigation, CircleDollarSign, Check, Handshake, PackageCheck,
   Star, History, Power, Wallet, Bike, MapPinned, TrendingUp,
-  Award, Trophy, Target, Camera, WifiOff, RefreshCw, X,
+  Award, Trophy, Target, Camera, WifiOff, RefreshCw, X, Layers,
 } from 'lucide-react'
 
 type Avaliacao = { nota: number; comentario: string | null; created_at: string }
@@ -196,7 +197,11 @@ function EntregadorDashboard() {
   )
   const temParceriaAceita = lojasAceitasIds.size > 0
 
-  const ativas = pedidos.filter(p => p.entregador_id === entregador?.id && p.status !== 'entregue' && p.status !== 'cancelado')
+  // Dentro de um lote, a ordem de coleta é a ordem em que ele deve passar nas
+  // lojas — então é essa a ordem em que os cards aparecem.
+  const ativas = pedidos
+    .filter(p => p.entregador_id === entregador?.id && p.status !== 'entregue' && p.status !== 'cancelado')
+    .sort((a, b) => (a.ordem_coleta ?? 0) - (b.ordem_coleta ?? 0))
   // Disponíveis: TODOS os pedidos ainda sem entregador, prontos para ser
   // reivindicados (status 'recebido' ou 'preparando'), de loja parceira aceita.
   // ('saiu' já teve código gerado e não deveria ficar sem entregador.)
@@ -204,6 +209,22 @@ function EntregadorDashboard() {
   const disponiveis = online
     ? pedidos.filter(p => !p.entregador_id && (p.status === 'recebido' || p.status === 'preparando') && lojasAceitasIds.has(p.loja_id))
     : []
+
+  // --- Multi-entrega ---
+  // Espelha o que /api/entregador/aceitar-junto valida: exatamente 1 entrega em
+  // andamento, ainda fora de lote. O servidor decide de verdade; aqui só
+  // decidimos se vale mostrar o botão.
+  const rotaDoPedido = (p: PedidoCliente): PedidoRota => ({
+    id: p.id,
+    loja: lojaPorId[p.loja_id] ?? {},
+    entrega: { latitude: p.entrega_latitude, longitude: p.entrega_longitude },
+  })
+  const rotaAtiva = ativas.length === 1 && !ativas[0].lote_entrega_id ? rotaDoPedido(ativas[0]) : null
+  // Sem coordenadas (da loja ou da entrega) não há rota — podemSerAgrupados
+  // devolve false e o pedido some da oferta de agrupamento.
+  const agrupavel = (p: PedidoCliente) => !!rotaAtiva && podemSerAgrupados(rotaAtiva, rotaDoPedido(p))
+  const emLote = ativas.filter(p => p.lote_entrega_id).length > 0
+  const noLimite = ativas.length >= MAX_ENTREGAS_SIMULTANEAS
 
   const historico = pedidos
     .filter(p => p.entregador_id === entregador?.id && p.status === 'entregue')
@@ -473,6 +494,21 @@ function EntregadorDashboard() {
     } catch { mostrarToast('Erro de rede.', 'erro') } finally { setAcao(null) }
   }
 
+  // Multi-entrega: pega um 2º pedido para a mesma viagem. O servidor recalcula a
+  // rota e recusa se o pedido saiu do pool nesse meio-tempo.
+  async function aceitarJunto(pedidoId: string) {
+    setAcao(pedidoId)
+    try {
+      const res = await fetch('/api/entregador/aceitar-junto', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pedido_id: pedidoId }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) { mostrarToast(d.error || 'Não foi possível agrupar este pedido.', 'erro'); carregar(); return }
+      mostrarToast(`Pedidos agrupados! Rota de ${formatarDistancia(d.distancia_km)} — siga a ordem dos cards.`, 'sucesso')
+      carregar()
+    } catch { mostrarToast('Erro de rede.', 'erro') } finally { setAcao(null) }
+  }
+
   function selecionarComprovante(pedidoId: string, file: File | undefined) {
     if (!file) return
     if (file.size > 6 * 1024 * 1024) { mostrarToast('A foto deve ter no máximo 6 MB.', 'erro'); return }
@@ -714,10 +750,21 @@ function EntregadorDashboard() {
           {/* 5. ENTREGAS ATIVAS (com trajeto loja→cliente) */}
           {ativas.length > 0 && (
             <section>
-              <h2 className="text-white font-semibold mb-2 flex items-center gap-2">
+              <h2 className="text-white font-semibold mb-2 flex items-center gap-2 flex-wrap">
                 <Navigation size={16} className="text-[#E0632C]" /> Minhas entregas ativas
                 {gpsAtivo && <span className="text-[10px] font-medium text-green-400 bg-green-500/15 px-2 py-0.5 rounded-full">● GPS ao vivo</span>}
+                {emLote && (
+                  <span className="text-[10px] font-medium text-sky-300 bg-sky-500/15 border border-sky-500/40 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Layers size={11} /> Rota agrupada
+                  </span>
+                )}
               </h2>
+              {emLote && (
+                <p className="text-gray-500 text-xs mb-2">
+                  Você leva {ativas.length} pedidos na mesma viagem. Os cards estão na ordem de
+                  coleta — siga de cima para baixo.
+                </p>
+              )}
               <div className="flex flex-col gap-3">
                 {ativas.map(p => {
                   const meta = STATUS_META[p.status]
@@ -741,11 +788,23 @@ function EntregadorDashboard() {
                   // O entregador só pode desistir ANTES de o preparo começar.
                   const podeDesistir = p.status === 'recebido'
                   return (
-                    <div key={p.id} className="bg-[#12161B] border border-[#232A32] rounded-2xl p-4">
+                    <div key={p.id} className={`bg-[#12161B] border rounded-2xl p-4 ${p.lote_entrega_id ? 'border-sky-500/40' : 'border-[#232A32]'}`}>
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <p className="text-white font-semibold truncate">{nomeLoja(p.loja_id)}</p>
                         <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${meta.classes}`}>{meta.emoji} {meta.label}</span>
                       </div>
+
+                      {/* Posição deste pedido na rota agrupada. */}
+                      {p.lote_entrega_id && p.ordem_coleta && p.ordem_entrega && (
+                        <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-300 flex items-center gap-1">
+                            <Store size={11} /> {p.ordem_coleta}ª coleta
+                          </span>
+                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-300 flex items-center gap-1">
+                            <MapPin size={11} /> {p.ordem_entrega}ª entrega
+                          </span>
+                        </div>
+                      )}
 
                       {pontos.length >= 2 && (
                         <div className="mb-3"><MapaEntregas pontos={pontos} rota={rota} altura="h-44" /></div>
@@ -853,10 +912,30 @@ function EntregadorDashboard() {
                         )}
                       </div>
                       <p className="text-gray-400 text-xs flex items-start gap-1.5"><MapPin size={13} className="shrink-0 mt-0.5" />{p.endereco_entrega}</p>
-                      <button onClick={() => aceitarPedido(p.id)} disabled={acao === p.id}
-                        className="mt-3 w-full bg-[#C1441E] hover:bg-[#a83a19] disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition text-sm">
-                        {acao === p.id ? 'Aceitando...' : 'Aceitar pedido'}
-                      </button>
+
+                      {noLimite ? (
+                        <p className="mt-3 text-gray-500 text-xs text-center bg-[#171C22] border border-[#232A32] rounded-xl py-2.5">
+                          🔒 Você já está com {MAX_ENTREGAS_SIMULTANEAS} entregas. Conclua uma para aceitar outra.
+                        </p>
+                      ) : (
+                        <div className="mt-3 flex flex-col gap-2">
+                          {/* Mesma rota da entrega em andamento: leva os dois de uma vez. */}
+                          {agrupavel(p) && (
+                            <button onClick={() => aceitarJunto(p.id)} disabled={acao === p.id}
+                              className="w-full flex items-center justify-center gap-1.5 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition text-sm">
+                              <Layers size={16} /> {acao === p.id ? 'Agrupando...' : 'Aceitar junto — mesma rota'}
+                            </button>
+                          )}
+                          <button onClick={() => aceitarPedido(p.id)} disabled={acao === p.id}
+                            className={`w-full font-semibold py-2.5 rounded-xl transition text-sm disabled:opacity-50 ${
+                              agrupavel(p)
+                                ? 'bg-[#1B2129] border border-[#232A32] hover:border-[#C1441E]/60 text-gray-300'
+                                : 'bg-[#C1441E] hover:bg-[#a83a19] text-white'
+                            }`}>
+                            {acao === p.id ? 'Aceitando...' : agrupavel(p) ? 'Aceitar separado' : 'Aceitar pedido'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
