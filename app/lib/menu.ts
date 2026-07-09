@@ -8,7 +8,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Home, Bell, ShoppingBag, Package, Tag, Layers, Clock, UserRound, MessageCircle,
   Send, Landmark, TrendingDown, Wallet, Megaphone, Users, Truck, GraduationCap,
-  Sparkles, Gauge, Plug, Settings, Crown, MessageSquare,
+  Sparkles, Gauge, Plug, Settings, Crown, MessageSquare, Rss,
 } from 'lucide-react'
 import type { Modulo } from './nichos'
 
@@ -47,6 +47,7 @@ const PRODUTOS_VENDAS: ItemMenu[] = [
 ]
 
 const CLIENTES: ItemMenu[] = [
+  { label: 'Feed da loja', sub: 'Posts, stories e métricas', path: '/posts', icon: Rss },
   { label: 'Clientes', sub: 'CRM — quem já comprou', path: '/clientes', icon: UserRound },
   { label: 'Mensagens', sub: 'Chat com clientes e fornecedores', path: '/mensagens', icon: MessageCircle, badge: 'mensagens' },
   { label: 'Campanha de retorno', sub: 'Trazer clientes de volta', path: '/clientes#campanha-retorno', icon: Send },

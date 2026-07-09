@@ -10,7 +10,7 @@ import { AcademyCard } from '../components/AcademyCard'
 import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos, minutosAteAgendamento, type Agendamento } from '../lib/nicheStore'
 import { calcularCommerlyScore, type CommerlyScore } from '../lib/commerlyScore'
-import { ShoppingBag, ChevronRight, Clock, Gauge, Package, Lightbulb, ArrowRight, Trophy, Moon } from 'lucide-react'
+import { ShoppingBag, ChevronRight, Clock, Gauge, Package, Lightbulb, ArrowRight, Trophy, Moon, Rss } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 type RankProduto = { id: string | null; nome: string; quantidade: number; faturamento: number }
@@ -487,6 +487,23 @@ export default function Dashboard() {
       )}
 
       <CopilotCard />
+
+      {/* Feed social: atalho para publicar */}
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-6 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-[#C1441E]/15 flex items-center justify-center shrink-0">
+          <Rss size={17} className="text-[#E0632C]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-bold text-sm">Feed da loja</p>
+          <p className="text-gray-400 text-xs">Poste uma foto ou vídeo e apareça no feed dos clientes.</p>
+        </div>
+        <button
+          onClick={() => (window.location.href = '/posts')}
+          className="shrink-0 bg-[#C1441E] hover:bg-[#a83a19] text-white text-xs font-semibold px-3 py-2 rounded-lg transition"
+        >
+          Criar post
+        </button>
+      </div>
 
       <AcademyCard lojaId={loja.id} />
 

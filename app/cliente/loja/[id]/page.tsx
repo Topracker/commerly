@@ -14,7 +14,7 @@ import { ProdutoCard } from '../../../components/ProdutoCard'
 import { PedidoModal } from '../../../components/PedidoModal'
 import { isDelivery } from '../../../lib/pedidosClientes'
 import { linkWhatsApp, textoPedido, whatsappDaLoja } from '../../../lib/whatsapp'
-import { AtSign, MapPin, Clock, MessageCircle, ArrowLeft, Heart, ShoppingBag, Globe } from 'lucide-react'
+import { AtSign, MapPin, Clock, MessageCircle, ArrowLeft, Heart, ShoppingBag, Globe, UserPlus, UserCheck } from 'lucide-react'
 
 export default function ClienteLoja() {
   const { id } = useParams<{ id: string }>()
@@ -30,6 +30,11 @@ export default function ClienteLoja() {
   const [enviandoAval, setEnviandoAval] = useState(false)
   const [favorito, setFavorito] = useState(false)
   const [pedidoAberto, setPedidoAberto] = useState(false)
+  // Seguir é diferente de favoritar: favorito é uma lista privada (localStorage);
+  // seguir prioriza a loja no feed e faz o cliente ser notificado dos posts dela.
+  const [seguindo, setSeguindo] = useState(false)
+  const [seguidores, setSeguidores] = useState(0)
+  const [salvandoSeguir, setSalvandoSeguir] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -39,6 +44,43 @@ export default function ClienteLoja() {
   useEffect(() => {
     if (id) setFavorito(isFavorito(id))
   }, [id])
+
+  useEffect(() => {
+    if (!cliente || !id) return
+    void carregarSeguir()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cliente, id])
+
+  async function carregarSeguir() {
+    const [meu, total] = await Promise.all([
+      supabase.from('loja_seguidores').select('id').eq('loja_id', id).eq('cliente_id', cliente.id).maybeSingle(),
+      supabase.from('loja_seguidores').select('id', { count: 'exact', head: true }).eq('loja_id', id),
+    ])
+    setSeguindo(!!meu.data)
+    setSeguidores(total.count || 0)
+  }
+
+  async function alternarSeguir() {
+    if (!cliente || salvandoSeguir) return
+    setSalvandoSeguir(true)
+    const jaSegue = seguindo
+    // Otimista.
+    setSeguindo(!jaSegue)
+    setSeguidores(n => Math.max(0, n + (jaSegue ? -1 : 1)))
+
+    const { error } = jaSegue
+      ? await supabase.from('loja_seguidores').delete().eq('loja_id', id).eq('cliente_id', cliente.id)
+      : await supabase.from('loja_seguidores').insert({ loja_id: id, cliente_id: cliente.id })
+
+    setSalvandoSeguir(false)
+    if (error) {
+      setSeguindo(jaSegue)
+      setSeguidores(n => Math.max(0, n + (jaSegue ? 1 : -1)))
+      mostrarToast('Não foi possível salvar. Tente de novo.', 'erro')
+      return
+    }
+    mostrarToast(jaSegue ? 'Você deixou de seguir esta loja.' : 'Seguindo! Você verá os posts dela no seu feed.', 'sucesso')
+  }
 
   function alternarFavorito() {
     if (!loja) return
@@ -189,6 +231,24 @@ export default function ClienteLoja() {
                 <Heart size={20} className={favorito ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
               </button>
             </div>
+
+            <button
+              onClick={alternarSeguir}
+              disabled={salvandoSeguir}
+              className={`mt-2 w-full font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-60 ${
+                seguindo
+                  ? 'bg-[#1B2129] border border-[#232A32] text-gray-300 hover:bg-[#232A32]'
+                  : 'bg-[#C1441E] hover:bg-[#a83a19] text-white'
+              }`}
+            >
+              {seguindo ? <UserCheck size={18} /> : <UserPlus size={18} />}
+              {seguindo ? 'Seguindo' : 'Seguir'}
+              {seguidores > 0 && (
+                <span className={`text-xs font-normal ${seguindo ? 'text-gray-500' : 'text-white/70'}`}>
+                  · {seguidores}
+                </span>
+              )}
+            </button>
 
             {isDelivery(loja.tipo) && produtos.length > 0 && (
               <button
