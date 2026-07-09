@@ -11,11 +11,11 @@ export const EMPRESA = {
   nome: 'Oryon',
   razaoSocial: 'Oryon Tecnologia',
   /**
-   * CNPJ do MEI. `null` enquanto a abertura não sai — as páginas então dizem
-   * "CNPJ em processo de regularização" em vez de imprimir um número que não
-   * existe. Assim que sair, basta preencher aqui (ver `cnpjTexto`).
+   * CNPJ do MEI. Se um dia voltar a ser `null`, as páginas dizem "CNPJ em
+   * processo de regularização" em vez de imprimir um número vazio (ver
+   * `cnpjTexto`).
    */
-  cnpj: null as string | null,
+  cnpj: '66.528.448/0001-90' as string | null,
   endereco: 'Goiânia, GO, Brasil',
 } as const
 
