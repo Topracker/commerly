@@ -11,7 +11,14 @@ import { FlashSaleBanner } from '../../components/FlashSale'
 import { TAGS_NUTRI, ROTULO_TAG, AVISO_NUTRI, type TagNutri } from '../../lib/nutri'
 import { Search, MapPin, Star, List, Map as MapIcon, Navigation, Store, Sparkles } from 'lucide-react'
 
-const TIPOS = ['Todos', 'Barbearia', 'Distribuidora de bebidas', 'Mercado', 'Loja de roupas', 'Lanchonete', 'Salão de beleza', 'Eletrônicos', 'Outro']
+// Nichos oferecidos como filtro. Os valores precisam bater EXATAMENTE com
+// `lojas.tipo` (o filtro faz .eq('tipo', ...)) — ver a fonte em lib/nichos.ts.
+const TIPOS = [
+  'Todos', 'Hamburgueria', 'Pizzaria', 'Lanchonete', 'Restaurante', 'Delivery',
+  'Barbearia', 'Salão de Beleza', 'Mercado', 'Mercadinho', 'Farmácia', 'Pet Shop',
+  'Padaria', 'Hortifruti', 'Açougue', 'Sorveteria', 'Distribuidora de bebidas',
+  'Eletrônicos', 'Loja de roupas', 'Outro',
+]
 
 export default function ClienteBuscar() {
   const { cliente, loading, supabase, sair } = useCliente()
