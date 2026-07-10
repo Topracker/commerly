@@ -1,5 +1,5 @@
 /* Commerly service worker — minimal & conservative */
-const VERSION = 'commerly-v3';
+const VERSION = 'commerly-v4';
 const STATIC_CACHE = `${VERSION}-static`;
 
 const PRECACHE = [
