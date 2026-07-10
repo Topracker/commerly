@@ -9,7 +9,7 @@ import { Search, Heart, MessageCircle, User, LogOut, Menu, X, Trophy, ShoppingBa
 const MENU = [
   { label: 'Feed', path: '/cliente/feed', icon: Rss },
   { label: 'Buscar lojas', path: '/cliente/buscar', icon: Search },
-  { label: 'Modo Festa', path: '/cliente/festa', icon: PartyPopper },
+  { label: '🎉 Festa', path: '/cliente/festa', icon: PartyPopper },
   { label: 'Meus pedidos', path: '/cliente/pedidos', icon: ShoppingBag },
   { label: 'Clube Commerly', path: '/cliente/clube', icon: Sparkles },
   { label: 'Notificações', path: '/cliente/notificacoes', icon: Bell },
