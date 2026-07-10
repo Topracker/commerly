@@ -5,6 +5,8 @@ import {
 } from 'lucide-react'
 import AnimatedBackground from './components/AnimatedBackground'
 
+// Deploy check: força rebuild na Vercel (2026-07-16).
+
 // Link do parceiro que cria sites profissionais para as lojas.
 // TODO: trocar pelo endereço final do parceiro.
 const SITE_PARCEIRO = 'https://exemplo-parceiro.com'
