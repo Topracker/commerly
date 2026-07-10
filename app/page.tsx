@@ -97,10 +97,10 @@ export default function Home() {
             className="anima-subir font-display text-center text-2xl font-bold text-white mb-2"
             style={{ '--atraso': '0ms' } as React.CSSProperties}
           >
-            Tudo o que o iFood cobra caro, e mais
+            Gerencie seu comércio, receba pedidos e cresça
           </h2>
           <p className="text-center text-gray-500 text-sm mb-10">
-            Sem comissão sobre cada venda. O bairro é seu.
+            Tudo em um só lugar, sem comissão sobre cada venda.
           </p>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
