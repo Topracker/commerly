@@ -6,6 +6,7 @@ import { ClienteLayout } from '../../../components/ClienteLayout'
 import { useToast } from '../../../hooks/useToast'
 import { Toast } from '../../../components/Toast'
 import { FESTA_STATUS_META, FESTA_BONUS_PCT, type FestaStatus } from '../../../lib/festas'
+import { emojiCategoria } from '../../../lib/temaLoja'
 import {
   ArrowLeft, PartyPopper, Users, Copy, Check, Plus, Minus, Store,
   MapPin, ShoppingBag, Truck, Loader2, PackageCheck,
@@ -13,7 +14,7 @@ import {
 
 type Item = { produto_id: string; loja_id: string; nome: string; preco: number; quantidade: number }
 type Participante = { id: string; cliente_id: string; nome: string; itens: Item[]; pronto: boolean; tem_pedido: boolean; sou_eu: boolean }
-type Produto = { id: string; loja_id: string; nome: string; preco_venda: number; preco_original?: number; desconto_pct?: number }
+type Produto = { id: string; loja_id: string; nome: string; preco_venda: number; imagem_url?: string | null; categoria?: string | null; preco_original?: number; desconto_pct?: number }
 type LojaFesta = { id: string; nome: string; tipo: string }
 type Estado = {
   festa: { id: string; nome: string; codigo: string; status: FestaStatus; endereco_entrega: string; taxa_total: number | null; taxa_por_pessoa: number | null; expira_em: string }
@@ -69,6 +70,11 @@ export default function FestaSala() {
   const produtosLoja = useMemo(
     () => (estado?.produtos || []).filter(p => p.loja_id === lojaSel),
     [estado?.produtos, lojaSel],
+  )
+  // Tipo da loja selecionada — usado no emoji temático quando o produto não tem foto.
+  const lojaSelTipo = useMemo(
+    () => estado?.lojas.find(l => l.id === lojaSel)?.tipo || '',
+    [estado?.lojas, lojaSel],
   )
   const meuSubtotal = useMemo(
     () => produtosLoja.reduce((s, p) => s + (qtds[p.id] || 0) * Number(p.preco_venda), 0),
@@ -290,13 +296,30 @@ export default function FestaSala() {
                     const q = qtds[p.id] || 0
                     return (
                       <div key={p.id} className={`flex items-center gap-3 rounded-xl border p-2.5 transition ${q > 0 ? 'border-acento/60 bg-elevado' : 'border-borda bg-superficie'}`}>
+                        {/* Foto do produto, com emoji temático de fallback. */}
+                        {p.imagem_url ? (
+                          <img
+                            src={p.imagem_url}
+                            alt={p.nome}
+                            className="w-12 h-12 rounded-lg object-cover border border-borda shrink-0"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-lg bg-superficie border border-borda flex items-center justify-center text-2xl shrink-0">
+                            {emojiCategoria(p.categoria, lojaSelTipo)}
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <p className="text-white text-sm font-medium truncate">{p.nome}</p>
                           <p className="font-display font-bold text-sm text-acento">{reais(Number(p.preco_venda))}</p>
                         </div>
+                        {/* Só [+] enquanto não escolheu; ao adicionar, revela [−] q [+]. */}
                         <div className="flex items-center gap-2 shrink-0">
-                          <button onClick={() => mudarQtd(p.id, -1)} disabled={q === 0} aria-label="Diminuir" className="w-8 h-8 flex items-center justify-center rounded-lg bg-borda text-white disabled:opacity-30 hover:bg-[#2c343d] transition"><Minus size={16} /></button>
-                          <span className="w-6 text-center text-white font-semibold tabular-nums">{q}</span>
+                          {q > 0 && (
+                            <>
+                              <button onClick={() => mudarQtd(p.id, -1)} aria-label="Diminuir" className="w-8 h-8 flex items-center justify-center rounded-lg bg-borda text-white hover:bg-[#2c343d] transition"><Minus size={16} /></button>
+                              <span className="w-6 text-center text-white font-semibold tabular-nums">{q}</span>
+                            </>
+                          )}
                           <button onClick={() => mudarQtd(p.id, 1)} aria-label="Aumentar" className="w-8 h-8 flex items-center justify-center rounded-lg bg-acento text-white hover:bg-acento-forte transition"><Plus size={16} /></button>
                         </div>
                       </div>
