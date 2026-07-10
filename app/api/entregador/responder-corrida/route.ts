@@ -52,6 +52,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'A oferta expirou.' }, { status: 409 })
   }
 
+  // ── Aceite de FESTA: a oferta cobre vários pedidos (um endereço só) ──────
+  if (oferta.festa_id) {
+    const { data: festa } = await admin
+      .from('festas').select('id, status').eq('id', oferta.festa_id).single()
+    if (!festa) return NextResponse.json({ error: 'Festa não encontrada.' }, { status: 404 })
+    if (festa.status !== 'fechada') {
+      await admin.from('corrida_ofertas').update({ status: 'expirada' }).eq('id', oferta_id).eq('status', 'pendente')
+      return NextResponse.json({ error: 'Esta festa não está mais disponível.' }, { status: 409 })
+    }
+
+    // Já tem entregador? (algum pedido atribuído) -> outro pegou primeiro.
+    const { data: jaTem } = await admin
+      .from('pedidos_clientes').select('id').eq('festa_id', oferta.festa_id).not('entregador_id', 'is', null).limit(1)
+    if (jaTem && jaTem.length > 0) {
+      await admin.from('corrida_ofertas').update({ status: 'expirada' }).eq('id', oferta_id).eq('status', 'pendente')
+      return NextResponse.json({ error: 'Outro entregador já pegou esta festa.' }, { status: 409 })
+    }
+
+    // Atribui TODOS os pedidos livres da festa a este entregador.
+    const { error: updErr } = await admin
+      .from('pedidos_clientes').update({ entregador_id: entregador.id })
+      .eq('festa_id', oferta.festa_id).is('entregador_id', null).neq('status', 'cancelado')
+    if (updErr) return NextResponse.json({ error: 'Erro ao aceitar a festa.' }, { status: 500 })
+
+    await admin.from('festas').update({ status: 'despachada' }).eq('id', oferta.festa_id)
+    await admin.from('corrida_ofertas').update({ status: 'aceita' }).eq('id', oferta_id)
+    await admin.from('corrida_ofertas').update({ status: 'expirada' })
+      .eq('festa_id', oferta.festa_id).eq('status', 'pendente')
+
+    return NextResponse.json({ ok: true, festa_id: oferta.festa_id })
+  }
+
   const { data: pedido } = await admin
     .from('pedidos_clientes').select('id, entregador_id, status').eq('id', oferta.pedido_id).single()
   if (!pedido) return NextResponse.json({ error: 'Pedido não encontrado' }, { status: 404 })

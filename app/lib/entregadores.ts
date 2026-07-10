@@ -86,7 +86,7 @@ export type StatusOferta = 'pendente' | 'aceita' | 'recusada' | 'expirada'
 
 export type OfertaCorrida = {
   id: string
-  pedido_id: string
+  pedido_id: string | null
   entregador_id: string
   loja_id: string
   status: StatusOferta
@@ -94,6 +94,21 @@ export type OfertaCorrida = {
   expira_em: string
   created_at: string
   updated_at: string
+  // Oferta de FESTA: cobre vários pedidos entregues num endereço só. Quando
+  // `festa_id` está setado, `pedido_id` é null e o valor vem de `valor_total`.
+  festa_id?: string | null
+  bonus_pct?: number | null
+  valor_total?: number | null
+}
+
+// Resumo de uma oferta de festa (via /api/entregador/festa-oferta) para o modal.
+export type FestaOfertaResumo = {
+  festa: { id: string; nome: string; endereco_entrega: string }
+  lojas: string[]
+  n_pedidos: number
+  valor_total: number
+  bonus_pct: number
+  distancia_km: number | null
 }
 
 export type StatusParceria = 'pendente' | 'aceita' | 'recusada'

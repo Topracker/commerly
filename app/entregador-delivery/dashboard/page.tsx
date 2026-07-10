@@ -11,6 +11,7 @@ import { STATUS_META, type PedidoCliente } from '../../lib/pedidosClientes'
 import {
   STATUS_PARCERIA_META, GPS_INTERVALO_MS, META_SEMANAL_ENTREGAS, LOCALIZACAO_PING_MS,
   badgesEntregador, type ParceriaEntregador, type RankingEntregador, type OfertaCorrida,
+  type FestaOfertaResumo,
 } from '../../lib/entregadores'
 import { tocarAlertaCorrida } from '../../lib/notificacoes'
 import { uploadFotoAvaliacao, VIEW_AVAL_ENTREGADORES } from '../../lib/avaliacoes'
@@ -73,6 +74,8 @@ function EntregadorDashboard() {
   // Oferta de corrida recebida (modelo Uber): modal com contagem de 30s.
   const [oferta, setOferta] = useState<OfertaCorrida | null>(null)
   const [ofertaPedido, setOfertaPedido] = useState<PedidoCliente | null>(null)
+  // Resumo da festa quando a oferta é uma corrida de festa (pedido_id null).
+  const [ofertaFesta, setOfertaFesta] = useState<FestaOfertaResumo | null>(null)
   const [respondendo, setRespondendo] = useState(false)
   const ultimoPing = useRef(0)
   // Filtro de período do histórico.
@@ -402,9 +405,19 @@ function EntregadorDashboard() {
   // e toca o alerta. Ignora ofertas já vencidas.
   async function abrirOferta(o: OfertaCorrida) {
     if (o.status !== 'pendente' || new Date(o.expira_em).getTime() <= Date.now()) return
-    const { data: ped } = await supabase.from('pedidos_clientes').select('*').eq('id', o.pedido_id).maybeSingle()
-    setOferta(o)
-    setOfertaPedido((ped as PedidoCliente) || null)
+    if (o.festa_id) {
+      // Oferta de festa: os detalhes vêm da API (tabelas de festa têm RLS).
+      const resumo = await fetch(`/api/entregador/festa-oferta?oferta_id=${o.id}`)
+        .then(r => (r.ok ? r.json() : null)).catch(() => null)
+      setOferta(o)
+      setOfertaPedido(null)
+      setOfertaFesta(resumo as FestaOfertaResumo | null)
+    } else {
+      const { data: ped } = await supabase.from('pedidos_clientes').select('*').eq('id', o.pedido_id).maybeSingle()
+      setOferta(o)
+      setOfertaPedido((ped as PedidoCliente) || null)
+      setOfertaFesta(null)
+    }
     tocarAlertaCorrida()
   }
 
@@ -448,16 +461,22 @@ function EntregadorDashboard() {
         body: JSON.stringify({ oferta_id: oferta.id, resposta }),
       })
       const d = await res.json().catch(() => ({}))
-      if (!res.ok) { mostrarToast(d.error || 'Não foi possível responder à corrida.', 'erro'); setOferta(null); setOfertaPedido(null); return }
-      if (resposta === 'aceita') { mostrarToast('Corrida aceita! Vá até a loja retirar.', 'sucesso'); carregar() }
+      if (!res.ok) { mostrarToast(d.error || 'Não foi possível responder à corrida.', 'erro'); setOferta(null); setOfertaPedido(null); setOfertaFesta(null); return }
+      if (resposta === 'aceita') {
+        mostrarToast(
+          oferta.festa_id ? 'Festa aceita! Passe nas lojas e entregue tudo num endereço só.' : 'Corrida aceita! Vá até a loja retirar.',
+          'sucesso',
+        )
+        carregar()
+      }
       else mostrarToast('Corrida recusada.', 'erro')
-      setOferta(null); setOfertaPedido(null)
+      setOferta(null); setOfertaPedido(null); setOfertaFesta(null)
     } catch { mostrarToast('Erro de rede.', 'erro') } finally { setRespondendo(false) }
   }
 
   // Contagem esgotada sem resposta: fecha o modal (o servidor expira sozinho e o
   // comerciante passa a ofertar ao próximo).
-  function expirarOferta() { setOferta(null); setOfertaPedido(null) }
+  function expirarOferta() { setOferta(null); setOfertaPedido(null); setOfertaFesta(null) }
 
   async function solicitarParceria(lojaId: string) {
     setAcao(lojaId)
@@ -557,6 +576,7 @@ function EntregadorDashboard() {
         <OfertaCorridaModal
           oferta={oferta}
           pedido={ofertaPedido}
+          festa={ofertaFesta}
           nomeLoja={nomeLoja(oferta.loja_id)}
           respondendo={respondendo}
           onAceitar={() => responderOferta('aceita')}
