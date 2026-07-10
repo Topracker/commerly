@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/garantia/cron",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }
