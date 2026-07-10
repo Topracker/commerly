@@ -11,7 +11,7 @@ import { MapaAoVivo } from '../../components/MapaAoVivo'
 import { STATUS_META, FLUXO_STATUS, pedidoEmAndamento, type PedidoCliente } from '../../lib/pedidosClientes'
 import type { LocalizacaoEntrega } from '../../lib/entregadores'
 import { distanciaKm, etaMinutos, formatarEta, formatarDistancia } from '../../lib/geo'
-import { uploadFotoAvaliacao } from '../../lib/avaliacoes'
+import { uploadFotoAvaliacao, enviarAvaliacao, VIEW_AVAL_LOJAS, VIEW_AVAL_ENTREGADORES } from '../../lib/avaliacoes'
 import { ShoppingBag, MapPin, ChevronRight, Bike, KeyRound, XCircle, Clock, Camera, Loader2, CalendarClock, Check } from 'lucide-react'
 
 type EntregadorPublico = { id: string; nome: string; foto_url: string | null; telefone: string | null }
@@ -27,7 +27,7 @@ export default function ClientePedidos() {
 
   // Avaliações
   const [ratedEntregador, setRatedEntregador] = useState<Set<string>>(new Set())
-  const [avalLoja, setAvalLoja] = useState<Record<string, { nota: number; comentario: string | null; foto_url: string | null }>>({})
+  const [avalLoja, setAvalLoja] = useState<Record<string, { id: string; nota: number; comentario: string | null; foto_url: string | null }>>({})
   const [notaEnt, setNotaEnt] = useState<Record<string, number>>({})
   const [comentEnt, setComentEnt] = useState<Record<string, string>>({})
   const [notaLoja, setNotaLoja] = useState<Record<string, number>>({})
@@ -122,12 +122,13 @@ export default function ClientePedidos() {
     const entregues = lista.filter(p => p.status === 'entregue')
     const comEntregador = entregues.filter(p => p.entregador_id).map(p => p.id)
     if (comEntregador.length > 0) {
-      const { data: av } = await supabase.from('avaliacoes_entregadores').select('pedido_id').in('pedido_id', comEntregador)
+      const { data: av } = await supabase.from(VIEW_AVAL_ENTREGADORES).select('pedido_id').in('pedido_id', comEntregador)
       setRatedEntregador(new Set((av || []).map((a: any) => a.pedido_id)))
     }
-    const { data: avl } = await supabase.from('avaliacoes_lojas').select('loja_id, nota, comentario, foto_url').eq('cliente_id', cliente.id)
-    const am: Record<string, { nota: number; comentario: string | null; foto_url: string | null }> = {}
-    for (const a of (avl || []) as any[]) am[a.loja_id] = { nota: a.nota, comentario: a.comentario, foto_url: a.foto_url ?? null }
+    // `id` é necessário para editar: a nova avaliação substitui esta.
+    const { data: avl } = await supabase.from(VIEW_AVAL_LOJAS).select('id, loja_id, nota, comentario, foto_url').eq('cliente_id', cliente.id)
+    const am: Record<string, { id: string; nota: number; comentario: string | null; foto_url: string | null }> = {}
+    for (const a of (avl || []) as any[]) am[a.loja_id] = { id: a.id, nota: a.nota, comentario: a.comentario, foto_url: a.foto_url ?? null }
     setAvalLoja(am)
 
     setCarregando(false)
@@ -138,12 +139,15 @@ export default function ClientePedidos() {
     if (nota === 0) { mostrarToast('Selecione uma nota para o entregador', 'erro'); return }
     if (!p.entregador_id) return
     setEnviando(`ent-${p.id}`)
-    const { error } = await supabase.from('avaliacoes_entregadores').insert({
-      pedido_id: p.id, entregador_id: p.entregador_id, cliente_id: cliente.id,
-      nota, comentario: comentEnt[p.id]?.trim() || null,
+    const res = await enviarAvaliacao({
+      alvo: 'entregador',
+      alvo_id: p.entregador_id,
+      pedido_id: p.id,
+      nota,
+      comentario: comentEnt[p.id]?.trim() || null,
     })
     setEnviando(null)
-    if (error) { mostrarToast('Erro ao avaliar o entregador', 'erro'); return }
+    if ('error' in res) { mostrarToast(res.error, 'erro'); return }
     setRatedEntregador(prev => new Set(prev).add(p.id))
     mostrarToast('Obrigado por avaliar o entregador!', 'sucesso')
   }
@@ -164,12 +168,17 @@ export default function ClientePedidos() {
       foto_url = up.url
     }
 
-    const { error } = existente
-      ? await supabase.from('avaliacoes_lojas').update({ nota, comentario, foto_url }).eq('cliente_id', cliente.id).eq('loja_id', p.loja_id)
-      : await supabase.from('avaliacoes_lojas').insert({ cliente_id: cliente.id, loja_id: p.loja_id, nota, comentario, foto_url })
+    const res = await enviarAvaliacao({
+      alvo: 'loja',
+      alvo_id: p.loja_id,
+      nota,
+      comentario,
+      foto_url,
+      substitui_id: existente?.id ?? null,
+    })
     setEnviando(null)
-    if (error) { mostrarToast('Erro ao avaliar o produto', 'erro'); return }
-    setAvalLoja(prev => ({ ...prev, [p.loja_id]: { nota, comentario, foto_url } }))
+    if ('error' in res) { mostrarToast(res.error, 'erro'); return }
+    setAvalLoja(prev => ({ ...prev, [p.loja_id]: { id: res.id, nota, comentario, foto_url } }))
     setFotoLoja(prev => { const n = { ...prev }; delete n[p.loja_id]; return n })
     mostrarToast('Avaliação do produto enviada!', 'sucesso')
   }

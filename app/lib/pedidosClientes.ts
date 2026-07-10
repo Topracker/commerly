@@ -44,6 +44,18 @@ export type PedidoCliente = {
   lote_entrega_id?: string | null
   ordem_coleta?: number | null
   ordem_entrega?: number | null
+  // Modo invisível: quando true, `cliente_nome` e `cliente_telefone` nunca
+  // chegaram a ser gravados (o guard do banco os anula no INSERT).
+  anonimo?: boolean
+  // Prazo prometido; base da Commerly Garantia (cupom por atraso > 30min).
+  eta_em?: string | null
+  garantia_cupom_id?: string | null
+  // Entrega feita por drone (derivado do veículo do entregador que aceitou).
+  entrega_drone?: boolean
+  peso_total_kg?: number
+  // Preço dinâmico: fator efetivamente cobrado e o teto exibido ao cliente.
+  preco_dinamico_fator?: number
+  fator_exibido?: number | null
   created_at: string
   updated_at: string
 }

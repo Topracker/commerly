@@ -8,8 +8,9 @@ import {
   registrarCadastroIp, AVISO_VERIFICACAO,
 } from '../../lib/validacoes'
 import {
-  uploadFotoEntregador, VEICULOS, CATEGORIAS_CNH, exigeCNH, idadeEmAnos, type TipoVeiculo,
+  uploadFotoEntregador, VEICULOS, CATEGORIAS_CNH, exigeCNH, exigeDocsDrone, idadeEmAnos, type TipoVeiculo,
 } from '../../lib/entregadores'
+import { DRONE_RAIO_MAX_KM, DRONE_PESO_MAX_KG, DRONE_HORA_INICIO, DRONE_HORA_FIM } from '../../lib/drone'
 import { Camera } from 'lucide-react'
 
 // Upload de foto reutilizável (rosto / documento / CNH) com preview.
@@ -48,6 +49,8 @@ export default function EntregadorOnboarding() {
   const [docPreview, setDocPreview] = useState('')
 
   const [veiculoTipo, setVeiculoTipo] = useState<TipoVeiculo | ''>('')
+  const [droneSerie, setDroneSerie] = useState('')
+  const [droneAnac, setDroneAnac] = useState('')
 
   const [cnhNumero, setCnhNumero] = useState('')
   const [cnhCategoria, setCnhCategoria] = useState('')
@@ -71,6 +74,7 @@ export default function EntregadorOnboarding() {
   }, [])
 
   const precisaCNH = exigeCNH(veiculoTipo)
+  const precisaDocsDrone = exigeDocsDrone(veiculoTipo)
   // Limite de data: precisa ter ao menos 18 anos hoje.
   const maxData = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 18); return d.toISOString().slice(0, 10) })()
 
@@ -96,6 +100,10 @@ export default function EntregadorOnboarding() {
     if (!documentoNumero.trim()) { setErro('Informe o número do documento de identidade.'); return }
     if (!docFoto) { setErro('Envie a foto do seu documento de identidade.'); return }
     if (!veiculoTipo) { setErro('Escolha o tipo de veículo.'); return }
+    // O banco também recusa (entregadores_drone_docs_chk); aqui é só a mensagem boa.
+    if (precisaDocsDrone && (!droneSerie.trim() || !droneAnac.trim())) {
+      setErro('Drone exige número de série e registro ANAC.'); return
+    }
     if (!rostoFoto) { setErro('Envie uma foto do seu rosto para verificação.'); return }
     if (precisaCNH) {
       if (!cnhNumero.trim()) { setErro('Moto/carro exigem CNH — informe o número.'); return }
@@ -152,6 +160,8 @@ export default function EntregadorOnboarding() {
       documento_numero: documentoNumero.trim(),
       documento_foto_url: docRes.url,
       veiculo_tipo: veiculoTipo,
+      drone_serie: precisaDocsDrone ? droneSerie.trim() : null,
+      drone_anac: precisaDocsDrone ? droneAnac.trim() : null,
       cnh_numero: precisaCNH ? cnhNumero.trim() : null,
       cnh_categoria: precisaCNH ? cnhCategoria : null,
       cnh_foto_url,
@@ -253,6 +263,34 @@ export default function EntregadorOnboarding() {
               ))}
             </div>
           </div>
+
+          {/* Drone (#14): série + registro ANAC */}
+          {precisaDocsDrone && (
+            <div className="border-t border-borda pt-4">
+              <p className="text-white font-semibold text-sm mb-1">🚁 Documentação do drone</p>
+              <p className="text-gray-500 text-xs mb-3 leading-relaxed">
+                Exigido pela RBAC-E nº 94 da ANAC. O equipamento precisa estar cadastrado no SISANT.
+                Entregas por drone são limitadas a {DRONE_RAIO_MAX_KM} km, {DRONE_PESO_MAX_KG} kg e ao
+                período das {DRONE_HORA_INICIO}h às {DRONE_HORA_FIM}h.
+              </p>
+              <div className="flex flex-col gap-3">
+                <input
+                  type="text"
+                  placeholder="Número de série do drone"
+                  value={droneSerie}
+                  onChange={e => setDroneSerie(e.target.value.slice(0, 60))}
+                  className={`w-full ${inp}`}
+                />
+                <input
+                  type="text"
+                  placeholder="Registro ANAC / SISANT"
+                  value={droneAnac}
+                  onChange={e => setDroneAnac(e.target.value.slice(0, 40))}
+                  className={`w-full ${inp}`}
+                />
+              </div>
+            </div>
+          )}
 
           {/* CNH (obrigatório p/ moto e carro) */}
           {precisaCNH && (

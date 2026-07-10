@@ -6,6 +6,9 @@ import { ClienteLayout } from '../../components/ClienteLayout'
 import { getRatingsPorLoja } from '../../lib/avaliacoes'
 import { MapaLojas } from '../../components/MapaLojas'
 import { distanciaKm, formatarDistancia } from '../../lib/geo'
+import { VisionPrato } from '../../components/VisionPrato'
+import { FlashSaleBanner } from '../../components/FlashSale'
+import { TAGS_NUTRI, ROTULO_TAG, AVISO_NUTRI, type TagNutri } from '../../lib/nutri'
 import { Search, MapPin, Star, List, Map as MapIcon, Navigation, Store, Sparkles } from 'lucide-react'
 
 const TIPOS = ['Todos', 'Barbearia', 'Distribuidora de bebidas', 'Mercado', 'Loja de roupas', 'Lanchonete', 'Salão de beleza', 'Eletrônicos', 'Outro']
@@ -19,7 +22,29 @@ export default function ClienteBuscar() {
   const [aba, setAba] = useState<'lista' | 'mapa'>('lista')
   const [userPos, setUserPos] = useState<{ latitude: number; longitude: number } | null>(null)
   const [geoStatus, setGeoStatus] = useState<'idle' | 'pedindo' | 'ok' | 'negado'>('idle')
+  // #9 Filtros nutricionais: restringem as lojas às que têm ao menos um produto
+  // com TODAS as tags escolhidas. `null` = ainda não filtrou nada.
+  const [filtroNutri, setFiltroNutri] = useState<TagNutri[]>([])
+  const [lojasComTag, setLojasComTag] = useState<Set<string> | null>(null)
   const router = useRouter()
+
+  // Recalcula quais lojas têm produto compatível sempre que o filtro muda.
+  useEffect(() => {
+    if (filtroNutri.length === 0) { setLojasComTag(null); return }
+    let vivo = true
+    supabase
+      .from('produtos')
+      .select('loja_id')
+      .contains('tags_nutri', filtroNutri)
+      .then(({ data }: any) => {
+        if (vivo) setLojasComTag(new Set((data ?? []).map((p: any) => p.loja_id)))
+      })
+    return () => { vivo = false }
+  }, [filtroNutri, supabase])
+
+  function alternarTag(t: TagNutri) {
+    setFiltroNutri(prev => (prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]))
+  }
 
   useEffect(() => {
     if (cliente) buscarLojas()
@@ -43,8 +68,10 @@ export default function ClienteBuscar() {
   // coordenadas vão para o fim). Sem localização, mantém a ordem por nota.
   // Em ambos os casos, quem assina o Commerly Ads vem antes — é o que a loja paga.
   const lojasExibidas = useMemo(() => {
-    if (!userPos) return lojas
-    return lojas
+    // Filtro nutricional some com as lojas sem nenhum produto compatível.
+    const base = lojasComTag ? lojas.filter(l => lojasComTag.has(l.id)) : lojas
+    if (!userPos) return base
+    return base
       .map((l) => ({ ...l, _dist: distanciaKm(userPos, l) }))
       .sort((a, b) => {
         if (!!b.destaque !== !!a.destaque) return b.destaque ? 1 : -1
@@ -53,7 +80,7 @@ export default function ClienteBuscar() {
         if (b._dist == null) return -1
         return a._dist - b._dist
       })
-  }, [lojas, userPos])
+  }, [lojas, userPos, lojasComTag])
 
   async function buscarLojas() {
     setBuscando(true)
@@ -115,6 +142,34 @@ export default function ClienteBuscar() {
           Buscar
         </button>
       </form>
+
+      <div className="mb-4">
+        <VisionPrato userPos={userPos} />
+      </div>
+
+      <div className="mb-4">
+        <FlashSaleBanner />
+      </div>
+
+      {/* #9 Filtros nutricionais */}
+      <div className="mb-4">
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          {TAGS_NUTRI.map(t => (
+            <button
+              key={t}
+              onClick={() => alternarTag(t)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition ${
+                filtroNutri.includes(t) ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              {ROTULO_TAG[t]}
+            </button>
+          ))}
+        </div>
+        {filtroNutri.length > 0 && (
+          <p className="mt-2 text-xs leading-relaxed text-gray-500">{AVISO_NUTRI}</p>
+        )}
+      </div>
 
       <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-hide">
         {TIPOS.map(t => (

@@ -5,6 +5,7 @@ import { useToast } from '../../hooks/useToast'
 import { FornecedorLayout } from '../../components/FornecedorLayout'
 import { Toast } from '../../components/Toast'
 import { EnderecoAutocomplete } from '../../components/EnderecoAutocomplete'
+import { FlashSaleForm } from '../../components/FlashSale'
 
 const CATEGORIAS = [
   'Alimentos e bebidas',
@@ -165,6 +166,9 @@ export default function FornecedorConfiguracoes() {
         >
           {salvando ? 'Salvando...' : 'Salvar configurações'}
         </button>
+
+        {/* #13 Flash Sale */}
+        <FlashSaleForm onCriada={() => mostrarToast('Promoção lançada!', 'sucesso')} />
       </div>
     </FornecedorLayout>
   )

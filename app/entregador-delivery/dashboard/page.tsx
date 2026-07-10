@@ -13,7 +13,7 @@ import {
   badgesEntregador, type ParceriaEntregador, type RankingEntregador, type OfertaCorrida,
 } from '../../lib/entregadores'
 import { tocarAlertaCorrida } from '../../lib/notificacoes'
-import { uploadFotoAvaliacao } from '../../lib/avaliacoes'
+import { uploadFotoAvaliacao, VIEW_AVAL_ENTREGADORES } from '../../lib/avaliacoes'
 import { distanciaKm, formatarDistancia } from '../../lib/geo'
 import { MAX_ENTREGAS_SIMULTANEAS, podemSerAgrupados, type PedidoRota } from '../../lib/rota'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
@@ -156,7 +156,7 @@ function EntregadorDashboard() {
         .catch(() => ({ lojas: [] })),
       supabase.from('entregador_parcerias').select('*').eq('entregador_id', entregador!.id),
       supabase.from('pedidos_clientes').select('*').order('created_at', { ascending: false }),
-      supabase.from('avaliacoes_entregadores').select('nota, comentario, created_at')
+      supabase.from(VIEW_AVAL_ENTREGADORES).select('nota, comentario, created_at')
         .eq('entregador_id', entregador!.id).order('created_at', { ascending: false }),
       // Ranking semanal (view agregada; ignora silenciosamente se ainda não migrada).
       supabase.from('ranking_entregadores_semana').select('*').order('entregas', { ascending: false }),
@@ -781,7 +781,7 @@ function EntregadorDashboard() {
                   const pontos: PontoMapa[] = []
                   if (minhaPos) pontos.push({ lat: minhaPos.lat, lng: minhaPos.lng, tipo: 'entregador', label: 'Você' })
                   if (loja?.latitude != null && loja?.longitude != null) pontos.push({ lat: loja.latitude, lng: loja.longitude, tipo: 'loja', label: loja.nome })
-                  if (p.entrega_latitude != null && p.entrega_longitude != null) pontos.push({ lat: Number(p.entrega_latitude), lng: Number(p.entrega_longitude), tipo: 'cliente', label: p.cliente_nome || 'Cliente' })
+                  if (p.entrega_latitude != null && p.entrega_longitude != null) pontos.push({ lat: Number(p.entrega_latitude), lng: Number(p.entrega_longitude), tipo: 'cliente', label: p.anonimo ? 'Cliente anônimo' : (p.cliente_nome || 'Cliente') })
                   const rota: [number, number][] | undefined = temTrajeto
                     ? [[loja!.latitude as number, loja!.longitude as number], [Number(p.entrega_latitude), Number(p.entrega_longitude)]]
                     : undefined

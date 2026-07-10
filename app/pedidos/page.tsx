@@ -199,7 +199,11 @@ export default function PedidosComerciante() {
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
         <div className="flex items-start justify-between gap-3 mb-2">
           <div className="min-w-0">
-            <p className="text-white font-semibold truncate">{p.cliente_nome || 'Cliente'}</p>
+            {/* #6 Pedido anônimo: o nome nem foi gravado. Dizemos isso em vez de
+                mostrar um "Cliente" genérico que parece dado faltando. */}
+            <p className="text-white font-semibold truncate">
+              {p.anonimo ? '🕵️ Cliente anônimo' : (p.cliente_nome || 'Cliente')}
+            </p>
             <p className="text-gray-500 text-xs">{new Date(p.created_at).toLocaleString('pt-BR')}</p>
           </div>
           <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${meta.classes}`}>

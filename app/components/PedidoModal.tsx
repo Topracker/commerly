@@ -4,6 +4,7 @@ import { X, Plus, Minus, ShoppingBag, MapPin, Check, CreditCard, Banknote, Spark
 import type { ItemPedidoCliente } from '../lib/pedidosClientes'
 import { distanciaKm, taxaEntregaPorDistancia, taxaComPico, ehHorarioPico, formatarDistancia } from '../lib/geo'
 import { descontoDePontos, maxPontosResgataveis } from '../lib/fidelidade'
+import { aplicarFator } from '../lib/precoDinamico'
 import { MapaConfirmar } from './MapaConfirmar'
 
 // `preco_venda` já vem com o desconto aplicado quando há promoção ativa;
@@ -41,6 +42,28 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   // (A prontidão real é validada no servidor ao criar o checkout — 409 amigável.)
   const aceitaOnline = loja.aceita_pagamento_online !== false
   const [pagamento, setPagamento] = useState<'online' | 'entrega'>('entrega')
+
+  // #6 Modo invisível: o nome e o telefone não chegam a ser gravados no pedido
+  // (o guard do banco os anula). O histórico do cliente continua pelo cliente_id.
+  const [anonimo, setAnonimo] = useState(false)
+
+  // #5 Preço dinâmico: buscamos o fator vigente para exibir o preço certo.
+  // Até responder, `1` (preço base) — nunca mostramos preço maior sem saber.
+  const [fatorPreco, setFatorPreco] = useState(1)
+  const [avisoPreco, setAvisoPreco] = useState('')
+
+  useEffect(() => {
+    let ativo = true
+    fetch(`/api/loja/preco-dinamico?loja_id=${loja.id}`)
+      .then(r => r.json())
+      .then(d => {
+        if (!ativo || typeof d.fator !== 'number') return
+        setFatorPreco(d.fator)
+        setAvisoPreco(d.aviso || '')
+      })
+      .catch(() => {})
+    return () => { ativo = false }
+  }, [loja.id])
 
   // Clube Commerly: o saldo é GLOBAL (vale em qualquer loja), então lemos a
   // view clube_saldo em vez do saldo desta loja.
@@ -114,10 +137,13 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
         .map(p => ({
           produto_id: p.id,
           nome: p.nome,
-          preco: parseFloat(String(p.preco_venda)) || 0,
+          // #5 Preço já com o fator dinâmico — é este valor que o cliente vê e
+          // paga. O guard do banco recobra `least(fator_real, fator_exibido)`,
+          // então nunca sai mais caro do que o mostrado aqui.
+          preco: aplicarFator(parseFloat(String(p.preco_venda)) || 0, fatorPreco),
           quantidade: qtds[p.id],
         })),
-    [produtos, qtds],
+    [produtos, qtds, fatorPreco],
   )
 
   const subtotal = useMemo(() => itens.reduce((s, i) => s + i.preco * i.quantidade, 0), [itens])
@@ -164,6 +190,8 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
             entrega_longitude: coord.lng,
             observacao: observacao.trim() || null,
             pontos_resgatar: pontosUsados,
+            anonimo,
+            fator_exibido: fatorPreco,
           }),
         })
         const d = await res.json().catch(() => ({}))
@@ -195,6 +223,11 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
       observacao: observacao.trim() || null,
       cliente_nome: cliente.nome || null,
       cliente_telefone: cliente.telefone || null,
+      // O guard do banco é quem anula nome/telefone quando anonimo=true — não
+      // depende deste cliente enviar null.
+      anonimo,
+      // Teto de preço: o guard cobra o menor entre o fator real e este.
+      fator_exibido: fatorPreco,
       // Resgate de pontos: o guard valida contra o saldo, calcula o desconto e
       // ajusta o total no servidor (aqui é só a intenção do cliente).
       pontos_usados: pontosUsados,
@@ -231,12 +264,23 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
         </div>
 
         <div className="overflow-y-auto px-5 py-4 flex flex-col gap-4 min-h-0">
+          {/* #5 Aviso de preço dinâmico — antes da lista, não depois do total. */}
+          {avisoPreco && (
+            <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2.5">
+              <p className="text-sm font-medium text-orange-300">{avisoPreco}</p>
+              <p className="mt-0.5 text-xs text-orange-300/70">
+                Os preços abaixo já incluem o ajuste. O valor não muda depois que você confirmar.
+              </p>
+            </div>
+          )}
+
           <div>
             <p className="text-gray-300 text-sm font-medium mb-2">Produtos</p>
             <div className="flex flex-col gap-2">
               {produtos.map(p => {
                 const q = qtds[p.id] || 0
-                const preco = parseFloat(String(p.preco_venda)) || 0
+                const precoBase = parseFloat(String(p.preco_venda)) || 0
+                const preco = aplicarFator(precoBase, fatorPreco)
                 return (
                   <div key={p.id} className={`flex items-center gap-3 rounded-xl border p-2.5 transition ${q > 0 ? 'border-acento/60 bg-elevado' : 'border-borda bg-superficie'}`}>
                     <div className="flex-1 min-w-0">
@@ -336,6 +380,29 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
               className="w-full bg-superficie border border-borda text-white rounded-xl px-4 py-3 outline-none focus:border-acento/60 resize-none text-sm"
             />
           </div>
+
+          {/* #6 Modo invisível */}
+          <button
+            type="button"
+            onClick={() => setAnonimo(v => !v)}
+            className={`w-full rounded-xl border p-3 text-left transition ${
+              anonimo ? 'border-acento/60 bg-acento/10' : 'border-borda bg-superficie hover:border-borda/80'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-white">🕵️ Pedir anonimamente</span>
+              <span
+                className={`flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition ${anonimo ? 'bg-acento' : 'bg-gray-700'}`}
+              >
+                <span className={`h-4 w-4 rounded-full bg-white transition ${anonimo ? 'translate-x-4' : ''}`} />
+              </span>
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-gray-400">
+              {anonimo
+                ? 'A loja e o entregador verão só o endereço de entrega. Seu histórico e seus pontos continuam normais.'
+                : 'A loja verá seu nome e telefone.'}
+            </p>
+          </button>
 
           {/* Fidelidade — resgate de pontos (só aparece com saldo suficiente) */}
           {podeResgatar && (

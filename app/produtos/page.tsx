@@ -5,6 +5,7 @@ import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { RealceFoto } from '../components/RealceFoto'
 
 export default function Produtos() {
   const { loja, loading, supabase, sair } = useAuth()
@@ -22,7 +23,12 @@ export default function Produtos() {
   const [categoria, setCategoria] = useState('')
   const [imagem, setImagem] = useState<File | null>(null)
   const [imagemPreview, setImagemPreview] = useState('')
+  const [podeRealcar, setPodeRealcar] = useState(false)
   const [salvando, setSalvando] = useState(false)
+  // Descrição alimenta a IA Nutricionista (#9) e o Commerly Vision (#1);
+  // peso é a restrição de carga da entrega por drone (#14).
+  const [descricao, setDescricao] = useState('')
+  const [pesoKg, setPesoKg] = useState('')
 
   useEffect(() => { if (loja) carregar() }, [loja])
 
@@ -42,10 +48,14 @@ export default function Produtos() {
       setQtdMin(produto.quantidade_minima)
       setCategoria(produto.categoria || '')
       setImagemPreview(produto.imagem_url || '')
+      setDescricao(produto.descricao || '')
+      setPesoKg(produto.peso_kg != null ? String(produto.peso_kg) : '')
+      setPodeRealcar(false)
     } else {
       setEditando(null)
       setNome(''); setPreco(''); setCusto(''); setQuantidade(''); setQtdMin('5'); setCategoria('')
       setImagem(null); setImagemPreview('')
+      setDescricao(''); setPesoKg(''); setPodeRealcar(false)
     }
     setModal(true)
   }
@@ -66,6 +76,14 @@ export default function Produtos() {
       e.target.value = ''
       return
     }
+    // GIF não passa pelo realce (o canvas achataria a animação); os demais sim.
+    setImagem(file)
+    setImagemPreview(URL.createObjectURL(file))
+    setPodeRealcar(file.type !== 'image/gif')
+  }
+
+  /** #4 O comerciante escolheu entre a foto original e a realçada. */
+  function escolherFoto(file: File) {
     setImagem(file)
     setImagemPreview(URL.createObjectURL(file))
   }
@@ -111,7 +129,13 @@ export default function Produtos() {
       quantidade: parseInt(quantidade),
       quantidade_minima: parseInt(qtdMin),
       categoria,
-      imagem_url
+      imagem_url,
+      descricao: descricao.trim() || null,
+      peso_kg: pesoKg.trim() ? Number(pesoKg.replace(',', '.')) : null,
+      // Mudou o texto -> a classificação nutricional anterior não vale mais.
+      ...(editando && descricao.trim() !== (editando.descricao || '')
+        ? { tags_nutri: [], nutri_analisado_em: null }
+        : {}),
     }
 
     const { error } = editando
@@ -225,12 +249,36 @@ export default function Produtos() {
                   <input type="file" accept="image/*" onChange={handleImagem} className="hidden" />
                 </label>
               </div>
+
+              {/* #4 Realce da foto (recorte + luz + cor; não gera pixels novos) */}
+              {imagem && podeRealcar && (
+                <RealceFoto key={imagem.name + imagem.size} arquivo={imagem} onEscolher={escolherFoto} />
+              )}
+
               <input placeholder="Nome do produto *" value={nome} onChange={e => setNome(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
+              <textarea
+                placeholder="Descrição (ingredientes) — usada pelos filtros de dieta e pela busca por foto"
+                value={descricao}
+                onChange={e => setDescricao(e.target.value)}
+                rows={2}
+                maxLength={300}
+                className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
+              />
               <input placeholder="Categoria" value={categoria} onChange={e => setCategoria(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
               <input placeholder="Preço de venda *" type="number" value={preco} onChange={e => setPreco(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
               <input placeholder="Custo *" type="number" value={custo} onChange={e => setCusto(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
               <input placeholder="Quantidade em estoque *" type="number" value={quantidade} onChange={e => setQuantidade(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
               <input placeholder="Quantidade mínima (alerta)" type="number" value={qtdMin} onChange={e => setQtdMin(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
+              <div>
+                <input
+                  placeholder="Peso (kg) — necessário para entrega por drone"
+                  inputMode="decimal"
+                  value={pesoKg}
+                  onChange={e => setPesoKg(e.target.value)}
+                  className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-gray-500 text-xs mt-1">Sem peso, o produto conta como 0 kg no limite de 2 kg do drone.</p>
+              </div>
               <div className="flex gap-3 mt-2">
                 <button onClick={() => setModal(false)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl transition">Cancelar</button>
                 <button onClick={salvar} disabled={salvando} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition">

@@ -7,6 +7,7 @@ import { rateLimit } from '../../../lib/rate-limit'
 import { distanciaKm, taxaEntregaPorDistancia } from '../../../lib/geo'
 import { isDelivery } from '../../../lib/pedidosClientes'
 import { descontoDePontos, maxPontosResgataveis } from '../../../lib/fidelidade'
+import { calcularFator, aplicarFator } from '../../../lib/precoDinamico'
 
 // Inicia o pagamento ONLINE de um pedido de delivery via Stripe Checkout.
 //
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const { loja_id, itens, endereco_entrega, entrega_latitude, entrega_longitude, observacao, pontos_resgatar } = body || {}
+  const { loja_id, itens, endereco_entrega, entrega_latitude, entrega_longitude, observacao, pontos_resgatar, anonimo, fator_exibido } = body || {}
   if (!loja_id || !Array.isArray(itens) || itens.length === 0 || !endereco_entrega?.trim()) {
     return NextResponse.json({ error: 'Dados do pedido incompletos.' }, { status: 400 })
   }
@@ -72,6 +73,22 @@ export async function POST(request: NextRequest) {
     (promocoesRes.data || []).map((p: any) => [p.produto_id as string, Number(p.preco_promocional) || 0]),
   )
 
+  // #5 Preço dinâmico: o Stripe precisa cobrar exatamente o que o guard vai
+  // gravar no pedido. Repetimos aqui a mesma conta — fator real, limitado pelo
+  // fator que foi exibido ao cliente.
+  const { data: lojaPreco } = await admin
+    .from('lojas').select('preco_dinamico').eq('id', loja.id).maybeSingle()
+
+  let fator = 1
+  if (lojaPreco?.preco_dinamico) {
+    const { count } = await admin
+      .from('pedidos_clientes').select('id', { count: 'exact', head: true })
+      .eq('loja_id', loja.id).in('status', ['recebido', 'preparando'])
+    const f = calcularFator({ ativo: true, pedidosAbertos: count ?? 0 })
+    const teto = Number(fator_exibido)
+    fator = Number.isFinite(teto) && teto >= 1 ? Math.min(f.fator, teto) : f.fator
+  }
+
   const itensLimpos: { produto_id: string; nome: string; preco: number; quantidade: number }[] = []
   let subtotal = 0
   for (const it of itens) {
@@ -82,7 +99,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Sem estoque suficiente de ${p.nome}.` }, { status: 409 })
     }
     const promo = promos.get(p.id)
-    const preco = promo && promo > 0 ? promo : Number(p.preco_venda) || 0
+    const base = promo && promo > 0 ? promo : Number(p.preco_venda) || 0
+    const preco = aplicarFator(base, fator)
     itensLimpos.push({ produto_id: p.id, nome: p.nome, preco, quantidade: qtd })
     subtotal += preco * qtd
   }
@@ -137,6 +155,12 @@ export async function POST(request: NextRequest) {
     cliente_telefone: cliente.telefone || null,
     subtotal, taxa_entrega: taxa, total,
     pontos_usados: pontosUsados, desconto_pontos: desconto,
+    // #6 O nome/telefone acima ficam no pendente (a loja não os lê); o guard
+    // do banco é quem os anula ao materializar o pedido, no webhook.
+    anonimo: anonimo === true,
+    // #5 Teto de preço mostrado ao cliente; sobrevive à ida ao Stripe.
+    fator_exibido: Number.isFinite(Number(fator_exibido)) && Number(fator_exibido) >= 1
+      ? Number(fator_exibido) : null,
   }).select('id').single()
   if (pendErr || !pend) {
     console.error('[pedido-checkout] erro ao gravar pendente:', pendErr?.message)

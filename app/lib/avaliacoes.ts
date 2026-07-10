@@ -1,6 +1,49 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+/**
+ * SEMPRE leia avaliações por estas views, nunca pelas tabelas.
+ *
+ * As tabelas são um log append-only (ver lib/integridade.ts): editar uma
+ * avaliação insere uma linha nova que substitui a antiga, e a antiga fica lá
+ * para a cadeia de hash continuar fechando. Ler a tabela crua contaria a mesma
+ * avaliação duas vezes na média.
+ */
+export const VIEW_AVAL_LOJAS = 'avaliacoes_lojas_atuais'
+export const VIEW_AVAL_ENTREGADORES = 'avaliacoes_entregadores_atuais'
+
 export type Rating = { media: number; total: number }
+
+export type EnvioAvaliacao = {
+  alvo: 'loja' | 'entregador'
+  alvo_id: string
+  nota: number
+  comentario?: string | null
+  foto_url?: string | null
+  pedido_id?: string | null
+  /** id da avaliação sendo editada; a nova linha a substitui. */
+  substitui_id?: string | null
+}
+
+/**
+ * Grava uma avaliação via /api/avaliacoes. O cliente não escreve direto na
+ * tabela: só o servidor tem o segredo do HMAC que sela a avaliação.
+ */
+export async function enviarAvaliacao(env: EnvioAvaliacao): Promise<{ id: string; hash: string } | { error: string }> {
+  let res: Response
+  try {
+    res = await fetch('/api/avaliacoes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(env),
+    })
+  } catch {
+    return { error: 'Sem conexão. Tente novamente.' }
+  }
+
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) return { error: json?.erro ?? 'Erro ao enviar avaliação.' }
+  return { id: json.id, hash: json.hash }
+}
 
 /**
  * Sobe uma foto de avaliação (cliente) ou comprovante de entrega (entregador)
@@ -24,7 +67,7 @@ export async function uploadFotoAvaliacao(
   return { url: data.publicUrl }
 }
 
-// Busca as avaliações em avaliacoes_lojas e devolve média + total por loja_id.
+// Busca as avaliações atuais e devolve média + total por loja_id.
 // Sem lojaIds, agrega todas as lojas (usado no ranking). Com lojaIds, restringe
 // à lista informada (usado na busca, para não puxar avaliações de tudo).
 export async function getRatingsPorLoja(
@@ -33,7 +76,7 @@ export async function getRatingsPorLoja(
 ): Promise<Record<string, Rating>> {
   if (lojaIds && lojaIds.length === 0) return {}
 
-  let query = supabase.from('avaliacoes_lojas').select('loja_id, nota')
+  let query = supabase.from(VIEW_AVAL_LOJAS).select('loja_id, nota')
   if (lojaIds) query = query.in('loja_id', lojaIds)
 
   const { data, error } = await query

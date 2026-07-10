@@ -1,14 +1,20 @@
 // Domínio dos entregadores (delivery).
 // A área /entregador-delivery é uma conta própria, distinta de loja/cliente/fornecedor.
 
-export type TipoVeiculo = 'moto' | 'carro' | 'bicicleta' | 'a_pe'
+export type TipoVeiculo = 'moto' | 'carro' | 'bicicleta' | 'a_pe' | 'drone'
 
 export const VEICULOS: { valor: TipoVeiculo; label: string; emoji: string }[] = [
   { valor: 'moto', label: 'Moto', emoji: '🏍️' },
   { valor: 'carro', label: 'Carro', emoji: '🚗' },
   { valor: 'bicicleta', label: 'Bicicleta', emoji: '🚲' },
   { valor: 'a_pe', label: 'A pé', emoji: '🚶' },
+  { valor: 'drone', label: 'Drone', emoji: '🚁' },
 ]
+
+/** Drone exige número de série e registro ANAC (RBAC-E 94 / SISANT). */
+export function exigeDocsDrone(v?: TipoVeiculo | '' | null): boolean {
+  return v === 'drone'
+}
 
 // Categorias de CNH (habilitação). A/AB cobrem moto; B/AB cobrem carro.
 export const CATEGORIAS_CNH = ['A', 'B', 'AB', 'C', 'D', 'E', 'AC', 'AD', 'AE']
@@ -44,6 +50,9 @@ export type Entregador = {
   cnh_numero: string | null
   cnh_categoria: string | null
   cnh_foto_url: string | null
+  /** Só para veiculo_tipo = 'drone'. */
+  drone_serie: string | null
+  drone_anac: string | null
   stripe_account_id: string | null
   stripe_onboarded: boolean
   // Fallback quando o Stripe Connect não pôde ser configurado: comerciante paga

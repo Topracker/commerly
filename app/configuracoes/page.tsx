@@ -9,6 +9,8 @@ import { MODULOS, type ModuloKey } from '../lib/nichos'
 import { EnderecoAutocomplete } from '../components/EnderecoAutocomplete'
 import { FachadaUpload, type FachadaItem } from '../components/FachadaUpload'
 import { CardapioQR } from '../components/CardapioQR'
+import { CardapioIA } from '../components/CardapioIA'
+import { ConfigDelivery } from '../components/ConfigDelivery'
 import { uploadFachada, removerFachada } from '../lib/fachada'
 import { isDelivery } from '../lib/pedidosClientes'
 import { normalizarWebsite, erroWebsite } from '../lib/validacoes'
@@ -678,6 +680,14 @@ export default function Configuracoes() {
               entregador. Certifique-se de que o endereço/pino da sua loja esteja correto no mapa acima.
             </p>
           </div>
+        )}
+
+        {/* Cardápio por IA (#2 foto, #3 texto) */}
+        {loja?.id && <CardapioIA onPublicado={() => mostrarToast('Produtos publicados!', 'sucesso')} />}
+
+        {/* Preço dinâmico (#5), drone (#14) e classificação nutricional (#9) */}
+        {isDelivery(tipo) && loja?.id && (
+          <ConfigDelivery supabase={supabase} lojaId={loja.id} onToast={mostrarToast} />
         )}
 
         <button

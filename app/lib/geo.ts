@@ -1,5 +1,7 @@
 // Utilidades de geolocalização (sem dependências externas).
 
+import { JANELA_PICO } from './precoDinamico'
+
 export type Coord = { latitude?: number | null; longitude?: number | null }
 
 /**
@@ -85,7 +87,8 @@ export const SURGE_PICO = 1.3
 export function ehHorarioPico(d: Date = new Date()): boolean {
   const dow = d.getDay() // 0=domingo, 5=sexta, 6=sábado
   const h = d.getHours()
-  return (dow === 0 || dow === 5 || dow === 6) && h >= 18 && h < 22
+  return (JANELA_PICO.dias as readonly number[]).includes(dow)
+    && h >= JANELA_PICO.inicio && h < JANELA_PICO.fim
 }
 
 /** Aplica o surge de pico à taxa (arredonda a 2 casas), se for horário de pico. */

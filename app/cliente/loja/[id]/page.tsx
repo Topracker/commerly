@@ -7,6 +7,8 @@ import { Estrelas } from '../../../components/Estrelas'
 import { useToast } from '../../../hooks/useToast'
 import { Toast } from '../../../components/Toast'
 import { isFavorito, toggleFavorito } from '../../../lib/favoritos'
+import { enviarAvaliacao, VIEW_AVAL_LOJAS } from '../../../lib/avaliacoes'
+import { SeloVerificado } from '../../../components/SeloVerificado'
 import { MiniMapa } from '../../../components/MiniMapa'
 import { FachadaBanner } from '../../../components/FachadaBanner'
 import { RatingBadge } from '../../../components/RatingBadge'
@@ -93,7 +95,7 @@ export default function ClienteLoja() {
     const [lojaRes, prodRes, avalRes, promoRes] = await Promise.all([
       supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, website_url, whatsapp_business').eq('id', id).single(),
       supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
-      supabase.from('avaliacoes_lojas').select('nota, comentario, created_at, cliente_id, foto_url').eq('loja_id', id).order('created_at', { ascending: false }),
+      supabase.from(VIEW_AVAL_LOJAS).select('id, nota, comentario, created_at, cliente_id, foto_url, hash').eq('loja_id', id).order('created_at', { ascending: false }),
       supabase.from('promocoes').select('produto_id, desconto_pct, preco_promocional').eq('loja_id', id).eq('ativa', true),
     ])
 
@@ -132,16 +134,23 @@ export default function ClienteLoja() {
     if (minha) { setMinhaAvaliacao(minha); setNota(minha.nota); setComentario(minha.comentario || '') }
   }
 
-  async function enviarAvaliacao() {
+  async function submeterAvaliacao() {
     if (nota === 0) { mostrarToast('Selecione uma nota!', 'erro'); return }
     setEnviandoAval(true)
-    const payload = { cliente_id: cliente.id, loja_id: id, nota, comentario }
-    const { error } = minhaAvaliacao
-      ? await supabase.from('avaliacoes_lojas').update({ nota, comentario }).eq('cliente_id', cliente.id).eq('loja_id', id)
-      : await supabase.from('avaliacoes_lojas').insert(payload)
-    if (error) { mostrarToast('Erro ao enviar avaliação', 'erro'); setEnviandoAval(false); return }
-    mostrarToast(minhaAvaliacao ? 'Avaliação atualizada!' : 'Avaliação enviada!', 'sucesso')
+
+    // Editar não altera a linha antiga: a API cria uma nova que a substitui,
+    // preservando a cadeia de integridade. Ver lib/integridade.ts.
+    const res = await enviarAvaliacao({
+      alvo: 'loja',
+      alvo_id: id,
+      nota,
+      comentario,
+      substitui_id: minhaAvaliacao?.id ?? null,
+    })
     setEnviandoAval(false)
+
+    if ('error' in res) { mostrarToast(res.error, 'erro'); return }
+    mostrarToast(minhaAvaliacao ? 'Avaliação atualizada!' : 'Avaliação enviada!', 'sucesso')
     carregarLoja()
   }
 
@@ -300,7 +309,7 @@ export default function ClienteLoja() {
                 className="bg-superficie border border-borda text-white rounded-xl px-4 py-3 outline-none focus:border-[#F5C34B]/60 focus:ring-1 focus:ring-[#F5C34B]/40 resize-none text-sm"
               />
               <button
-                onClick={enviarAvaliacao}
+                onClick={submeterAvaliacao}
                 disabled={enviandoAval || nota === 0}
                 className={`font-semibold py-3 rounded-xl transition disabled:opacity-50 ${
                   minhaAvaliacao
@@ -320,7 +329,10 @@ export default function ClienteLoja() {
                 {avaliacoes.map((a, i) => (
                   <div key={i} className="py-3">
                     <div className="flex items-center justify-between gap-2">
-                      <Estrelas nota={a.nota} tamanho="text-base" />
+                      <div className="flex items-center gap-2">
+                        <Estrelas nota={a.nota} tamanho="text-base" />
+                        <SeloVerificado hash={a.hash} />
+                      </div>
                       <span className="text-gray-500 text-xs shrink-0">{new Date(a.created_at).toLocaleDateString('pt-BR')}</span>
                     </div>
                     {a.comentario && <p className="text-gray-300 text-sm mt-1.5">{a.comentario}</p>}

@@ -10,6 +10,8 @@ import { AcademyCard } from '../components/AcademyCard'
 import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos, minutosAteAgendamento, type Agendamento } from '../lib/nicheStore'
 import { calcularCommerlyScore, type CommerlyScore } from '../lib/commerlyScore'
+import { VIEW_AVAL_LOJAS } from '../lib/avaliacoes'
+import { TendenciasCard } from '../components/TendenciasCard'
 import {
   ShoppingBag, ChevronRight, Clock, Gauge, Package, Lightbulb, ArrowRight, Trophy, Moon, Rss,
   TrendingUp, TrendingDown, Wallet,
@@ -179,7 +181,7 @@ export default function Dashboard() {
       // Cancelados não contam como faturamento.
       supabase.from('pedidos_clientes').select('total, status, created_at').eq('loja_id', loja.id).neq('status', 'cancelado').gte('created_at', menorData.toISOString()),
       // Avaliações da loja (satisfação, pilar Clientes do Score).
-      supabase.from('avaliacoes_lojas').select('nota').eq('loja_id', loja.id),
+      supabase.from(VIEW_AVAL_LOJAS).select('nota').eq('loja_id', loja.id),
       // Pedidos (todos, com cancelados) — clientes, recorrência e clientes novos
       // (1ª compra nos últimos 30d) do Score. Histórico completo para saber quem
       // é realmente novo; a taxa de entrega filtra os últimos 30d em JS.
@@ -543,6 +545,11 @@ export default function Dashboard() {
       )}
 
       <CopilotCard />
+
+      {/* #12 Radar de tendências da cidade */}
+      <div className="mb-6">
+        <TendenciasCard />
+      </div>
 
       {/* Feed social: atalho para publicar */}
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-6 flex items-center gap-3">

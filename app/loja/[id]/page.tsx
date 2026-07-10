@@ -8,6 +8,8 @@ import { RatingBadge } from '../../components/RatingBadge'
 import { ProdutoCard } from '../../components/ProdutoCard'
 import { Phone, AtSign, MapPin, Clock, Globe, UtensilsCrossed, MessageCircle } from 'lucide-react'
 import { isDelivery } from '../../lib/pedidosClientes'
+import { VIEW_AVAL_LOJAS } from '../../lib/avaliacoes'
+import { SeloVerificado } from '../../components/SeloVerificado'
 import { linkWhatsApp, textoPedido, whatsappDaLoja } from '../../lib/whatsapp'
 
 // Página pública da loja — acessível sem login. Lê os dados via service role
@@ -35,13 +37,13 @@ async function carregar(id: string) {
   const [lojaRes, prodRes, avalRes] = await Promise.all([
     supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, website_url, whatsapp_business').eq('id', id).maybeSingle(),
     supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
-    supabase.from('avaliacoes_lojas').select('nota, comentario, created_at, foto_url').eq('loja_id', id).order('created_at', { ascending: false }),
+    supabase.from(VIEW_AVAL_LOJAS).select('nota, comentario, created_at, foto_url, hash').eq('loja_id', id).order('created_at', { ascending: false }),
   ])
 
   const loja = lojaRes.data as Loja | null
   if (!loja) return null
 
-  const avaliacoes = (avalRes.data || []) as { nota: number; comentario: string | null; created_at: string; foto_url: string | null }[]
+  const avaliacoes = (avalRes.data || []) as { nota: number; comentario: string | null; created_at: string; foto_url: string | null; hash: string | null }[]
   const media = avaliacoes.length > 0
     ? avaliacoes.reduce((s, a) => s + a.nota, 0) / avaliacoes.length
     : 0
@@ -207,7 +209,10 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
                 {avaliacoes.map((a, i) => (
                   <div key={i} className="py-3">
                     <div className="flex items-center justify-between gap-2">
-                      <Estrelas nota={a.nota} tamanho="text-base" />
+                      <div className="flex items-center gap-2">
+                        <Estrelas nota={a.nota} tamanho="text-base" />
+                        <SeloVerificado hash={a.hash} />
+                      </div>
                       <span className="text-gray-500 text-xs shrink-0">{new Date(a.created_at).toLocaleDateString('pt-BR')}</span>
                     </div>
                     {a.comentario && <p className="text-gray-300 text-sm mt-1.5">{a.comentario}</p>}

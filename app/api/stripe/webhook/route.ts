@@ -74,6 +74,10 @@ export async function POST(request: NextRequest) {
       observacao: pend.observacao,
       cliente_nome: pend.cliente_nome,
       cliente_telefone: pend.cliente_telefone,
+      // #6 Modo invisível: o guard anula nome/telefone quando isto é true.
+      anonimo: pend.anonimo === true,
+      // #5 Teto de preço que foi exibido ao cliente antes de ele pagar.
+      fator_exibido: pend.fator_exibido ?? null,
       // Resgate de pontos: o guard reaplica o mesmo desconto (determinístico a
       // partir de pontos_usados) e o trigger de acúmulo debita/credita o saldo.
       pontos_usados: pend.pontos_usados || 0,
