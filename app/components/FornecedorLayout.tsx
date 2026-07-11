@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
+import { TemaControle } from './TemaControle'
 import { LayoutDashboard, Package, LogOut, Menu, X, MessageCircle, Settings, Star } from 'lucide-react'
 
 const MENU = [
@@ -80,7 +81,7 @@ export function FornecedorLayout({ fornecedor, sair, titulo, children }: Props) 
   )
 
   return (
-    <div data-theme="dark" className="min-h-screen bg-gray-950 flex">
+    <div className="min-h-screen bg-gray-950 flex">
       <aside className="hidden md:flex w-56 bg-gray-900 flex-col fixed h-full">
         <SidebarConteudo />
       </aside>
@@ -106,10 +107,11 @@ export function FornecedorLayout({ fornecedor, sair, titulo, children }: Props) 
               <Menu size={24} />
             </button>
             <h1 className="text-xl font-bold text-white">{titulo}</h1>
-            <div className="w-6" />
+            <TemaControle />
           </div>
-          <div className="hidden md:block mb-6">
+          <div className="hidden md:flex items-center justify-between gap-4 mb-6">
             <h1 className="text-3xl font-bold text-white">{titulo}</h1>
+            <TemaControle />
           </div>
           {children}
         </div>

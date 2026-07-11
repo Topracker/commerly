@@ -4,12 +4,12 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
 import { useNicho } from '../hooks/useNicho'
 import { useNotificacoes } from '../hooks/useNotificacoes'
-import { useTema } from '../hooks/useTema'
 import { NotificacaoToast } from './NotificacaoToast'
+import { TemaControle } from './TemaControle'
 import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos } from '../lib/nicheStore'
 import { montarMenu, secaoDaRota, type BadgeKey } from '../lib/menu'
-import { LogOut, Menu, X, ChevronDown, Sun, Moon } from 'lucide-react'
+import { LogOut, Menu, X, ChevronDown } from 'lucide-react'
 
 type Props = {
   loja: any
@@ -30,7 +30,6 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
   const [agProximos, setAgProximos] = useState(0)
   const [fechadas, setFechadas] = useState<Set<string>>(new Set())
   const { naoLidas: notifNaoLidas, toastNotif, fecharToast } = useNotificacoes()
-  const { tema, alternar } = useTema()
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
@@ -119,20 +118,6 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
     setMenuAberto(false)
     router.push(path)
   }
-
-  // Elementos, não componentes: um `const X = () => ...` renderizado como <X />
-  // vira um tipo novo a cada render, o React remonta a subárvore e a animação
-  // das seções nunca chega a rodar.
-  const botaoTema = (
-    <button
-      onClick={alternar}
-      title={tema === 'claro' ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'}
-      aria-label={tema === 'claro' ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'}
-      className="shrink-0 w-9 h-9 rounded-xl border border-gray-800 bg-gray-900 text-gray-400 hover:text-white hover:border-gray-700 transition flex items-center justify-center"
-    >
-      {tema === 'claro' ? <Moon size={16} /> : <Sun size={16} />}
-    </button>
-  )
 
   const sidebar = (
     <div className="flex flex-col h-full p-4">
@@ -238,11 +223,11 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
               <Menu size={24} />
             </button>
             <h1 className="text-xl font-bold text-white">{titulo}</h1>
-            {botaoTema}
+            <TemaControle />
           </div>
           <div className={`hidden md:flex items-center justify-between gap-4 mb-6 ${noPadding ? 'px-6 pt-6' : ''}`}>
             <h1 className="text-3xl font-bold text-white">{titulo}</h1>
-            {botaoTema}
+            <TemaControle />
           </div>
           {children}
         </div>

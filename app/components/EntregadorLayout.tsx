@@ -4,6 +4,7 @@ import { LogOut, Bike, Bell } from 'lucide-react'
 import type { Entregador } from '../lib/entregadores'
 import { useNotificacoes } from '../hooks/useNotificacoes'
 import { NotificacaoToast } from './NotificacaoToast'
+import { TemaControle } from './TemaControle'
 
 type Props = {
   entregador: Entregador
@@ -18,7 +19,7 @@ export function EntregadorLayout({ entregador, sair, titulo, children }: Props) 
   const { naoLidas, toastNotif, fecharToast } = useNotificacoes()
 
   return (
-    <div data-theme="dark" className="min-h-screen bg-fundo">
+    <div className="min-h-screen bg-fundo">
       <NotificacaoToast notif={toastNotif} onFechar={fecharToast} />
       <header className="sticky top-0 z-20 bg-card border-b border-borda px-4 py-3 flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-acento/15 flex items-center justify-center shrink-0 overflow-hidden">
@@ -42,6 +43,7 @@ export function EntregadorLayout({ entregador, sair, titulo, children }: Props) 
             </span>
           )}
         </button>
+        <TemaControle />
         <button
           onClick={sair}
           className="shrink-0 text-gray-400 hover:text-white flex items-center gap-1.5 text-sm"

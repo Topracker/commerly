@@ -46,15 +46,40 @@ export async function GET(request: NextRequest) {
   const { data: nomesRows } = await admin.from('clientes').select('id, nome').in('id', partClienteIds)
   const nomes = new Map((nomesRows || []).map((c: any) => [c.id, c.nome]))
 
-  const participantes = (partsRes.data || []).map((p: any) => ({
-    id: p.id,
-    cliente_id: p.cliente_id,
-    nome: nomes.get(p.cliente_id) || 'Convidado',
-    itens: Array.isArray(p.itens) ? p.itens : [],
-    pronto: p.pronto,
-    tem_pedido: !!p.pedido_id,
-    sou_eu: p.cliente_id === cliente.id,
-  }))
+  // Pedidos já gerados (quando fechada) — para status em tempo real e ETA.
+  const pedidoIds = (partsRes.data || []).map((p: any) => p.pedido_id).filter(Boolean) as string[]
+  const pedidosMap = new Map<string, any>()
+  if (pedidoIds.length > 0) {
+    const { data: peds } = await admin
+      .from('pedidos_clientes')
+      .select('id, status, total, taxa_entrega, entregador_id, tempo_preparo_min, distancia_km, eta_em, created_at')
+      .in('id', pedidoIds)
+    for (const pd of peds || []) pedidosMap.set(pd.id, pd)
+  }
+
+  const participantes = (partsRes.data || []).map((p: any) => {
+    const pedido = p.pedido_id ? pedidosMap.get(p.pedido_id) : null
+    return {
+      id: p.id,
+      cliente_id: p.cliente_id,
+      nome: nomes.get(p.cliente_id) || 'Convidado',
+      itens: Array.isArray(p.itens) ? p.itens : [],
+      pronto: p.pronto,
+      tem_pedido: !!p.pedido_id,
+      sou_eu: p.cliente_id === cliente.id,
+      pedido: pedido ? {
+        id: pedido.id,
+        status: pedido.status,
+        total: Number(pedido.total) || 0,
+        taxa_entrega: Number(pedido.taxa_entrega) || 0,
+        tem_entregador: !!pedido.entregador_id,
+        tempo_preparo_min: pedido.tempo_preparo_min,
+        distancia_km: pedido.distancia_km,
+        eta_em: pedido.eta_em,
+        created_at: pedido.created_at,
+      } : null,
+    }
+  })
 
   return NextResponse.json({
     festa,

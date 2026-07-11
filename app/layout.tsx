@@ -94,7 +94,7 @@ export default function RootLayout({
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{document.documentElement.dataset.theme=localStorage.getItem('commerly:tema')==='claro'?'light':'dark'}catch(e){}`,
+            __html: `try{var d=document.documentElement,s=d.style;var t=localStorage.getItem('commerly:tema')==='claro'?'light':'dark';d.dataset.theme=t;var A={verde:{dark:['#00c896','#00a97e','#04231d'],light:['#00815f','#00694d','#fff']},azul:{dark:['#2f6bff','#1f57e6','#fff'],light:['#0052cc','#0043a6','#fff']},roxo:{dark:['#a855f7','#9333ea','#fff'],light:['#7c3aed','#6d28d9','#fff']},laranja:{dark:['#fb923c','#f97316','#3a1a02'],light:['#c2410c','#9a3412','#fff']},vermelho:{dark:['#f05252','#e02424','#fff'],light:['#dc2626','#b91c1c','#fff']}};var a=localStorage.getItem('commerly:acento');if(!A[a])a='verde';var c=A[a][t==='light'?'light':'dark'];s.setProperty('--color-acento',c[0]);s.setProperty('--color-acento-forte',c[1]);s.setProperty('--tinta-acento',c[2]);var b=parseFloat(localStorage.getItem('commerly:brilho'));if(b&&b!==1&&b>=0.8&&b<=1.15)s.filter='brightness('+b+')'}catch(e){}`,
           }}
         />
       </head>

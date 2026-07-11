@@ -1,12 +1,19 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { X, MapPin, Check, PartyPopper, Store } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { X, MapPin, Check, PartyPopper, Store, Search, Star, Navigation } from 'lucide-react'
+import { createClient } from '../supabase'
 import { distanciaKm, formatarDistancia } from '../lib/geo'
 import { isDelivery } from '../lib/pedidosClientes'
+import { getRatingsPorLoja } from '../lib/avaliacoes'
 import { FESTA_MAX_LOJAS, FESTA_RAIO_LOJAS_KM } from '../lib/festas'
 import { MapaConfirmar } from './MapaConfirmar'
 
-type LojaOpt = { id: string; nome: string; tipo: string; latitude: number | null; longitude: number | null }
+type LojaOpt = {
+  id: string; nome: string; tipo: string
+  latitude: number | null; longitude: number | null
+  fotos_fachada?: string[] | null; localizacao?: string | null; destaque?: boolean
+  media?: number; totalAval?: number
+}
 type Sugestao = { lat: number; lng: number; display_name: string }
 
 type Props = {
@@ -18,6 +25,7 @@ type Props = {
 // Modal de criação de festa: nome, endereço único de entrega (com mapa) e as
 // lojas participantes (até 3, a até 2 km umas das outras).
 export function CriarFestaModal({ onFechar, onCriada, onErro }: Props) {
+  const supabase = useMemo(() => createClient(), [])
   const [nome, setNome] = useState('')
   const [endereco, setEndereco] = useState('')
   const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(null)
@@ -26,20 +34,49 @@ export function CriarFestaModal({ onFechar, onCriada, onErro }: Props) {
   const [lojas, setLojas] = useState<LojaOpt[]>([])
   const [selec, setSelec] = useState<string[]>([])
   const [enviando, setEnviando] = useState(false)
+  const [buscaLoja, setBuscaLoja] = useState('')
+  // Nomes de produtos por loja — a busca casa por nome da loja E por produto.
+  const [produtosPorLoja, setProdutosPorLoja] = useState<Record<string, string[]>>({})
+  const [userPos, setUserPos] = useState<{ latitude: number; longitude: number } | null>(null)
 
-  // Lojas de delivery para escolher.
+  // Localização do usuário (só para exibir distância nos cards).
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      pos => setUserPos({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+      () => {}, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+    )
+  }, [])
+
+  // Lojas de delivery + notas + produtos (para a busca).
   useEffect(() => {
     let ativo = true
-    fetch('/api/cliente/lojas')
-      .then(r => (r.ok ? r.json() : { lojas: [] }))
-      .then(d => {
-        if (!ativo) return
-        const delivery = (d.lojas || []).filter((l: LojaOpt) => isDelivery(l.tipo) && l.latitude != null && l.longitude != null)
-        setLojas(delivery)
-      })
-      .catch(() => {})
+    ;(async () => {
+      const d = await fetch('/api/cliente/lojas').then(r => (r.ok ? r.json() : { lojas: [] })).catch(() => ({ lojas: [] }))
+      const delivery: LojaOpt[] = (d.lojas || []).filter(
+        (l: LojaOpt) => isDelivery(l.tipo) && l.latitude != null && l.longitude != null,
+      )
+      if (!ativo) return
+      const ids = delivery.map(l => l.id)
+      const [ratings, prodRes] = await Promise.all([
+        getRatingsPorLoja(supabase, ids),
+        supabase.from('produtos').select('loja_id, nome').in('loja_id', ids).gt('quantidade', 0),
+      ])
+      if (!ativo) return
+      const comNota = delivery.map(l => ({ ...l, media: ratings[l.id]?.media ?? 0, totalAval: ratings[l.id]?.total ?? 0 }))
+      comNota.sort((a, b) =>
+        (b.destaque ? 1 : 0) - (a.destaque ? 1 : 0) ||
+        (b.media || 0) - (a.media || 0) || a.nome.localeCompare(b.nome),
+      )
+      setLojas(comNota)
+      const mapa: Record<string, string[]> = {}
+      for (const p of (prodRes.data || []) as any[]) {
+        ;(mapa[p.loja_id] ??= []).push((p.nome || '').toLowerCase())
+      }
+      setProdutosPorLoja(mapa)
+    })().catch(() => {})
     return () => { ativo = false }
-  }, [])
+  }, [supabase])
 
   // Autocomplete do endereço (mesmo padrão do PedidoModal).
   useEffect(() => {
@@ -72,6 +109,30 @@ export function CriarFestaModal({ onFechar, onCriada, onErro }: Props) {
     }
   }
   const lojasLonge = maiorDist != null && maiorDist > FESTA_RAIO_LOJAS_KM
+
+  // Uma loja fica FORA de alcance se estiver a mais de 2km de qualquer loja já
+  // escolhida — o entregador precisa passar por todas numa viagem só.
+  function foraDoRaio(l: LojaOpt): boolean {
+    if (selec.includes(l.id)) return false
+    for (const sel of lojasSelec) {
+      const d = distanciaKm(
+        { latitude: l.latitude, longitude: l.longitude },
+        { latitude: sel.latitude, longitude: sel.longitude },
+      )
+      if (d != null && d > FESTA_RAIO_LOJAS_KM) return true
+    }
+    return false
+  }
+
+  // Filtro de busca: nome da loja OU nome de algum produto disponível.
+  const lojasFiltradas = useMemo(() => {
+    const q = buscaLoja.trim().toLowerCase()
+    if (!q) return lojas
+    return lojas.filter(l =>
+      l.nome.toLowerCase().includes(q) ||
+      (produtosPorLoja[l.id] || []).some(n => n.includes(q)),
+    )
+  }, [lojas, buscaLoja, produtosPorLoja])
 
   function toggleLoja(id: string) {
     setSelec(prev => {
@@ -170,27 +231,75 @@ export function CriarFestaModal({ onFechar, onCriada, onErro }: Props) {
               <Store size={14} className="text-gray-500" /> Lojas da festa
               <span className="text-gray-500 font-normal">({selec.length}/{FESTA_MAX_LOJAS})</span>
             </label>
-            <p className="text-gray-500 text-xs mb-2">Até {FESTA_MAX_LOJAS} lojas, a até {FESTA_RAIO_LOJAS_KM} km umas das outras. O entregador passa em todas numa viagem só.</p>
+            <p className="text-gray-500 text-xs mb-2">Até {FESTA_MAX_LOJAS} lojas de delivery, a até {FESTA_RAIO_LOJAS_KM} km umas das outras. O entregador passa em todas numa viagem só.</p>
+
+            {/* Busca por nome da loja ou produto */}
+            <div className="relative mb-3">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                value={buscaLoja}
+                onChange={e => setBuscaLoja(e.target.value)}
+                placeholder="Buscar loja ou produto..."
+                className="w-full bg-superficie border border-borda text-white rounded-xl pl-9 pr-4 py-2.5 outline-none focus:border-acento/60 text-sm"
+              />
+            </div>
+
             {lojas.length === 0 ? (
               <p className="text-gray-500 text-sm py-4 text-center">Nenhuma loja de delivery encontrada.</p>
+            ) : lojasFiltradas.length === 0 ? (
+              <p className="text-gray-500 text-sm py-4 text-center">Nenhuma loja ou produto com "{buscaLoja}".</p>
             ) : (
-              <div className="flex flex-col gap-2 max-h-56 overflow-y-auto">
-                {lojas.map(l => {
+              <div className="grid grid-cols-2 gap-2.5 max-h-[19rem] overflow-y-auto pr-0.5">
+                {lojasFiltradas.map(l => {
                   const on = selec.includes(l.id)
+                  const fora = foraDoRaio(l)
                   const cheio = !on && selec.length >= FESTA_MAX_LOJAS
+                  const bloq = !on && (fora || cheio)
+                  const dist = userPos ? distanciaKm(userPos, { latitude: l.latitude, longitude: l.longitude }) : null
                   return (
                     <button
                       key={l.id}
                       type="button"
-                      onClick={() => toggleLoja(l.id)}
-                      disabled={cheio}
-                      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition disabled:opacity-40 ${on ? 'border-acento/60 bg-acento/10' : 'border-borda bg-superficie hover:border-[#2b3440]'}`}
+                      onClick={() => !bloq && toggleLoja(l.id)}
+                      disabled={bloq}
+                      className={`relative text-left rounded-2xl overflow-hidden border transition disabled:opacity-40 ${
+                        on ? 'border-acento ring-1 ring-acento/50' : 'border-borda hover:border-[#2b3440]'
+                      }`}
                     >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-medium truncate">{l.nome}</p>
-                        <p className="text-gray-500 text-xs">{l.tipo}</p>
+                      {/* Fachada */}
+                      <div className="relative h-24 bg-elevado">
+                        {l.fotos_fachada?.[0] ? (
+                          <img src={l.fotos_fachada[0]} alt={`Fachada de ${l.nome}`} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-azul/25 via-elevado to-acento/15">
+                            <Store size={24} className="text-white/40" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-card/90 via-transparent to-transparent" />
+                        {on && (
+                          <span className="absolute top-2 left-2 w-6 h-6 rounded-full bg-acento flex items-center justify-center">
+                            <Check size={14} className="text-white" />
+                          </span>
+                        )}
+                        {(l.totalAval ?? 0) > 0 && (
+                          <span className="absolute top-2 right-2 inline-flex items-center gap-0.5 text-[10px] bg-black/50 backdrop-blur text-yellow-300 border border-yellow-500/30 px-1.5 py-0.5 rounded-full font-semibold">
+                            <Star size={9} className="fill-yellow-300 text-yellow-300" />
+                            {(l.media ?? 0).toFixed(1)}
+                          </span>
+                        )}
+                        {dist != null && (
+                          <span className="absolute bottom-2 right-2 inline-flex items-center gap-0.5 text-[10px] bg-acento/20 backdrop-blur text-acento border border-acento/40 px-1.5 py-0.5 rounded-full font-semibold">
+                            <Navigation size={9} />{formatarDistancia(dist)}
+                          </span>
+                        )}
                       </div>
-                      {on && <Check size={16} className="text-acento shrink-0" />}
+                      <div className="p-2.5 pt-2">
+                        <p className="text-white text-sm font-semibold truncate">{l.nome}</p>
+                        <p className="text-gray-500 text-[11px] truncate">{l.tipo}</p>
+                        {fora && !on && (
+                          <p className="text-amber-400 text-[10px] mt-1">Fora do raio de {FESTA_RAIO_LOJAS_KM} km</p>
+                        )}
+                      </div>
                     </button>
                   )
                 })}

@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
 import { useNotificacoes } from '../hooks/useNotificacoes'
 import { NotificacaoToast } from './NotificacaoToast'
+import { TemaControle } from './TemaControle'
 import { Search, Heart, MessageCircle, User, LogOut, Menu, X, Trophy, ShoppingBag, Bell, Sparkles, Rss, PartyPopper } from 'lucide-react'
 
 const MENU = [
@@ -82,20 +83,21 @@ export function ClienteLayout({ cliente, sair, children, noPadding = false, full
           </button>
         )
       })}
-      <div className="mt-auto pt-2">
+      <div className="mt-auto pt-2 flex items-center gap-2">
         <button
           onClick={sair}
-          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-gray-800 transition flex items-center gap-3 text-gray-400 text-sm"
+          className="flex-1 text-left px-3 py-2.5 rounded-xl hover:bg-gray-800 transition flex items-center gap-3 text-gray-400 text-sm"
         >
           <LogOut size={16} />
           Sair
         </button>
+        <TemaControle />
       </div>
     </div>
   )
 
   return (
-    <div data-theme="dark" className={`${fullHeight ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-gray-950 flex`}>
+    <div className={`${fullHeight ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-gray-950 flex`}>
       <NotificacaoToast notif={toastNotif} onFechar={fecharToast} />
       <aside className="hidden md:flex w-56 bg-gray-900 flex-col fixed h-full z-10">
         <SidebarConteudo />
@@ -122,6 +124,7 @@ export function ClienteLayout({ cliente, sair, children, noPadding = false, full
               <button onClick={() => setMenuAberto(true)} className="text-white">
                 <Menu size={22} />
               </button>
+              <div className="ml-auto"><TemaControle /></div>
             </div>
             <div className="flex-1 overflow-hidden flex flex-col">
               {children}
@@ -133,6 +136,7 @@ export function ClienteLayout({ cliente, sair, children, noPadding = false, full
               <button onClick={() => setMenuAberto(true)} className="text-white">
                 <Menu size={22} />
               </button>
+              <div className="ml-auto"><TemaControle /></div>
             </div>
             {children}
           </>
