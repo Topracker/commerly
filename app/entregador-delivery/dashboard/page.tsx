@@ -20,6 +20,9 @@ import { MAX_ENTREGAS_SIMULTANEAS, podemSerAgrupados, type PedidoRota } from '..
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { PainelGamificacao } from '../../components/PainelGamificacao'
 import { CardIndicacao } from '../../components/CardIndicacao'
+import { QRGerador } from '../../components/QRGerador'
+import { perfilSlug } from '../../lib/crescimento'
+import { QrCode } from 'lucide-react'
 import Link from 'next/link'
 import {
   Store, MapPin, Navigation, CircleDollarSign, Check, Handshake, PackageCheck,
@@ -613,6 +616,15 @@ function EntregadorDashboard() {
       <div className="grid gap-4 mb-4">
         <PainelGamificacao papel="entregador" />
         <CardIndicacao />
+      </div>
+
+      {/* QR do meu perfil público — vira outdoor ambulante */}
+      <div className="mb-4">
+        <p className="text-white text-sm font-semibold flex items-center gap-1.5 mb-2"><QrCode size={15} className="text-acento" /> Meu QR de perfil</p>
+        <QRGerador
+          destinos={[{ chave: 'perfil', label: 'Meu perfil', url: `${(process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : ''))}/entregador/${perfilSlug(entregador.nome, entregador.id)}` }]}
+          nomeArquivo={`entregador-${entregador.id}`}
+        />
       </div>
 
       {/* 1. HEADER: foto, nome, avaliação e status Online/Offline */}

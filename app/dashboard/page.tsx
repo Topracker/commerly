@@ -17,7 +17,7 @@ import { VIEW_AVAL_LOJAS } from '../lib/avaliacoes'
 import { TendenciasCard } from '../components/TendenciasCard'
 import {
   ShoppingBag, ChevronRight, Clock, Gauge, Package, Lightbulb, ArrowRight, Trophy, Moon, Rss,
-  TrendingUp, TrendingDown, Wallet,
+  TrendingUp, TrendingDown, Wallet, Sparkles, ImageIcon,
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
@@ -555,6 +555,20 @@ export default function Dashboard() {
       )}
 
       <CopilotCard />
+
+      {/* Commerly AI + Kit de marketing */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <a href="/commerly-ai" className="bg-gray-900 border border-gray-800 hover:border-acento/40 rounded-2xl p-4 transition">
+          <Sparkles size={18} className="text-acento mb-2" />
+          <p className="text-white font-bold text-sm">Commerly AI</p>
+          <p className="text-gray-400 text-xs">Posts e relatórios com IA.</p>
+        </a>
+        <a href="/marketing" className="bg-gray-900 border border-gray-800 hover:border-acento/40 rounded-2xl p-4 transition">
+          <ImageIcon size={18} className="text-acento mb-2" />
+          <p className="text-white font-bold text-sm">Kit de marketing</p>
+          <p className="text-gray-400 text-xs">Adesivos, selo e QR codes.</p>
+        </a>
+      </div>
 
       {/* #12 Radar de tendências da cidade */}
       <div className="mb-6">
