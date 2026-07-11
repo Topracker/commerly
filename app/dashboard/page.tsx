@@ -7,6 +7,9 @@ import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { CopilotCard } from '../components/CopilotCard'
 import { AcademyCard } from '../components/AcademyCard'
+import { PainelGamificacao } from '../components/PainelGamificacao'
+import { CardIndicacao } from '../components/CardIndicacao'
+import { BadgeNivel } from '../components/BadgeNivel'
 import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos, minutosAteAgendamento, type Agendamento } from '../lib/nicheStore'
 import { calcularCommerlyScore, type CommerlyScore } from '../lib/commerlyScore'
@@ -392,6 +395,7 @@ export default function Dashboard() {
           <div className="flex-1 min-w-0">
             <h2 className="font-display text-xl font-bold text-white truncate">{loja.nome}</h2>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <BadgeNivel compact />
               <span className="text-gray-400 text-xs">{loja.tipo}</span>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                 loja.plano === 'ativo'
@@ -432,6 +436,12 @@ export default function Dashboard() {
           )}
         </div>
       </header>
+
+      {/* Gamificação + indicação */}
+      <div className="grid md:grid-cols-2 gap-4 mb-6">
+        <PainelGamificacao papel="comerciante" />
+        <CardIndicacao />
+      </div>
 
       {/* Lembretes de agendamento — próximas 2 horas */}
       {agProximos.length > 0 && (

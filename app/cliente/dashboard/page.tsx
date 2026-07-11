@@ -5,6 +5,7 @@ import { useToast } from '../../hooks/useToast'
 import { Toast } from '../../components/Toast'
 import { ClienteLayout } from '../../components/ClienteLayout'
 import { CardIndicacao } from '../../components/CardIndicacao'
+import { PainelGamificacao } from '../../components/PainelGamificacao'
 import { nivelDoCliente } from '../../lib/fidelidade'
 import { Sparkles } from 'lucide-react'
 
@@ -78,6 +79,9 @@ export default function ClienteDashboard() {
       <h1 className="text-2xl font-bold text-white mb-6 hidden md:block">Minha conta</h1>
 
       <div className="max-w-2xl mx-auto flex flex-col gap-6">
+        {/* Gamificação: XP, nível, missões, medalhas, streak */}
+        <PainelGamificacao papel="cliente" />
+
         {/* Indique e ganhe (código de indicação + link de convite) */}
         <CardIndicacao />
 

@@ -64,6 +64,9 @@ export type Entregador = {
   latitude?: number | null
   longitude?: number | null
   localizacao_at?: string | null
+  // Kit oficial do entregador (sql/2026-07-15 em diante). Sem kit = sem entregas.
+  kit_comprado?: boolean
+  kit_status?: 'pendente' | 'pago' | 'producao' | 'embalado' | 'enviado' | 'saiu' | 'recebido' | 'ativado' | null
   created_at: string
 }
 

@@ -18,6 +18,9 @@ import { uploadFotoAvaliacao, VIEW_AVAL_ENTREGADORES } from '../../lib/avaliacoe
 import { distanciaKm, formatarDistancia } from '../../lib/geo'
 import { MAX_ENTREGAS_SIMULTANEAS, podemSerAgrupados, type PedidoRota } from '../../lib/rota'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { PainelGamificacao } from '../../components/PainelGamificacao'
+import { CardIndicacao } from '../../components/CardIndicacao'
+import Link from 'next/link'
 import {
   Store, MapPin, Navigation, CircleDollarSign, Check, Handshake, PackageCheck,
   Star, History, Power, Wallet, Bike, TrendingUp,
@@ -597,6 +600,20 @@ function EntregadorDashboard() {
             : <><WifiOff size={16} className="shrink-0" /> Sem conexão — suas localizações estão sendo salvas e serão sincronizadas.</>}
         </div>
       )}
+
+      {/* Kit oficial — sem kit, sem entregas */}
+      {entregador.kit_comprado === false && (
+        <Link href="/kit" className="block mb-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+          <p className="text-amber-200 font-semibold text-sm">🎒 Ative sua conta com o Kit Oficial</p>
+          <p className="text-amber-200/70 text-xs mt-0.5">Sem o kit, você ainda não recebe corridas. Toque para ver o kit e o desconto do seu nível.</p>
+        </Link>
+      )}
+
+      {/* Gamificação + indicação */}
+      <div className="grid gap-4 mb-4">
+        <PainelGamificacao papel="entregador" />
+        <CardIndicacao />
+      </div>
 
       {/* 1. HEADER: foto, nome, avaliação e status Online/Offline */}
       <section className="bg-card border border-borda rounded-2xl p-4 mb-4">
