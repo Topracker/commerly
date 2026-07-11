@@ -4,6 +4,7 @@ import {
   Rss, Gauge, Bot, Wallet, MapPin, GraduationCap,
 } from 'lucide-react'
 import AnimatedBackground from './components/AnimatedBackground'
+import HomeCrescimento from './components/HomeCrescimento'
 
 // Deploy check: força rebuild na Vercel (2026-07-16).
 
@@ -52,7 +53,7 @@ export default function Home() {
           style={{ '--atraso': '0ms' } as React.CSSProperties}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-acento animate-pulse" />
-          Feito para o comércio de bairro
+          Estamos construindo a maior comunidade de pequenos comércios do Brasil
         </span>
 
         <h1
@@ -63,11 +64,18 @@ export default function Home() {
         </h1>
 
         <p
-          className="anima-subir font-body text-gray-400 text-lg sm:text-xl mt-4 max-w-xl leading-relaxed"
-          style={{ '--atraso': '160ms' } as React.CSSProperties}
+          className="anima-subir font-display text-white text-xl sm:text-2xl font-semibold mt-4 max-w-2xl leading-snug"
+          style={{ '--atraso': '140ms' } as React.CSSProperties}
         >
-          Gestão, delivery, pagamentos e um feed social — tudo o que a sua loja precisa,
-          num app só.
+          O Sistema Operacional do Pequeno Comércio
+        </p>
+
+        <p
+          className="anima-subir font-body text-gray-400 text-base sm:text-lg mt-3 max-w-xl leading-relaxed"
+          style={{ '--atraso': '200ms' } as React.CSSProperties}
+        >
+          A plataforma que conecta comerciantes, clientes e entregadores em um único
+          ecossistema. O delivery é só uma das peças.
         </p>
 
         {/* Portas de entrada por papel */}
@@ -91,6 +99,9 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* CRESCIMENTO — contadores ao vivo, feed de conquistas, marcos, cidades */}
+      <HomeCrescimento />
 
       {/* FEATURES */}
       <section className="relative z-10 px-6 pb-20">
@@ -137,6 +148,37 @@ export default function Home() {
             </span>
             <ArrowRight size={16} className="text-gray-500 shrink-0" />
           </a>
+        </div>
+      </section>
+
+      {/* NAVEGAÇÃO — páginas do ecossistema */}
+      <section className="relative z-10 px-6 pb-24">
+        <div className="max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {[
+              { href: '/para-comerciantes', t: 'Para comerciantes' },
+              { href: '/para-entregadores', t: 'Para entregadores' },
+              { href: '/para-clientes', t: 'Para clientes' },
+              { href: '/expansao', t: '🗺️ Expansão por cidades' },
+              { href: '/fundadores', t: '🏅 Programa Fundadores' },
+              { href: '/embaixadores', t: '🎖️ Embaixadores' },
+              { href: '/hall-da-fama', t: '🏆 Hall da Fama' },
+              { href: '/parceiros', t: 'Parceiros' },
+              { href: '/blog', t: '📰 Blog' },
+              { href: '/investidores', t: 'Investidores' },
+              { href: '/sobre', t: 'Sobre a Commerly' },
+              { href: '/loja', t: '🛍️ Loja oficial' },
+            ].map(l => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="grupo rounded-xl border border-borda bg-card hover:border-acento/40 px-4 py-3 text-sm text-gray-300 hover:text-white transition flex items-center justify-between gap-2"
+              >
+                <span className="min-w-0 truncate">{l.t}</span>
+                <ArrowRight size={14} className="text-gray-600 shrink-0 grupo-icone" />
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
     </main>

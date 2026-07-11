@@ -4,6 +4,7 @@ import { useCliente } from '../../hooks/useCliente'
 import { useToast } from '../../hooks/useToast'
 import { Toast } from '../../components/Toast'
 import { ClienteLayout } from '../../components/ClienteLayout'
+import { CardIndicacao } from '../../components/CardIndicacao'
 import { nivelDoCliente } from '../../lib/fidelidade'
 import { Sparkles } from 'lucide-react'
 
@@ -77,6 +78,9 @@ export default function ClienteDashboard() {
       <h1 className="text-2xl font-bold text-white mb-6 hidden md:block">Minha conta</h1>
 
       <div className="max-w-2xl mx-auto flex flex-col gap-6">
+        {/* Indique e ganhe (código de indicação + link de convite) */}
+        <CardIndicacao />
+
         {/* Programa de fidelidade */}
         <div className="rounded-2xl p-6 border border-gray-800 bg-gradient-to-br from-gray-900 to-gray-900/40">
           <div className="flex items-center justify-between gap-4">

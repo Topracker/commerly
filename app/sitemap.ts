@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { createAdminClient } from './lib/supabase-admin'
 import { SITE_URL } from './lib/site'
+import { ARTIGOS } from './lib/blog'
 
 // Regenera o sitemap no máximo a cada hora (novas lojas entram sem novo deploy).
 export const revalidate = 3600
@@ -15,6 +16,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/privacidade`, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/login`, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/cliente/login`, changeFrequency: 'yearly', priority: 0.3 },
+    // Marketing / comunidade / SEO
+    { url: `${SITE_URL}/para-comerciantes`, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${SITE_URL}/para-entregadores`, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${SITE_URL}/para-clientes`, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${SITE_URL}/expansao`, changeFrequency: 'daily', priority: 0.7 },
+    { url: `${SITE_URL}/fundadores`, changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${SITE_URL}/embaixadores`, changeFrequency: 'monthly', priority: 0.6 },
+    { url: `${SITE_URL}/hall-da-fama`, changeFrequency: 'weekly', priority: 0.5 },
+    { url: `${SITE_URL}/parceiros`, changeFrequency: 'monthly', priority: 0.6 },
+    { url: `${SITE_URL}/investidores`, changeFrequency: 'monthly', priority: 0.4 },
+    { url: `${SITE_URL}/kit`, changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${SITE_URL}/demo`, changeFrequency: 'monthly', priority: 0.4 },
+    { url: `${SITE_URL}/loja`, changeFrequency: 'monthly', priority: 0.4 },
+    { url: `${SITE_URL}/blog`, changeFrequency: 'weekly', priority: 0.7 },
+    ...ARTIGOS.map(a => ({
+      url: `${SITE_URL}/blog/${a.slug}`,
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    })),
   ]
 
   // Páginas de loja pública. Tolerante: se o Supabase não estiver configurado
