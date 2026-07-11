@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { nivelDe, nivelXp, NIVEIS_POR_PAPEL, NIVEIS_COMERCIANTE, NIVEIS_ENTREGADOR, NIVEIS_CLIENTE } from './crescimento'
+import { nivelDe, nivelXp, NIVEIS_POR_PAPEL, NIVEIS_COMERCIANTE, NIVEIS_ENTREGADOR, NIVEIS_CLIENTE, eventoSazonalAtivo } from './crescimento'
 
 // ============================================================================
 // Motor de gamificação — reconciliação idempotente (pull-based).
@@ -58,7 +58,7 @@ async function atualizarStreak(admin: SupabaseClient, userId: string) {
 export async function reconciliarUsuario(admin: SupabaseClient, userId: string): Promise<PerfilGamificacao | null> {
   // Descobre papel + entidade.
   const [{ data: loja }, { data: cli }, { data: ent }, { data: forn }] = await Promise.all([
-    admin.from('lojas').select('id, nome, tipo, created_at').eq('user_id', userId).maybeSingle(),
+    admin.from('lojas').select('id, nome, tipo, localizacao, created_at').eq('user_id', userId).maybeSingle(),
     admin.from('clientes').select('id, nome, telefone, cpf, created_at').eq('user_id', userId).maybeSingle(),
     admin.from('entregadores').select('id, nome, telefone, created_at').eq('user_id', userId).maybeSingle(),
     admin.from('fornecedores').select('id, nome, created_at').eq('user_id', userId).maybeSingle(),
@@ -95,6 +95,18 @@ export async function reconciliarUsuario(admin: SupabaseClient, userId: string):
     if (pedidosFeitos >= 100) idealMedalhas.push('maratonista')
     if (pedidosFeitos >= 200) idealMedalhas.push('cliente-vip')
     if (nome && (cli.telefone || cli.cpf)) missoes.push('completar-perfil')
+    // Easter egg "explorador": 3 lojas diferentes no mesmo dia.
+    if (pedidosFeitos >= 3) {
+      const { data: rows } = await admin.from('pedidos_clientes')
+        .select('loja_id, created_at').eq('cliente_id', cli.id).limit(1000)
+      const porDia = new Map<string, Set<string>>()
+      for (const r of rows || []) {
+        const dia = String(r.created_at).slice(0, 10)
+        if (!porDia.has(dia)) porDia.set(dia, new Set())
+        porDia.get(dia)!.add(r.loja_id)
+      }
+      if ([...porDia.values()].some(s => s.size >= 3)) idealMedalhas.push('explorador')
+    }
   } else if (papel === 'entregador' && ent) {
     const { count: ec } = await admin.from('pedidos_clientes').select('id', { count: 'exact', head: true }).eq('entregador_id', ent.id).eq('status', 'entregue')
     entregas = ec || 0
@@ -115,6 +127,13 @@ export async function reconciliarUsuario(admin: SupabaseClient, userId: string):
     if (avalCount >= 50 && avalMedia >= 4.95) idealMedalhas.push('estrela')
     missoes.push('cadastrar-comercio')
     if (nome && loja.tipo) missoes.push('completar-perfil')
+    // Easter egg "pioneiro-cidade": primeiro comerciante da cidade (localizacao).
+    if (loja.localizacao) {
+      const { count: anteriores } = await admin.from('lojas')
+        .select('id', { count: 'exact', head: true })
+        .eq('localizacao', loja.localizacao).lt('created_at', loja.created_at)
+      if ((anteriores || 0) === 0) idealMedalhas.push('pioneiro-cidade')
+    }
   }
 
   // Indicações confirmadas + comunidade.
@@ -139,6 +158,9 @@ export async function reconciliarUsuario(admin: SupabaseClient, userId: string):
   const streak = await atualizarStreak(admin, userId)
   if (streak.recorde >= 100) idealMedalhas.push('centenario')
   if (primeiroPedidoHora === 0) idealMedalhas.push('coruja')
+  // Evento sazonal ativo: presença durante o evento concede a medalha do evento.
+  const evento = eventoSazonalAtivo()
+  if (evento) idealMedalhas.push(evento.medalha)
 
   // Concede medalhas e missões (idempotente).
   await Promise.all([grantMedalhas(admin, userId, idealMedalhas), grantMissoes(admin, userId, missoes)])

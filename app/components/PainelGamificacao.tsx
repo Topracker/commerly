@@ -34,6 +34,11 @@ export function PainelGamificacao({ papel }: { papel?: string }) {
       } catch {}
       const d = await fetch('/api/gamificacao/sync').then(r => (r.ok ? r.json() : null)).catch(() => null)
       if (vivo && d && !d.error) setP(d)
+      // Comerciante: sincroniza benefícios na Stripe (desconto por nível + meses
+      // grátis de indicação). No-op se não houver assinatura ativa.
+      if (d?.papel === 'comerciante') {
+        fetch('/api/stripe/aplicar-desconto', { method: 'POST' }).catch(() => {})
+      }
     }
     carregar()
     return () => { vivo = false }

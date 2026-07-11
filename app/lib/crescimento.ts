@@ -103,6 +103,14 @@ export const MEDALHAS: Medalha[] = [
   { slug: 'super-embaixador', nome: 'Super Embaixador', emoji: '🎖️', descricao: 'Embaixador nível Elite.', como: 'Chegar ao nível Elite de embaixador.' },
   { slug: 'coruja', nome: '???', emoji: '🦉', descricao: 'Conquista secreta.', como: 'Fazer o primeiro pedido à meia-noite em ponto.', secreta: true },
   { slug: 'centenario', nome: '???', emoji: '🔥', descricao: 'Conquista secreta.', como: '100 dias seguidos usando a Commerly.', secreta: true },
+  { slug: 'explorador', nome: '???', emoji: '🧭', descricao: 'Conquista secreta.', como: 'Pedir em 3 lojas diferentes no mesmo dia.', secreta: true },
+  { slug: 'pioneiro-cidade', nome: '???', emoji: '🌟', descricao: 'Conquista secreta.', como: 'Ser o primeiro comerciante da sua cidade na Commerly.', secreta: true },
+  // Medalhas de eventos sazonais (concedidas por atividade durante o evento).
+  { slug: 'natal', nome: 'Natal Commerly', emoji: '🎄', descricao: 'Participou do evento de Natal.', como: 'Ter atividade durante o evento de Natal.' },
+  { slug: 'black-friday', nome: 'Black Friday', emoji: '🛒', descricao: 'Participou da Black Friday.', como: 'Ter atividade durante a Black Friday.' },
+  { slug: 'pascoa', nome: 'Páscoa', emoji: '🐰', descricao: 'Participou do evento de Páscoa.', como: 'Ter atividade durante a Páscoa.' },
+  { slug: 'dia-das-maes', nome: 'Dia das Mães', emoji: '💐', descricao: 'Participou do Dia das Mães.', como: 'Ter atividade durante o Dia das Mães.' },
+  { slug: 'dia-do-comerciante', nome: 'Dia do Comerciante', emoji: '🏪', descricao: 'Participou do Dia do Comerciante.', como: 'Ter atividade no Dia do Comerciante (16/07).' },
 ]
 export const medalhaPorSlug = (slug: string) => MEDALHAS.find(m => m.slug === slug)
 
@@ -145,6 +153,56 @@ export function gerarCodigoIndicacao(nome: string): string {
     .toUpperCase().replace(/[^A-Z]/g, '').slice(0, 6) || 'USER'
   return `${base}${Math.floor(100 + Math.random() * 900)}`
 }
+
+// ---------------------------------------------------------------------------
+// Eventos sazonais (missões e badge exclusivos por período)
+// ---------------------------------------------------------------------------
+export type EventoSazonal = {
+  slug: string; nome: string; emoji: string; cor: string
+  inicio: string; fim: string // 'MM-DD'
+  descricao: string; medalha: string; missao: string
+}
+export const EVENTOS_SAZONAIS: EventoSazonal[] = [
+  { slug: 'dia-das-maes', nome: 'Dia das Mães', emoji: '💐', cor: '#f472b6', inicio: '05-01', fim: '05-14', descricao: 'Presenteie e movimente o comércio local.', medalha: 'dia-das-maes', missao: 'Faça um pedido no Dia das Mães' },
+  { slug: 'pascoa', nome: 'Páscoa', emoji: '🐰', cor: '#a78bfa', inicio: '03-25', fim: '04-05', descricao: 'Chocolate, comércio e comunidade.', medalha: 'pascoa', missao: 'Participe do evento de Páscoa' },
+  { slug: 'dia-do-comerciante', nome: 'Dia do Comerciante', emoji: '🏪', cor: '#f5c34b', inicio: '07-14', fim: '07-18', descricao: 'O dia de quem faz o comércio local acontecer.', medalha: 'dia-do-comerciante', missao: 'Esteja ativo no Dia do Comerciante' },
+  { slug: 'black-friday', nome: 'Black Friday', emoji: '🛒', cor: '#111827', inicio: '11-24', fim: '11-30', descricao: 'As melhores ofertas do comércio local.', medalha: 'black-friday', missao: 'Faça um pedido na Black Friday' },
+  { slug: 'natal', nome: 'Natal Commerly', emoji: '🎄', cor: '#ef4444', inicio: '12-15', fim: '12-25', descricao: 'Espalhe o espírito do comércio local.', medalha: 'natal', missao: 'Participe do evento de Natal' },
+]
+
+/** Evento sazonal ativo na data informada (usa mês-dia; ignora o ano). */
+export function eventoSazonalAtivo(d: Date = new Date()): EventoSazonal | null {
+  const md = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return EVENTOS_SAZONAIS.find(e => md >= e.inicio && md <= e.fim) ?? null
+}
+
+// ---------------------------------------------------------------------------
+// Slug de perfil público: "nome-uuid". Robusto e único (carrega o id inteiro).
+// ---------------------------------------------------------------------------
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+export function perfilSlug(nome: string, id: string): string {
+  const base = slugify(nome) || 'perfil'
+  return `${base}-${id}`
+}
+/** Extrai o id (uuid) de um slug de perfil, ou null. Aceita o uuid puro também. */
+export function idDoSlug(slug: string): string | null {
+  const s = (slug || '').trim()
+  const m = s.match(UUID_RE)
+  return m ? m[0] : (UUID_RE.test(s) ? s : null)
+}
+
+// Feature flags conhecidas (rótulos para o admin).
+export const FEATURE_FLAGS: { flag: string; rotulo: string }[] = [
+  { flag: 'delivery', rotulo: 'Delivery' },
+  { flag: 'ia', rotulo: 'IA (Commerly AI)' },
+  { flag: 'cashback', rotulo: 'Cashback' },
+  { flag: 'gamificacao', rotulo: 'Gamificação' },
+  { flag: 'kit', rotulo: 'Kit Oficial' },
+  { flag: 'fundadores', rotulo: 'Programa Fundadores' },
+  { flag: 'embaixadores', rotulo: 'Programa Embaixadores' },
+  { flag: 'modo_festa', rotulo: 'Modo Festa' },
+  { flag: 'flash_sale', rotulo: 'Flash Sale' },
+]
 
 // Marcos históricos e de conquista (homepage / timeline).
 export const MARCOS = [

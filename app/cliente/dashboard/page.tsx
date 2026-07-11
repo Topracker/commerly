@@ -6,6 +6,7 @@ import { Toast } from '../../components/Toast'
 import { ClienteLayout } from '../../components/ClienteLayout'
 import { CardIndicacao } from '../../components/CardIndicacao'
 import { PainelGamificacao } from '../../components/PainelGamificacao'
+import { PerfilPrivacidadeCard } from '../../components/PerfilPrivacidadeCard'
 import { nivelDoCliente } from '../../lib/fidelidade'
 import { Sparkles } from 'lucide-react'
 
@@ -81,6 +82,9 @@ export default function ClienteDashboard() {
       <div className="max-w-2xl mx-auto flex flex-col gap-6">
         {/* Gamificação: XP, nível, missões, medalhas, streak */}
         <PainelGamificacao papel="cliente" />
+
+        {/* Privacidade do perfil público */}
+        <PerfilPrivacidadeCard />
 
         {/* Indique e ganhe (código de indicação + link de convite) */}
         <CardIndicacao />
