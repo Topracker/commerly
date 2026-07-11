@@ -9,8 +9,12 @@ import { FESTA_STATUS_META, FESTA_BONUS_PCT, type FestaStatus } from '../../../l
 import { emojiCategoria } from '../../../lib/temaLoja'
 import {
   ArrowLeft, PartyPopper, Users, Copy, Check, Plus, Minus, Store,
-  MapPin, ShoppingBag, Truck, Loader2, PackageCheck,
+  MapPin, ShoppingBag, Truck, Loader2, PackageCheck, Link2, MessageCircle,
 } from 'lucide-react'
+
+// Base pública do app — o link de convite é sempre compartilhado com o domínio
+// de produção (mesmo se você estiver testando em localhost).
+const APP_BASE = 'https://commerly.vercel.app'
 
 type Item = { produto_id: string; loja_id: string; nome: string; preco: number; quantidade: number }
 type Participante = { id: string; cliente_id: string; nome: string; itens: Item[]; pronto: boolean; tem_pedido: boolean; sou_eu: boolean }
@@ -38,6 +42,7 @@ export default function FestaSala() {
   const [qtds, setQtds] = useState<Record<string, number>>({})
   const [salvando, setSalvando] = useState(false)
   const [copiado, setCopiado] = useState(false)
+  const [copiadoLink, setCopiadoLink] = useState(false)
   const [acaoFesta, setAcaoFesta] = useState(false)
   const carrinhoTocado = useRef(false)
 
@@ -158,6 +163,23 @@ export default function FestaSala() {
     }).catch(() => {})
   }
 
+  // Link de convite completo — leva o amigo direto pra dentro da festa (entra
+  // sozinho se já estiver logado; senão passa pelo login e cai aqui).
+  const linkConvite = festa ? `${APP_BASE}/cliente/festa/entrar/${festa.codigo}` : ''
+  const msgWhatsApp = `Entra na nossa festa no Commerly! ${linkConvite}`
+
+  function copiarLink() {
+    if (!linkConvite) return
+    navigator.clipboard?.writeText(linkConvite).then(() => {
+      setCopiadoLink(true); setTimeout(() => setCopiadoLink(false), 1500)
+    }).catch(() => {})
+  }
+
+  function compartilharWhatsApp() {
+    if (!linkConvite) return
+    window.open(`https://wa.me/?text=${encodeURIComponent(msgWhatsApp)}`, '_blank', 'noopener,noreferrer')
+  }
+
   if (loading) return (
     <main className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-400">Carregando...</p></main>
   )
@@ -210,6 +232,31 @@ export default function FestaSala() {
             <MapPin size={13} className="text-gray-500 shrink-0 mt-0.5" />
             <span>{festa.endereco_entrega}</span>
           </p>
+
+          {/* Link de convite completo — mais fácil do que ditar o código */}
+          <div className="mt-4 border-t border-borda pt-3">
+            <p className="text-gray-500 text-xs mb-1.5 flex items-center gap-1.5">
+              <Link2 size={13} /> Link do convite
+            </p>
+            <p className="text-gray-300 text-xs font-mono break-all bg-superficie border border-borda rounded-lg px-3 py-2">
+              {linkConvite}
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button
+                onClick={copiarLink}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-elevado border border-borda hover:bg-borda text-white text-sm font-medium px-3 py-2 rounded-xl transition"
+              >
+                {copiadoLink ? <Check size={15} className="text-green-400" /> : <Copy size={15} />}
+                {copiadoLink ? 'Copiado' : 'Copiar link'}
+              </button>
+              <button
+                onClick={compartilharWhatsApp}
+                className="flex-[1.3] flex items-center justify-center gap-1.5 bg-[#25D366] hover:brightness-105 text-white text-sm font-semibold px-3 py-2 rounded-xl transition"
+              >
+                <MessageCircle size={15} /> WhatsApp
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Status pós-fechamento */}

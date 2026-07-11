@@ -61,6 +61,23 @@ export default function ClienteBuscar() {
     if (cliente) pedirLocalizacao()
   }, [cliente])
 
+  // Convite de festa pendente (visitante clicou no link sem estar logado): entra
+  // automaticamente assim que o cliente carrega. Ver /cliente/festa/entrar/[codigo].
+  useEffect(() => {
+    if (!cliente) return
+    let cod: string | null = null
+    try { cod = localStorage.getItem('festa_convite_pendente') } catch {}
+    if (!cod) return
+    try { localStorage.removeItem('festa_convite_pendente') } catch {}
+    fetch('/api/festa/entrar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codigo: cod }),
+    })
+      .then(r => r.json().catch(() => ({})))
+      .then(d => { if (d?.festa?.id) router.push(`/cliente/festa/${d.festa.id}`) })
+      .catch(() => {})
+  }, [cliente, router])
+
   function pedirLocalizacao() {
     if (typeof navigator === 'undefined' || !navigator.geolocation) { setGeoStatus('negado'); return }
     setGeoStatus('pedindo')
