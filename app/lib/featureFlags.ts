@@ -36,3 +36,21 @@ export async function flagAtiva(flag: string, cidadeSlug?: string | null, client
   const flags = await getFlags(cidadeSlug, client)
   return flags[flag] ?? true
 }
+
+/**
+ * Descobre a cidade (slug) de um usuário. Só as lojas carregam cidade_slug
+ * resolvido (clientes/entregadores só têm uf), então overrides por cidade
+ * valem principalmente para comerciantes; os demais caem no escopo global.
+ */
+export async function cidadeSlugDoUsuario(userId: string, client?: SupabaseClient): Promise<string | null> {
+  const admin = client ?? createAdminClient()
+  const { data } = await admin.from('lojas').select('cidade_slug').eq('user_id', userId).maybeSingle()
+  return (data?.cidade_slug as string | null) ?? null
+}
+
+/** Flags efetivas para o usuário logado (global + overrides da cidade dele). */
+export async function flagsDoUsuario(userId: string | null | undefined, client?: SupabaseClient): Promise<Flags> {
+  const admin = client ?? createAdminClient()
+  const cidade = userId ? await cidadeSlugDoUsuario(userId, admin) : null
+  return getFlags(cidade, admin)
+}

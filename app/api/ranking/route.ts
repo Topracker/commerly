@@ -67,10 +67,14 @@ export async function GET(request: NextRequest) {
   }
 
   // ---- Comerciantes / Entregadores / Clientes: por pedidos ----
-  // Restringe às lojas da cidade quando escopo=cidade.
+  // Restringe às lojas da cidade (escopo=cidade) ou do estado (uf) quando pedido.
   let lojaIdsCidade: string[] | null = null
   if (escopo === 'cidade' && cidade) {
     const { data } = await admin.from('lojas').select('id').eq('localizacao', cidade)
+    lojaIdsCidade = (data || []).map((l: any) => l.id)
+    if (lojaIdsCidade.length === 0) return NextResponse.json({ papel, periodo, itens: [] })
+  } else if (uf) {
+    const { data } = await admin.from('lojas').select('id').eq('uf', uf)
     lojaIdsCidade = (data || []).map((l: any) => l.id)
     if (lojaIdsCidade.length === 0) return NextResponse.json({ papel, periodo, itens: [] })
   }

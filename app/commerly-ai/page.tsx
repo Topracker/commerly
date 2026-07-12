@@ -12,11 +12,11 @@ const GERADORES: Gerador[] = [
   { tipo: 'post_instagram', label: 'Post para Instagram', icone: ImageIcon, desc: 'Legenda pronta com hashtags e dados reais da sua loja.' },
   { tipo: 'post_whatsapp', label: 'Mensagem de WhatsApp', icone: MessageCircle, desc: 'Texto curto para lista de transmissão.' },
   { tipo: 'relatorio', label: 'Relatório inteligente', icone: FileBarChart, desc: 'Leitura dos seus números + 3 sugestões da semana.' },
+  { tipo: 'sugestao_estoque', label: 'Sugestões de estoque', icone: Boxes, desc: 'O que repor primeiro, com base no giro de 30 dias.' },
+  { tipo: 'analise_vendas', label: 'Análise de vendas', icone: LineChart, desc: 'Tendência, dia forte, horário de pico e oportunidades.' },
 ]
 const EM_BREVE = [
-  { label: 'Sugestões de estoque', icone: Boxes, desc: 'Quando repor cada produto, com base no giro.' },
   { label: 'Respostas automáticas', icone: MessageSquareReply, desc: 'IA responde clientes no seu tom de voz.' },
-  { label: 'Análise de vendas', icone: LineChart, desc: 'Padrões, horários de pico e oportunidades.' },
 ]
 
 export default function CommerlyAI() {

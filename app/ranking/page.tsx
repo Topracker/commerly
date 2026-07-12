@@ -10,23 +10,27 @@ const PAPEIS = [
 const PERIODOS = [
   { v: 'hoje', l: 'Hoje' }, { v: 'semana', l: 'Semana' }, { v: 'mes', l: 'Mês' }, { v: 'ano', l: 'Ano' }, { v: 'geral', l: 'Geral' },
 ]
+const UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO']
 const medalha = (i: number) => (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`)
 
 export default function Ranking() {
   const [papel, setPapel] = useState('comerciantes')
   const [periodo, setPeriodo] = useState('geral')
   const [cidade, setCidade] = useState('')
+  const [uf, setUf] = useState('')
   const [itens, setItens] = useState<any[] | null>(null)
 
   useEffect(() => {
     setItens(null)
     const p = new URLSearchParams({ papel, periodo })
+    // Cidade (texto) tem prioridade; senão, filtra por estado (UF).
     if (cidade.trim() && papel !== 'cidades') { p.set('escopo', 'cidade'); p.set('cidade', cidade.trim()) }
+    else if (uf) { p.set('uf', uf) }
     const t = setTimeout(() => {
       fetch(`/api/ranking?${p}`).then(r => (r.ok ? r.json() : null)).then(d => setItens(d?.itens || [])).catch(() => setItens([]))
     }, cidade ? 350 : 0)
     return () => clearTimeout(t)
-  }, [papel, periodo, cidade])
+  }, [papel, periodo, cidade, uf])
 
   return (
     <main data-theme="dark" className="min-h-screen bg-fundo font-body">
@@ -53,9 +57,19 @@ export default function Ranking() {
             <button key={p.v} onClick={() => setPeriodo(p.v)} className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition ${periodo === p.v ? 'bg-elevado text-white border border-acento/50' : 'text-gray-500 hover:text-white'}`}>{p.l}</button>
           ))}
         </div>
-        {/* Cidade (não se aplica ao ranking de cidades) */}
-        {papel !== 'cidades' && (
-          <input value={cidade} onChange={e => setCidade(e.target.value)} placeholder="Filtrar por cidade (ex.: Goiânia)" className="w-full bg-card border border-borda rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 mb-5 focus:outline-none focus:border-acento/50" />
+        {/* Estado (UF) — filtra por estado; vale inclusive para o ranking de cidades. */}
+        <div className="flex gap-2 mb-3">
+          <select value={uf} onChange={e => setUf(e.target.value)} className="bg-card border border-borda rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-acento/50">
+            <option value="">Todos os estados</option>
+            {UFS.map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
+          {/* Cidade (não se aplica ao ranking de cidades) */}
+          {papel !== 'cidades' && (
+            <input value={cidade} onChange={e => setCidade(e.target.value)} placeholder="Filtrar por cidade (ex.: Goiânia)" className="flex-1 min-w-0 bg-card border border-borda rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-acento/50" />
+          )}
+        </div>
+        {cidade.trim() && uf && papel !== 'cidades' && (
+          <p className="text-gray-600 text-xs -mt-1 mb-4">Filtrando pela cidade digitada (o estado é ignorado quando há cidade).</p>
         )}
 
         {/* Lista */}

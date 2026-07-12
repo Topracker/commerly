@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { MarketingShell, MCard } from '../components/MarketingShell'
 import { createAdminClient } from '../lib/supabase-admin'
+import { flagAtiva } from '../lib/featureFlags'
 import { Check, Store } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -24,6 +25,25 @@ const BENEFICIOS = [
 
 export default async function Fundadores() {
   const admin = createAdminClient()
+
+  // Gating: programa pode ser desligado globalmente pelo admin.
+  if (!(await flagAtiva('fundadores', null, admin))) {
+    return (
+      <MarketingShell
+        eyebrow="Programa Fundadores"
+        titulo="Programa temporariamente fechado"
+        subtitulo="As vagas de fundador não estão abertas no momento. Fique de olho — em breve teremos novidades."
+        cta={{ href: '/login', label: 'Cadastrar minha loja' }}
+      >
+        <MCard className="text-center py-10">
+          <p className="text-4xl mb-2">🔒</p>
+          <p className="text-white font-semibold">Inscrições encerradas por ora</p>
+          <p className="text-gray-400 text-sm mt-1">Cadastre sua loja e comece a vender — o programa pode reabrir na sua cidade.</p>
+        </MCard>
+      </MarketingShell>
+    )
+  }
+
   const { data: fund } = await admin
     .from('fundadores').select('loja_id, ordem, cidade, created_at').order('ordem', { ascending: true }).limit(50)
 

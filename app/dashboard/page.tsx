@@ -10,6 +10,7 @@ import { AcademyCard } from '../components/AcademyCard'
 import { PainelGamificacao } from '../components/PainelGamificacao'
 import { CardIndicacao } from '../components/CardIndicacao'
 import { BadgeNivel } from '../components/BadgeNivel'
+import { useFlags } from '../lib/useFlags'
 import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos, minutosAteAgendamento, type Agendamento } from '../lib/nicheStore'
 import { calcularCommerlyScore, type CommerlyScore } from '../lib/commerlyScore'
@@ -60,6 +61,7 @@ export default function Dashboard() {
   const { loja, loading, supabase, sair } = useAuth()
   const { toast, mostrarToast } = useToast()
   const { nicho, modulos } = useNicho(loja)
+  const { ativa: flagAtiva } = useFlags()
 
   const [faturamento, setFaturamento] = useState(0)
   const [lucro, setLucro] = useState(0)
@@ -406,7 +408,7 @@ export default function Dashboard() {
               }`}>
                 {loja.plano === 'ativo' ? 'PLANO ATIVO' : loja.plano === 'trial' ? 'TESTE' : 'INATIVO'}
               </span>
-              {loja.fundador && (
+              {loja.fundador && flagAtiva('fundadores') && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/40">
                   FUNDADOR
                 </span>

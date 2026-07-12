@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Trophy, Flame, Check, Circle, Sparkles, Gift, ArrowRight } from 'lucide-react'
 import { MISSOES, medalhaPorSlug } from '../lib/crescimento'
+import { useFlags } from '../lib/useFlags'
 
 type Perfil = {
   papel: string; nome: string; xp: number
@@ -17,6 +18,7 @@ type Perfil = {
 
 export function PainelGamificacao({ papel }: { papel?: string }) {
   const [p, setP] = useState<Perfil | null>(null)
+  const { ativa, pronto } = useFlags()
 
   useEffect(() => {
     let vivo = true
@@ -44,6 +46,8 @@ export function PainelGamificacao({ papel }: { papel?: string }) {
     return () => { vivo = false }
   }, [])
 
+  // Gating: se a gamificação estiver desligada (global ou na cidade), some.
+  if (pronto && !ativa('gamificacao')) return null
   if (!p) return null
 
   const missoesPapel = MISSOES.filter(m => !m.papel || m.papel === p.papel)

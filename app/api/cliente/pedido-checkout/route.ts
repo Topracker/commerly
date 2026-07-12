@@ -6,6 +6,7 @@ import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
 import { distanciaKm, taxaEntregaPorDistancia } from '../../../lib/geo'
 import { isDelivery } from '../../../lib/pedidosClientes'
+import { flagAtiva } from '../../../lib/featureFlags'
 import { descontoDePontos, maxPontosResgataveis } from '../../../lib/fidelidade'
 import { calcularFator, aplicarFator } from '../../../lib/precoDinamico'
 
@@ -53,9 +54,14 @@ export async function POST(request: NextRequest) {
 
   // Loja: precisa ser delivery e estar apta a receber online (Connect concluído).
   const { data: loja } = await admin
-    .from('lojas').select('id, nome, tipo, latitude, longitude, stripe_account_id, stripe_onboarded, distancia_maxima_entrega').eq('id', loja_id).single()
+    .from('lojas').select('id, nome, tipo, latitude, longitude, stripe_account_id, stripe_onboarded, distancia_maxima_entrega, cidade_slug').eq('id', loja_id).single()
   if (!loja) return NextResponse.json({ error: 'Loja não encontrada.' }, { status: 404 })
   if (!isDelivery(loja.tipo)) return NextResponse.json({ error: 'Esta loja não aceita pedidos de delivery.' }, { status: 400 })
+  // Gating por cidade: se o admin desligou 'delivery' na cidade da loja, recusa
+  // ANTES de cobrar (o trigger do banco também barra, mas aqui evita a cobrança).
+  if (!(await flagAtiva('delivery', loja.cidade_slug, admin))) {
+    return NextResponse.json({ error: 'Delivery indisponível nesta cidade no momento.' }, { status: 409 })
+  }
   if (!loja.stripe_account_id || !loja.stripe_onboarded) {
     return NextResponse.json({ error: 'Esta loja ainda não aceita pagamento online. Escolha pagar na entrega.' }, { status: 409 })
   }

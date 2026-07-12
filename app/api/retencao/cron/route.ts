@@ -8,9 +8,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { carregarCooldowns, emCooldown, disparar, brl } from '../../../lib/retencao'
+import { chamarGemini, textoDaResposta } from '../../../lib/gemini'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
+
+// Insight semanal com IA (Gemini), curto e específico. Limitado por lote para
+// não estourar o tempo do cron; cai no template quando indisponível/vazio.
+async function insightSemanal(nome: string, atual: number, cresc: number, pedidos: number): Promise<string | null> {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) return null
+  const prompt = `Você é consultor de um pequeno comércio ("${nome}"). Esta semana: ${brl(atual)} em vendas, ${pedidos} pedido(s), variação de ${cresc}% vs. a semana anterior. Escreva UMA frase curta (máx 22 palavras), motivadora e específica, com uma ação prática para a próxima semana. Sem emojis no início. Português.`
+  try {
+    const r = await chamarGemini(apiKey, { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, maxOutputTokens: 80 } })
+    const t = r.ok ? textoDaResposta(r.data).trim().replace(/\s+/g, ' ') : ''
+    return t || null
+  } catch { return null }
+}
 
 const hojeStr = () => new Date().toISOString().slice(0, 10)
 
@@ -88,15 +102,24 @@ export async function GET(req: NextRequest) {
     for (const v of vendas || []) add(v.loja_id, Number(v.valor_total) || 0, v.created_at, false)
     for (const p of pedidos || []) add(p.loja_id, Number(p.total) || 0, p.created_at, true)
 
+    // IA só nas lojas com movimento e até um teto por execução (protege o tempo
+    // do cron); as demais recebem o resumo por template, como antes.
+    let orcamentoIA = 25
     for (const l of lojas || []) {
       const a = ag.get(l.id) || { atual: 0, ant: 0, pedidos: 0 }
       if (emCooldown(cooldowns, l.user_id, 'semanal', 6)) continue
       const cresc = a.ant > 0 ? Math.round(((a.atual - a.ant) / a.ant) * 100) : (a.atual > 0 ? 100 : 0)
       const tendencia = cresc > 0 ? `📈 ${cresc}% vs. semana anterior` : cresc < 0 ? `📉 ${cresc}% vs. semana anterior` : 'estável'
+      const resumo = `${brl(a.atual)} em vendas · ${a.pedidos} pedido${a.pedidos !== 1 ? 's' : ''} · ${tendencia}.`
+      let insight: string | null = null
+      if (a.atual > 0 && orcamentoIA > 0) {
+        insight = await insightSemanal(l.nome, a.atual, cresc, a.pedidos)
+        if (insight) orcamentoIA--
+      }
       await disparar(admin, {
         userId: l.user_id, tipo: 'semanal', notifTipo: 'relatorio',
         titulo: '📊 Seu relatório da semana',
-        mensagem: `${brl(a.atual)} em vendas · ${a.pedidos} pedido${a.pedidos !== 1 ? 's' : ''} · ${tendencia}. Bora crescer essa semana!`,
+        mensagem: `${resumo} ${insight || 'Bora crescer essa semana!'}`,
         link: '/financeiro',
       })
       resultado.semanais++
