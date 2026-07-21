@@ -7,6 +7,7 @@ import {
   checarDuplicidade, MSG_DUPLICADO, registrarCadastroIp, AVISO_VERIFICACAO,
 } from '../../lib/validacoes'
 import FornecedorIaOutro from '../../components/FornecedorIaOutro'
+import BotaoGoogle from '../../components/BotaoGoogle'
 
 type Tela =
   | 'escolha'
@@ -43,6 +44,9 @@ export default function FornecedorLogin() {
   const supabase = createClient()
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('erro') === 'oauth') {
+      setErro('Não foi possível entrar com o Google. Tente novamente.')
+    }
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) return
       const userId = session.user.id
@@ -249,6 +253,7 @@ export default function FornecedorLogin() {
               <p className="font-bold">Fazer login</p>
               <p className="text-gray-400 text-sm">Acessar minha conta existente</p>
             </button>
+            <BotaoGoogle voltar="/fornecedor/login" onErro={setErro} />
             <button onClick={() => router.push('/')} className="text-gray-500 text-sm hover:text-gray-400 transition mt-2">
               ← Voltar
             </button>

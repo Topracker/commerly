@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '../../supabase'
 import { useRouter } from 'next/navigation'
 import { AVISO_VERIFICACAO } from '../../lib/validacoes'
+import BotaoGoogle from '../../components/BotaoGoogle'
 
 type Tela = 'escolha' | 'cadastro-senha' | 'login-senha' | 'cadastro-otp-codigo' | 'login-otp-email' | 'login-otp-codigo'
 
@@ -17,6 +18,9 @@ export default function EntregadorLogin() {
   const supabase = createClient()
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('erro') === 'oauth') {
+      setErro('Não foi possível entrar com o Google. Tente novamente.')
+    }
     // getUser() valida o token no servidor e garante que ele esteja anexado às
     // queries seguintes. Com getSession() havia uma corrida em cold-mount: a
     // leitura de entregadores rodava sem token e voltava vazia por RLS (sem
@@ -142,6 +146,7 @@ export default function EntregadorLogin() {
               <p className="font-bold">Fazer login</p>
               <p className="text-gray-400 text-sm">Acessar minha conta existente</p>
             </button>
+            <BotaoGoogle voltar="/entregador-delivery/login" onErro={setErro} />
             <button onClick={() => router.push('/')} className="text-gray-500 text-sm hover:text-gray-400 transition mt-2">
               ← Voltar
             </button>

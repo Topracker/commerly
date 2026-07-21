@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Sora, Inter } from "next/font/google";
 import "./globals.css";
+import AuthSessionGuard from "./components/AuthSessionGuard";
 import DevtoolsBlocker from "./components/DevtoolsBlocker";
 import PWARegister from "./components/PWARegister";
 import PushManager from "./components/PushManager";
@@ -83,6 +84,7 @@ export default function RootLayout({
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#0a0f1a" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Commerly" />
@@ -99,6 +101,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col">
+        <AuthSessionGuard />
         <DevtoolsBlocker />
         <PWARegister />
         <PushManager />
