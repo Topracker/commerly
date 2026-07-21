@@ -15,8 +15,12 @@ export const maxDuration = 60
 //   POST  (comerciante logado) — varre só os pedidos da própria loja. O painel
 //         /pedidos chama isto a cada 30s enquanto está aberto, o que dá reação
 //         rápida sem depender de cron.
-//   GET   (Vercel Cron / CRON_SECRET) — varre a plataforma inteira. É a rede de
-//         segurança para quando ninguém está com o painel aberto.
+//   GET   (Vercel Cron / CRON_SECRET) — varre a plataforma inteira.
+//
+// O plano Hobby da Vercel só aceita cron DIÁRIO, então o GET é faxina/rede de
+// segurança, não o motor. Quem mantém a cadeia andando em tempo real são os
+// dois gatilhos vindos do app: este POST (painel do comerciante aberto) e
+// /api/entrega/checar-entregador (tela de acompanhamento do cliente aberta).
 //
 // Toda a decisão (ofertar ao próximo, marcar esgotado, liberar para o pool,
 // alertar 15/30 min) mora em lib/despachoWatchdog.ts — o cliente não escolhe

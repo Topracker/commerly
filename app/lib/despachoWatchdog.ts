@@ -189,6 +189,7 @@ async function processarPedido(
 export async function rodarWatchdog(
   admin: SupabaseClient,
   lojaId?: string,
+  pedidoId?: string,
 ): Promise<ResultadoWatchdog[]> {
   // Higiene: toda oferta pendente vencida vira 'expirada' antes de qualquer
   // decisão — senão um pedido pareceria "esperando" para sempre.
@@ -201,8 +202,9 @@ export async function rodarWatchdog(
     .is('entregador_id', null)
     .in('status', PRECISA_ENTREGADOR)
     .order('created_at', { ascending: true })
-    .limit(lojaId ? 50 : 200)
+    .limit(lojaId || pedidoId ? 50 : 200)
   if (lojaId) q = q.eq('loja_id', lojaId)
+  if (pedidoId) q = q.eq('id', pedidoId)
 
   const { data: pedidos } = await q
   const lista = (pedidos || []) as PedidoWatchdog[]

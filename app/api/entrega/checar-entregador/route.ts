@@ -6,6 +6,7 @@ import { rateLimit } from '../../../lib/rate-limit'
 import { dispatchPushPedido } from '../../../lib/pushDispatch'
 import { ofertarProximoEntregador } from '../../../lib/dispatch'
 import { GPS_INATIVIDADE_MS } from '../../../lib/entregadores'
+import { rodarWatchdog } from '../../../lib/despachoWatchdog'
 
 // REENTREGA AUTOMATICA: se o entregador saiu para entrega mas ficou 10min sem
 // atualizar o GPS (sumiu), libera o pedido, avisa o cliente e oferta a outro
@@ -45,8 +46,23 @@ export async function POST(request: NextRequest) {
   const autorizado = loja?.user_id === user.id || (cliente as any)?.user_id === user.id
   if (!autorizado) return NextResponse.json({ error: 'Sem permissão.' }, { status: 403 })
 
+  // Pedido ainda sem entregador: aproveita esta chamada para dar uma passada do
+  // WATCHDOG DE DESPACHO nele. O plano Hobby da Vercel só aceita cron diário,
+  // então a cadeia de ofertas precisa de gatilhos vindos do app — e esta rota é
+  // justamente a que a tela de acompanhamento do CLIENTE fica chamando. Ou
+  // seja: enquanto alguém estiver esperando o pedido, a busca continua andando
+  // mesmo com o painel do comerciante fechado.
+  if (!pedido.entregador_id) {
+    try {
+      await rodarWatchdog(admin, undefined, pedido_id)
+    } catch (e) {
+      console.error('[checar-entregador] watchdog falhou:', e)
+    }
+    return NextResponse.json({ ok: true, liberado: false })
+  }
+
   // So monitora entregas em rota (o GPS so roda quando status = 'saiu').
-  if (!pedido.entregador_id || pedido.status !== 'saiu') {
+  if (pedido.status !== 'saiu') {
     return NextResponse.json({ ok: true, liberado: false })
   }
 

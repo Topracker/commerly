@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/entrega/watchdog",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 6 * * *"
     }
   ]
 }
