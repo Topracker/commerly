@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'crypto'
 import { createAdminClient } from '../../../lib/supabase-admin'
+import { integracoesAtivas } from '../../../lib/plano'
 
 export async function POST(request: NextRequest) {
   const rawBody = await request.text()
@@ -85,6 +86,14 @@ export async function POST(request: NextRequest) {
   // Conta MP conectada a várias lojas é ambígua: atribui à conexão mais
   // recente (maior updated_at). O ideal é o lojista manter só uma conexão.
   const conexao = conexoes[0]
+
+  // PAYWALL: loja fora do plano tem a integração PAUSADA — a conexão continua
+  // salva e as vendas voltam a entrar sozinhas quando ela regularizar. 200 para
+  // o MP não ficar retentando um webhook que nunca vai ser processado.
+  if (!(await integracoesAtivas(supabase, conexao.loja_id))) {
+    console.log('[MP webhook] integração pausada (plano inativo) para a loja', conexao.loja_id)
+    return NextResponse.json({ ok: true, pausado: true })
+  }
 
   const { data: existente } = await supabase
     .from('vendas')

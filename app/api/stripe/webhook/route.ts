@@ -202,6 +202,42 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
+  // Cobrança falhou (cartão recusado, sem saldo). A Stripe ainda vai retentar,
+  // mas a assinatura já não está em dia — e agora isso significa alguma coisa:
+  // o paywall (lib/plano.ts) fecha o painel. Sem este handler, uma assinatura
+  // que parou de ser paga continuava marcada como 'ativo' para sempre.
+  if (event.type === 'invoice.payment_failed') {
+    const invoice = event.data.object as Stripe.Invoice
+    const subscriptionId = typeof (invoice as any).subscription === 'string'
+      ? (invoice as any).subscription
+      : (invoice as any).subscription?.id
+    if (!subscriptionId) return NextResponse.json({ ok: true })
+
+    // Ads não mexe no plano: o destaque já foi pago e expira sozinho.
+    const { data: lojaAds } = await supabase
+      .from('lojas').select('id').eq('stripe_ads_subscription_id', subscriptionId).maybeSingle()
+    if (lojaAds) return NextResponse.json({ ok: true })
+
+    await supabase.from('lojas').update({ plano: 'inativo' }).eq('stripe_subscription_id', subscriptionId)
+    return NextResponse.json({ ok: true })
+  }
+
+  // Mudança de status da assinatura (past_due, unpaid, canceled, paused...).
+  // `invoice.paid` reativa; aqui só refletimos o que a Stripe diz.
+  if (event.type === 'customer.subscription.updated') {
+    const sub = event.data.object as Stripe.Subscription
+
+    const { data: lojaAds } = await supabase
+      .from('lojas').select('id').eq('stripe_ads_subscription_id', sub.id).maybeSingle()
+    if (lojaAds) return NextResponse.json({ ok: true })
+
+    const emDia = sub.status === 'active' || sub.status === 'trialing'
+    await supabase
+      .from('lojas').update({ plano: emDia ? 'ativo' : 'inativo' })
+      .eq('stripe_subscription_id', sub.id)
+    return NextResponse.json({ ok: true })
+  }
+
   if (event.type === 'customer.subscription.deleted') {
     const sub = event.data.object as Stripe.Subscription
 

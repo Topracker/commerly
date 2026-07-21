@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '../../../../lib/supabase-admin'
 import { rateLimit } from '../../../../lib/rate-limit'
+import { integracoesAtivas } from '../../../../lib/plano'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 // Charge ID do PagBank: prefixo CHAR_ + ULID/UUID. Restringe ao alfabeto seguro
@@ -62,6 +63,13 @@ export async function POST(
   }
 
   const supabase = createAdminClient()
+
+  // PAYWALL: loja fora do plano tem a integração PAUSADA. A conexão fica salva
+  // e as vendas voltam a entrar assim que ela regularizar.
+  if (!(await integracoesAtivas(supabase, loja_id))) {
+    console.log('[PagBank webhook] integração pausada (plano inativo) para a loja', loja_id)
+    return NextResponse.json({ ok: true, pausado: true })
+  }
 
   const { data: conexao } = await supabase
     .from('pagbank_conexoes')

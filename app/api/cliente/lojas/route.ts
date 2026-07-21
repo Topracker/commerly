@@ -17,6 +17,40 @@ import { createAdminClient } from '../../../lib/supabase-admin'
 const COLS =
   'id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, created_at, destaque'
 
+/**
+ * O delivery está mesmo aberto nesta loja? Duas chaves independentes, ambas
+ * precisam estar ligadas — e a resposta viaja junto com a loja para que o app
+ * do cliente esconda o botão "Fazer Pedido" em vez de deixá-lo tomar um erro
+ * do trigger só depois de montar o carrinho.
+ *
+ *   1. `lojas.delivery_ativo`  -> o comerciante pausou os pedidos
+ *   2. feature flag `delivery` -> global, com override da CIDADE da loja
+ */
+async function deliveryLiberado(admin: any, lojaIds: string[]): Promise<Map<string, boolean>> {
+  const mapa = new Map<string, boolean>()
+  if (lojaIds.length === 0) return mapa
+
+  const { data: linhas } = await admin
+    .from('lojas').select('id, cidade_slug, delivery_ativo').in('id', lojaIds)
+  const lojas = (linhas || []) as { id: string; cidade_slug: string | null; delivery_ativo: boolean | null }[]
+
+  const cidades = [...new Set(lojas.map(l => l.cidade_slug).filter(Boolean))] as string[]
+  const { data: flags } = await admin
+    .from('feature_flags').select('cidade_slug, ativo')
+    .eq('flag', 'delivery').in('cidade_slug', ['__global__', ...cidades])
+
+  const porCidade = new Map((flags || []).map((f: any) => [f.cidade_slug as string, !!f.ativo]))
+  const global = porCidade.has('__global__') ? porCidade.get('__global__')! : true
+
+  for (const l of lojas) {
+    const daCidade = l.cidade_slug != null && porCidade.has(l.cidade_slug)
+      ? porCidade.get(l.cidade_slug)!
+      : global
+    mapa.set(l.id, l.delivery_ativo !== false && daCidade === true)
+  }
+  return mapa
+}
+
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -40,7 +74,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Erro ao carregar a loja.' }, { status: 500 })
     }
     if (!data) return NextResponse.json({ loja: null }, { status: 404 })
-    return NextResponse.json({ loja: data })
+    const liberado = await deliveryLiberado(admin, [data.id])
+    return NextResponse.json({ loja: { ...data, delivery_liberado: liberado.get(data.id) !== false } })
   }
 
   // Lista com filtros opcionais.
@@ -56,5 +91,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Erro ao carregar as lojas.' }, { status: 500 })
   }
   console.log(`[cliente/lojas] ${data?.length ?? 0} lojas (tipo=${tipo || 'Todos'}, busca=${busca || ''})`)
-  return NextResponse.json({ lojas: data || [] })
+  const liberado = await deliveryLiberado(admin, (data || []).map((l: any) => l.id))
+  return NextResponse.json({
+    lojas: (data || []).map((l: any) => ({ ...l, delivery_liberado: liberado.get(l.id) !== false })),
+  })
 }

@@ -54,9 +54,14 @@ export async function POST(request: NextRequest) {
 
   // Loja: precisa ser delivery e estar apta a receber online (Connect concluído).
   const { data: loja } = await admin
-    .from('lojas').select('id, nome, tipo, latitude, longitude, stripe_account_id, stripe_onboarded, distancia_maxima_entrega, cidade_slug').eq('id', loja_id).single()
+    .from('lojas').select('id, nome, tipo, latitude, longitude, stripe_account_id, stripe_onboarded, distancia_maxima_entrega, cidade_slug, delivery_ativo').eq('id', loja_id).single()
   if (!loja) return NextResponse.json({ error: 'Loja não encontrada.' }, { status: 404 })
   if (!isDelivery(loja.tipo)) return NextResponse.json({ error: 'Esta loja não aceita pedidos de delivery.' }, { status: 400 })
+  // A loja pausou os pedidos: recusa ANTES de cobrar (o trigger do banco também
+  // barra, mas aí o cartão já teria sido debitado).
+  if (loja.delivery_ativo === false) {
+    return NextResponse.json({ error: 'Esta loja não está aceitando pedidos no momento.' }, { status: 409 })
+  }
   // Gating por cidade: se o admin desligou 'delivery' na cidade da loja, recusa
   // ANTES de cobrar (o trigger do banco também barra, mas aqui evita a cobrança).
   if (!(await flagAtiva('delivery', loja.cidade_slug, admin))) {

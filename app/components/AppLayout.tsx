@@ -6,6 +6,7 @@ import { useNicho } from '../hooks/useNicho'
 import { useNotificacoes } from '../hooks/useNotificacoes'
 import { NotificacaoToast } from './NotificacaoToast'
 import { TemaControle } from './TemaControle'
+import { BarraStatusLoja } from './BarraStatusLoja'
 import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos } from '../lib/nicheStore'
 import { montarMenu, secaoDaRota, type BadgeKey } from '../lib/menu'
@@ -228,6 +229,9 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
           <div className={`hidden md:flex items-center justify-between gap-4 mb-6 ${noPadding ? 'px-6 pt-6' : ''}`}>
             <h1 className="text-3xl font-bold text-white">{titulo}</h1>
             <TemaControle />
+          </div>
+          <div className={noPadding ? 'px-4 md:px-6' : ''}>
+            <BarraStatusLoja loja={loja} />
           </div>
           {children}
         </div>

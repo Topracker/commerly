@@ -259,14 +259,24 @@ export default function ClienteLoja() {
               )}
             </button>
 
+            {/* MUTEX do delivery: some o botão quando a loja pausou os pedidos
+                ou quando a feature flag `delivery` está desligada na cidade
+                dela. O trigger do banco recusaria o pedido de qualquer jeito —
+                aqui o cliente descobre antes de montar o carrinho. */}
             {isDelivery(loja.tipo) && produtos.length > 0 && (
-              <button
-                onClick={() => setPedidoAberto(true)}
-                className="mt-2.5 w-full bg-azul hover:brightness-110 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
-              >
-                <ShoppingBag size={18} />
-                Fazer Pedido
-              </button>
+              loja.delivery_liberado === false ? (
+                <p className="mt-2.5 w-full rounded-xl border border-borda bg-elevado py-3 text-center text-sm text-gray-400">
+                  Pedidos indisponíveis nesta loja no momento.
+                </p>
+              ) : (
+                <button
+                  onClick={() => setPedidoAberto(true)}
+                  className="mt-2.5 w-full bg-azul hover:brightness-110 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+                >
+                  <ShoppingBag size={18} />
+                  Fazer Pedido
+                </button>
+              )
             )}
 
             {loja.website_url && (

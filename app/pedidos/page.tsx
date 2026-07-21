@@ -7,7 +7,7 @@ import { Toast } from '../components/Toast'
 import { isDelivery, STATUS_META, FLUXO_STATUS, proximoStatus, pedidoEmAndamento, type PedidoCliente, type StatusPedidoCliente } from '../lib/pedidosClientes'
 import { RAIO_BUSCA_KM, type ParceriaEntregador } from '../lib/entregadores'
 import { formatarDistancia } from '../lib/geo'
-import { MapPin, Phone, ShoppingBag, ChevronRight, Ban, Bike, Check, X, Search, SearchX, Loader2 } from 'lucide-react'
+import { MapPin, Phone, ShoppingBag, ChevronRight, Ban, Bike, Check, X, Search, SearchX, Loader2, AlertTriangle, Users } from 'lucide-react'
 
 type EntregadorPublico = { id: string; nome: string; foto_url: string | null; telefone: string | null }
 
@@ -72,6 +72,26 @@ export default function PedidosComerciante() {
   function pararBusca(pedidoId: string) {
     setDespacho(prev => { const n = { ...prev }; delete n[pedidoId]; return n })
   }
+
+  // Watchdog de despacho: enquanto a aba está aberta, pede ao servidor uma
+  // passada a cada 30s. É o servidor que decide ofertar ao próximo, marcar
+  // "esgotado", devolver ao pool aos 5 min e alertar aos 15/30 min — aqui só
+  // recarregamos a lista para refletir o que ele fez.
+  useEffect(() => {
+    if (!loja?.id) return
+    let vivo = true
+    const passada = async () => {
+      try {
+        const res = await fetch('/api/entrega/watchdog', { method: 'POST' })
+        const d = await res.json().catch(() => ({}))
+        if (vivo && res.ok && Array.isArray(d.pedidos) && d.pedidos.length > 0) carregar()
+      } catch { /* rede instável: a próxima passada tenta de novo */ }
+    }
+    void passada()
+    const iv = setInterval(passada, 30_000)
+    return () => { vivo = false; clearInterval(iv) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loja?.id])
 
   // Acompanha as ofertas em andamento: quando aceita -> recarrega; quando
   // recusada/expirada -> oferta ao próximo automaticamente.
@@ -263,6 +283,24 @@ export default function PedidosComerciante() {
             </div>
           ) : pedidoEmAndamento(p.status) ? (
             <div>
+              {/* Alertas de demora do watchdog (15 min amarelo / 30 min vermelho). */}
+              {p.despacho_alerta === 'vermelho' ? (
+                <p className="text-red-400 text-xs mb-2 flex items-start gap-1.5">
+                  <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+                  <span>Há mais de 30 min sem entregador. Aumente a <strong>distância máxima de entrega</strong> nas configurações para alcançar mais entregadores.</span>
+                </p>
+              ) : p.despacho_alerta === 'amarelo' ? (
+                <p className="text-amber-300 text-xs mb-2 flex items-start gap-1.5">
+                  <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+                  <span>Há mais de 15 min sem entregador. Continuamos procurando.</span>
+                </p>
+              ) : null}
+              {p.despacho_pool_em && (
+                <p className="text-blue-300 text-xs mb-2 flex items-start gap-1.5">
+                  <Users size={13} className="shrink-0 mt-0.5" />
+                  <span>Liberado para a fila aberta — qualquer entregador parceiro pode pegar.</span>
+                </p>
+              )}
               {(!dsp || dsp.status === 'esgotado' || dsp.status === 'erro') && (
                 <>
                   {dsp?.status === 'esgotado' && (

@@ -5,6 +5,7 @@
 
 export type TipoNotificacao =
   | 'pedido_novo' | 'pedido_status' | 'parceria_aceita' | 'corrida_oferta' | 'cupom' | 'post_novo'
+  | 'flash_sale' | 'retencao' | 'relatorio' | 'despacho'
 
 export type Notificacao = {
   id: string
@@ -26,6 +27,10 @@ export const EMOJI_NOTIFICACAO: Record<TipoNotificacao, string> = {
   corrida_oferta: '🛵',
   cupom: '🎁',
   post_novo: '📸',
+  flash_sale: '⚡',
+  retencao: '👋',
+  relatorio: '📊',
+  despacho: '📍',
 }
 
 /** Busca as notificações mais recentes do usuário logado. */

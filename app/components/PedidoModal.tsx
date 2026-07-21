@@ -41,7 +41,10 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   // Oferece online, exceto quando a loja sinaliza explicitamente que não aceita.
   // (A prontidão real é validada no servidor ao criar o checkout — 409 amigável.)
   const aceitaOnline = loja.aceita_pagamento_online !== false
-  const [pagamento, setPagamento] = useState<'online' | 'entrega'>('entrega')
+  // MUTEX: loja com pagamento online ligado -> "pagar na entrega" deixa de ser
+  // o padrão. Continua disponível como escolha, mas o pedido já abre no online
+  // (que é o que a loja quer receber, e o único caminho com estorno automático).
+  const [pagamento, setPagamento] = useState<'online' | 'entrega'>(aceitaOnline ? 'online' : 'entrega')
 
   // #6 Modo invisível: o nome e o telefone não chegam a ser gravados no pedido
   // (o guard do banco os anula). O histórico do cliente continua pelo cliente_id.

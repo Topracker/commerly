@@ -56,6 +56,12 @@ export type PedidoCliente = {
   // Preço dinâmico: fator efetivamente cobrado e o teto exibido ao cliente.
   preco_dinamico_fator?: number
   fator_exibido?: number | null
+  // Watchdog de despacho (lib/despachoWatchdog.ts): quando a cadeia de ofertas
+  // esgotou o raio, quando o pedido caiu na fila aberta e qual alerta de demora
+  // (15/30 min) já foi enviado ao comerciante.
+  despacho_esgotado_em?: string | null
+  despacho_pool_em?: string | null
+  despacho_alerta?: 'amarelo' | 'vermelho' | null
   created_at: string
   updated_at: string
 }

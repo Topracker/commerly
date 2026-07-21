@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { sincronizarLojaMP } from '../../../lib/mercadopago-sync'
+import { integracoesAtivas } from '../../../lib/plano'
 
 // Cron automático (Vercel Cron, a cada 5 min — ver vercel.json). Sincroniza os
 // pagamentos do Mercado Pago de TODAS as lojas conectadas, gravando as vendas
@@ -48,9 +49,15 @@ export async function GET(req: NextRequest) {
 
   let totalNovas = 0
   let comErro = 0
+  let pausadas = 0
   const tokensExpirados: string[] = []
 
   for (const c of porConta.values()) {
+    // PAYWALL: loja fora do plano fica com a integração pausada. Nada é
+    // desconectado — assim que ela regularizar, a próxima passada sincroniza
+    // tudo que ficou para trás (a busca é por período, não incremental).
+    if (!(await integracoesAtivas(admin, c.loja_id))) { pausadas++; continue }
+
     const r = await sincronizarLojaMP(admin, c.loja_id, c.access_token)
     if (r.ok) {
       totalNovas += r.novas
@@ -61,6 +68,7 @@ export async function GET(req: NextRequest) {
   }
 
   console.log('[MP cron] contas:', porConta.size, 'novas:', totalNovas, 'erros:', comErro,
+    'pausadas (plano inativo):', pausadas,
     tokensExpirados.length ? `tokens expirados (lojas): ${tokensExpirados.join(', ')}` : '')
 
   return NextResponse.json({
@@ -68,6 +76,7 @@ export async function GET(req: NextRequest) {
     contas: porConta.size,
     novas: totalNovas,
     erros: comErro,
+    pausadas,
     tokensExpirados,
   })
 }
