@@ -171,7 +171,7 @@ export const CtaScene: React.FC<Props> = ({ frame, start, end }) => {
                   fontWeight: 500,
                 }}
               >
-                depois, R$ 54,99/mês
+                depois, R$ 54,90/mês
               </div>
             </MaskedText>
 
