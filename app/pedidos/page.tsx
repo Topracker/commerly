@@ -137,7 +137,9 @@ export default function PedidosComerciante() {
       ...lista.map(p => p.entregador_id).filter(Boolean) as string[],
     ])]
     if (ids.length > 0) {
-      const { data: ents } = await supabase.from('entregadores_publicos').select('id, nome, foto_url, telefone').in('id', ids)
+      // Ver nota em app/cliente/pedidos: `entregadores_publicos` devolvia zero
+      // linhas para a loja também. `entregadores_contato` filtra pelo vínculo.
+      const { data: ents } = await supabase.from('entregadores_contato').select('id, nome, foto_url, telefone').in('id', ids)
       const emap: Record<string, EntregadorPublico> = {}
       for (const e of (ents || []) as EntregadorPublico[]) emap[e.id] = e
       setEntregadores(emap)

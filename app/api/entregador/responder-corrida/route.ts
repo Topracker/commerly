@@ -71,10 +71,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Atribui TODOS os pedidos livres da festa a este entregador.
-    const { error: updErr } = await admin
+    //
+    // O `is('entregador_id', null)` é o que serializa dois aceites simultâneos:
+    // o segundo UPDATE reavalia a condição depois do lock e não casa com nada.
+    // Mas "não casou com nada" chega como sucesso com ZERO linhas, não como
+    // erro — sem conferir a contagem, o segundo entregador recebia `ok: true`,
+    // marcava a festa como despachada e ficava com a oferta 'aceita' na tela
+    // enquanto os pedidos eram todos do primeiro.
+    const { data: assumidos, error: updErr } = await admin
       .from('pedidos_clientes').update({ entregador_id: entregador.id })
       .eq('festa_id', oferta.festa_id).is('entregador_id', null).neq('status', 'cancelado')
+      .select('id')
     if (updErr) return NextResponse.json({ error: 'Erro ao aceitar a festa.' }, { status: 500 })
+    if (!assumidos || assumidos.length === 0) {
+      await admin.from('corrida_ofertas').update({ status: 'expirada' }).eq('id', oferta_id).eq('status', 'pendente')
+      return NextResponse.json({ error: 'Outro entregador já pegou esta festa.' }, { status: 409 })
+    }
 
     await admin.from('festas').update({ status: 'despachada' }).eq('id', oferta.festa_id)
     await admin.from('corrida_ofertas').update({ status: 'aceita' }).eq('id', oferta_id)

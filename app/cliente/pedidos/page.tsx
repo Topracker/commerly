@@ -93,7 +93,12 @@ export default function ClientePedidos() {
     // Entregadores atribuídos (nome/foto/telefone).
     const entIds = [...new Set(lista.map(p => p.entregador_id).filter(Boolean) as string[])]
     if (entIds.length > 0) {
-      const { data: ents } = await supabase.from('entregadores_publicos').select('id, nome, foto_url, telefone').in('id', entIds)
+      // `entregadores_publicos` nunca funcionou aqui: ela é security_invoker
+      // sobre uma tabela com RLS dono-only, então o cliente recebia SEMPRE zero
+      // linhas (o nome/telefone do entregador simplesmente não aparecia).
+      // `entregadores_contato` devolve o entregador de quem tem vínculo com ele
+      // — o cliente do pedido ou a loja — e nada para mais ninguém.
+      const { data: ents } = await supabase.from('entregadores_contato').select('id, nome, foto_url, telefone').in('id', entIds)
       const em: Record<string, EntregadorPublico> = {}
       for (const e of (ents || []) as EntregadorPublico[]) em[e.id] = e
       setEntregadores(em)

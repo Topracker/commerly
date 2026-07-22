@@ -57,6 +57,17 @@ export async function POST(request: NextRequest) {
     const pendenteId = session.metadata?.pendente_id
     if (!pendenteId) return NextResponse.json({ ok: true })
 
+    // Idempotência: a Stripe reentrega eventos (e `completed` +
+    // `async_payment_succeeded` podem chegar juntos). Se esta sessão já virou
+    // pedido, o pendente pode ter sobrado de uma tentativa que morreu entre o
+    // insert e o delete — não crie um segundo pedido.
+    const { data: jaCriado } = await supabase
+      .from('pedidos_clientes').select('id').eq('stripe_session_id', session.id).maybeSingle()
+    if (jaCriado) {
+      await supabase.from('pedidos_pendentes').delete().eq('id', pendenteId)
+      return NextResponse.json({ ok: true, duplicado: true })
+    }
+
     const { data: pend } = await supabase.from('pedidos_pendentes').select('*').eq('id', pendenteId).single()
     if (!pend) return NextResponse.json({ ok: true }) // já processado ou inexistente
 
@@ -87,6 +98,13 @@ export async function POST(request: NextRequest) {
       stripe_payment_intent: paymentIntent,
     }).select('id').single()
     if (insErr || !novoPedido) {
+      // 23505 = o índice único de `stripe_session_id` pegou uma reentrega que
+      // passou pela checagem acima (dois workers ao mesmo tempo). O pedido já
+      // existe: responder 500 aqui só faria a Stripe retentar para sempre.
+      if ((insErr as any)?.code === '23505') {
+        await supabase.from('pedidos_pendentes').delete().eq('id', pendenteId)
+        return NextResponse.json({ ok: true, duplicado: true })
+      }
       console.error('[stripe/webhook] erro ao criar pedido pago:', insErr?.message)
       return NextResponse.json({ ok: false }, { status: 500 }) // Stripe re-tenta
     }
