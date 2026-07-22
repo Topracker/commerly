@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '../../lib/supabase-admin'
 import { FachadaBanner } from '../../components/FachadaBanner'
+import { LojaIndisponivel } from '../../components/LojaIndisponivel'
 import { emojiCategoria, corAcentoNicho } from '../../lib/temaLoja'
 import { linkWhatsApp, textoPedidoCardapio, whatsappDaLoja } from '../../lib/whatsapp'
 import { MapPin, Clock, Phone, ShoppingBag, UtensilsCrossed, MessageCircle } from 'lucide-react'
@@ -22,6 +23,7 @@ type Loja = {
   horario: string | null
   fotos_fachada: string[] | null
   whatsapp_business: string | null
+  disponivel: boolean | null
 }
 
 type Produto = {
@@ -38,7 +40,7 @@ async function carregar(id: string) {
   const [lojaRes, prodRes, promoRes] = await Promise.all([
     supabase
       .from('lojas_publicas')
-      .select('id, nome, tipo, localizacao, telefone, horario, fotos_fachada, whatsapp_business')
+      .select('id, nome, tipo, localizacao, telefone, horario, fotos_fachada, whatsapp_business, disponivel')
       .eq('id', id)
       .maybeSingle(),
     supabase
@@ -58,6 +60,11 @@ async function carregar(id: string) {
 
   const loja = lojaRes.data as Loja | null
   if (!loja) return null
+
+  // Plano do comerciante vencido. Devolve a loja marcada em vez de `null` para
+  // a página distinguir "não existe" (404) de "fora do ar" (mensagem) — e não
+  // monta cardápio nenhum, que é justamente o que não pode ser pedido.
+  if (loja.disponivel === false) return { indisponivel: true as const }
 
   // produto_id -> promoção ativa (índice único parcial garante no máximo uma).
   const promocoes = new Map<string, { desconto_pct: number; preco_promocional: number }>(
@@ -82,6 +89,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params
   const dados = await carregar(id)
   if (!dados) return { title: 'Cardápio não encontrado', robots: { index: false, follow: false } }
+  // Fora do ar: `noindex` para o Google não guardar o cardápio de uma loja que
+  // não atende — e para ela reindexar limpa quando voltar.
+  if ('indisponivel' in dados) {
+    return { title: 'Loja indisponível', robots: { index: false, follow: false } }
+  }
 
   const { loja } = dados
   const descricao = `Veja o cardápio de ${loja.nome} e faça seu pedido pelo Commerly.`
@@ -114,6 +126,18 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
   const { id } = await params
   const dados = await carregar(id)
   if (!dados) notFound()
+
+  if ('indisponivel' in dados) return (
+    <main data-theme="dark" className="min-h-screen bg-gray-950 font-body flex items-center justify-center">
+      <LojaIndisponivel
+        acao={
+          <Link href="/cliente/buscar" className="px-5 py-2.5 rounded-xl bg-primaria text-white font-semibold text-sm hover:opacity-90">
+            Ver outras lojas
+          </Link>
+        }
+      />
+    </main>
+  )
 
   const { loja, grupos, total, promocoes } = dados
   const acento = corAcentoNicho(loja.tipo)

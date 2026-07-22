@@ -15,7 +15,7 @@ import { createAdminClient } from '../../../lib/supabase-admin'
 //   GET /api/cliente/lojas            -> lista (com filtros ?tipo= e ?busca=)
 //   GET /api/cliente/lojas?id=<uuid>  -> detalhe de uma loja
 const COLS =
-  'id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, created_at, destaque'
+  'id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, created_at, destaque, disponivel'
 
 /**
  * O delivery está mesmo aberto nesta loja? Duas chaves independentes, ambas
@@ -74,12 +74,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Erro ao carregar a loja.' }, { status: 500 })
     }
     if (!data) return NextResponse.json({ loja: null }, { status: 404 })
+    // Plano vencido: a loja existe, mas está fora do ar para o cliente. Devolve
+    // 404 com `indisponivel` para a tela distinguir "não existe" de "não está
+    // disponível agora" — e nunca vaza os dados da loja junto.
+    if (!data.disponivel) {
+      return NextResponse.json({ loja: null, indisponivel: true }, { status: 404 })
+    }
     const liberado = await deliveryLiberado(admin, [data.id])
     return NextResponse.json({ loja: { ...data, delivery_liberado: liberado.get(data.id) !== false } })
   }
 
-  // Lista com filtros opcionais.
-  let query = admin.from('lojas_publicas').select(COLS).order('nome', { ascending: true }).limit(50)
+  // Lista com filtros opcionais. `disponivel` corta as lojas com plano vencido:
+  // sem isto elas continuariam recebendo pedidos que o dono não pode despachar
+  // (o paywall da RLS tirou o painel dele).
+  let query = admin.from('lojas_publicas').select(COLS)
+    .eq('disponivel', true)
+    .order('nome', { ascending: true }).limit(50)
   const tipo = searchParams.get('tipo')
   const busca = searchParams.get('busca')
   if (tipo && tipo !== 'Todos') query = query.eq('tipo', tipo)

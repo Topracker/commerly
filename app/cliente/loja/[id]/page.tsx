@@ -11,6 +11,7 @@ import { enviarAvaliacao, VIEW_AVAL_LOJAS } from '../../../lib/avaliacoes'
 import { SeloVerificado } from '../../../components/SeloVerificado'
 import { MiniMapa } from '../../../components/MiniMapa'
 import { FachadaBanner } from '../../../components/FachadaBanner'
+import { LojaIndisponivel } from '../../../components/LojaIndisponivel'
 import { RatingBadge } from '../../../components/RatingBadge'
 import { ProdutoCard } from '../../../components/ProdutoCard'
 import { PedidoModal } from '../../../components/PedidoModal'
@@ -23,6 +24,7 @@ export default function ClienteLoja() {
   const { cliente, loading, supabase, sair } = useCliente()
   const { toast, mostrarToast } = useToast()
   const [loja, setLoja] = useState<any>(null)
+  const [indisponivel, setIndisponivel] = useState(false)
   const [produtos, setProdutos] = useState<any[]>([])
   const [avaliacoes, setAvaliacoes] = useState<any[]>([])
   const [mediaAval, setMediaAval] = useState(0)
@@ -93,13 +95,17 @@ export default function ClienteLoja() {
 
   async function carregarLoja() {
     const [lojaRes, prodRes, avalRes, promoRes] = await Promise.all([
-      supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, website_url, whatsapp_business').eq('id', id).single(),
+      supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, website_url, whatsapp_business, disponivel').eq('id', id).single(),
       supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
       supabase.from(VIEW_AVAL_LOJAS).select('id, nota, comentario, created_at, cliente_id, foto_url, hash').eq('loja_id', id).order('created_at', { ascending: false }),
       supabase.from('promocoes').select('produto_id, desconto_pct, preco_promocional').eq('loja_id', id).eq('ativa', true),
     ])
 
     if (lojaRes.error || !lojaRes.data) { router.push('/cliente/buscar'); return }
+    // Plano do comerciante vencido: a loja existe mas saiu do ar. Para aqui,
+    // antes de carregar produtos/avaliações — quem não pode receber pedido não
+    // deve mostrar vitrine nem botão de pedir.
+    if (lojaRes.data.disponivel === false) { setIndisponivel(true); return }
     setLoja(lojaRes.data)
 
     // Produto em promoção passa a valer o preço com desconto. Trocamos
@@ -164,6 +170,23 @@ export default function ClienteLoja() {
     </main>
   )
   if (!cliente) return null
+
+  // Antes do "Carregando...": com a loja fora do ar `loja` fica null de
+  // propósito, e sem esta guarda a tela giraria para sempre.
+  if (indisponivel) return (
+    <ClienteLayout cliente={cliente} sair={sair}>
+      <LojaIndisponivel
+        acao={
+          <button
+            onClick={() => router.push('/cliente/buscar')}
+            className="px-5 py-2.5 rounded-xl bg-primaria text-white font-semibold text-sm hover:opacity-90"
+          >
+            Ver outras lojas
+          </button>
+        }
+      />
+    </ClienteLayout>
+  )
 
   if (!loja) return (
     <ClienteLayout cliente={cliente} sair={sair}>
