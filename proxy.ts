@@ -19,12 +19,15 @@ import { situacaoPlano } from './app/lib/plano'
 //    /agenda, /posts, /notificacoes, /academy e /ads ficavam de fora — com o
 //    plano vencido, bastava ir direto nelas. Nenhuma rota de API era coberta.
 //
-// LIMITE QUE PERMANECE: o painel é client-side e fala DIRETO com o Supabase pela
-// chave anon. Bloquear a rota HTTP não impede o mesmo navegador de chamar o
-// PostgREST com a sessão válida — isto aqui tira o painel do ar, não os dados.
-// O bloqueio completo tem de morar na RLS de `lojas` e das tabelas filhas, e
-// essa migração AINDA NÃO EXISTE (não é só "não aplicada"): escrevê-la é o
-// próximo passo do paywall. Enquanto isso, trate este arquivo como dissuasão.
+// ESTE ARQUIVO SOZINHO NÃO SEGURA NADA. O painel é client-side e fala DIRETO
+// com o Supabase pela chave anon: bloquear a rota HTTP tira o painel do ar, mas
+// com a sessão válida na mão um `fetch` no /rest/v1 continua respondendo. O
+// bloqueio de verdade mora na RLS — `sql/2026-07-22-paywall-rls.sql`, policies
+// `paywall_plano` (RESTRICTIVE) em 32 tabelas, APLICADO em produção.
+//
+// Os dois se apoiam na MESMA regra (`situacaoPlano` aqui, `plano_bloqueia()` no
+// banco): mexeu em uma, mexa na outra ou eles passam a discordar — que foi
+// exatamente o defeito nº 1 acima.
 // ============================================================================
 
 /** Páginas do painel do comerciante — as 24 que hoje chamam `useAuth()`. */
