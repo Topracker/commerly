@@ -37,7 +37,7 @@ export default function Embaixadores() {
         <ul className="text-gray-300 text-sm flex flex-col gap-2">
           <li className="flex items-start gap-2"><Check size={16} className="text-acento shrink-0 mt-0.5" /> Você recebe um código exclusivo rastreável.</li>
           <li className="flex items-start gap-2"><Check size={16} className="text-acento shrink-0 mt-0.5" /> Cada cadastro pelo seu código gera pontos para você e para a sua cidade.</li>
-          <li className="flex items-start gap-2"><Check size={16} className="text-acento shrink-0 mt-0.5" /> Suba de nível e desbloqueie cashback, meses grátis, desconto no kit e a jaqueta Commerly.</li>
+          <li className="flex items-start gap-2"><Check size={16} className="text-acento shrink-0 mt-0.5" /> Suba de nível e desbloqueie cashback, desconto na mensalidade, desconto no kit e a jaqueta Commerly.</li>
           <li className="flex items-start gap-2"><Check size={16} className="text-acento shrink-0 mt-0.5" /> Ganhe um certificado digital de embaixador para compartilhar.</li>
         </ul>
         <p className="text-gray-500 text-sm mt-4">Já tem conta? O seu código de indicação aparece no seu painel. Veja o <Link href="/hall-da-fama" className="text-acento">Hall da Fama</Link> dos que mais indicam.</p>

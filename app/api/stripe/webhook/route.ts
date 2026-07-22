@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { dispatchPushPedido } from '../../../lib/pushDispatch'
+import { confirmarIndicacaoDaLoja } from '../../../lib/indicacaoDesconto'
 
 // Um ciclo de destaque do Commerly Ads. 31 dias (e não 30) dá folga para o
 // webhook de renovação chegar sem que o destaque pisque.
@@ -188,6 +189,10 @@ export async function POST(request: NextRequest) {
       .update({ plano: 'ativo', stripe_subscription_id: subscriptionId })
       .eq('id', lojaId)
 
+    // Assinou = a indicação que trouxe esta loja vira confirmada e o desconto
+    // de quem indicou sobe uma faixa. Idempotente (ver lib/indicacaoDesconto).
+    await confirmarIndicacaoDaLoja(supabase, stripe, { lojaId })
+
     return NextResponse.json({ ok: true })
   }
 
@@ -216,6 +221,10 @@ export async function POST(request: NextRequest) {
       .from('lojas')
       .update({ plano: 'ativo' })
       .eq('stripe_subscription_id', subscriptionId)
+
+    // Rede de segurança: se o `checkout.session.completed` se perdeu, a 1ª
+    // fatura paga também confirma a indicação.
+    await confirmarIndicacaoDaLoja(supabase, stripe, { subscriptionId })
 
     return NextResponse.json({ ok: true })
   }

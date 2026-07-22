@@ -75,7 +75,7 @@ export function nivelDe(niveis: NivelDef[], valor: number) {
 export const NIVEIS_EMBAIXADOR: NivelDef[] = [
   { nome: 'Iniciante', min: 0, cor: '#94a3b8', emoji: '🌱', beneficios: ['Código exclusivo rastreável'] },
   { nome: 'Ativo', min: 5, cor: '#34d399', emoji: '⚡', beneficios: ['Cashback por indicação'] },
-  { nome: 'Expert', min: 20, cor: '#60a5fa', emoji: '🎖️', beneficios: ['Meses grátis', 'Prioridade no suporte'] },
+  { nome: 'Expert', min: 20, cor: '#60a5fa', emoji: '🎖️', beneficios: ['Desconto máximo na mensalidade', 'Prioridade no suporte'] },
   { nome: 'Elite', min: 50, cor: '#f5c34b', emoji: '👑', beneficios: ['Desconto no kit', 'Jaqueta Commerly', 'Destaque nacional'] },
 ]
 

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { nivelDe, nivelXp, NIVEIS_POR_PAPEL, NIVEIS_COMERCIANTE, NIVEIS_ENTREGADOR, NIVEIS_CLIENTE, eventoSazonalAtivo, slugify } from './crescimento'
+import { pctIndicacoes } from './precos'
 
 // ============================================================================
 // Motor de gamificação — reconciliação idempotente (pull-based).
@@ -23,7 +24,8 @@ export type PerfilGamificacao = {
   streak: { dias: number; recorde: number }
   comunidade: { comerciantes: number; clientes: number; entregadores: number; pontosCidade: number }
   creditos: number
-  mesesGratis: number
+  /** Faixa de desconto na mensalidade por indicações que já ASSINARAM. */
+  descontoIndicacao: { confirmadas: number; pct: number }
   /**
    * Caminho do perfil público (`/comerciante/nome-uuid`). Vai no QR do
    * certificado. O slug precisa do id da ENTIDADE (loja/entregador/cliente),
@@ -143,10 +145,13 @@ export async function reconciliarUsuario(admin: SupabaseClient, userId: string):
     }
   }
 
-  // Indicações confirmadas + comunidade.
+  // Indicações + comunidade. Contamos todo mundo que entrou pelo código (é o
+  // que faz o nível de embaixador), mas o DESCONTO na mensalidade só olha quem
+  // assinou de fato — `assinou_em` (ver lib/indicacaoDesconto.ts).
   const { data: indics } = await admin
-    .from('indicacoes').select('papel_indicado').eq('indicador_user_id', userId).in('status', ['confirmada', 'recompensada'])
+    .from('indicacoes').select('papel_indicado, assinou_em').eq('indicador_user_id', userId)
   const indicCount = indics?.length || 0
+  const indicAssinantes = (indics || []).filter((r: any) => r.assinou_em).length
   const comunidade = { comerciantes: 0, clientes: 0, entregadores: 0, pontosCidade: 0 }
   for (const r of indics || []) {
     if (r.papel_indicado === 'comerciante') comunidade.comerciantes++
@@ -173,11 +178,10 @@ export async function reconciliarUsuario(admin: SupabaseClient, userId: string):
   await Promise.all([grantMedalhas(admin, userId, idealMedalhas), grantMissoes(admin, userId, missoes)])
 
   // Lê o estado final concedido (fonte da verdade para exibir).
-  const [{ data: medalhasRows }, { data: missoesRows }, { data: creditosRows }, { data: beneficiosRows }] = await Promise.all([
+  const [{ data: medalhasRows }, { data: missoesRows }, { data: creditosRows }] = await Promise.all([
     admin.from('medalhas_usuarios').select('slug, concedida_em').eq('user_id', userId).order('concedida_em', { ascending: false }),
     admin.from('missoes_usuarios').select('slug').eq('user_id', userId),
     admin.from('creditos_mov').select('valor').eq('user_id', userId),
-    admin.from('beneficios_indicacao').select('quantidade, tipo, consumido').eq('user_id', userId).eq('tipo', 'mes_gratis').eq('consumido', false),
   ])
   const missoesCompletas = (missoesRows || []).map((m: any) => m.slug)
 
@@ -196,7 +200,7 @@ export async function reconciliarUsuario(admin: SupabaseClient, userId: string):
   const nvl = nivelDe(niveis, metricaValor)
 
   const creditos = (creditosRows || []).reduce((s: number, c: any) => s + Number(c.valor || 0), 0)
-  const mesesGratis = (beneficiosRows || []).reduce((s: number, b: any) => s + Number(b.quantidade || 0), 0)
+  const descontoIndicacao = { confirmadas: indicAssinantes, pct: pctIndicacoes(indicAssinantes) }
 
   const perfilPath =
     papel === 'comerciante' && loja ? `/comerciante/${slugify(nome)}-${loja.id}`
@@ -215,7 +219,7 @@ export async function reconciliarUsuario(admin: SupabaseClient, userId: string):
     medalhas: (medalhasRows || []) as any,
     missoes: missoesCompletas,
     streak: { dias: streak.dias, recorde: streak.recorde },
-    comunidade, creditos, mesesGratis,
+    comunidade, creditos, descontoIndicacao,
   }
 }
 

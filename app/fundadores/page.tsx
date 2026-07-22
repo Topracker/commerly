@@ -4,19 +4,20 @@ import { MarketingShell, MCard } from '../components/MarketingShell'
 import { createAdminClient } from '../lib/supabase-admin'
 import { flagAtiva } from '../lib/featureFlags'
 import { Check, Store } from 'lucide-react'
+import { VAGAS_FUNDADOR, PRECO_FUNDADOR, PRECO_NORMAL, brl } from '../lib/precos'
 
 export const metadata: Metadata = {
-  title: 'Programa Fundadores — os 50 primeiros comerciantes',
-  description: 'Os 50 primeiros comerciantes da Commerly ganham selo Fundador, R$39/mês para sempre, prioridade no suporte e reconhecimento permanente.',
+  title: 'Programa Fundadores — os 100 primeiros comerciantes',
+  description: 'Os 100 primeiros comerciantes da Commerly ganham selo Fundador, R$ 29,90/mês para sempre, prioridade no suporte e reconhecimento permanente.',
   alternates: { canonical: '/fundadores' },
 }
 
 export const dynamic = 'force-dynamic'
 
-const TOTAL_VAGAS = 50
+const TOTAL_VAGAS = VAGAS_FUNDADOR
 const BENEFICIOS = [
   'Selo “Fundador” permanente no perfil',
-  'R$ 39/mês para sempre (preço travado)',
+  `${brl(PRECO_FUNDADOR)}/mês para sempre (preço travado) — o normal é ${brl(PRECO_NORMAL)}`,
   'Destaque especial na busca e no app',
   'Prioridade no suporte',
   'Acesso antecipado a novas features',
@@ -45,7 +46,7 @@ export default async function Fundadores() {
   }
 
   const { data: fund } = await admin
-    .from('fundadores').select('loja_id, ordem, cidade, created_at').order('ordem', { ascending: true }).limit(50)
+    .from('fundadores').select('loja_id, ordem, cidade, created_at').order('ordem', { ascending: true }).limit(VAGAS_FUNDADOR)
 
   const lojaIds = (fund || []).map(f => f.loja_id)
   let lojas: Record<string, { nome: string; tipo: string; fotos_fachada?: string[] | null }> = {}
@@ -58,7 +59,7 @@ export default async function Fundadores() {
   return (
     <MarketingShell
       eyebrow="Programa Fundadores"
-      titulo="Os 50 primeiros. Para sempre."
+      titulo="Os 100 primeiros. Para sempre."
       subtitulo="Quem chega primeiro constrói a Commerly com a gente — e nunca é esquecido."
       cta={{ href: '/login', label: 'Quero ser fundador' }}
     >
@@ -81,7 +82,7 @@ export default async function Fundadores() {
         <MCard className="text-center py-10">
           <p className="text-4xl mb-2">🏅</p>
           <p className="text-white font-semibold">As vagas de fundador estão abertas</p>
-          <p className="text-gray-400 text-sm mt-1">Seja um dos 50 primeiros comerciantes e apareça aqui para sempre.</p>
+          <p className="text-gray-400 text-sm mt-1">Seja um dos 100 primeiros comerciantes e apareça aqui para sempre.</p>
           <Link href="/login" className="inline-block mt-4 bg-acento hover:bg-acento-forte text-white font-semibold px-6 py-3 rounded-2xl transition">Cadastrar minha loja</Link>
         </MCard>
       ) : (

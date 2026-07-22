@@ -14,7 +14,7 @@ type Perfil = {
   missoes: string[]
   streak: { dias: number; recorde: number }
   comunidade: { comerciantes: number; clientes: number; entregadores: number; pontosCidade: number }
-  creditos: number; mesesGratis: number
+  creditos: number; descontoIndicacao: { confirmadas: number; pct: number }
 }
 
 export function PainelGamificacao({ papel }: { papel?: string }) {
@@ -29,8 +29,8 @@ export function PainelGamificacao({ papel }: { papel?: string }) {
       // quem entrava por lá nunca tinha a indicação creditada.
       const d = await fetch('/api/gamificacao/sync').then(r => (r.ok ? r.json() : null)).catch(() => null)
       if (vivo && d && !d.error) setP(d)
-      // Comerciante: sincroniza benefícios na Stripe (desconto por nível + meses
-      // grátis de indicação). No-op se não houver assinatura ativa.
+      // Comerciante: sincroniza os descontos na Stripe (nível, faturamento e
+      // indicações confirmadas). No-op se não houver assinatura ativa.
       if (d?.papel === 'comerciante') {
         fetch('/api/stripe/aplicar-desconto', { method: 'POST' }).catch(() => {})
       }
@@ -85,12 +85,16 @@ export function PainelGamificacao({ papel }: { papel?: string }) {
         <StreakGrid />
       </div>
 
-      {/* Créditos/meses */}
+      {/* Desconto por indicação / créditos */}
       <div className="grid grid-cols-2 gap-2 mb-4">
         <div className="rounded-xl border border-borda bg-superficie p-2.5 text-center">
           <Gift size={16} className="text-acento mx-auto mb-0.5" />
-          <p className="text-white font-bold tabular-nums">{p.mesesGratis}</p>
-          <p className="text-gray-500 text-[10px]">meses grátis</p>
+          <p className="text-white font-bold tabular-nums">{p.descontoIndicacao?.pct ?? 0}%</p>
+          <p className="text-gray-500 text-[10px]">
+            {p.descontoIndicacao?.confirmadas
+              ? `off · ${p.descontoIndicacao.confirmadas} indicação${p.descontoIndicacao.confirmadas > 1 ? 'ões' : ''}`
+              : 'off por indicação'}
+          </p>
         </div>
         <div className="rounded-xl border border-borda bg-superficie p-2.5 text-center">
           <p className="text-white font-bold tabular-nums mt-0.5">R${p.creditos.toFixed(0)}</p>

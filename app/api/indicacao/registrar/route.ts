@@ -5,9 +5,15 @@ import { normalizarCodigo } from '../../../lib/festas'
 
 export const runtime = 'nodejs'
 
-// Recompensa por indicação por papel do INDICADO:
-const RECOMPENSA: Record<string, { creditos?: number; mesGratis?: boolean; label: string }> = {
-  comerciante: { mesGratis: true, label: '1 mês grátis' },
+// Recompensa por indicação, por papel do INDICADO.
+//
+// Comerciante não tem recompensa AQUI: quem indica um comerciante ganha uma
+// faixa de desconto na mensalidade (10% por indicação, até 40%), e isso só vale
+// quando o indicado ASSINA — não quando ele se cadastra. A indicação nasce
+// 'pendente' e o webhook da Stripe a confirma (lib/indicacaoDesconto.ts). Foi o
+// que substituiu o antigo "1 mês grátis" creditado no ato do cadastro.
+const RECOMPENSA: Record<string, { creditos?: number; label: string }> = {
+  comerciante: { label: 'desconto na mensalidade quando assinar' },
   entregador: { creditos: 15, label: 'R$ 15 em créditos' },
   cliente: { creditos: 10, label: 'R$ 10 em créditos' },
   fornecedor: { creditos: 10, label: 'R$ 10 em créditos' },
@@ -45,10 +51,13 @@ export async function POST(request: NextRequest) {
   const papelIndicado = loja ? 'comerciante' : ent ? 'entregador' : forn ? 'fornecedor' : 'cliente'
   const rec = RECOMPENSA[papelIndicado]
 
-  // Cria a indicação confirmada.
+  // Comerciante fica 'pendente' até assinar; os demais papéis não têm o que
+  // assinar, então a recompensa (créditos) sai na hora.
   const { error: insErr } = await admin.from('indicacoes').insert({
     codigo, indicador_user_id: dono.user_id, indicado_user_id: user.id,
-    papel_indicado: papelIndicado, status: 'recompensada', recompensa: rec.label,
+    papel_indicado: papelIndicado,
+    status: papelIndicado === 'comerciante' ? 'pendente' : 'recompensada',
+    recompensa: rec.label,
   })
   if (insErr) {
     // 23505 = corrida: outra requisição já registrou.
@@ -58,11 +67,6 @@ export async function POST(request: NextRequest) {
   }
 
   // Recompensa o indicador.
-  if (rec.mesGratis) {
-    await admin.from('beneficios_indicacao').insert({
-      user_id: dono.user_id, tipo: 'mes_gratis', quantidade: 1, origem_codigo: codigo, indicado_user_id: user.id,
-    })
-  }
   if (rec.creditos) {
     await admin.from('creditos_mov').insert({
       user_id: dono.user_id, valor: rec.creditos, motivo: `Indicação de ${papelIndicado}`, ref: codigo,

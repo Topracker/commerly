@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'crypto'
 import { createAdminClient } from '../../../lib/supabase-admin'
+import { PRECO_NORMAL } from '../../../lib/precos'
 
-const PRECO_NORMAL = 54.99
 const CICLOS_PROMO = 2
 
 export async function POST(request: NextRequest) {

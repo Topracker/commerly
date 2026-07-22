@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { precoBase } from '../../../lib/precos'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { rateLimit } from '../../../lib/rate-limit'
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
   // Já tem plano ativo — não cria nova assinatura
   if (loja.plano === 'ativo') return NextResponse.redirect(new URL('/planos', request.url))
 
-  const preco = loja.fundador ? 29.90 : 54.99
+  const preco = precoBase(loja.fundador)
 
   // Em ambiente de teste (token TEST-...), o MP recusa pagamento quando o
   // payer_email é o mesmo da conta dona do token ("pagar para si mesmo").

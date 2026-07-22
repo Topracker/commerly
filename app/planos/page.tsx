@@ -4,8 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../supabase'
 import { CheckCircle, Zap } from 'lucide-react'
 
-const PRECO_FUNDADOR = 'R$ 29,90'
-const PRECO_NORMAL = 'R$ 54,99'
+import { PRECO_FUNDADOR, PRECO_NORMAL, brl, tabelaDescontos } from '../lib/precos'
 
 function PlanosConteudo() {
   const router = useRouter()
@@ -18,6 +17,7 @@ function PlanosConteudo() {
   const [cancelando, setCancelando] = useState(false)
   const [cancelInfo, setCancelInfo] = useState<{ cancelAtPeriodEnd: boolean; validoAte: string | null } | null>(null)
   const [erroCancelamento, setErroCancelamento] = useState<string | null>(null)
+  const [desconto, setDesconto] = useState<{ confirmadas: number; pct: number; preco: number; proxima: { pct: number; preco: number } | null } | null>(null)
 
   const status = params.get('status')
 
@@ -31,6 +31,12 @@ function PlanosConteudo() {
         .maybeSingle()
       setLoja(data)
       setLoading(false)
+
+      // Desconto por indicação (10% por indicação que assinou, até 40%).
+      fetch('/api/indicacao/desconto', { cache: 'no-store' })
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => { if (d && !d.error) setDesconto(d) })
+        .catch(() => {})
 
       if (data?.stripe_subscription_id) {
         try {
@@ -55,7 +61,13 @@ function PlanosConteudo() {
   const temAssinatura = !!loja?.stripe_subscription_id
   const planoAtivo = loja?.plano === 'ativo'
   const ehFundador = !!loja?.fundador
-  const precoAtual = ehFundador ? PRECO_FUNDADOR : PRECO_NORMAL
+  // Base = preço do plano (fundador tem o preço travado). Sobre ela ainda pode
+  // incidir o desconto por indicação, que vem do servidor.
+  const base = ehFundador ? PRECO_FUNDADOR : PRECO_NORMAL
+  const pctIndic = desconto?.pct ?? 0
+  const precoFinal = desconto?.preco ?? base
+  const precoAtual = brl(precoFinal)
+  const offFundador = Math.round((1 - PRECO_FUNDADOR / PRECO_NORMAL) * 100)
 
   const FEATURES = [
     'Dashboard completo com gráficos',
@@ -107,21 +119,18 @@ function PlanosConteudo() {
               <h2 className="text-white font-bold">Acesso completo</h2>
             </div>
             <div className="text-right">
-              {!loading && ehFundador ? (
-                <>
-                  <div className="flex items-center gap-2 justify-end">
-                    <span className="text-gray-500 text-sm line-through">{PRECO_NORMAL}</span>
-                    <span className="bg-green-600 text-white text-xs font-bold px-1.5 py-0.5 rounded">-46%</span>
-                  </div>
-                  <p className="text-2xl font-bold text-white">{PRECO_FUNDADOR}</p>
-                  <p className="text-gray-400 text-xs">/mês — preço fundador</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-2xl font-bold text-white">{PRECO_NORMAL}</p>
-                  <p className="text-gray-400 text-xs">/mês</p>
-                </>
+              {!loading && (ehFundador || pctIndic > 0) && (
+                <div className="flex items-center gap-2 justify-end">
+                  <span className="text-gray-500 text-sm line-through">{brl(ehFundador ? PRECO_NORMAL : base)}</span>
+                  <span className="bg-green-600 text-white text-xs font-bold px-1.5 py-0.5 rounded">
+                    -{ehFundador && pctIndic === 0 ? offFundador : Math.round((1 - precoFinal / PRECO_NORMAL) * 100)}%
+                  </span>
+                </div>
               )}
+              <p className="text-2xl font-bold text-white">{loading ? '—' : precoAtual}</p>
+              <p className="text-gray-400 text-xs">
+                /mês{ehFundador ? ' — preço fundador' : ''}{pctIndic > 0 ? ` · ${pctIndic}% off por indicação` : ''}
+              </p>
             </div>
           </div>
 
@@ -186,6 +195,45 @@ function PlanosConteudo() {
             )
           )}
         </div>
+
+        {/* Desconto por indicação — 10% a cada indicação que ASSINA, até 40%. */}
+        {loja && (
+          <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <p className="text-white font-bold text-sm">Indique e pague menos</p>
+              <a href="/embaixador" className="text-blue-400 text-xs">Meu código →</a>
+            </div>
+            <p className="text-gray-400 text-xs mb-3">
+              Cada indicação sua que <span className="text-gray-300 font-semibold">assinar</span> vale 10% de desconto na sua
+              mensalidade — até 40%. Quem entra pelo seu convite ganha o mesmo desconto na primeira assinatura.
+            </p>
+            <ul className="flex flex-col gap-1">
+              {tabelaDescontos(base).map(f => {
+                const atual = (desconto?.confirmadas ?? 0) === f.indicacoes
+                  || (f.ultimo && (desconto?.confirmadas ?? 0) > f.indicacoes)
+                return (
+                  <li
+                    key={f.indicacoes}
+                    className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 ${atual ? 'bg-blue-950 border border-blue-800' : 'bg-gray-950'}`}
+                  >
+                    <span className={atual ? 'text-blue-300 font-semibold' : 'text-gray-400'}>
+                      {f.indicacoes === 0 ? 'Sem indicações' : `${f.indicacoes}${f.ultimo ? '+' : ''} indicação${f.indicacoes > 1 ? 'ões' : ''}`}
+                      {atual ? ' · você' : ''}
+                    </span>
+                    <span className={atual ? 'text-white font-bold' : 'text-gray-300'}>
+                      {f.pct > 0 ? `${f.pct}% off · ` : ''}{brl(f.preco)}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+            {desconto?.proxima && (
+              <p className="text-gray-500 text-xs mt-3">
+                Falta 1 indicação assinando para você pagar {brl(desconto.proxima.preco)}/mês.
+              </p>
+            )}
+          </div>
+        )}
 
         {loja && (planoAtivo || temAssinatura) && (
           <button onClick={() => router.push('/dashboard')} className="text-gray-500 text-sm hover:text-gray-400 transition text-center">
