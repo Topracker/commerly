@@ -1,9 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Trophy, Flame, Check, Circle, Sparkles, Gift, ArrowRight } from 'lucide-react'
+import { Trophy, Check, Circle, Sparkles, Gift, ArrowRight } from 'lucide-react'
 import { MISSOES, medalhaPorSlug } from '../lib/crescimento'
 import { useFlags } from '../lib/useFlags'
+import { StreakGrid } from './StreakGrid'
 
 type Perfil = {
   papel: string; nome: string; xp: number
@@ -23,17 +24,9 @@ export function PainelGamificacao({ papel }: { papel?: string }) {
   useEffect(() => {
     let vivo = true
     async function carregar() {
-      // Confirma uma indicação pendente (link /convite/[codigo]) uma única vez.
-      try {
-        const cod = localStorage.getItem('commerly:indicacao')
-        if (cod) {
-          await fetch('/api/indicacao/registrar', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ codigo: cod }),
-          }).catch(() => {})
-          localStorage.removeItem('commerly:indicacao')
-        }
-      } catch {}
+      // O resgate da indicação saiu daqui: mora em <IndicacaoClaim/>, montado no
+      // layout raiz, porque este painel não existe no dashboard do fornecedor —
+      // quem entrava por lá nunca tinha a indicação creditada.
       const d = await fetch('/api/gamificacao/sync').then(r => (r.ok ? r.json() : null)).catch(() => null)
       if (vivo && d && !d.error) setP(d)
       // Comerciante: sincroniza benefícios na Stripe (desconto por nível + meses
@@ -87,13 +80,13 @@ export function PainelGamificacao({ papel }: { papel?: string }) {
         </div>
       )}
 
-      {/* Streak + créditos/meses */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        <div className="rounded-xl border border-borda bg-superficie p-2.5 text-center">
-          <Flame size={16} className="text-orange-400 mx-auto mb-0.5" />
-          <p className="text-white font-bold tabular-nums">{p.streak.dias}</p>
-          <p className="text-gray-500 text-[10px]">dias seguidos</p>
-        </div>
+      {/* Streak — grade de atividade (substituiu o contador numérico) */}
+      <div className="mb-4">
+        <StreakGrid />
+      </div>
+
+      {/* Créditos/meses */}
+      <div className="grid grid-cols-2 gap-2 mb-4">
         <div className="rounded-xl border border-borda bg-superficie p-2.5 text-center">
           <Gift size={16} className="text-acento mx-auto mb-0.5" />
           <p className="text-white font-bold tabular-nums">{p.mesesGratis}</p>

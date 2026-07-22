@@ -71,7 +71,9 @@ export default function Certificado({ params }: { params: Promise<{ tipo: string
   const cert = CERTIFICADOS[tipo]
   const [nome, setNome] = useState<string>('')
   const [extra, setExtra] = useState<string>('')
+  const [perfilUrl, setPerfilUrl] = useState<string>('')
   const [carregando, setCarregando] = useState(true)
+  const [gerando, setGerando] = useState(false)
 
   useEffect(() => {
     let vivo = true
@@ -81,6 +83,7 @@ export default function Certificado({ params }: { params: Promise<{ tipo: string
         if (!vivo) return
         if (p && !p.error) {
           setNome(p.nome || '')
+          if (p.perfilPath) setPerfilUrl(`${window.location.origin}${p.perfilPath}`)
           if (tipo === 'embaixador' && p.comunidade) {
             const total = (p.comunidade.comerciantes || 0) + (p.comunidade.clientes || 0) + (p.comunidade.entregadores || 0)
             setExtra(`nível ${nivelDe(NIVEIS_EMBAIXADOR, total).atual.nome}`)
@@ -108,6 +111,27 @@ export default function Certificado({ params }: { params: Promise<{ tipo: string
   const nomeExibido = nome || 'Seu nome'
   const hoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
   const shareUrl = typeof window !== 'undefined' ? window.location.href : ''
+
+  // O jsPDF só é carregado quando alguém clica — são ~350 KB que não fazem
+  // falta a quem só veio olhar o certificado na tela.
+  async function baixar() {
+    if (!cert || gerando) return
+    setGerando(true)
+    try {
+      const { baixarCertificadoPdf } = await import('../../lib/certificadoPdf')
+      await baixarCertificadoPdf({
+        tipo, titulo: cert.titulo, subtitulo: cert.subtitulo, cor: cert.cor,
+        corpo: cert.corpo(nomeExibido, extra), nome: nomeExibido,
+        urlPerfil: perfilUrl || (typeof window !== 'undefined' ? window.location.origin : ''),
+      })
+    } catch (e) {
+      console.error('[certificado] falha ao gerar PDF:', e)
+      // Último recurso: o caminho antigo, que ao menos sempre existiu.
+      window.print()
+    } finally {
+      setGerando(false)
+    }
+  }
   const shareMsg = `Recebi o certificado ${cert.selo} ${cert.titulo} da Commerly! #Commerly`
 
   return (
@@ -165,10 +189,12 @@ export default function Certificado({ params }: { params: Promise<{ tipo: string
         {/* Ações */}
         <div className="no-print flex flex-wrap items-center justify-center gap-2 mt-6">
           <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 bg-acento hover:bg-acento-forte text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition"
+            onClick={baixar}
+            disabled={gerando}
+            className="flex items-center gap-1.5 bg-acento hover:bg-acento-forte disabled:opacity-60 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition"
           >
-            <Download size={15} /> Baixar PDF
+            {gerando ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+            {gerando ? 'Gerando…' : 'Baixar PDF'}
           </button>
           <a href={`https://wa.me/?text=${encodeURIComponent(shareMsg + ' ' + shareUrl)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 bg-[#25D366] text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
             <MessageCircle size={15} /> WhatsApp
@@ -179,7 +205,7 @@ export default function Certificado({ params }: { params: Promise<{ tipo: string
           {carregando && <span className="flex items-center gap-1 text-gray-500 text-xs"><Loader2 size={13} className="animate-spin" /> personalizando…</span>}
         </div>
         <p className="no-print text-center text-gray-500 text-xs mt-3">
-          Dica: em &quot;Baixar PDF&quot;, escolha &quot;Salvar como PDF&quot; e ative o fundo do papel para manter as cores.
+          O PDF sai pronto, com o QR do seu perfil — sem passar pelo diálogo de impressão.
         </p>
       </div>
     </main>

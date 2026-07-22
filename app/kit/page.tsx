@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { MarketingShell, MCard } from '../components/MarketingShell'
+import { KitTracking } from '../components/KitTracking'
 import { Check } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -26,6 +27,10 @@ export default function Kit() {
       subtitulo="O kit é o que ativa a sua conta e te coloca na rede oficial. Cada bolsa é uma vitrine ambulante da Commerly."
       cta={{ href: '/entregador-delivery/login', label: 'Começar cadastro' }}
     >
+      {/* Rastreio real do kit. Só aparece para entregador logado — para o
+          visitante a página continua sendo só a apresentação do kit. */}
+      <KitTracking />
+
       <MCard className="mb-6">
         <p className="text-white font-semibold mb-3">Como funciona</p>
         <div className="flex flex-wrap items-center gap-2">

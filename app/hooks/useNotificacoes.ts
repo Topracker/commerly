@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
 import {
   type Notificacao,
+  type TipoNotificacao,
   listarNotificacoes,
   contarNaoLidas,
   marcarComoLida,
@@ -90,11 +91,17 @@ export function useNotificacoes({ comLista = false }: Opcoes = {}) {
     await marcarComoLida(supabase, id)
   }, [supabase])
 
-  const marcarTodas = useCallback(async () => {
-    setNotificacoes(prev => prev.map(n => ({ ...n, lida: true })))
-    setNaoLidas(0)
-    await marcarTodasComoLidas(supabase)
-  }, [supabase])
+  // Sem `tipos` marca tudo; com `tipos` marca só a categoria da aba aberta.
+  const marcarTodas = useCallback(async (tipos?: TipoNotificacao[] | null) => {
+    const alvo = tipos && tipos.length > 0 ? new Set<string>(tipos) : null
+    setNotificacoes(prev => prev.map(n => (!alvo || alvo.has(n.tipo) ? { ...n, lida: true } : n)))
+    setNaoLidas(c => {
+      if (!alvo) return 0
+      const restam = notificacoes.filter(n => !n.lida && !alvo.has(n.tipo)).length
+      return restam
+    })
+    await marcarTodasComoLidas(supabase, tipos)
+  }, [supabase, notificacoes])
 
   const fecharToast = useCallback(() => setToastNotif(null), [])
 

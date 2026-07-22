@@ -6,6 +6,8 @@
 export type TipoNotificacao =
   | 'pedido_novo' | 'pedido_status' | 'parceria_aceita' | 'corrida_oferta' | 'cupom' | 'post_novo'
   | 'flash_sale' | 'retencao' | 'relatorio' | 'despacho'
+  | 'kit_status' | 'medalha' | 'missao' | 'ranking' | 'cidade' | 'convite'
+  | 'promocao' | 'boas_vindas'
 
 export type Notificacao = {
   id: string
@@ -31,6 +33,43 @@ export const EMOJI_NOTIFICACAO: Record<TipoNotificacao, string> = {
   retencao: '👋',
   relatorio: '📊',
   despacho: '📍',
+  kit_status: '📦',
+  medalha: '🏅',
+  missao: '🎯',
+  ranking: '🏆',
+  cidade: '🏙️',
+  convite: '💌',
+  promocao: '🏷️',
+  boas_vindas: '🎉',
+}
+
+// ── Categorias da tela de notificações ──────────────────────────────────────
+// A aba filtra por `tipo`. TODO tipo precisa aparecer em exatamente uma
+// categoria: um tipo fora daqui só seria visível em "Todos" e passaria batido —
+// e hoje `relatorio` sozinho é a maioria das notificações em produção, então
+// deixar de fora seria esconder o que mais existe. Por isso há "Sistema", que
+// não estava no pedido original mas recolhe retenção/relatório/boas-vindas.
+export type CategoriaNotificacao = {
+  id: string
+  label: string
+  tipos: TipoNotificacao[]
+}
+
+export const CATEGORIAS_NOTIFICACAO: CategoriaNotificacao[] = [
+  { id: 'pedidos',   label: 'Pedidos',   tipos: ['pedido_novo', 'pedido_status', 'despacho', 'corrida_oferta', 'kit_status'] },
+  { id: 'medalhas',  label: 'Medalhas',  tipos: ['medalha'] },
+  { id: 'missoes',   label: 'Missões',   tipos: ['missao'] },
+  { id: 'ranking',   label: 'Ranking',   tipos: ['ranking'] },
+  { id: 'cidade',    label: 'Cidade',    tipos: ['cidade'] },
+  { id: 'convites',  label: 'Convites',  tipos: ['convite', 'parceria_aceita'] },
+  { id: 'promocoes', label: 'Promoções', tipos: ['promocao', 'cupom', 'flash_sale', 'post_novo'] },
+  { id: 'sistema',   label: 'Sistema',   tipos: ['relatorio', 'retencao', 'boas_vindas'] },
+]
+
+/** Tipos de uma categoria; `null` (aba "Todos") devolve null = sem filtro. */
+export function tiposDaCategoria(id: string | null): TipoNotificacao[] | null {
+  if (!id) return null
+  return CATEGORIAS_NOTIFICACAO.find(c => c.id === id)?.tipos ?? null
 }
 
 /** Busca as notificações mais recentes do usuário logado. */
@@ -56,8 +95,14 @@ export async function marcarComoLida(supabase: any, id: string): Promise<void> {
   await supabase.from('notificacoes').update({ lida: true }).eq('id', id)
 }
 
-export async function marcarTodasComoLidas(supabase: any): Promise<void> {
-  await supabase.from('notificacoes').update({ lida: true }).eq('lida', false)
+/**
+ * Marca como lidas. Sem `tipos`, marca tudo; com `tipos`, só aquela categoria —
+ * é o que a aba ativa usa, para não zerar o que o usuário nem viu.
+ */
+export async function marcarTodasComoLidas(supabase: any, tipos?: TipoNotificacao[] | null): Promise<void> {
+  let q = supabase.from('notificacoes').update({ lida: true }).eq('lida', false)
+  if (tipos && tipos.length > 0) q = q.in('tipo', tipos)
+  await q
 }
 
 /**

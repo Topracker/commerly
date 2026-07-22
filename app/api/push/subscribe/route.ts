@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
+import { enviarPushParaUsuario } from '../../../lib/push'
 
 // Salva (ou reativa) a push subscription do dispositivo do usuário logado.
 // Dedup por endpoint (unique): se o mesmo navegador reinscrever, atualiza as
@@ -48,5 +49,43 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Não foi possível salvar a inscrição.' }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true })
+  // ── Boas-vindas ────────────────────────────────────────────────────────────
+  // Primeira vez que este usuário registra um dispositivo: manda um push de
+  // boas-vindas. Serve de confirmação visível de que a permissão pegou — sem
+  // ele, o usuário concede a permissão e não acontece nada, e só descobre se
+  // funcionou no primeiro pedido de verdade.
+  //
+  // A idempotência é pela PRÓPRIA notificação, não por contagem de inscrições:
+  // quem instala num segundo aparelho não deve receber de novo, e a contagem
+  // teria corrida entre duas abas. Falhar aqui não invalida a inscrição, que é
+  // o que a rota veio fazer — daí o try/catch.
+  let boasVindas = false
+  try {
+    const { data: jaTem } = await admin
+      .from('notificacoes').select('id')
+      .eq('user_id', user.id).eq('tipo', 'boas_vindas').maybeSingle()
+
+    if (!jaTem) {
+      await admin.from('notificacoes').insert({
+        user_id: user.id,
+        tipo: 'boas_vindas',
+        titulo: 'Notificações ativadas 🎉',
+        mensagem: 'Pronto! Avisamos você aqui sobre pedidos, entregas e conquistas.',
+        link: '/notificacoes',
+        dados: {},
+      })
+      await enviarPushParaUsuario(admin, user.id, {
+        titulo: 'Bem-vindo à Commerly 🎉',
+        mensagem: 'Notificações ativadas. Você não perde mais nenhum pedido.',
+        link: '/notificacoes',
+        tipo: 'boas_vindas',
+        tag: 'boas_vindas',
+      })
+      boasVindas = true
+    }
+  } catch (e) {
+    console.warn('[push-subscribe] boas-vindas falhou:', e)
+  }
+
+  return NextResponse.json({ ok: true, boasVindas })
 }

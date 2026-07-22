@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { nivelDe, nivelXp, NIVEIS_POR_PAPEL, NIVEIS_COMERCIANTE, NIVEIS_ENTREGADOR, NIVEIS_CLIENTE, eventoSazonalAtivo } from './crescimento'
+import { nivelDe, nivelXp, NIVEIS_POR_PAPEL, NIVEIS_COMERCIANTE, NIVEIS_ENTREGADOR, NIVEIS_CLIENTE, eventoSazonalAtivo, slugify } from './crescimento'
 
 // ============================================================================
 // Motor de gamificação — reconciliação idempotente (pull-based).
@@ -24,6 +24,13 @@ export type PerfilGamificacao = {
   comunidade: { comerciantes: number; clientes: number; entregadores: number; pontosCidade: number }
   creditos: number
   mesesGratis: number
+  /**
+   * Caminho do perfil público (`/comerciante/nome-uuid`). Vai no QR do
+   * certificado. O slug precisa do id da ENTIDADE (loja/entregador/cliente),
+   * não do auth user — por isso sai daqui, que é quem já os tem em mãos.
+   * `null` para fornecedor, que não tem página pública.
+   */
+  perfilPath: string | null
 }
 
 function grantMedalhas(admin: SupabaseClient, userId: string, slugs: string[]) {
@@ -191,8 +198,14 @@ export async function reconciliarUsuario(admin: SupabaseClient, userId: string):
   const creditos = (creditosRows || []).reduce((s: number, c: any) => s + Number(c.valor || 0), 0)
   const mesesGratis = (beneficiosRows || []).reduce((s: number, b: any) => s + Number(b.quantidade || 0), 0)
 
+  const perfilPath =
+    papel === 'comerciante' && loja ? `/comerciante/${slugify(nome)}-${loja.id}`
+    : papel === 'entregador' && ent ? `/entregador/${slugify(nome)}-${ent.id}`
+    : papel === 'cliente' && cli ? `/cliente/${slugify(nome)}-${cli.id}`
+    : null
+
   return {
-    papel, nome, xp,
+    papel, nome, xp, perfilPath,
     nivelXp: nivelXp(xp),
     nivelPapel: {
       nome: nvl.atual.nome, emoji: nvl.atual.emoji, cor: nvl.atual.cor, min: nvl.atual.min,
