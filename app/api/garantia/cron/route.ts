@@ -21,13 +21,12 @@ export const maxDuration = 60
 const LOTE = 50
 
 export async function GET(req: NextRequest) {
+  // Fail-closed: sem CRON_SECRET configurada, ninguém entra (o endpoint não fica
+  // aberto se a env var sumir). Vercel Cron envia "Authorization: Bearer
+  // <CRON_SECRET>" automaticamente quando a env var existe.
   const secret = process.env.CRON_SECRET
-  if (secret) {
-    if (req.headers.get('authorization') !== `Bearer ${secret}`) {
-      return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 })
-    }
-  } else {
-    console.warn('[garantia cron] CRON_SECRET não configurada — endpoint sem proteção. Configure na Vercel.')
+  if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
+    return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 })
   }
 
   const admin = createAdminClient()

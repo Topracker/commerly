@@ -48,8 +48,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  // Fail-closed: sem CRON_SECRET configurada, o cron público não roda (só o POST
+  // autenticado do comerciante mantém a cadeia andando). Vercel Cron envia
+  // "Authorization: Bearer <CRON_SECRET>" quando a env var existe.
   const secret = process.env.CRON_SECRET
-  if (secret && request.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 

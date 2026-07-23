@@ -13,17 +13,12 @@ export const maxDuration = 60
 type Conexao = { loja_id: string; access_token: string; mp_user_id: string; updated_at: string | null }
 
 export async function GET(req: NextRequest) {
-  // O Vercel Cron envia "Authorization: Bearer <CRON_SECRET>" quando a env var
-  // CRON_SECRET está definida. Se estiver definida, exigimos que bata — assim
-  // ninguém de fora dispara a sincronização. Se não estiver, segue (mas logamos
-  // um aviso recomendando configurar).
+  // Fail-closed: o Vercel Cron (e o GitHub Action de 5 min) enviam "Authorization:
+  // Bearer <CRON_SECRET>". Sem a env var configurada, ou com header errado, o
+  // endpoint recusa — não fica aberto para qualquer um disparar a sincronização.
   const secret = process.env.CRON_SECRET
-  if (secret) {
-    if (req.headers.get('authorization') !== `Bearer ${secret}`) {
-      return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 })
-    }
-  } else {
-    console.warn('[MP cron] CRON_SECRET não configurada — endpoint sem proteção. Configure na Vercel.')
+  if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
+    return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 })
   }
 
   const admin = createAdminClient()

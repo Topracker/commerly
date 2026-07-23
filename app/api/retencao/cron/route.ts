@@ -29,8 +29,11 @@ async function insightSemanal(nome: string, atual: number, cresc: number, pedido
 const hojeStr = () => new Date().toISOString().slice(0, 10)
 
 export async function GET(req: NextRequest) {
+  // Fail-closed: sem CRON_SECRET configurada, ninguém entra (o endpoint não
+  // fica aberto se a env var sumir). O Vercel Cron manda "Authorization: Bearer
+  // <CRON_SECRET>" automaticamente quando a env var existe.
   const secret = process.env.CRON_SECRET
-  if (secret && req.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 })
   }
 
