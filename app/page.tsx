@@ -1,16 +1,10 @@
 import Link from 'next/link'
 import {
-  Store, User, Truck, Bike, Globe, ArrowRight,
+  Store, User, Truck, Bike, ArrowRight,
   Rss, Gauge, Bot, Wallet, MapPin, GraduationCap,
 } from 'lucide-react'
 import AnimatedBackground from './components/AnimatedBackground'
 import HomeCrescimento from './components/HomeCrescimento'
-
-// Deploy check: força rebuild na Vercel (2026-07-16).
-
-// Link do parceiro que cria sites profissionais para as lojas.
-// TODO: trocar pelo endereço final do parceiro.
-const SITE_PARCEIRO = 'https://exemplo-parceiro.com'
 
 const PORTAS = [
   {
@@ -131,23 +125,6 @@ export default function Home() {
               </div>
             ))}
           </div>
-
-          {/* Parceiros — criação de site profissional. Discreto, não intrusivo. */}
-          <a
-            href={SITE_PARCEIRO}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="grupo mt-6 w-full rounded-2xl border border-borda bg-card hover:border-gray-700 px-5 py-4 transition flex items-center gap-4"
-          >
-            <span className="w-9 h-9 rounded-xl bg-elevado flex items-center justify-center shrink-0">
-              <Globe size={18} className="text-gray-300 grupo-icone" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-white text-sm font-semibold">Quer um site profissional para sua loja?</span>
-              <span className="block text-gray-400 text-xs mt-0.5">Conheça nosso parceiro de criação de sites.</span>
-            </span>
-            <ArrowRight size={16} className="text-gray-500 shrink-0" />
-          </a>
         </div>
       </section>
 

@@ -49,6 +49,19 @@ export function HomeCrescimento() {
 
   const cont = c || { comerciantes: 0, clientes: 0, entregadores: 0, pedidos: 0, pedidos_hoje: 0, cidades: 0 }
 
+  // Só mostramos números reais. Tile zerado, marco não batido e cidade sem
+  // pontos ficam de fora — nada de "0 pedidos hoje" nem barra de 4% enganosa.
+  const tiles = [
+    { icone: Store, valor: cont.comerciantes, rotulo: 'comerciantes' },
+    { icone: Bike, valor: cont.entregadores, rotulo: 'entregadores' },
+    { icone: User, valor: cont.clientes, rotulo: 'clientes' },
+    { icone: ShoppingBag, valor: cont.pedidos, rotulo: 'pedidos' },
+    { icone: Sparkles, valor: cont.pedidos_hoje, rotulo: 'pedidos hoje' },
+    { icone: MapPin, valor: cont.cidades, rotulo: 'cidades' },
+  ].filter(t => t.valor > 0)
+  const marcosBatidos = MARCOS.filter(m => ((cont as Record<string, number>)[m.metrica] || 0) >= m.valor)
+  const cidadesReais = cidades.filter(cid => cid.pontos > 0)
+
   return (
     <section className="relative z-10 px-6 pb-16">
       <div className="max-w-4xl mx-auto">
@@ -60,22 +73,25 @@ export function HomeCrescimento() {
           Comerciantes, clientes e entregadores em um único ecossistema.
         </p>
 
-        {/* Contadores ao vivo */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <Tile icone={Store} valor={cont.comerciantes} rotulo="comerciantes" />
-          <Tile icone={Bike} valor={cont.entregadores} rotulo="entregadores" />
-          <Tile icone={User} valor={cont.clientes} rotulo="clientes" />
-          <Tile icone={ShoppingBag} valor={cont.pedidos} rotulo="pedidos" />
-          <Tile icone={Sparkles} valor={cont.pedidos_hoje} rotulo="pedidos hoje" />
-          <Tile icone={MapPin} valor={cont.cidades} rotulo="cidades" />
-        </div>
-
-        {/* Feed de conquistas ao vivo */}
-        {feed.length > 0 && (
-          <div className="mt-4 bg-card border border-borda rounded-2xl p-4 overflow-hidden">
-            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5">
-              <Trophy size={13} className="text-acento" /> Conquistas da comunidade
+        {/* Contadores ao vivo — só os que têm número real */}
+        {tiles.length > 0 && (
+          <>
+            <div className={`grid gap-3 grid-cols-2 sm:grid-cols-3 ${tiles.length >= 6 ? 'lg:grid-cols-6' : 'lg:grid-cols-4'}`}>
+              {tiles.map(t => <Tile key={t.rotulo} icone={t.icone} valor={t.valor} rotulo={t.rotulo} />)}
+            </div>
+            {/* Transparência: durante o lançamento a base ainda inclui contas de teste. */}
+            <p className="text-center text-gray-600 text-[11px] mt-2">
+              Números em construção — incluem contas de teste durante o lançamento.
             </p>
+          </>
+        )}
+
+        {/* Feed de conquistas — só eventos reais; vazio vira convite */}
+        <div className="mt-4 bg-card border border-borda rounded-2xl p-4 overflow-hidden">
+          <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5">
+            <Trophy size={13} className="text-acento" /> Conquistas da comunidade
+          </p>
+          {feed.length > 0 ? (
             <ul className="flex flex-col gap-1.5">
               {feed.slice(0, 6).map((f, i) => (
                 <li
@@ -88,31 +104,25 @@ export function HomeCrescimento() {
                 </li>
               ))}
             </ul>
+          ) : (
+            <p className="text-sm text-gray-400">Seja o primeiro a conquistar algo! 🚀</p>
+          )}
+        </div>
+
+        {/* Marcos — só os que realmente aconteceram (sem barra de progresso falsa) */}
+        {marcosBatidos.length > 0 && (
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {marcosBatidos.map(m => (
+              <div key={m.rotulo} className="rounded-2xl border border-acento/50 bg-acento/10 p-3">
+                <p className="text-xs text-gray-400">{m.rotulo}</p>
+                <p className="text-acento text-sm font-semibold mt-2">🎉 conquistado!</p>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Marcos */}
-        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {MARCOS.map(m => {
-            const atual = (cont as any)[m.metrica] || 0
-            const pct = Math.min(100, Math.round((atual / m.valor) * 100))
-            const batido = atual >= m.valor
-            return (
-              <div key={m.rotulo} className={`rounded-2xl border p-3 ${batido ? 'border-acento/50 bg-acento/10' : 'border-borda bg-card'}`}>
-                <p className="text-xs text-gray-400">{m.rotulo}</p>
-                <div className="h-1.5 bg-elevado rounded-full mt-2 overflow-hidden">
-                  <div className="h-full bg-acento rounded-full transition-all" style={{ width: `${pct}%` }} />
-                </div>
-                <p className={`text-[11px] mt-1 ${batido ? 'text-acento font-semibold' : 'text-gray-500'}`}>
-                  {batido ? '🎉 conquistado!' : `${pct}%`}
-                </p>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Ranking de cidades (prévia) */}
-        {cidades.length > 0 && (
+        {/* Ranking de cidades (prévia) — só cidades com pontos reais */}
+        {cidadesReais.length > 0 && (
           <div className="mt-4 bg-card border border-borda rounded-2xl p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5">
@@ -123,7 +133,7 @@ export function HomeCrescimento() {
               </Link>
             </div>
             <ul className="flex flex-col gap-2">
-              {cidades.slice(0, 3).map((cid, i) => {
+              {cidadesReais.slice(0, 3).map((cid, i) => {
                 const pct = Math.min(100, Math.round((cid.pontos / cid.meta_pontos) * 100))
                 return (
                   <li key={cid.slug}>
