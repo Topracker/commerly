@@ -96,7 +96,10 @@ export default function NovaSenha() {
     const { data: { user }, error } = await supabase.auth.updateUser({ password: senha })
     if (error || !user) {
       console.error('[nova-senha] updateUser error:', error)
-      setErro('Não foi possível redefinir a senha. Solicite um novo link.')
+      // A falha aqui quase sempre é sessão de recuperação expirada/inválida:
+      // caímos para o estado sem token, que exibe o botão "Solicitar novo link".
+      setErro('Este link expirou. Solicite um novo link de redefinição.')
+      setPronto(false)
       setLoading(false)
       return
     }
