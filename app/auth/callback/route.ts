@@ -18,12 +18,27 @@ function destinoSeguro(next: string | null): string {
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
+  const type = searchParams.get('type')
   const next = destinoSeguro(searchParams.get('next'))
 
   // Em produção (Vercel) a origem real vem no x-forwarded-host.
   const forwardedHost = request.headers.get('x-forwarded-host')
   const ehDev = process.env.NODE_ENV === 'development'
   const base = ehDev ? origin : forwardedHost ? `https://${forwardedHost}` : origin
+
+  // RESET DE SENHA (recovery): NÃO consumir o token aqui. Chamar
+  // exchangeCodeForSession invalidaria o token/code de recuperação antes de
+  // /nova-senha poder usá-lo — a página então mostrava "link expirado". Este
+  // callback só existe na allowlist do Supabase (o OAuth usa), então usamos ele
+  // como PONTE: repassamos TODOS os parâmetros da URL (token_hash, type, code,
+  // erros) intactos para /nova-senha, que aí sim chama verifyOtp/troca a sessão.
+  const ehRecovery = type === 'recovery' || next === '/nova-senha'
+  if (ehRecovery) {
+    const params = new URLSearchParams(searchParams)
+    params.delete('next')
+    const qs = params.toString()
+    return NextResponse.redirect(`${base}/nova-senha${qs ? `?${qs}` : ''}`)
+  }
 
   if (code) {
     const cookieStore = await cookies()

@@ -62,6 +62,43 @@ const PAGINAS_AUTENTICADAS = [
   '/embaixador', '/certificado', '/marketing', '/commerly-ai',
 ]
 
+// ----------------------------------------------------------------------------
+// ÁREAS POR PAPEL (cliente / entregador / fornecedor) — exigem LOGIN, sem
+// paywall (esses papéis são gratuitos). Antes só havia guard client-side
+// (useCliente/useEntregador/useFornecedor): a página chegava a montar e só
+// depois redirecionava, e um `fetch` direto no /rest/v1 dependia apenas da RLS.
+// Agora o Proxy barra o visitante anônimo no servidor, antes de renderizar, e
+// manda para a tela de login DAQUELE papel.
+//
+// Listas EXPLÍCITAS (não prefixo cego) porque cada área tem rotas PÚBLICAS que
+// não podem ser bloqueadas: perfis /cliente/[slug] e /fornecedor/[id], a tela
+// de login e o convite de festa /cliente/festa/entrar/[codigo] (que guarda o
+// código e manda pro login por conta própria).
+const PAGINAS_CLIENTE = [
+  '/cliente/buscar', '/cliente/clube', '/cliente/dashboard', '/cliente/favoritas',
+  '/cliente/feed', '/cliente/festa', '/cliente/loja', '/cliente/mensagens',
+  '/cliente/notificacoes', '/cliente/pedidos', '/cliente/ranking', '/cliente/onboarding',
+]
+const PAGINAS_ENTREGADOR = [
+  '/entregador-delivery/dashboard', '/entregador-delivery/notificacoes',
+  '/entregador-delivery/onboarding',
+]
+const PAGINAS_FORNECEDOR = [
+  '/fornecedor/avaliacoes', '/fornecedor/configuracoes', '/fornecedor/dashboard',
+  '/fornecedor/mensagens', '/fornecedor/produtos', '/fornecedor/onboarding',
+]
+
+// Cada área e o login para onde mandar o anônimo.
+const AREAS_PAPEL: { paginas: string[]; login: string }[] = [
+  { paginas: PAGINAS_CLIENTE, login: '/cliente/login' },
+  { paginas: PAGINAS_ENTREGADOR, login: '/entregador-delivery/login' },
+  { paginas: PAGINAS_FORNECEDOR, login: '/fornecedor/login' },
+]
+
+// Rotas dentro de uma área protegida que, mesmo casando por prefixo, são
+// PÚBLICAS (o convite casa com o prefixo '/cliente/festa', então precisa sair).
+const EXCECOES_PUBLICAS = ['/cliente/festa/entrar']
+
 const NUNCA_BLOQUEAR = ['webhook', 'cron', 'callback', 'oauth']
 
 function casa(pathname: string, rotas: string[]): boolean {
@@ -78,6 +115,20 @@ export async function proxy(request: NextRequest) {
   const ehPagina = casa(pathname, PAGINAS_COMERCIANTE)
   const ehAutenticada = casa(pathname, PAGINAS_AUTENTICADAS)
   const ehOnboarding = pathname === '/onboarding' || pathname.startsWith('/onboarding/')
+
+  // Área por papel protegida? Descobre o login-alvo (cliente/entregador/
+  // fornecedor). Exceções públicas (perfis, convite) ficam de fora.
+  let loginPapel: string | null = null
+  if (!casa(pathname, EXCECOES_PUBLICAS)) {
+    for (const a of AREAS_PAPEL) {
+      if (casa(pathname, a.paginas)) { loginPapel = a.login; break }
+    }
+  }
+  const ehAreaPapel = loginPapel !== null
+
+  // Nada a proteger nesta rota (ex.: perfil público, home): segue direto e evita
+  // um getUser() de rede à toa.
+  if (!ehApi && !ehPagina && !ehAutenticada && !ehOnboarding && !ehAreaPapel) return response
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -99,13 +150,16 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    // API responde 401 em JSON; página vai para o login (comportamento antigo).
+    // API responde 401 em JSON; página vai para o login apropriado.
     if (ehApi) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    if (ehAreaPapel) return NextResponse.redirect(new URL(loginPapel!, request.url))
     if (ehPagina || ehOnboarding || ehAutenticada) return NextResponse.redirect(new URL('/login', request.url))
     return response
   }
 
-  // Autenticada (qualquer papel) sem paywall: basta ter sessão — já validado acima.
+  // Logado. Áreas de papel, páginas só-login e onboarding não têm paywall:
+  // basta a sessão, já validada acima.
+  if (ehAreaPapel || ehAutenticada || ehOnboarding) return response
   if (!ehApi && !ehPagina) return response
 
   const { data: loja, error } = await supabase
@@ -141,6 +195,9 @@ export const config = {
     '/academy/:path*', '/ads/:path*',
     // Páginas que exigem só login (qualquer papel), sem paywall:
     '/embaixador/:path*', '/certificado/:path*', '/marketing/:path*', '/commerly-ai/:path*',
+    // Áreas por papel — o Proxy roda em todo o prefixo; o código decide o que é
+    // protegido (listas explícitas) e o que é público (perfis, login, convite).
+    '/cliente/:path*', '/entregador-delivery/:path*', '/fornecedor/:path*',
     '/api/assistente/:path*', '/api/copilot/:path*', '/api/commerly-ai/:path*',
     '/api/campanha-retorno/:path*', '/api/promocoes/:path*', '/api/flash-sale/:path*',
     '/api/vision/:path*', '/api/nutri/:path*', '/api/tendencias/:path*',

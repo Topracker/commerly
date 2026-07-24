@@ -38,7 +38,10 @@ function RecuperarSenhaInner() {
     if (!email) { setErro('Informe seu e-mail'); return }
     setLoading(true)
     setErro('')
-    const redirectTo = `${baseUrl()}/nova-senha`
+    // Passa pelo /auth/callback (que JÁ está na allowlist de Redirect URLs do
+    // Supabase — o OAuth usa). O callback repassa o token para /nova-senha sem
+    // consumi-lo. Assim não é preciso allowlistar /nova-senha separadamente.
+    const redirectTo = `${baseUrl()}/auth/callback?next=${encodeURIComponent('/nova-senha')}`
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
     // Não revelamos se o e-mail existe (evita enumeração de contas): sempre
     // mostramos a mesma confirmação, mesmo que o e-mail não tenha conta.
