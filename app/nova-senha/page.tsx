@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../supabase'
 import { useRouter } from 'next/navigation'
 
@@ -19,53 +19,97 @@ export default function NovaSenha() {
   const [erro, setErro] = useState('')
   const [ok, setOk] = useState(false)
   const [loading, setLoading] = useState(false)
+  // Garante que o token_hash seja verificado UMA vez só. verifyOtp consome o
+  // token; uma segunda chamada (re-mount/StrictMode) falharia como "expirado".
+  const verificouRef = useRef(false)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
     let ativo = true
-    function liberar() { if (ativo) { setPronto(true); setVerificando(false) } }
-    function invalidar(msg: string) { if (ativo) { setVerificando(false); setErro(msg) } }
-
-    // (4) Link expirado/já usado: o Supabase devolve o erro na URL (query ou hash).
     const q = new URLSearchParams(window.location.search)
     const h = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+    const tokenHash = q.get('token_hash')
+    const type = q.get('type')
+
+    // ---- DIAGNÓSTICO: o que REALMENTE chega na página (ver console) ----
+    console.log('[nova-senha] URL:', window.location.href)
+    console.log('[nova-senha] query:', Object.fromEntries(q.entries()))
+    console.log('[nova-senha] hash :', Object.fromEntries(h.entries()))
+    console.log('[nova-senha] token_hash:', tokenHash ? `PRESENTE (len=${tokenHash.length})` : 'AUSENTE',
+      '| type:', type || '(nenhum)', '| code:', q.get('code') ? 'presente' : 'ausente')
+
+    function liberar(origem: string) {
+      console.log('[nova-senha] ✓ liberado via', origem)
+      if (ativo) { setPronto(true); setVerificando(false) }
+    }
+    function invalidar(msg: string, motivo: string) {
+      console.warn('[nova-senha] ✗ inválido —', motivo)
+      if (ativo) { setVerificando(false); setErro(msg) }
+    }
+
+    // (A) Erro explícito devolvido pelo Supabase na URL (link já expirado/usado).
     const errCode = q.get('error_code') || h.get('error_code')
     const errDesc = q.get('error_description') || h.get('error_description')
     if (errCode || errDesc) {
       invalidar(errCode === 'otp_expired'
         ? 'Este link expirou. Solicite um novo link de redefinição.'
-        : 'Link inválido ou já utilizado. Solicite um novo link de redefinição.')
+        : 'Link inválido ou já utilizado. Solicite um novo link de redefinição.',
+        `URL error: ${errCode || ''} ${errDesc || ''}`.trim())
       return
     }
 
-    // O cliente (detectSessionInUrl) processa ?code / #access_token de forma
-    // assíncrona e dispara o evento — aqui garantimos capturar quando terminar.
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) liberar()
+    // Captura sessão estabelecida de forma assíncrona (?code / #access_token).
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[nova-senha] onAuthStateChange:', event, '| sessão:', !!session)
+      if (session) liberar('onAuthStateChange:' + event)
     })
 
     ;(async () => {
-      // (3) Sessão já pronta (URL já processada ou reuso da aba).
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) { liberar(); return }
-
-      // (2) Fluxo token_hash: não é processado automaticamente, validamos aqui.
-      const tokenHash = q.get('token_hash')
-      const type = q.get('type')
-      if (tokenHash && (type === 'recovery' || !type)) {
-        const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' })
-        if (!error) { liberar(); return }
+      // (B) token_hash tem PRIORIDADE: é o fluxo recomendado (cross-device) e
+      // estabelece a sessão de recuperação. Verificado no máximo UMA vez.
+      if (tokenHash) {
+        if (!verificouRef.current) {
+          verificouRef.current = true
+          const { data, error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: (type as 'recovery') || 'recovery',
+          })
+          if (error) {
+            console.error('[nova-senha] verifyOtp ERRO:', {
+              message: error.message,
+              status: (error as { status?: number }).status,
+              code: (error as { code?: string }).code,
+            })
+          } else {
+            console.log('[nova-senha] verifyOtp OK — sessão:', !!data?.session)
+          }
+          if (!error) { liberar('verifyOtp'); return }
+        }
+        // Já tentou verificar (aqui ou noutro mount): confia na sessão resultante.
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) { liberar('getSession-pós-verify'); return }
+        invalidar('Este link expirou ou já foi usado. Solicite um novo link de redefinição.',
+          'verifyOtp não produziu sessão')
+        return
       }
 
-      // Dá um tempo para a troca assíncrona do ?code (PKCE) concluir; se ainda
-      // não houver sessão, o link é inválido/expirado.
+      // (C) Sem token_hash: talvez já haja sessão (?code trocado pelo cliente,
+      // ou reuso da aba).
+      const { data: { session } } = await supabase.auth.getSession()
+      console.log('[nova-senha] getSession inicial:', !!session)
+      if (session) { liberar('getSession'); return }
+
+      // (D) ?code (PKCE) é trocado pelo detectSessionInUrl de forma assíncrona.
+      // Espera o onAuthStateChange; se nada vier, o link é inválido/expirado.
       setTimeout(async () => {
         if (!ativo) return
         const { data: { session: s2 } } = await supabase.auth.getSession()
-        if (s2) liberar()
-        else invalidar('Link inválido ou expirado. Solicite um novo link de redefinição.')
-      }, 2500)
+        console.log('[nova-senha] getSession após timeout:', !!s2)
+        if (s2) liberar('getSession-timeout')
+        else invalidar('Link inválido ou expirado. Solicite um novo link de redefinição.',
+          'sem token_hash e sem sessão após 3s')
+      }, 3000)
     })()
 
     return () => { ativo = false; sub.subscription.unsubscribe() }
