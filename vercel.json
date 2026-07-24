@@ -16,5 +16,13 @@
       "path": "/api/entrega/watchdog",
       "schedule": "0 6 * * *"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.commerly.com.br" }],
+      "destination": "https://commerly.com.br/:path*",
+      "permanent": true
+    }
   ]
 }
