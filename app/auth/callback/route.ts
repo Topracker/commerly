@@ -19,6 +19,7 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const type = searchParams.get('type')
+  const tokenHash = searchParams.get('token_hash')
   const next = destinoSeguro(searchParams.get('next'))
 
   // Em produção (Vercel) a origem real vem no x-forwarded-host.
@@ -32,8 +33,18 @@ export async function GET(request: Request) {
   // callback só existe na allowlist do Supabase (o OAuth usa), então usamos ele
   // como PONTE: repassamos TODOS os parâmetros da URL (token_hash, type, code,
   // erros) intactos para /nova-senha, que aí sim chama verifyOtp/troca a sessão.
-  const ehRecovery = type === 'recovery' || next === '/nova-senha'
+  //
+  // IMPORTANTE: para o repasse funcionar, o token PRECISA chegar como query
+  // param (não no fragmento #, que o servidor não vê). Por isso o template de
+  // e-mail de reset deve usar `{{ .TokenHash }}` — que vem em `?token_hash=` —
+  // e NÃO o `{{ .ConfirmationURL }}` padrão, que entrega o token no fragmento.
+  const ehRecovery =
+    type === 'recovery' ||
+    next === '/nova-senha' ||
+    (!!tokenHash && (type === null || type === 'recovery'))
   if (ehRecovery) {
+    // Repassa TODOS os parâmetros originais (token_hash, type, code, erros),
+    // trocando apenas o `next` (rota interna já resolvida) pelo destino fixo.
     const params = new URLSearchParams(searchParams)
     params.delete('next')
     const qs = params.toString()
