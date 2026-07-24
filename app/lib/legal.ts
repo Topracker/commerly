@@ -34,9 +34,9 @@ export const PRODUTO = {
 } as const
 
 export const CONTATO = {
-  email: 'suporte@commerly.app',
+  email: 'suporte@commerly.com.br',
   /** Encarregado pelo tratamento de dados (DPO), art. 41 da LGPD. */
-  encarregado: 'suporte@commerly.app',
+  encarregado: 'suporte@commerly.com.br',
 } as const
 
 /** Data da última revisão dos documentos legais (formato exibido ao usuário). */
