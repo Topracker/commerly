@@ -20,11 +20,25 @@ function RecuperarSenhaInner() {
   const voltarRaw = params.get('voltar') || '/login'
   const voltar = voltarRaw.startsWith('/') && !voltarRaw.startsWith('//') ? voltarRaw : '/login'
 
+  // Base canônica do link de redefinição. Em produção o e-mail precisa levar
+  // para https://commerly.com.br/nova-senha (não para o domínio *.vercel.app,
+  // que é a Site URL padrão do Supabase). NEXT_PUBLIC_APP_URL tem prioridade;
+  // em dev (localhost) usamos a própria origem; senão, o domínio de produção.
+  // Obs.: essa URL PRECISA estar na allowlist de "Redirect URLs" do Supabase.
+  function baseUrl(): string {
+    const env = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, '')
+    if (env) return env
+    if (typeof window !== 'undefined' && /localhost|127\.0\.0\.1/.test(window.location.hostname)) {
+      return window.location.origin
+    }
+    return 'https://commerly.com.br'
+  }
+
   async function enviar() {
     if (!email) { setErro('Informe seu e-mail'); return }
     setLoading(true)
     setErro('')
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent('/nova-senha')}`
+    const redirectTo = `${baseUrl()}/nova-senha`
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
     // Não revelamos se o e-mail existe (evita enumeração de contas): sempre
     // mostramos a mesma confirmação, mesmo que o e-mail não tenha conta.
