@@ -262,6 +262,10 @@ export default function Login() {
               className="text-blue-400 text-sm hover:text-blue-300 transition">
               Entrar com código por e-mail
             </button>
+            <button onClick={() => router.push('/recuperar-senha?voltar=/login')}
+              className="text-gray-400 text-sm hover:text-gray-300 transition">
+              Esqueci minha senha
+            </button>
             <button onClick={() => { setTela('escolha'); setErro(''); setEmail(''); setSenha('') }}
               className="text-gray-500 text-sm hover:text-gray-400 transition">
               ← Voltar

@@ -176,6 +176,7 @@ export default function EntregadorLogin() {
               onKeyDown={e => e.key === 'Enter' && loginComSenha()} className={inp} />
             <button onClick={loginComSenha} disabled={loading} className={btn}>{loading ? 'Entrando...' : 'Entrar'}</button>
             <button onClick={() => { setTela('login-otp-email'); setErro('') }} className={link}>Entrar com código por e-mail</button>
+            <button onClick={() => router.push('/recuperar-senha?voltar=/entregador-delivery/login')} className="text-gray-400 text-sm hover:text-gray-300 transition">Esqueci minha senha</button>
             <button onClick={() => { setTela('escolha'); setErro('') }} className="text-gray-500 text-sm hover:text-gray-400 transition">← Voltar</button>
           </div>
         )}
