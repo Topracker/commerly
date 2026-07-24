@@ -50,6 +50,18 @@ const APIS_COMERCIANTE = [
   '/api/tendencias', '/api/loja', '/api/ads', '/api/entrega/buscar-entregador',
 ]
 
+/**
+ * Páginas que exigem apenas LOGIN (qualquer papel), SEM paywall: mostram
+ * conteúdo pessoal do usuário — código de embaixador, certificado, materiais de
+ * marketing e IA. Eram 100% client-side e renderizavam para visitante anônimo
+ * (só falhavam nas chamadas de API). Agora o Proxy manda quem não tem sessão
+ * para o login antes de renderizar. Não entram no paywall porque também servem
+ * a cliente/entregador (que não têm loja); a checagem de plano é pulada.
+ */
+const PAGINAS_AUTENTICADAS = [
+  '/embaixador', '/certificado', '/marketing', '/commerly-ai',
+]
+
 const NUNCA_BLOQUEAR = ['webhook', 'cron', 'callback', 'oauth']
 
 function casa(pathname: string, rotas: string[]): boolean {
@@ -64,6 +76,7 @@ export async function proxy(request: NextRequest) {
 
   const ehApi = casa(pathname, APIS_COMERCIANTE)
   const ehPagina = casa(pathname, PAGINAS_COMERCIANTE)
+  const ehAutenticada = casa(pathname, PAGINAS_AUTENTICADAS)
   const ehOnboarding = pathname === '/onboarding' || pathname.startsWith('/onboarding/')
 
   const supabase = createServerClient(
@@ -88,10 +101,11 @@ export async function proxy(request: NextRequest) {
   if (!user) {
     // API responde 401 em JSON; página vai para o login (comportamento antigo).
     if (ehApi) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-    if (ehPagina || ehOnboarding) return NextResponse.redirect(new URL('/login', request.url))
+    if (ehPagina || ehOnboarding || ehAutenticada) return NextResponse.redirect(new URL('/login', request.url))
     return response
   }
 
+  // Autenticada (qualquer papel) sem paywall: basta ter sessão — já validado acima.
   if (!ehApi && !ehPagina) return response
 
   const { data: loja, error } = await supabase
@@ -125,6 +139,8 @@ export const config = {
     '/pedidos/:path*', '/clientes/:path*', '/financeiro/:path*', '/agenda/:path*',
     '/combos/:path*', '/promocoes/:path*', '/notificacoes/:path*', '/posts/:path*',
     '/academy/:path*', '/ads/:path*',
+    // Páginas que exigem só login (qualquer papel), sem paywall:
+    '/embaixador/:path*', '/certificado/:path*', '/marketing/:path*', '/commerly-ai/:path*',
     '/api/assistente/:path*', '/api/copilot/:path*', '/api/commerly-ai/:path*',
     '/api/campanha-retorno/:path*', '/api/promocoes/:path*', '/api/flash-sale/:path*',
     '/api/vision/:path*', '/api/nutri/:path*', '/api/tendencias/:path*',
