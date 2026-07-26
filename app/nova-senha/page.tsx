@@ -3,11 +3,15 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../supabase'
 import { useRouter } from 'next/navigation'
 
-// Página de destino do link de redefinição de senha (redirectTo do
-// resetPasswordForEmail aponta direto para cá). O Supabase pode entregar o
-// token de recuperação de mais de uma forma, então tratamos todas:
-//   1. ?code=...            (fluxo PKCE — o próprio cliente troca por sessão)
-//   2. ?token_hash=&type=recovery  (fluxo verifyOtp — validamos na mão)
+// Página de destino do link de redefinição de senha. O e-mail é enviado por
+// /api/auth/recuperar (Admin API + Resend) com link direto para cá no formato
+// ?token_hash=...&type=recovery — o token só é consumido aqui, no verifyOtp,
+// quando o usuário realmente abre a página.
+//
+// Ainda tratamos as outras formas que o Supabase pode usar (links antigos que
+// já estejam na caixa de entrada, ou o fluxo OAuth):
+//   1. ?token_hash=&type=recovery  (fluxo atual — verifyOtp na mão)
+//   2. ?code=...                   (PKCE — o próprio cliente troca por sessão)
 //   3. sessão já estabelecida      (ex.: o link já foi trocado antes)
 //   4. ?error=&error_code=         (link expirado/já usado — mostramos aviso)
 // Só liberamos o formulário quando há sessão de recuperação válida.
@@ -32,19 +36,11 @@ export default function NovaSenha() {
     const tokenHash = q.get('token_hash')
     const type = q.get('type')
 
-    // ---- DIAGNÓSTICO: o que REALMENTE chega na página (ver console) ----
-    console.log('[nova-senha] URL:', window.location.href)
-    console.log('[nova-senha] query:', Object.fromEntries(q.entries()))
-    console.log('[nova-senha] hash :', Object.fromEntries(h.entries()))
-    console.log('[nova-senha] token_hash:', tokenHash ? `PRESENTE (len=${tokenHash.length})` : 'AUSENTE',
-      '| type:', type || '(nenhum)', '| code:', q.get('code') ? 'presente' : 'ausente')
-
-    function liberar(origem: string) {
-      console.log('[nova-senha] ✓ liberado via', origem)
+    function liberar() {
       if (ativo) { setPronto(true); setVerificando(false) }
     }
     function invalidar(msg: string, motivo: string) {
-      console.warn('[nova-senha] ✗ inválido —', motivo)
+      console.warn('[nova-senha] link inválido —', motivo)
       if (ativo) { setVerificando(false); setErro(msg) }
     }
 
@@ -60,35 +56,26 @@ export default function NovaSenha() {
     }
 
     // Captura sessão estabelecida de forma assíncrona (?code / #access_token).
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[nova-senha] onAuthStateChange:', event, '| sessão:', !!session)
-      if (session) liberar('onAuthStateChange:' + event)
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) liberar()
     })
 
     ;(async () => {
-      // (B) token_hash tem PRIORIDADE: é o fluxo recomendado (cross-device) e
-      // estabelece a sessão de recuperação. Verificado no máximo UMA vez.
+      // (B) token_hash tem PRIORIDADE: é o fluxo que /api/auth/recuperar envia.
+      // Estabelece a sessão de recuperação. Verificado no máximo UMA vez.
       if (tokenHash) {
         if (!verificouRef.current) {
           verificouRef.current = true
-          const { data, error } = await supabase.auth.verifyOtp({
+          const { error } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
             type: (type as 'recovery') || 'recovery',
           })
-          if (error) {
-            console.error('[nova-senha] verifyOtp ERRO:', {
-              message: error.message,
-              status: (error as { status?: number }).status,
-              code: (error as { code?: string }).code,
-            })
-          } else {
-            console.log('[nova-senha] verifyOtp OK — sessão:', !!data?.session)
-          }
-          if (!error) { liberar('verifyOtp'); return }
+          if (error) console.error('[nova-senha] verifyOtp:', error.message)
+          else { liberar(); return }
         }
         // Já tentou verificar (aqui ou noutro mount): confia na sessão resultante.
         const { data: { session } } = await supabase.auth.getSession()
-        if (session) { liberar('getSession-pós-verify'); return }
+        if (session) { liberar(); return }
         invalidar('Este link expirou ou já foi usado. Solicite um novo link de redefinição.',
           'verifyOtp não produziu sessão')
         return
@@ -97,16 +84,14 @@ export default function NovaSenha() {
       // (C) Sem token_hash: talvez já haja sessão (?code trocado pelo cliente,
       // ou reuso da aba).
       const { data: { session } } = await supabase.auth.getSession()
-      console.log('[nova-senha] getSession inicial:', !!session)
-      if (session) { liberar('getSession'); return }
+      if (session) { liberar(); return }
 
       // (D) ?code (PKCE) é trocado pelo detectSessionInUrl de forma assíncrona.
       // Espera o onAuthStateChange; se nada vier, o link é inválido/expirado.
       setTimeout(async () => {
         if (!ativo) return
         const { data: { session: s2 } } = await supabase.auth.getSession()
-        console.log('[nova-senha] getSession após timeout:', !!s2)
-        if (s2) liberar('getSession-timeout')
+        if (s2) liberar()
         else invalidar('Link inválido ou expirado. Solicite um novo link de redefinição.',
           'sem token_hash e sem sessão após 3s')
       }, 3000)

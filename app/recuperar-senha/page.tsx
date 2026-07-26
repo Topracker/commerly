@@ -1,12 +1,16 @@
 'use client'
 import { useState, Suspense } from 'react'
-import { createClient } from '../supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 // Página compartilhada pelas 4 áreas (comerciante, cliente, entregador,
 // fornecedor). O usuário digita o e-mail e recebe um link de redefinição.
-// O link volta por /auth/callback (já na allowlist do Supabase, usado pelo
-// OAuth) que troca o code por sessão de recuperação e manda para /nova-senha.
+//
+// O envio NÃO passa mais pelo resetPasswordForEmail do Supabase: o template
+// padrão do GoTrue entrega um `{{ .ConfirmationURL }}` que morre no primeiro
+// GET (pré-visualização do cliente de e-mail / scanner de link), então o
+// clique real do usuário chegava sempre com "link expirado". Agora chamamos
+// /api/auth/recuperar, que gera o token pela Admin API e manda o e-mail pelo
+// Resend com link direto para /nova-senha?token_hash=...&type=recovery.
 function RecuperarSenhaInner() {
   const [email, setEmail] = useState('')
   const [erro, setErro] = useState('')
@@ -14,39 +18,33 @@ function RecuperarSenhaInner() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const params = useSearchParams()
-  const supabase = createClient()
 
   // Só aceitamos caminhos internos como destino do "voltar" (evita open redirect).
   const voltarRaw = params.get('voltar') || '/login'
   const voltar = voltarRaw.startsWith('/') && !voltarRaw.startsWith('//') ? voltarRaw : '/login'
 
-  // Base canônica do link de redefinição. Em produção o e-mail precisa levar
-  // para https://commerly.com.br/nova-senha (não para o domínio *.vercel.app,
-  // que é a Site URL padrão do Supabase). NEXT_PUBLIC_APP_URL tem prioridade;
-  // em dev (localhost) usamos a própria origem; senão, o domínio de produção.
-  // Obs.: essa URL PRECISA estar na allowlist de "Redirect URLs" do Supabase.
-  function baseUrl(): string {
-    const env = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, '')
-    if (env) return env
-    if (typeof window !== 'undefined' && /localhost|127\.0\.0\.1/.test(window.location.hostname)) {
-      return window.location.origin
-    }
-    return 'https://commerly.com.br'
-  }
-
   async function enviar() {
     if (!email) { setErro('Informe seu e-mail'); return }
     setLoading(true)
     setErro('')
-    // Passa pelo /auth/callback (que JÁ está na allowlist de Redirect URLs do
-    // Supabase — o OAuth usa). O callback repassa o token para /nova-senha sem
-    // consumi-lo. Assim não é preciso allowlistar /nova-senha separadamente.
-    const redirectTo = `${baseUrl()}/auth/callback?next=${encodeURIComponent('/nova-senha')}`
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
-    // Não revelamos se o e-mail existe (evita enumeração de contas): sempre
-    // mostramos a mesma confirmação, mesmo que o e-mail não tenha conta.
-    if (error) console.error('[recuperar-senha] resetPasswordForEmail error:', error)
-    setEnviado(true)
+    try {
+      const res = await fetch('/api/auth/recuperar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      // A rota responde { ok: true } para qualquer desfecho (inclusive e-mail
+      // sem conta) para não permitir enumeração. Só 400/429 viram mensagem.
+      if (!res.ok) {
+        const j = await res.json().catch(() => null)
+        setErro(j?.erro || 'Não foi possível enviar o e-mail. Tente novamente.')
+        setLoading(false)
+        return
+      }
+      setEnviado(true)
+    } catch {
+      setErro('Falha de conexão. Verifique sua internet e tente novamente.')
+    }
     setLoading(false)
   }
 
