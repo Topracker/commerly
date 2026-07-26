@@ -22,6 +22,10 @@ export default function NovaSenha() {
   const [senha, setSenha] = useState('')
   const [confirmar, setConfirmar] = useState('')
   const [erro, setErro] = useState('')
+  // Erro CRU do GoTrue, mostrado na tela sem truncar. Existe porque o DevTools
+  // está bloqueado no app: sem isso, um "link expirado" não diz se foi
+  // otp_expired, token inválido ou outra coisa.
+  const [erroBruto, setErroBruto] = useState('')
   const [ok, setOk] = useState(false)
   const [loading, setLoading] = useState(false)
   // --- Reenvio do link (estado do bloco "link expirado") ---
@@ -67,6 +71,7 @@ export default function NovaSenha() {
     const errCode = q.get('error_code') || h.get('error_code')
     const errDesc = q.get('error_description') || h.get('error_description')
     if (errCode || errDesc) {
+      setErroBruto(`erro na URL → error_code: ${errCode || '—'} | error_description: ${errDesc || '—'}`)
       invalidar(errCode === 'otp_expired'
         ? 'Este link expirou. Solicite um novo link de redefinição.'
         : 'Link inválido ou já utilizado. Solicite um novo link de redefinição.',
@@ -81,16 +86,50 @@ export default function NovaSenha() {
 
     ;(async () => {
       // (B) token_hash tem PRIORIDADE: é o fluxo que /api/auth/recuperar envia.
-      // Estabelece a sessão de recuperação. Verificado no máximo UMA vez.
+      // A verificação acontece NO SERVIDOR (/api/auth/verificar-recovery) para
+      // que o erro do GoTrue apareça nos logs da Vercel e volte inteiro para a
+      // tela. Como o verifyOtp consome o token, ele é chamado só lá — se a
+      // página também chamasse, a segunda tentativa falharia como "expirado" e
+      // esconderia a causa real. Feito no máximo UMA vez (StrictMode/re-mount).
       if (tokenHash) {
         if (!verificouRef.current) {
           verificouRef.current = true
-          const { error } = await supabase.auth.verifyOtp({
-            token_hash: tokenHash,
-            type: (type as 'recovery') || 'recovery',
-          })
-          if (error) console.error('[nova-senha] verifyOtp:', error.message)
-          else { liberar(); return }
+          try {
+            const res = await fetch('/api/auth/verificar-recovery', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token_hash: tokenHash, type: type || 'recovery' }),
+            })
+            const j = await res.json().catch(() => null)
+
+            if (j?.ok && j?.session) {
+              // O token foi consumido no servidor: trazemos a sessão de
+              // recuperação para o navegador, senão o updateUser não teria
+              // sessão nenhuma para trocar a senha.
+              const { error: erroSessao } = await supabase.auth.setSession(j.session)
+              if (!erroSessao) {
+                if (ativo && j.email) setEmailReenvio(j.email)
+                liberar()
+                return
+              }
+              if (ativo) setErroBruto(
+                `setSession (navegador) → ${erroSessao.message}` +
+                ` | status: ${(erroSessao as { status?: number }).status ?? '—'}` +
+                ` | code: ${(erroSessao as { code?: string }).code ?? '—'}`)
+            } else if (j?.erro) {
+              // Erro CRU do GoTrue, sem máscara e sem truncar.
+              if (ativo) setErroBruto(
+                `verifyOtp (servidor) → ${j.erro.message}` +
+                ` | status: ${j.erro.status ?? '—'}` +
+                ` | code: ${j.erro.code ?? '—'}` +
+                ` | name: ${j.erro.name ?? '—'}`)
+            } else if (ativo) {
+              setErroBruto(`Resposta inesperada da verificação (HTTP ${res.status}): ${JSON.stringify(j)}`)
+            }
+          } catch (e) {
+            if (ativo) setErroBruto(
+              `Falha de rede ao chamar /api/auth/verificar-recovery → ${e instanceof Error ? e.message : String(e)}`)
+          }
         }
         // Já tentou verificar (aqui ou noutro mount): confia na sessão resultante.
         const { data: { session } } = await supabase.auth.getSession()
@@ -182,8 +221,29 @@ export default function NovaSenha() {
     const { data: { user }, error } = await supabase.auth.updateUser({ password: senha })
     if (error || !user) {
       console.error('[nova-senha] updateUser error:', error)
-      // A falha aqui quase sempre é sessão de recuperação expirada/inválida:
-      // caímos para o estado sem token, que exibe o botão "Solicitar novo link".
+      const status = (error as { status?: number } | null)?.status
+      const code = (error as { code?: string } | null)?.code
+      setErroBruto(error
+        ? `updateUser → ${error.message} | status: ${status ?? '—'} | code: ${code ?? '—'}`
+        : 'updateUser não devolveu usuário nem erro')
+
+      // ARMADILHA: nem toda falha do updateUser é link expirado. Se o Supabase
+      // recusa a SENHA (fraca, vazada em leaks, curta, igual à anterior), a
+      // sessão de recuperação continua perfeitamente válida — mandar o usuário
+      // pedir um link novo é enganoso e ainda jogaria fora uma sessão boa.
+      // Nesse caso mantemos o formulário aberto e mostramos o motivo real.
+      const ehErroDeSenha =
+        status === 422 || code === 'weak_password' || code === 'same_password'
+      if (ehErroDeSenha) {
+        setErro(
+          code === 'same_password'
+            ? 'A nova senha precisa ser diferente da senha atual.'
+            : 'Essa senha é muito fraca ou já apareceu em vazamentos conhecidos. Escolha outra — misture letras, números e símbolos.')
+        setLoading(false)
+        return
+      }
+
+      // Aí sim: sessão de recuperação expirada/inválida.
       setErro('Este link expirou. Solicite um novo link de redefinição.')
       setPronto(false)
       setLoading(false)
@@ -201,7 +261,16 @@ export default function NovaSenha() {
         <p className="text-blue-400 text-sm font-semibold mb-1">Recuperar acesso</p>
         <h1 className="text-2xl font-bold text-white mb-6">Definir nova senha</h1>
 
-        {erro && <p className="text-red-400 text-sm mb-4">{erro}</p>}
+        {erro && <p className="text-red-400 text-sm mb-2">{erro}</p>}
+
+        {/* Erro cru do GoTrue/Supabase, sem máscara e sem truncar. Fica na tela
+            porque o DevTools está bloqueado no app — é o que diz se o caso é
+            otp_expired, token inválido ou outra coisa. */}
+        {erroBruto && (
+          <p className="text-gray-500 text-[11px] leading-relaxed font-mono break-all whitespace-pre-wrap mb-4 select-all">
+            {erroBruto}
+          </p>
+        )}
 
         {ok ? (
           <p className="text-green-400 text-sm">Senha redefinida! Redirecionando…</p>
