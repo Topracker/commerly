@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { PaginaLegal, Secao } from '../components/PaginaLegal'
 import { CONTATO, PRODUTO } from '../lib/legal'
 import { Mail, MessageSquare, ChevronDown } from 'lucide-react'
+import FormularioContato, { BotaoCopiarEmail } from './FormularioContato'
 
 export const metadata: Metadata = {
   title: 'Suporte',
@@ -97,21 +98,31 @@ export default function Suporte() {
       titulo="Suporte"
       subtitulo="Respostas rápidas para as dúvidas mais comuns — e como falar com a gente."
     >
-      {/* Contato primeiro: quem chega aqui com problema quer resolver, não ler. */}
+      {/* Contato primeiro: quem chega aqui com problema quer resolver, não ler.
+          O formulário é o caminho principal (não depende de o visitante ter um
+          cliente de e-mail configurado); o endereço fica logo abaixo, com
+          "Copiar", para quem prefere escrever da própria caixa. */}
+      <section>
+        <h2 className="text-white font-semibold text-lg mb-2">Fale com a gente</h2>
+        <FormularioContato />
+      </section>
+
       <div className="grid sm:grid-cols-2 gap-3">
-        <a
-          href={`mailto:${CONTATO.email}`}
-          className="bg-gray-900 border border-gray-800 hover:border-blue-700 rounded-2xl p-4 flex items-start gap-3 transition"
-        >
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
             <Mail size={18} className="text-blue-300" />
           </div>
-          <div className="min-w-0">
-            <p className="text-white font-semibold text-sm">E-mail</p>
-            <p className="text-gray-500 text-xs break-all">{CONTATO.email}</p>
-            <p className="text-gray-600 text-xs mt-0.5">Resposta em até 1 dia útil.</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-white font-semibold text-sm">Prefere escrever direto?</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <a href={`mailto:${CONTATO.email}`} className="text-gray-500 text-xs break-all hover:text-blue-300 transition">
+                {CONTATO.email}
+              </a>
+              <BotaoCopiarEmail email={CONTATO.email} />
+            </div>
+            <p className="text-gray-600 text-xs mt-1">Resposta em até 1 dia útil.</p>
           </div>
-        </a>
+        </div>
 
         <Link
           href="/feedback"
@@ -148,12 +159,13 @@ export default function Suporte() {
 
       <Secao titulo="Não achou o que procurava?">
         <p>
-          Escreva para{' '}
+          Use o formulário no topo da página descrevendo o que aconteceu, com o horário e, se
+          possível, uma captura de tela — isso encurta muito o caminho até a solução. Se preferir,
+          escreva direto para{' '}
           <a href={`mailto:${CONTATO.email}`} className="text-blue-400 hover:text-blue-300 underline">
             {CONTATO.email}
-          </a>{' '}
-          descrevendo o que aconteceu, com o horário e, se possível, uma captura de tela. Isso
-          encurta muito o caminho até a solução.
+          </a>
+          .
         </p>
       </Secao>
     </PaginaLegal>

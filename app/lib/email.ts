@@ -23,6 +23,9 @@ export async function enviarEmail(opts: {
   assunto: string
   html: string
   texto?: string
+  /** Endereço para onde a resposta vai. Usado no contato do suporte: o e-mail
+   *  sai do nosso remetente verificado, mas responder cai no usuário. */
+  responderPara?: string
 }): Promise<ResultadoEmail> {
   const key = process.env.RESEND_API_KEY
   if (!key) return { ok: false, erro: 'RESEND_API_KEY não configurada' }
@@ -40,6 +43,7 @@ export async function enviarEmail(opts: {
         subject: opts.assunto,
         html: opts.html,
         ...(opts.texto ? { text: opts.texto } : {}),
+        ...(opts.responderPara ? { reply_to: opts.responderPara } : {}),
       }),
     })
 
