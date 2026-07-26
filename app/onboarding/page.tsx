@@ -202,6 +202,22 @@ export default function Onboarding() {
       }
     }
 
+    // Cidade da loja: o trigger do banco só resolve as cidades já cadastradas
+    // em `cidades_expansao`. Quem abre loja fora delas ficaria com
+    // `cidade_slug` nulo — e loja sem cidade não recebe pedido nenhum (o gating
+    // de `delivery` cai no escopo global). Aqui o servidor resolve pelo pino/
+    // endereço e grava. Best-effort: falhar aqui só faz o dashboard pedir o
+    // endereço de novo.
+    await fetch('/api/loja/cidade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        localizacao,
+        latitude: coordRef.current.lat ?? latitude,
+        longitude: coordRef.current.lng ?? longitude,
+      }),
+    }).catch(() => {})
+
     // Tipo custom ("Outro"): guarda os módulos sugeridos/escolhidos pra
     // personalizar o painel e a sidebar do comerciante.
     if (tipo === 'Outro' && lojaInserida?.id) {

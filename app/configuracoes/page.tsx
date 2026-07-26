@@ -309,6 +309,25 @@ export default function Configuracoes() {
     setErroWhats(erroWhatsapp(formatado))
   }
 
+  // Reresolve e grava `lojas.cidade_slug` a partir do endereço recém-salvo.
+  // Best-effort: falha de rede/provedor não pode derrubar o salvar — o banco
+  // mantém o slug anterior e o dashboard continua avisando se ficou sem cidade.
+  async function resolverCidade(
+    localizacao: string, latitude: number | null, longitude: number | null,
+  ): Promise<{ estado: string; cidade: string | null } | null> {
+    try {
+      const res = await fetch('/api/loja/cidade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ localizacao, latitude, longitude }),
+      })
+      if (!res.ok) return null
+      return await res.json()
+    } catch {
+      return null
+    }
+  }
+
   async function salvar() {
     if (!nome || !tipo) { mostrarToast('Nome e tipo são obrigatórios!', 'erro'); return }
     const nums = documento.replace(/\D/g, '')
@@ -360,12 +379,23 @@ export default function Configuracoes() {
       if (eDist) console.warn('[config] distancia/tempo_preparo pendente de migração:', eDist.message)
     }
 
+    // Endereço mudou → a cidade da loja precisa ser reresolvida. É o
+    // `cidade_slug` que liga a loja ao gating de `delivery`: sem ele o gating
+    // cai no escopo global (hoje OFF) e o checkout barra TODO pedido. O
+    // servidor resolve pelas coordenadas (ou pelo endereço) e grava.
+    const cidade = await resolverCidade(localizacao, latFinal, lngFinal)
+
     // Confirmação visível (sem precisar do console): relê do banco o que ficou
     // gravado em latitude/longitude e avisa se veio nulo.
     const { data: verif } = await supabase
       .from('lojas').select('latitude, longitude').eq('id', loja.id).single()
     if (verif && (verif.latitude == null || verif.longitude == null)) {
       mostrarToast('Salvo, mas SEM coordenadas no mapa. Clique em Localizar e ajuste o pino.', 'erro')
+    } else if (cidade?.estado === 'sem_cidade') {
+      // O mais grave ganha o toast: sem cidade, a loja não vende.
+      mostrarToast('Salvo, mas não identificamos a cidade da sua loja — ela não vai receber pedidos. Revise o endereço.', 'erro')
+    } else if (cidade?.estado === 'sem_delivery') {
+      mostrarToast(`Salvo! Sua loja está em ${cidade.cidade} — o delivery ainda não abriu aí.`, 'sucesso')
     } else if (verif) {
       mostrarToast(`Localização salva: ${Number(verif.latitude).toFixed(5)}, ${Number(verif.longitude).toFixed(5)}`, 'sucesso')
     } else {

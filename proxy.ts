@@ -50,6 +50,13 @@ const APIS_COMERCIANTE = [
   '/api/tendencias', '/api/loja', '/api/ads', '/api/entrega/buscar-entregador',
 ]
 
+// APIs do comerciante que são CADASTRO, não feature: exigem login mas passam
+// pelo paywall. Resolver a cidade da loja precisa funcionar no onboarding (o
+// plano ainda é 'inativo' quando a loja é criada) e para quem está voltando de
+// um plano vencido — senão a loja regulariza e continua sem receber pedido,
+// porque `cidade_slug` nulo derruba o gating de `delivery` no escopo global.
+const APIS_SEM_PAYWALL = ['/api/loja/cidade']
+
 /**
  * Páginas que exigem apenas LOGIN (qualquer papel), SEM paywall: mostram
  * conteúdo pessoal do usuário — código de embaixador, certificado, materiais de
@@ -112,6 +119,7 @@ export async function proxy(request: NextRequest) {
   if (NUNCA_BLOQUEAR.some(p => pathname.includes(p))) return response
 
   const ehApi = casa(pathname, APIS_COMERCIANTE)
+  const ehApiSemPaywall = casa(pathname, APIS_SEM_PAYWALL)
   const ehPagina = casa(pathname, PAGINAS_COMERCIANTE)
   const ehAutenticada = casa(pathname, PAGINAS_AUTENTICADAS)
   const ehOnboarding = pathname === '/onboarding' || pathname.startsWith('/onboarding/')
@@ -159,7 +167,7 @@ export async function proxy(request: NextRequest) {
 
   // Logado. Áreas de papel, páginas só-login e onboarding não têm paywall:
   // basta a sessão, já validada acima.
-  if (ehAreaPapel || ehAutenticada || ehOnboarding) return response
+  if (ehAreaPapel || ehAutenticada || ehOnboarding || ehApiSemPaywall) return response
   if (!ehApi && !ehPagina) return response
 
   const { data: loja, error } = await supabase

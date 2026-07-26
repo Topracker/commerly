@@ -10,6 +10,7 @@ import { AcademyCard } from '../components/AcademyCard'
 import { PainelGamificacao } from '../components/PainelGamificacao'
 import { CardIndicacao } from '../components/CardIndicacao'
 import { BadgeNivel } from '../components/BadgeNivel'
+import { AvisoCidadeLoja } from '../components/AvisoCidadeLoja'
 import { useFlags } from '../lib/useFlags'
 import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos, minutosAteAgendamento, type Agendamento } from '../lib/nicheStore'
@@ -438,6 +439,10 @@ export default function Dashboard() {
           )}
         </div>
       </header>
+
+      {/* Cidade da loja: sem cidade resolvida ela não recebe pedido nenhum.
+          Fica logo abaixo do header, antes de qualquer métrica. */}
+      <AvisoCidadeLoja className="mb-6" />
 
       {/* Gamificação + indicação */}
       <div className="grid md:grid-cols-2 gap-4 mb-6">
