@@ -8,6 +8,7 @@ import {
 } from '../../lib/validacoes'
 import FornecedorIaOutro from '../../components/FornecedorIaOutro'
 import BotaoGoogle from '../../components/BotaoGoogle'
+import CampoSenha, { senhaValida } from '../../components/CampoSenha'
 
 type Tela =
   | 'escolha'
@@ -26,6 +27,9 @@ export default function FornecedorLogin() {
   const [tela, setTela] = useState<Tela>('escolha')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
+  // Mensagem do Supabase quando a senha é recusada DEPOIS do código (422
+  // weak_password): cumpre as regras locais mas está em vazamentos conhecidos.
+  const [senhaRecusada, setSenhaRecusada] = useState('')
   const [codigo, setCodigo] = useState('')
   const [nome, setNome] = useState('')
   const [categoria, setCategoria] = useState('')
@@ -142,7 +146,7 @@ export default function FornecedorLogin() {
 
   async function cadastrarComSenha() {
     if (!validarDadosCadastro()) return
-    if (senha.length < 6) { setErro('A senha deve ter ao menos 6 caracteres.'); return }
+    if (!senhaValida(senha)) { setErro('A senha ainda não atende a todos os requisitos.'); return }
     setLoading(true)
     setErro('')
 
@@ -195,6 +199,18 @@ export default function FornecedorLogin() {
     setLoading(false)
   }
 
+  // Segunda tentativa de senha, já com o e-mail confirmado e a sessão ativa.
+  async function salvarSenhaRecusada() {
+    if (!senhaValida(senha)) { setErro('A senha ainda não atende a todos os requisitos.'); return }
+    setLoading(true)
+    setErro('')
+    const { error } = await supabase.auth.updateUser({ password: senha })
+    if (error) { setSenhaRecusada(error.message); setLoading(false); return }
+    setSenhaRecusada('')
+    const ok = await finalizarCadastroFornecedor()
+    if (!ok) setLoading(false)
+  }
+
   async function verificarCadastroOtp() {
     if (codigo.length !== 6) { setErro('Digite o código de 6 dígitos'); return }
     setLoading(true)
@@ -203,9 +219,18 @@ export default function FornecedorLogin() {
     if (error) { console.error('[OTP] verifyOtp error:', error); setErro('Código inválido ou expirado'); setLoading(false); return }
     // E-mail confirmado: define a senha escolhida no cadastro (vazia no fluxo
     // só-OTP, então é ignorada).
-    if (senha.length >= 6) {
+    if (senha) {
       const { error: senhaErr } = await supabase.auth.updateUser({ password: senha })
-      if (senhaErr) console.error('[cadastro] erro ao definir senha:', senhaErr)
+      if (senhaErr) {
+        // O e-mail já foi confirmado (o código foi consumido), mas o Supabase
+        // recusou a SENHA. Antes isso ia só para o console: a conta nascia sem
+        // a senha escolhida e ninguém avisava o usuário. Agora pedimos outra
+        // senha na hora, sem perder o cadastro.
+        console.error('[cadastro] erro ao definir senha:', senhaErr)
+        setSenhaRecusada(senhaErr.message)
+        setLoading(false)
+        return
+      }
     }
     const ok = await finalizarCadastroFornecedor()
     if (!ok) setLoading(false)
@@ -287,11 +312,11 @@ export default function FornecedorLogin() {
             <input placeholder="Instagram (ex: @empresa)" value={instagram} onChange={e => setInstagram(e.target.value)} className={inp} />
             <input type="email" placeholder="Seu email *" value={email} onChange={e => setEmail(e.target.value)} className={inp} />
             {!usarOtp && (
-              <input type="password" autoComplete="new-password" placeholder="Senha (mín. 6 caracteres) *" value={senha}
-                onChange={e => setSenha(e.target.value)} className={inp} />
+              <CampoSenha id="cad-fornecedor" value={senha} onChange={setSenha} onEnter={cadastrarComSenha}
+                placeholder="Senha *" className={inp} />
             )}
             <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
-            <button onClick={() => (usarOtp ? avancarCadastroOtp() : cadastrarComSenha())} disabled={loading}
+            <button onClick={() => (usarOtp ? avancarCadastroOtp() : cadastrarComSenha())} disabled={loading || (!usarOtp && !senhaValida(senha))}
               className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition mt-2">
               {loading ? (usarOtp ? 'Enviando código...' : 'Criando conta...') : (usarOtp ? 'Continuar' : 'Criar conta')}
             </button>
@@ -331,21 +356,37 @@ export default function FornecedorLogin() {
 
         {tela === 'cadastro-otp-codigo' && (
           <div className="flex flex-col gap-4">
-            <p className="text-gray-400 text-sm -mt-2 mb-2">
-              Código enviado para <strong className="text-white">{email}</strong>
-            </p>
-            <input type="text" inputMode="numeric" placeholder="000000" value={codigo}
-              onChange={e => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              onKeyDown={e => e.key === 'Enter' && verificarCadastroOtp()}
-              maxLength={6} autoFocus className={`${inp} text-center text-2xl tracking-widest`} />
-            <button onClick={verificarCadastroOtp} disabled={loading}
-              className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
-              {loading ? 'Criando conta...' : 'Verificar e criar conta'}
-            </button>
-            <button onClick={() => { setTela('cadastro-senha'); setCodigo(''); setErro('') }}
-              className="text-gray-500 text-sm hover:text-gray-400 transition">
-              ← Voltar
-            </button>
+            {senhaRecusada ? (
+              <>
+                <p className="text-gray-300 text-sm">
+                  Seu e-mail foi confirmado, mas essa senha foi recusada. Escolha outra para concluir:
+                </p>
+                <p className="text-gray-500 text-[11px] font-mono break-all whitespace-pre-wrap select-all">{senhaRecusada}</p>
+                <CampoSenha id="retry-fornecedor" value={senha} onChange={setSenha} onEnter={salvarSenhaRecusada}
+                  placeholder="Nova senha *" className={inp} />
+                <button onClick={salvarSenhaRecusada} disabled={loading || !senhaValida(senha)} className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition">
+                  {loading ? 'Salvando...' : 'Salvar senha e continuar'}
+                </button>
+              </>
+            ) : (
+              <>
+              <p className="text-gray-400 text-sm -mt-2 mb-2">
+                Código enviado para <strong className="text-white">{email}</strong>
+              </p>
+              <input type="text" inputMode="numeric" placeholder="000000" value={codigo}
+                onChange={e => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onKeyDown={e => e.key === 'Enter' && verificarCadastroOtp()}
+                maxLength={6} autoFocus className={`${inp} text-center text-2xl tracking-widest`} />
+              <button onClick={verificarCadastroOtp} disabled={loading}
+                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
+                {loading ? 'Criando conta...' : 'Verificar e criar conta'}
+              </button>
+              <button onClick={() => { setTela('cadastro-senha'); setCodigo(''); setErro('') }}
+                className="text-gray-500 text-sm hover:text-gray-400 transition">
+                ← Voltar
+              </button>
+              </>
+            )}
           </div>
         )}
 

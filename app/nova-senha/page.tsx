@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../supabase'
 import { useRouter } from 'next/navigation'
 import { emailResetLembrado, lembrarEmailReset } from '../lib/ultimoEmail'
+import CampoSenha, { senhaValida } from '../components/CampoSenha'
 
 // Página de destino do link de redefinição de senha. O e-mail é enviado por
 // /api/auth/recuperar (Admin API + Resend) com link direto para cá no formato
@@ -214,7 +215,9 @@ export default function NovaSenha() {
   }
 
   async function salvar() {
-    if (senha.length < 6) { setErro('A senha deve ter ao menos 6 caracteres.'); return }
+    // O botão já fica travado até aqui passar; isto é a rede de segurança para
+    // Enter/autofill, que podem disparar sem passar pelo estado do botão.
+    if (!senhaValida(senha)) { setErro('A senha ainda não atende a todos os requisitos abaixo.'); return }
     if (senha !== confirmar) { setErro('As senhas não coincidem.'); return }
     setLoading(true)
     setErro('')
@@ -324,14 +327,16 @@ export default function NovaSenha() {
           )
         ) : (
           <div className="flex flex-col gap-4">
-            <input type="password" autoComplete="new-password" placeholder="Nova senha (mín. 6 caracteres)" value={senha}
-              onChange={e => setSenha(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && salvar()} className={inp} />
+            <CampoSenha id="nova-senha" value={senha} onChange={setSenha} onEnter={salvar}
+              placeholder="Nova senha" className={inp} />
             <input type="password" autoComplete="new-password" placeholder="Confirmar nova senha" value={confirmar}
               onChange={e => setConfirmar(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && salvar()} className={inp} />
-            <button onClick={salvar} disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
+            {confirmar && senha !== confirmar && (
+              <p className="text-amber-400 text-xs -mt-2">As senhas não coincidem.</p>
+            )}
+            <button onClick={salvar} disabled={loading || !senhaValida(senha) || senha !== confirmar}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition">
               {loading ? 'Salvando...' : 'Redefinir senha'}
             </button>
           </div>
