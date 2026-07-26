@@ -9,6 +9,8 @@ import { distanciaKm, formatarDistancia } from '../../lib/geo'
 import { VisionPrato } from '../../components/VisionPrato'
 import { FlashSaleBanner } from '../../components/FlashSale'
 import { TAGS_NUTRI, ROTULO_TAG, AVISO_NUTRI, type TagNutri } from '../../lib/nutri'
+import AvisoCobertura from '../../components/AvisoCobertura'
+import CidadeIndisponivel, { type CidadeInfo } from '../../components/CidadeIndisponivel'
 import { Search, MapPin, Star, List, Map as MapIcon, Navigation, Store, Sparkles } from 'lucide-react'
 
 // Nichos oferecidos como filtro. Os valores precisam bater EXATAMENTE com
@@ -29,6 +31,12 @@ export default function ClienteBuscar() {
   const [aba, setAba] = useState<'lista' | 'mapa'>('lista')
   const [userPos, setUserPos] = useState<{ latitude: number; longitude: number } | null>(null)
   const [geoStatus, setGeoStatus] = useState<'idle' | 'pedindo' | 'ok' | 'negado'>('idle')
+  // Cobertura da cidade do cliente. `null` = ainda não sabemos (sem GPS ou
+  // consulta em andamento) — nesse caso NÃO bloqueamos nada: sem localização
+  // não dá para afirmar que a pessoa está fora da área.
+  const [cidadeInfo, setCidadeInfo] = useState<(CidadeInfo & { liberado: boolean }) | null>(null)
+  // Escape hatch: cliente fora da área que quer olhar as lojas assim mesmo.
+  const [verMesmoAssim, setVerMesmoAssim] = useState(false)
   // #9 Filtros nutricionais: restringem as lojas às que têm ao menos um produto
   // com TODAS as tags escolhidas. `null` = ainda não filtrou nada.
   const [filtroNutri, setFiltroNutri] = useState<TagNutri[]>([])
@@ -77,6 +85,27 @@ export default function ClienteBuscar() {
       .then(d => { if (d?.festa?.id) router.push(`/cliente/festa/${d.festa.id}`) })
       .catch(() => {})
   }, [cliente, router])
+
+  // Assim que temos coordenadas, descobrimos a cidade e se o delivery está
+  // aberto lá. A decisão vem da feature flag no servidor — nenhuma cidade é
+  // citada aqui, então abrir uma nova é só ligar a flag no /admin.
+  useEffect(() => {
+    if (!userPos) return
+    let vivo = true
+    fetch(`/api/publico/cidade?lat=${userPos.latitude}&lng=${userPos.longitude}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (!vivo || !d) return
+        setCidadeInfo({
+          cidade: d.cidade ?? null,
+          uf: d.uf ?? null,
+          ranking: d.ranking ?? null,
+          liberado: d.delivery_liberado !== false,
+        })
+      })
+      .catch(() => {})
+    return () => { vivo = false }
+  }, [userPos])
 
   function pedirLocalizacao() {
     if (typeof navigator === 'undefined' || !navigator.geolocation) { setGeoStatus('negado'); return }
@@ -151,6 +180,10 @@ export default function ClienteBuscar() {
   return (
     <ClienteLayout cliente={cliente} sair={sair}>
       <h1 className="text-2xl font-bold text-white mb-4 hidden md:block">Descobrir comércios</h1>
+
+      <div className="max-w-2xl mx-auto mb-4">
+        <AvisoCobertura />
+      </div>
 
       <form onSubmit={handleBusca} className="flex gap-2 mb-4">
         <div className="flex-1 relative">
@@ -234,7 +267,19 @@ export default function ClienteBuscar() {
         ) : null}
       </div>
 
-      {aba === 'mapa' ? (
+      {/* Cidade sem cobertura: o aviso entra no lugar da vitrine, mas o app
+          inteiro continua acessível — inclusive as lojas, por "Ver mesmo
+          assim". Quem está fora da área navega; quem tenta pedir é barrado no
+          checkout, que relê a mesma flag no servidor. */}
+      {cidadeInfo && !cidadeInfo.liberado && !verMesmoAssim ? (
+        <div className="max-w-2xl mx-auto flex flex-col gap-3">
+          <CidadeIndisponivel info={cidadeInfo} />
+          <button onClick={() => setVerMesmoAssim(true)}
+            className="text-gray-500 text-xs hover:text-gray-300 transition self-center">
+            Ver as lojas da plataforma mesmo assim
+          </button>
+        </div>
+      ) : aba === 'mapa' ? (
         <div className="max-w-2xl mx-auto">
           <MapaLojas
             lojas={lojasExibidas}

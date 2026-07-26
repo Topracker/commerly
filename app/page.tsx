@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import AnimatedBackground from './components/AnimatedBackground'
 import HomeCrescimento from './components/HomeCrescimento'
+import AvisoCobertura from './components/AvisoCobertura'
 
 const PORTAS = [
   {
@@ -71,6 +72,13 @@ export default function Home() {
           A plataforma que conecta comerciantes, clientes e entregadores em um único
           ecossistema. O delivery é só uma das peças.
         </p>
+
+        {/* Onde o delivery já roda. Fica abaixo do texto do herói e acima das
+            portas de entrada: informa antes da escolha, sem interromper.
+            Some sozinho quando o delivery estiver liberado em todo lugar. */}
+        <div className="w-full max-w-md mt-6">
+          <AvisoCobertura />
+        </div>
 
         {/* Portas de entrada por papel */}
         <div className="w-full max-w-sm flex flex-col gap-3 mt-10">
