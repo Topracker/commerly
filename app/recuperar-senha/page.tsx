@@ -1,6 +1,7 @@
 'use client'
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { lembrarEmailReset } from '../lib/ultimoEmail'
 
 // Página compartilhada pelas 4 áreas (comerciante, cliente, entregador,
 // fornecedor). O usuário digita o e-mail e recebe um link de redefinição.
@@ -41,6 +42,9 @@ function RecuperarSenhaInner() {
         setLoading(false)
         return
       }
+      // Guarda o e-mail para o "Reenviar link" de /nova-senha poder reenviar
+      // sem pedir de novo (quando o link é aberto neste mesmo navegador).
+      lembrarEmailReset(email.trim().toLowerCase())
       setEnviado(true)
     } catch {
       setErro('Falha de conexão. Verifique sua internet e tente novamente.')

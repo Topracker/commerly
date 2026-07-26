@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../supabase'
 import { useRouter } from 'next/navigation'
+import { emailResetLembrado, lembrarEmailReset } from '../lib/ultimoEmail'
 
 // Página de destino do link de redefinição de senha. O e-mail é enviado por
 // /api/auth/recuperar (Admin API + Resend) com link direto para cá no formato
@@ -23,6 +24,14 @@ export default function NovaSenha() {
   const [erro, setErro] = useState('')
   const [ok, setOk] = useState(false)
   const [loading, setLoading] = useState(false)
+  // --- Reenvio do link (estado do bloco "link expirado") ---
+  // emailReenvio começa com o e-mail que já conhecemos (sessão de recuperação
+  // ou último pedido feito neste navegador); vazio = precisamos perguntar.
+  const [emailReenvio, setEmailReenvio] = useState('')
+  const [pedirEmail, setPedirEmail] = useState(false)   // usuário quer trocar o e-mail
+  const [reenviando, setReenviando] = useState(false)
+  const [reenviado, setReenviado] = useState(false)
+  const [erroReenvio, setErroReenvio] = useState('')
   // Garante que o token_hash seja verificado UMA vez só. verifyOtp consome o
   // token; uma segunda chamada (re-mount/StrictMode) falharia como "expirado".
   const verificouRef = useRef(false)
@@ -36,8 +45,18 @@ export default function NovaSenha() {
     const tokenHash = q.get('token_hash')
     const type = q.get('type')
 
+    // Se o pedido saiu deste navegador, já sabemos para quem reenviar.
+    const lembrado = emailResetLembrado()
+    if (lembrado) setEmailReenvio(lembrado)
+
     function liberar() {
       if (ativo) { setPronto(true); setVerificando(false) }
+      // Com sessão de recuperação válida dá para saber o e-mail real da conta.
+      // Guardamos agora porque, se o updateUser depois falhar por sessão
+      // expirada, o bloco de reenvio já terá o destinatário certo.
+      supabase.auth.getUser().then(({ data }) => {
+        if (ativo && data?.user?.email) setEmailReenvio(data.user.email)
+      })
     }
     function invalidar(msg: string, motivo: string) {
       console.warn('[nova-senha] link inválido —', motivo)
@@ -117,6 +136,44 @@ export default function NovaSenha() {
     router.push('/')
   }
 
+  // Reenvia o link de redefinição sem sair da página. Usa o e-mail que já
+  // conhecemos (sessão de recuperação ou último pedido neste navegador); se não
+  // houver nenhum, o formulário pede. A rota responde igual para e-mail com ou
+  // sem conta (anti-enumeração), então a confirmação aqui é sempre a mesma.
+  async function reenviar() {
+    const email = emailReenvio.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setErroReenvio('Informe um e-mail válido.')
+      setPedirEmail(true)
+      return
+    }
+    setReenviando(true)
+    setErroReenvio('')
+    try {
+      const res = await fetch('/api/auth/recuperar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      if (!res.ok) {
+        // 429 (limite de 3 pedidos por 10 min) cai aqui com a mensagem da rota.
+        const j = await res.json().catch(() => null)
+        setErroReenvio(j?.erro || 'Não foi possível reenviar o link. Tente novamente.')
+        setReenviando(false)
+        return
+      }
+      lembrarEmailReset(email)
+      setEmailReenvio(email)
+      setPedirEmail(false)
+      setReenviado(true)
+      // O aviso de link expirado não faz mais sentido depois do reenvio.
+      setErro('')
+    } catch {
+      setErroReenvio('Falha de conexão. Verifique sua internet e tente novamente.')
+    }
+    setReenviando(false)
+  }
+
   async function salvar() {
     if (senha.length < 6) { setErro('A senha deve ter ao menos 6 caracteres.'); return }
     if (senha !== confirmar) { setErro('As senhas não coincidem.'); return }
@@ -151,10 +208,51 @@ export default function NovaSenha() {
         ) : verificando ? (
           <p className="text-gray-400 text-sm">Validando link…</p>
         ) : !pronto ? (
-          <button onClick={() => router.push('/recuperar-senha')}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition w-full">
-            Solicitar novo link
-          </button>
+          // Link expirado/inválido: reenvia daqui mesmo, sem voltar para
+          // /recuperar-senha. Se já sabemos o e-mail, é um clique só.
+          reenviado ? (
+            <div className="flex flex-col gap-4">
+              <p className="text-green-400 text-sm">
+                Enviamos um novo link para <strong className="text-white">{emailReenvio}</strong>.
+                Verifique sua caixa de entrada e o spam — o link vale por 1 hora.
+              </p>
+              <button onClick={() => { setReenviado(false); setPedirEmail(true) }}
+                className="text-blue-400 text-sm hover:text-blue-300 transition text-left">
+                Enviar para outro e-mail
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {erroReenvio && <p className="text-red-400 text-sm">{erroReenvio}</p>}
+
+              {emailReenvio && !pedirEmail ? (
+                <p className="text-gray-400 text-sm">
+                  Vamos reenviar o link para <strong className="text-white">{emailReenvio}</strong>.
+                </p>
+              ) : (
+                <>
+                  <p className="text-gray-400 text-sm">
+                    Informe o e-mail da sua conta para receber um novo link.
+                  </p>
+                  <input type="email" autoComplete="email" placeholder="Seu e-mail" value={emailReenvio}
+                    onChange={e => setEmailReenvio(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && reenviar()} className={inp} />
+                </>
+              )}
+
+              <button onClick={reenviar} disabled={reenviando}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition w-full">
+                {reenviando ? 'Reenviando...' : 'Reenviar link'}
+              </button>
+
+              {emailReenvio && !pedirEmail && (
+                <button onClick={() => setPedirEmail(true)}
+                  className="text-gray-500 text-sm hover:text-gray-400 transition">
+                  Usar outro e-mail
+                </button>
+              )}
+            </div>
+          )
         ) : (
           <div className="flex flex-col gap-4">
             <input type="password" autoComplete="new-password" placeholder="Nova senha (mín. 6 caracteres)" value={senha}
