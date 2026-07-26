@@ -15,12 +15,26 @@ import { enviarEmail, templateResetSenha } from '../../../lib/email'
 // e disparamos pelo Resend. O token só é consumido quando /nova-senha chama
 // verifyOtp — ou seja, quando o usuário de fato abre a página.
 
+// Domínio que o usuário reconhece. É o único que pode aparecer no e-mail.
+const HOST_CANONICO = 'https://commerly.com.br'
+
 function baseUrl(req: NextRequest): string {
-  const env = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, '')
-  if (env) return env
   const host = req.headers.get('x-forwarded-host') || req.headers.get('host')
   if (host && /^localhost|^127\.0\.0\.1/.test(host)) return `http://${host}`
-  return 'https://commerly.com.br'
+
+  // NEXT_PUBLIC_APP_URL só é aceita se NÃO for um domínio de deploy da Vercel:
+  // *.vercel.app muda a cada build, não é o domínio da marca e assusta quem
+  // recebe o e-mail. Qualquer coisa suspeita cai no domínio canônico.
+  const env = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, '')
+  if (env) {
+    try {
+      if (!/\.vercel\.app$/i.test(new URL(env).host)) return env
+      console.warn('[api/auth/recuperar] NEXT_PUBLIC_APP_URL aponta para *.vercel.app; usando', HOST_CANONICO)
+    } catch {
+      console.warn('[api/auth/recuperar] NEXT_PUBLIC_APP_URL inválida; usando', HOST_CANONICO)
+    }
+  }
+  return HOST_CANONICO
 }
 
 // Resposta única para qualquer desfecho: e-mail inexistente, envio feito ou
@@ -62,9 +76,16 @@ export async function POST(req: NextRequest) {
   }
 
   // hashed_token é exatamente o que verifyOtp espera como `token_hash`.
-  const link = `${baseUrl(req)}/nova-senha?token_hash=${encodeURIComponent(
+  const base = baseUrl(req)
+  const link = `${base}/nova-senha?token_hash=${encodeURIComponent(
     data.properties.hashed_token,
   )}&type=recovery`
+
+  // Rastro para conferir, no log da Vercel, EXATAMENTE que link saiu — sem
+  // nunca imprimir o token (ele é a credencial de troca de senha: quem lê o
+  // log conseguiria assumir a conta). Só host, rota e tamanho do token.
+  console.log('[api/auth/recuperar] link montado:',
+    `${base}/nova-senha?token_hash=<${data.properties.hashed_token.length} chars>&type=recovery`)
 
   const { html, texto } = templateResetSenha(link)
   const envio = await enviarEmail({
@@ -79,6 +100,11 @@ export async function POST(req: NextRequest) {
     // do servidor. O usuário vê a mensagem genérica de "verifique seu e-mail",
     // então o log é o único lugar onde isso aparece — não remova.
     console.error('[api/auth/recuperar] Resend falhou:', envio.erro)
+  } else {
+    // O id permite casar este envio com a linha correspondente no painel do
+    // Resend (entregue / bounce / spam) e provar que o e-mail que chegou é este.
+    console.log('[api/auth/recuperar] Resend aceitou — id:', envio.id, '| remetente:',
+      process.env.RESEND_FROM || '(default suporte@commerly.com.br)')
   }
 
   return RESPOSTA_GENERICA
