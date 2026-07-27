@@ -111,7 +111,10 @@ export default function Produtos() {
       }
       const ext = extByMime[imagem.type]
       if (!ext) { mostrarToast('Formato de imagem inválido.', 'erro'); setSalvando(false); return }
-      const fileName = `${loja.id}-${Date.now()}.${ext}`
+      // PASTA (`loja.id/arquivo`), não prefixo com hífen: a policy do bucket
+      // casa por `storage.foldername(name)[1]`, e um nome plano não tem pasta
+      // nenhuma — o upload voltaria 400. Mesmo formato do bucket `feed`.
+      const fileName = `${loja.id}/${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('produtos')
         .upload(fileName, imagem, { upsert: true, contentType: imagem.type })
