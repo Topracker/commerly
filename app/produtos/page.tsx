@@ -7,6 +7,15 @@ import { Toast } from '../components/Toast'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { RealceFoto } from '../components/RealceFoto'
 
+/**
+ * Texto que pode aparecer na vitrine: pelo menos 2 caracteres e ao menos uma
+ * letra ou número. Barra placeholder como ".", "--" ou só espaços.
+ * Vale para nome E categoria do produto — os dois são exibidos ao cliente.
+ */
+function textoValido(s: string): boolean {
+  return s.length >= 2 && /[\p{L}\p{N}]/u.test(s)
+}
+
 export default function Produtos() {
   const { loja, loading, supabase, sair } = useAuth()
   const { toast, mostrarToast } = useToast()
@@ -97,8 +106,15 @@ export default function Produtos() {
     // Nome precisa ter ao menos 2 caracteres e conter letra/número
     // (não pode ser só pontos, espaços ou símbolos).
     const nomeLimpo = nome.trim()
-    if (nomeLimpo.length < 2 || !/[\p{L}\p{N}]/u.test(nomeLimpo)) {
+    if (!textoValido(nomeLimpo)) {
       mostrarToast('Informe um nome de produto válido (mínimo 2 caracteres).', 'erro'); return
+    }
+    // Categoria é opcional, mas quando preenchida vale a MESMA regra do nome —
+    // ela aparece na vitrine e nos filtros de busca. Sem isso passava "." como
+    // categoria, que foi como a vitrine acabou com produto categoria ".".
+    const categoriaLimpa = categoria.trim()
+    if (categoriaLimpa && !textoValido(categoriaLimpa)) {
+      mostrarToast('Informe uma categoria válida (mínimo 2 caracteres) ou deixe em branco.', 'erro'); return
     }
     setSalvando(true)
 
@@ -150,7 +166,9 @@ export default function Produtos() {
       custo: parseFloat(custo),
       quantidade: parseInt(quantidade),
       quantidade_minima: parseInt(qtdMin),
-      categoria,
+      // Trim: a base tem categoria com espaço sobrando ("comida "), o que cria
+      // duplicata no agrupamento da vitrine.
+      categoria: categoria.trim() || null,
       imagem_url,
       descricao: descricao.trim() || null,
       peso_kg: pesoKg.trim() ? Number(pesoKg.replace(',', '.')) : null,
