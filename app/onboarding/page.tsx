@@ -189,12 +189,17 @@ export default function Onboarding() {
     // Fotos da fachada: só dá pra subir agora que temos o loja_id (o caminho no
     // Storage inclui o "{loja_id}/"). Se falhar, segue o fluxo — dá pra
     // adicionar depois nas Configurações.
+    // Seguir mesmo com falha é intencional (a loja já existe; a foto entra
+    // depois nas Configurações) — mas o comerciante precisa SABER que a foto
+    // não subiu, senão ele acha que mandou e a vitrine fica sem fachada.
+    let falhasFachada = 0
     if (fachadaItems.length && lojaInserida?.id) {
       const urls: string[] = []
       for (const it of fachadaItems) {
         if (it.tipo === 'file') {
           const res = await uploadFachada(supabase, lojaInserida.id, it.file)
           if ('url' in res) urls.push(res.url)
+          else { falhasFachada++; console.error('[onboarding] fachada falhou:', res.error) }
         }
       }
       if (urls.length) {
@@ -226,6 +231,18 @@ export default function Onboarding() {
         descricao: iaDescricao.trim(),
         modulos: modulosSel,
       })
+    }
+
+    // A loja está criada; só avisamos antes de sair da tela. A pausa existe
+    // porque o toast morreria na navegação imediata.
+    if (falhasFachada > 0) {
+      mostrarToast(
+        falhasFachada === 1
+          ? 'Sua loja foi criada, mas a foto da fachada não subiu. Adicione depois em Configurações.'
+          : `Sua loja foi criada, mas ${falhasFachada} fotos da fachada não subiram. Adicione depois em Configurações.`,
+        'erro',
+      )
+      await new Promise(r => setTimeout(r, 3000))
     }
 
     router.push('/planos')

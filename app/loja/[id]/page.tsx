@@ -34,10 +34,11 @@ type Loja = {
 
 async function carregar(id: string) {
   const supabase = createAdminClient()
-  const [lojaRes, prodRes, avalRes] = await Promise.all([
+  const [lojaRes, prodRes, avalRes, promoRes] = await Promise.all([
     supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, website_url, whatsapp_business').eq('id', id).maybeSingle(),
     supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
     supabase.from(VIEW_AVAL_LOJAS).select('nota, comentario, created_at, foto_url, hash').eq('loja_id', id).order('created_at', { ascending: false }),
+    supabase.from('promocoes').select('produto_id, desconto_pct, preco_promocional').eq('loja_id', id).eq('ativa', true),
   ])
 
   const loja = lojaRes.data as Loja | null
@@ -48,7 +49,21 @@ async function carregar(id: string) {
     ? avaliacoes.reduce((s, a) => s + a.nota, 0) / avaliacoes.length
     : 0
 
-  return { loja, produtos: prodRes.data || [], avaliacoes, media }
+  // Promoção ativa vale aqui igual em /cliente/loja: a página pública mostrava
+  // o preço cheio de um produto que o cliente logado já via com desconto.
+  // Mesma forma dos dados (preco_venda vira o promocional, preco_original
+  // guarda o cheio) porque o ProdutoCard é o mesmo componente nas duas telas.
+  const promos = new Map<string, { desconto_pct: number; preco_promocional: number }>(
+    (promoRes.data || []).map((p: any) => [p.produto_id, { desconto_pct: p.desconto_pct, preco_promocional: Number(p.preco_promocional) }]),
+  )
+  const produtos = (prodRes.data || []).map((p: any) => {
+    const promo = promos.get(p.id)
+    return promo
+      ? { ...p, preco_venda: promo.preco_promocional, preco_original: Number(p.preco_venda), desconto_pct: promo.desconto_pct }
+      : p
+  })
+
+  return { loja, produtos, avaliacoes, media }
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {

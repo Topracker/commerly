@@ -14,6 +14,8 @@ export default function Produtos() {
   const [busca, setBusca] = useState('')
   const [modal, setModal] = useState(false)
   const [confirmarId, setConfirmarId] = useState<string | null>(null)
+  // Upload da foto falhou: pergunta se salva sem imagem em vez de fingir sucesso.
+  const [falhaUpload, setFalhaUpload] = useState(false)
   const [editando, setEditando] = useState<any>(null)
   const [nome, setNome] = useState('')
   const [preco, setPreco] = useState('')
@@ -118,11 +120,28 @@ export default function Produtos() {
       const { error: uploadError } = await supabase.storage
         .from('produtos')
         .upload(fileName, imagem, { upsert: true, contentType: imagem.type })
-      if (!uploadError) {
-        const { data: urlData } = supabase.storage.from('produtos').getPublicUrl(fileName)
-        imagem_url = urlData.publicUrl
+      if (uploadError) {
+        // Antes este erro era engolido e o produto era salvo SEM imagem: o
+        // comerciante via "Produto cadastrado!" e a foto sumia sem explicação.
+        // Foi assim que o bucket ficou anos sem policy sem ninguém notar.
+        // Agora ele decide: tentar de novo ou salvar sem imagem mesmo.
+        console.error('[produtos] upload falhou:', uploadError.message)
+        setSalvando(false)
+        setFalhaUpload(true)
+        return
       }
+      const { data: urlData } = supabase.storage.from('produtos').getPublicUrl(fileName)
+      imagem_url = urlData.publicUrl
     }
+
+    await persistir(imagem_url)
+  }
+
+  // Grava o produto. Separado do `salvar` para que a confirmação "salvar sem
+  // imagem" possa retomar daqui sem repetir o upload.
+  async function persistir(imagem_url: string) {
+    if (!loja) return
+    setSalvando(true)
 
     const dados = {
       loja_id: loja.id,
@@ -182,6 +201,19 @@ export default function Produtos() {
         textoBotao="Remover"
         onConfirm={remover}
         onCancel={() => setConfirmarId(null)}
+      />
+      <ConfirmModal
+        aberto={falhaUpload}
+        titulo="Não conseguimos enviar a foto"
+        mensagem="A imagem do produto não subiu. Você pode salvar o produto sem foto agora e adicioná-la depois, ou cancelar e tentar de novo."
+        textoBotao="Salvar sem foto"
+        onConfirm={() => {
+          setFalhaUpload(false)
+          setImagem(null)
+          setImagemPreview('')
+          void persistir(editando?.imagem_url || '')
+        }}
+        onCancel={() => setFalhaUpload(false)}
       />
 
       <div className="flex items-center justify-between mb-4">
