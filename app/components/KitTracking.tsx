@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Check, Loader2, Package, CreditCard, Factory, Boxes, Truck, Bike, Home, BadgeCheck } from 'lucide-react'
+import { Check, Clock, Package, CreditCard, Factory, Boxes, Truck, Bike, Home, BadgeCheck } from 'lucide-react'
 
 // ============================================================================
 // Rastreio do kit do entregador — a régua de status estilo Amazon.
@@ -17,7 +17,9 @@ const ETAPAS = [
   { id: 'enviado',              label: 'Enviado',           Icone: Truck },
   { id: 'saiu_entrega',         label: 'Saiu para entrega', Icone: Bike },
   { id: 'recebido',             label: 'Recebido',          Icone: Home },
-  { id: 'ativado',              label: 'Conta ativada',     Icone: BadgeCheck },
+  // "Kit ativado" e não "Conta ativada": a conta do entregador já está ativa
+  // desde a aprovação — o kit nunca liberou corrida (ver app/lib/dispatch.ts).
+  { id: 'ativado',              label: 'Kit ativado',       Icone: BadgeCheck },
 ]
 
 type Kit = {
@@ -45,7 +47,6 @@ function dataDe(k: Kit | null, status: string): string | null {
 
 export function KitTracking() {
   const [d, setD] = useState<Resposta | null>(null)
-  const [pedindo, setPedindo] = useState(false)
 
   async function carregar() {
     const j = await fetch('/api/kit').then(r => (r.ok ? r.json() : null)).catch(() => null)
@@ -53,13 +54,8 @@ export function KitTracking() {
   }
   useEffect(() => { carregar() }, [])
 
-  async function pedir() {
-    setPedindo(true)
-    try {
-      await fetch('/api/kit', { method: 'POST' })
-      await carregar()
-    } finally { setPedindo(false) }
-  }
+  // O "pedir kit" (POST /api/kit + recarregar) foi removido enquanto não há
+  // checkout — ver o comentário do botão travado mais abaixo.
 
   // Visitante ou não-entregador: a página segue sendo a de marketing, sem
   // rastreio nenhum. Nada de pedir login para quem só veio conhecer o kit.
@@ -70,7 +66,8 @@ export function KitTracking() {
       <div className="bg-card border border-borda rounded-2xl p-5 mb-6">
         <p className="text-white font-semibold flex items-center gap-2"><Package size={17} className="text-acento" /> Seu kit</p>
         <p className="text-gray-400 text-sm mt-1.5">
-          Você ainda não pediu o kit. Ele é o que ativa a sua conta de entregador.
+          A venda do kit ainda não abriu. Ele é opcional — sua conta já está ativa e
+          você continua recebendo corridas normalmente sem ele.
         </p>
         {d.preco && (
           <p className="text-sm mt-3">
@@ -83,13 +80,17 @@ export function KitTracking() {
             )}
           </p>
         )}
+        {/* Botão travado ATÉ existir checkout: `POST /api/kit` só abre um pedido
+            'aguardando_pagamento', e não há como pagar. Pior, a rota recusa um
+            segundo pedido enquanto houver um vivo — quem clicasse ficaria preso
+            num pedido pendente para sempre. Ao ligar a venda, devolva o onClick
+            que faz POST /api/kit e recarrega, junto com o fluxo de pagamento. */}
         <button
-          onClick={pedir}
-          disabled={pedindo}
-          className="mt-4 bg-acento hover:bg-acento-forte disabled:opacity-60 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition flex items-center gap-2"
+          disabled
+          title="A venda do kit ainda não abriu."
+          className="mt-4 bg-elevado border border-borda text-gray-400 text-sm font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-not-allowed"
         >
-          {pedindo && <Loader2 size={15} className="animate-spin" />}
-          {pedindo ? 'Abrindo pedido…' : 'Pedir meu kit'}
+          <Clock size={15} /> Disponível em breve
         </button>
       </div>
     )
