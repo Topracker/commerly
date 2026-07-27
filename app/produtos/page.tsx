@@ -203,6 +203,9 @@ export default function Produtos() {
         onCancel={() => setConfirmarId(null)}
       />
       <ConfirmModal
+        // Abre POR CIMA do modal do formulário (que é z-50): sem subir a
+        // camada o aviso aparece mas os botões não recebem clique.
+        z="z-[60]"
         aberto={falhaUpload}
         titulo="Não conseguimos enviar a foto"
         mensagem="A imagem do produto não subiu. Você pode salvar o produto sem foto agora e adicioná-la depois, ou cancelar e tentar de novo."
