@@ -64,11 +64,23 @@ export type Entregador = {
   latitude?: number | null
   longitude?: number | null
   localizacao_at?: string | null
-  // Kit oficial do entregador (sql/2026-07-15 em diante). Sem kit = sem entregas.
+  // Kit oficial: LEGADO. `kit_comprado` não é escrito por ninguém e o kit nunca
+  // bloqueou corrida — o estado real de um pedido de kit vive em `kit_pedidos`.
   kit_comprado?: boolean
   kit_status?: 'pendente' | 'pago' | 'producao' | 'embalado' | 'enviado' | 'saiu' | 'recebido' | 'ativado' | null
+  // Bolsa térmica (migração 20260727120000). É o que de fato importa para a
+  // qualidade da entrega, e vale de QUALQUER marca. `tem_bolsa` NULL = cadastro
+  // anterior à pergunta; `false` = declarou não ter.
+  tem_bolsa?: boolean | null
+  bolsa_foto_url?: string | null
+  bolsa_confirmada_em?: string | null
   created_at: string
 }
+
+/** Onde explicamos a bolsa térmica (e a lista de espera do Kit Oficial). */
+export const LINK_BOLSA = '/kit'
+
+export const COMPROMISSO_BOLSA = 'Me comprometo a usar bolsa térmica em todas as entregas'
 
 // ===========================================================================
 // DESPACHO DE CORRIDAS (pool de entregadores estilo iFood/Uber)
@@ -196,7 +208,7 @@ export async function uploadFotoEntregador(
   supabase: any,
   entregadorUserId: string,
   file: File,
-  categoria: 'rosto' | 'documento' | 'cnh' = 'rosto',
+  categoria: 'rosto' | 'documento' | 'cnh' | 'bolsa' = 'rosto',
 ): Promise<{ url: string } | { error: string }> {
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
   const path = `${entregadorUserId}/${categoria}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`

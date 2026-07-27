@@ -8,10 +8,11 @@ import {
   registrarCadastroIp, AVISO_VERIFICACAO,
 } from '../../lib/validacoes'
 import {
-  uploadFotoEntregador, VEICULOS, CATEGORIAS_CNH, exigeCNH, exigeDocsDrone, idadeEmAnos, type TipoVeiculo,
+  uploadFotoEntregador, VEICULOS, CATEGORIAS_CNH, exigeCNH, exigeDocsDrone, idadeEmAnos,
+  LINK_BOLSA, COMPROMISSO_BOLSA, type TipoVeiculo,
 } from '../../lib/entregadores'
 import { DRONE_RAIO_MAX_KM, DRONE_PESO_MAX_KG, DRONE_HORA_INICIO, DRONE_HORA_FIM } from '../../lib/drone'
-import { Camera } from 'lucide-react'
+import { Camera, AlertTriangle } from 'lucide-react'
 
 // Upload de foto reutilizável (rosto / documento / CNH) com preview.
 function FotoUpload({ label, hint, preview, onPick, captura = 'environment', redondo = false }: {
@@ -60,6 +61,13 @@ export default function EntregadorOnboarding() {
   const [rostoFoto, setRostoFoto] = useState<File | null>(null)
   const [rostoPreview, setRostoPreview] = useState('')
 
+  // Equipamento: bolsa térmica. `null` = ainda não respondeu (a escolha é
+  // obrigatória, mas responder "não tenho" NÃO impede o cadastro).
+  const [temBolsa, setTemBolsa] = useState<boolean | null>(null)
+  const [bolsaFoto, setBolsaFoto] = useState<File | null>(null)
+  const [bolsaPreview, setBolsaPreview] = useState('')
+  const [bolsaCompromisso, setBolsaCompromisso] = useState(false)
+
   const [erroCpfMsg, setErroCpfMsg] = useState('')
   const [erroTelMsg, setErroTelMsg] = useState('')
   const [loading, setLoading] = useState(false)
@@ -105,6 +113,14 @@ export default function EntregadorOnboarding() {
       setErro('Drone exige número de série e registro ANAC.'); return
     }
     if (!rostoFoto) { setErro('Envie uma foto do seu rosto para verificação.'); return }
+    // Equipamento: responder é obrigatório; "não tenho" é resposta válida e
+    // deixa cadastrar (bloquear aqui só afastaria entregador — a cobrança vem
+    // pelo aviso e pela aprovação do /admin).
+    if (temBolsa === null) { setErro('Responda se você tem bolsa térmica.'); return }
+    if (temBolsa) {
+      if (!bolsaFoto) { setErro('Envie uma foto da sua bolsa térmica.'); return }
+      if (!bolsaCompromisso) { setErro('Confirme o compromisso de usar bolsa térmica nas entregas.'); return }
+    }
     if (precisaCNH) {
       if (!cnhNumero.trim()) { setErro('Moto/carro exigem CNH — informe o número.'); return }
       if (!cnhCategoria) { setErro('Informe a categoria da sua CNH.'); return }
@@ -148,6 +164,12 @@ export default function EntregadorOnboarding() {
       if ('error' in cnhRes) { setErro(cnhRes.error); setLoading(false); return }
       cnh_foto_url = cnhRes.url
     }
+    let bolsa_foto_url: string | null = null
+    if (temBolsa && bolsaFoto) {
+      const bolsaRes = await uploadFotoEntregador(supabase, user.id, bolsaFoto, 'bolsa')
+      if ('error' in bolsaRes) { setErro(bolsaRes.error); setLoading(false); return }
+      bolsa_foto_url = bolsaRes.url
+    }
 
     const { error } = await supabase.from('entregadores').insert({
       user_id: user.id,
@@ -165,6 +187,11 @@ export default function EntregadorOnboarding() {
       cnh_numero: precisaCNH ? cnhNumero.trim() : null,
       cnh_categoria: precisaCNH ? cnhCategoria : null,
       cnh_foto_url,
+      // O CHECK `entregadores_bolsa_chk` exige foto + compromisso quando
+      // tem_bolsa é true; os três campos andam juntos de propósito.
+      tem_bolsa: temBolsa,
+      bolsa_foto_url,
+      bolsa_confirmada_em: temBolsa && bolsaCompromisso ? new Date().toISOString() : null,
     })
     if (error) {
       if (error.code === '23505') setErro('Já existe um entregador para esta conta.')
@@ -262,6 +289,71 @@ export default function EntregadorOnboarding() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Equipamento: bolsa térmica.
+              Responder é obrigatório, TER não é: quem não tem segue no cadastro
+              e recebe o aviso. Barrar aqui afastaria entregador sem melhorar
+              entrega nenhuma — a régua real é a aprovação no /admin, que vê a
+              foto. Vale bolsa de qualquer marca; o Kit Oficial é opcional e
+              ainda nem está à venda. */}
+          <div className="border-t border-borda pt-4">
+            <p className="text-white font-semibold text-sm mb-1">🎒 Equipamento</p>
+            <label className={label}>Você tem bolsa térmica para transportar pedidos? *</label>
+            <div className="grid grid-cols-1 gap-2">
+              {([
+                { v: true, t: 'Sim, tenho bolsa térmica' },
+                { v: false, t: 'Ainda não tenho' },
+              ] as const).map(o => (
+                <button
+                  key={String(o.v)}
+                  type="button"
+                  onClick={() => setTemBolsa(o.v)}
+                  className={`py-3 px-4 rounded-xl text-sm font-semibold border transition text-left ${
+                    temBolsa === o.v ? 'bg-acento border-acento text-white' : 'bg-elevado border-borda text-gray-300 hover:bg-borda'
+                  }`}
+                >
+                  {o.t}
+                </button>
+              ))}
+            </div>
+
+            {temBolsa === true && (
+              <div className="flex flex-col gap-3 mt-3">
+                <FotoUpload
+                  label="Foto da sua bolsa térmica *"
+                  hint="Qualquer marca serve. Só precisamos ver que ela conserva a temperatura."
+                  preview={bolsaPreview}
+                  onPick={pegarImagem(setBolsaFoto, setBolsaPreview)}
+                />
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={bolsaCompromisso}
+                    onChange={e => setBolsaCompromisso(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 shrink-0 accent-[var(--color-acento)]"
+                  />
+                  <span className="text-gray-300 text-sm leading-snug">{COMPROMISSO_BOLSA}</span>
+                </label>
+              </div>
+            )}
+
+            {temBolsa === false && (
+              <div className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 flex items-start gap-2.5">
+                <AlertTriangle size={16} className="text-amber-300 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-amber-200 text-sm font-semibold">A bolsa térmica é obrigatória para entregar</p>
+                  <p className="text-amber-200/80 text-xs mt-1 leading-relaxed">
+                    Você pode concluir o cadastro agora, mas precisa de uma bolsa térmica para manter a
+                    qualidade do pedido — comida chega quente, bebida chega gelada. Serve a de qualquer marca.
+                  </p>
+                  <a href={LINK_BOLSA} target="_blank" rel="noopener noreferrer"
+                    className="text-amber-200 text-xs font-semibold underline underline-offset-2 mt-2 inline-block">
+                    Onde comprar uma bolsa térmica →
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Drone (#14): série + registro ANAC */}

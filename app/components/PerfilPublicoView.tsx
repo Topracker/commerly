@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, Star, Store, Package, Lock, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Star, Store, Package, Lock, ExternalLink, Snowflake } from 'lucide-react'
 import { StreakCalendario } from './StreakCalendario'
 import { medalhaPorSlug } from '../lib/crescimento'
 import { tempoNaPlataforma, type PerfilPublico } from '../lib/perfilPublico'
@@ -28,6 +28,16 @@ export function PerfilPublicoView({ p }: { p: PerfilPublico }) {
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border" style={{ color: p.nivel.cor, borderColor: `${p.nivel.cor}66`, backgroundColor: `${p.nivel.cor}18` }}>
                 {p.nivel.emoji} {p.nivel.nome}
               </span>
+              {/* Só sai quando ele declarou a bolsa E a operação aprovou o
+                  cadastro olhando a foto — ver `bolsaConfirmada`. */}
+              {p.bolsaConfirmada && (
+                <span
+                  title="Este entregador declarou usar bolsa térmica e teve o cadastro aprovado pela Commerly."
+                  className="text-[11px] font-bold px-2 py-0.5 rounded-full border border-sky-500/50 bg-sky-500/10 text-sky-300 flex items-center gap-1"
+                >
+                  <Snowflake size={11} /> Bolsa térmica confirmada
+                </span>
+              )}
             </div>
             <p className="text-gray-400 text-sm mt-0.5">
               {PAPEL_LABEL[p.papel]}{p.cidade ? ` · ${p.cidade}` : ''} · há {tempoNaPlataforma(p.desde)} na Commerly

@@ -19,6 +19,10 @@ export type PerfilPublico = {
   produtos?: { nome: string; preco: number | null; imagem: string | null }[]
   websiteUrl?: string | null
   lojaId?: string
+  // Entregador: só true quando ele declarou ter bolsa térmica E a operação
+  // aprovou o cadastro (que é quando alguém de fato olhou a foto da bolsa).
+  // A declaração sozinha não vira selo — senão o selo não valeria nada.
+  bolsaConfirmada?: boolean
 }
 
 async function medalhasDe(admin: ReturnType<typeof createAdminClient>, userId: string): Promise<string[]> {
@@ -59,7 +63,7 @@ export async function carregarPerfil(papel: Papel, id: string): Promise<PerfilPu
 
   if (papel === 'entregador') {
     const { data: ent } = await admin.from('entregadores')
-      .select('id, user_id, nome, foto_url, created_at').eq('id', id).maybeSingle()
+      .select('id, user_id, nome, foto_url, created_at, tem_bolsa, aprovacao_status').eq('id', id).maybeSingle()
     if (!ent) return null
     const [{ count: entregas }, { data: avals }, medalhas, streak] = await Promise.all([
       admin.from('pedidos_clientes').select('id', { count: 'exact', head: true }).eq('entregador_id', ent.id).eq('status', 'entregue'),
@@ -75,6 +79,7 @@ export async function carregarPerfil(papel: Papel, id: string): Promise<PerfilPu
       nivel: { nome: nvl.nome, emoji: nvl.emoji, cor: nvl.cor },
       aval: { media: notas.length ? notas.reduce((s, n) => s + n, 0) / notas.length : 0, total: notas.length },
       medalhas, streak,
+      bolsaConfirmada: ent.tem_bolsa === true && ent.aprovacao_status === 'aprovado',
     }
   }
 

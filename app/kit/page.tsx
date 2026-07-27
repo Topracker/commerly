@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { MarketingShell, MCard } from '../components/MarketingShell'
 import { KitTracking } from '../components/KitTracking'
-import { Check } from 'lucide-react'
+import { KitInteresse } from '../components/KitInteresse'
+import { Check, Snowflake } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'Kit Oficial do Entregador',
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 // Não volte a colocar "Compra do Kit" aqui enquanto não existir checkout:
 // prometer um gate que não existe é o que esta página já fez uma vez.
 const FLUXO = ['Cadastro', 'Documentos', 'Aprovação', 'Já pode aceitar corridas']
-const RASTREIO = ['Pagamento', 'Produção', 'Embalado', 'Enviado', 'Saiu para entrega', 'Recebido', 'Ativado']
+const RASTREIO = ['Pagamento', 'Produção', 'Embalado', 'Enviado', 'Saiu para entrega', 'Recebido', 'Kit ativado']
 const CONTEUDO = [
   { n: 'Bolsa com QR Code', d: '“Escaneie e peça” de um lado, “Seja um parceiro” do outro.' },
   { n: 'Adesivo', d: 'Para a moto, a bike ou a bolsa.' },
@@ -36,15 +37,36 @@ export default function Kit() {
           visitante a página continua sendo só a apresentação do kit. */}
       <KitTracking />
 
+      {/* O que vale HOJE vem antes do que vem depois: quem chega aqui precisa
+          entender em cinco segundos que dá para trabalhar sem o kit, com a
+          bolsa que já tem. */}
+      <MCard className="mb-6 border-acento/40">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-acento/15 flex items-center justify-center shrink-0">
+            <Snowflake size={20} className="text-acento" />
+          </div>
+          <div>
+            <p className="text-white font-semibold">Hoje: use a bolsa térmica que você já tem</p>
+            <p className="text-gray-300 text-sm mt-1 leading-relaxed">
+              Para entregar na Commerly você precisa de uma <strong className="text-white">bolsa térmica de
+              qualquer marca</strong> — é ela que mantém a comida quente e a bebida gelada. No cadastro pedimos
+              uma foto da sua bolsa, e é isso que a gente confere na aprovação. O Kit Oficial é
+              <strong className="text-white"> opcional</strong> e não substitui esse requisito.
+            </p>
+          </div>
+        </div>
+      </MCard>
+
       <MCard className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300">Em breve</span>
+          <p className="text-white font-semibold text-sm">A venda do kit ainda não abriu</p>
         </div>
-        <p className="text-gray-300 text-sm leading-relaxed">
-          Ainda não abrimos a venda do kit. Isso <strong className="text-white">não te impede de rodar</strong>:
+        <p className="text-gray-300 text-sm leading-relaxed mb-4">
+          Estamos produzindo o primeiro lote. Isso <strong className="text-white">não te impede de rodar</strong>:
           com o cadastro aprovado você já aparece para as lojas e já recebe corridas normalmente.
-          Avisamos por aqui e por notificação quando der para pedir o seu.
         </p>
+        <KitInteresse />
       </MCard>
 
       <MCard className="mb-6">
@@ -74,7 +96,8 @@ export default function Kit() {
         </MCard>
 
         <MCard>
-          <p className="text-white font-semibold mb-3">Acompanhe o seu kit</p>
+          <p className="text-white font-semibold mb-1">Quando abrir, você acompanha assim</p>
+          <p className="text-gray-500 text-xs mb-3">Cada etapa avisa por notificação.</p>
           <ol className="flex flex-col gap-2">
             {RASTREIO.map((r, i) => (
               <li key={r} className="flex items-center gap-3">

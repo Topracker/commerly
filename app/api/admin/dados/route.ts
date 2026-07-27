@@ -35,7 +35,9 @@ export async function GET() {
     admin.from('lojas').select('id, nome, tipo, localizacao, plano, fundador, created_at').order('created_at', { ascending: false }).limit(30),
     admin.from('clientes').select('id, nome, created_at').order('created_at', { ascending: false }).limit(30),
     admin.from('entregadores').select('id, nome, telefone, aprovacao_status, kit_comprado, created_at').order('created_at', { ascending: false }).limit(30),
-    admin.from('entregadores').select('id, nome, telefone, veiculo_tipo, documento_numero, created_at').eq('aprovacao_status', 'pendente').order('created_at', { ascending: true }).limit(50),
+    // A foto da bolsa entra aqui porque a aprovação passou a olhar equipamento,
+    // não só documento — o admin decide vendo se a bolsa serve.
+    admin.from('entregadores').select('id, nome, telefone, veiculo_tipo, documento_numero, documento_foto_url, foto_url, tem_bolsa, bolsa_foto_url, bolsa_confirmada_em, created_at').eq('aprovacao_status', 'pendente').order('created_at', { ascending: true }).limit(50),
     admin.from('parceiros').select('id, nome, email, codigo, nivel, created_at').order('created_at', { ascending: false }).limit(30),
     admin.from('fundadores').select('loja_id, ordem, cidade, created_at').order('ordem', { ascending: true }).limit(60),
     admin.from('codigos_indicacao').select('codigo, usos, papel').gt('usos', 0).order('usos', { ascending: false }).limit(30),

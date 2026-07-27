@@ -152,6 +152,29 @@ function Tabela({ titulo, cols, linhas }: { titulo: string; cols: string[]; linh
   )
 }
 
+// Miniatura de uma prova enviada no cadastro. Abre em nova aba porque o admin
+// precisa dar zoom para julgar (documento borrado, bolsa que não é térmica).
+function Prova({ titulo, url, vazio = 'não enviado', alerta = false }: {
+  titulo: string; url?: string | null; vazio?: string; alerta?: boolean
+}) {
+  return (
+    <div className="w-28">
+      <p className="text-gray-400 text-[11px] mb-1">{titulo}</p>
+      {url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+          <img src={url} alt={titulo} className="w-28 h-20 object-cover rounded-lg border border-borda hover:border-acento transition" />
+        </a>
+      ) : (
+        <div className={`w-28 h-20 rounded-lg border border-dashed flex items-center justify-center text-center px-1.5 ${
+          alerta ? 'border-amber-500/50 bg-amber-500/5' : 'border-borda bg-elevado'
+        }`}>
+          <span className={`text-[10px] leading-tight ${alerta ? 'text-amber-300/90' : 'text-gray-600'}`}>{vazio}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Aprovacoes({ pendentes, onChange }: { pendentes: any[]; onChange: () => void }) {
   const [busy, setBusy] = useState<string | null>(null)
   async function agir(id: string, acao: string) {
@@ -163,15 +186,38 @@ function Aprovacoes({ pendentes, onChange }: { pendentes: any[]; onChange: () =>
     <div className="bg-card border border-borda rounded-2xl p-5">
       <p className="text-white text-sm font-semibold mb-3">Entregadores aguardando aprovação <span className="text-gray-500">({pendentes.length})</span></p>
       {pendentes.length === 0 ? <p className="text-gray-500 text-sm">Nenhum entregador pendente. 🎉</p> : (
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {pendentes.map((e: any) => (
-            <li key={e.id} className="flex items-center gap-3 rounded-xl border border-borda bg-superficie p-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-white text-sm font-medium truncate">{e.nome}</p>
-                <p className="text-gray-500 text-xs">{e.veiculo_tipo || '—'} · {e.telefone || 's/ telefone'} · doc {e.documento_numero || '—'}</p>
+            <li key={e.id} className="rounded-xl border border-borda bg-superficie p-3">
+              <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-white text-sm font-medium truncate">{e.nome}</p>
+                  <p className="text-gray-500 text-xs">{e.veiculo_tipo || '—'} · {e.telefone || 's/ telefone'} · doc {e.documento_numero || '—'}</p>
+                </div>
+                <button disabled={busy === e.id} onClick={() => agir(e.id, 'aprovar')} className="flex items-center gap-1 bg-green-600 hover:bg-green-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg"><Check size={14} /> Aprovar</button>
+                <button disabled={busy === e.id} onClick={() => agir(e.id, 'reprovar')} className="flex items-center gap-1 bg-elevado border border-borda text-gray-300 text-xs px-3 py-1.5 rounded-lg"><X size={14} /> Reprovar</button>
               </div>
-              <button disabled={busy === e.id} onClick={() => agir(e.id, 'aprovar')} className="flex items-center gap-1 bg-green-600 hover:bg-green-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg"><Check size={14} /> Aprovar</button>
-              <button disabled={busy === e.id} onClick={() => agir(e.id, 'reprovar')} className="flex items-center gap-1 bg-elevado border border-borda text-gray-300 text-xs px-3 py-1.5 rounded-lg"><X size={14} /> Reprovar</button>
+
+              {/* Provas visuais: documento + bolsa lado a lado. A decisão de
+                  aprovar passou a incluir "a bolsa serve?", então a foto tem de
+                  estar aqui, não escondida atrás de outro clique. */}
+              <div className="flex flex-wrap items-start gap-3 mt-3">
+                <Prova titulo="Documento" url={e.documento_foto_url} />
+                <Prova titulo="Rosto" url={e.foto_url} />
+                <Prova
+                  titulo="Bolsa térmica"
+                  url={e.bolsa_foto_url}
+                  vazio={
+                    e.tem_bolsa === true ? 'declarou ter, sem foto'
+                      : e.tem_bolsa === false ? 'declarou NÃO ter'
+                      : 'não informado (cadastro antigo)'
+                  }
+                  alerta={e.tem_bolsa !== true}
+                />
+              </div>
+              {e.tem_bolsa === true && !e.bolsa_confirmada_em && (
+                <p className="text-amber-300/90 text-xs mt-2">⚠️ Enviou a bolsa mas não aceitou o compromisso de uso.</p>
+              )}
             </li>
           ))}
         </ul>
