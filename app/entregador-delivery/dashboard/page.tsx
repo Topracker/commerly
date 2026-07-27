@@ -604,11 +604,22 @@ function EntregadorDashboard() {
         </div>
       )}
 
-      {/* Kit oficial — sem kit, sem entregas */}
+      {/* Kit oficial — convite, NÃO requisito.
+          O texto antigo dizia "sem o kit, você ainda não recebe corridas", e isso
+          nunca foi verdade: o pool de despacho (app/lib/dispatch.ts) filtra por
+          `disponivel` + posição recente + raio, nunca por kit. Um entregador sem
+          kit recebe e aceita corridas normalmente.
+          NÃO transforme isso num gate de verdade: hoje não existe compra de kit
+          funcional (POST /api/kit só abre um pedido 'aguardando_pagamento' e quem
+          avança é a operação, pelo /admin), então exigir o kit deixaria a
+          plataforma sem entregador nenhum.
+          A condição lê `kit_comprado`, coluna LEGADA que nada escreve — o estado
+          real do kit vive em `kit_pedidos`. Na prática o convite aparece para
+          todos; trocar para o estado real exige carregar o kit aqui. */}
       {entregador.kit_comprado === false && (
         <Link href="/kit" className="block mb-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3">
-          <p className="text-amber-200 font-semibold text-sm">🎒 Ative sua conta com o Kit Oficial</p>
-          <p className="text-amber-200/70 text-xs mt-0.5">Sem o kit, você ainda não recebe corridas. Toque para ver o kit e o desconto do seu nível.</p>
+          <p className="text-amber-200 font-semibold text-sm">🎒 Kit Oficial do entregador</p>
+          <p className="text-amber-200/70 text-xs mt-0.5">Bolsa, adesivo e o QR do seu perfil — sua vitrine ambulante. Toque para ver o kit e o desconto do seu nível.</p>
         </Link>
       )}
 

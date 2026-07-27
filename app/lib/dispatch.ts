@@ -57,6 +57,13 @@ export async function ofertarProximoEntregador(
   const ocupados = new Set((ocupadosRows || []).map(r => r.entregador_id as string))
 
   // Pool: entregadores Online com posicao recente.
+  //
+  // De proposito NAO filtramos por kit (`entregadores.kit_comprado`): nao existe
+  // compra de kit funcional hoje — POST /api/kit so abre um pedido
+  // 'aguardando_pagamento' e quem avanca o status e a operacao, pelo /admin.
+  // Exigir o kit aqui deixaria a plataforma sem entregador nenhum. Alem disso
+  // `kit_comprado` e coluna legada que nada escreve (o estado real vive em
+  // `kit_pedidos`), entao o filtro zeraria o pool para sempre.
   const desde = new Date(agora - FRESCOR_LOCALIZACAO_MS).toISOString()
   const { data: pool } = await admin
     .from('entregadores')
