@@ -32,20 +32,30 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = createAdminClient()
-  const { error } = await admin
-    .from('push_subscriptions')
-    .upsert(
-      {
-        user_id: user.id,
-        endpoint,
-        p256dh,
-        auth,
-        user_agent: request.headers.get('user-agent')?.slice(0, 300) || null,
-      },
-      { onConflict: 'endpoint' },
-    )
+
+  // Colunas ESSENCIAIS: sem elas não há como enviar push nenhum.
+  const essenciais = { user_id: user.id, endpoint, p256dh, auth }
+  // Colunas OPCIONAIS: só diagnóstico. Nunca podem custar a inscrição.
+  const opcionais = { user_agent: request.headers.get('user-agent')?.slice(0, 300) || null }
+
+  const gravar = (linha: Record<string, unknown>) =>
+    admin.from('push_subscriptions').upsert(linha, { onConflict: 'endpoint' })
+
+  let { error } = await gravar({ ...essenciais, ...opcionais })
+
+  // Divergência de schema (PGRST204 = coluna inexistente no cache do PostgREST)
+  // derrubava a inscrição inteira: a tabela em produção ficou sem `user_agent`
+  // porque o `create table if not exists` da migração original pulou o bloco,
+  // e TODA inscrição vinha morrendo em 500 — em silêncio, porque o cliente
+  // engolia o erro. Diagnóstico não pode derrubar a função: retenta só com o
+  // essencial e deixa o aviso no log para a coluna ser criada depois.
+  if (error && (error.code === 'PGRST204' || /column/i.test(error.message))) {
+    console.warn('[push-subscribe] coluna opcional ausente, salvando sem ela:', error.message)
+    ;({ error } = await gravar(essenciais))
+  }
+
   if (error) {
-    console.error('[push-subscribe] erro:', error.message)
+    console.error('[push-subscribe] erro:', error.code, error.message)
     return NextResponse.json({ error: 'Não foi possível salvar a inscrição.' }, { status: 500 })
   }
 

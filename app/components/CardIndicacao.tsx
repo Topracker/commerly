@@ -3,8 +3,7 @@ import { useEffect, useState } from 'react'
 import { Gift, Copy, Check, MessageCircle } from 'lucide-react'
 
 import { brl } from '../lib/precos'
-
-const APP_BASE = 'https://commerly.vercel.app'
+import { linkConvite } from '../lib/convite'
 
 type Desconto = {
   confirmadas: number; pct: number; preco: number
@@ -34,8 +33,10 @@ export function CardIndicacao() {
   }, [])
 
   if (!codigo) return null
-  const link = `${APP_BASE}/convite/${codigo}`
-  const msg = `Vem pra Commerly comigo! Use meu convite: ${link}`
+  // Leva o código também no `?ref=`: é o que sobrevive quando o convidado abre
+  // o link num aparelho diferente, ou quando o localStorage não está disponível.
+  const link = linkConvite(codigo)
+  const msg = `Vem pra Commerly comigo! Use meu convite (código ${codigo}): ${link}`
 
   function copiar() {
     navigator.clipboard?.writeText(link).then(() => {

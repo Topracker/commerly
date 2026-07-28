@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { AVISO_VERIFICACAO } from '../../lib/validacoes'
 import BotaoGoogle from '../../components/BotaoGoogle'
 import CampoSenha, { senhaValida } from '../../components/CampoSenha'
+import CampoConvite from '../../components/CampoConvite'
 
 type Tela = 'escolha' | 'cadastro-senha' | 'login-senha' | 'cadastro-otp-codigo' | 'login-otp-email' | 'login-otp-codigo'
 
@@ -185,6 +186,7 @@ export default function EntregadorLogin() {
               onKeyDown={e => e.key === 'Enter' && cadastrarComSenha()} className={inp} />
             <CampoSenha id="cad-entregador" value={senha} onChange={setSenha} onEnter={cadastrarComSenha}
               placeholder="Senha *" className={inp} />
+            <CampoConvite className={inp} />
             <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
             <button onClick={cadastrarComSenha} disabled={loading || !senhaValida(senha)} className={btn}>
               {loading ? 'Enviando código...' : 'Criar conta'}

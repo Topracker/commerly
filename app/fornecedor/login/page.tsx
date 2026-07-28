@@ -9,6 +9,7 @@ import {
 import FornecedorIaOutro from '../../components/FornecedorIaOutro'
 import BotaoGoogle from '../../components/BotaoGoogle'
 import CampoSenha, { senhaValida } from '../../components/CampoSenha'
+import CampoConvite from '../../components/CampoConvite'
 
 type Tela =
   | 'escolha'
@@ -315,6 +316,7 @@ export default function FornecedorLogin() {
               <CampoSenha id="cad-fornecedor" value={senha} onChange={setSenha} onEnter={cadastrarComSenha}
                 placeholder="Senha *" className={inp} />
             )}
+            <CampoConvite className={inp} />
             <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
             <button onClick={() => (usarOtp ? avancarCadastroOtp() : cadastrarComSenha())} disabled={loading || (!usarOtp && !senhaValida(senha))}
               className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition mt-2">

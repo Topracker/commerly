@@ -57,11 +57,23 @@ export default function PushManager() {
 
       // 4) Persiste no servidor (upsert por endpoint). Reenvia a cada montagem
       //    para reassociar ao user atual (ex.: trocou de conta no dispositivo).
-      await fetch('/api/push/subscribe', {
+      //
+      //    O `.catch(() => {})` que existia aqui escondeu por semanas um 500 da
+      //    rota (coluna faltando no banco): o navegador criava a subscription,
+      //    o servidor recusava e ninguém ficava sabendo — nenhum push nativo
+      //    jamais saiu. Falhar continua sendo silencioso para o USUÁRIO (não há
+      //    o que ele faça), mas nunca mais para o console.
+      const res = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subscription: sub.toJSON() }),
-      }).catch(() => {})
+      }).catch((e) => {
+        console.warn('[push] falha de rede ao registrar a inscrição:', e)
+        return null
+      })
+      if (res && !res.ok) {
+        console.warn('[push] servidor recusou a inscrição:', res.status, await res.text().catch(() => ''))
+      }
     }
 
     ativar().catch((err) => console.warn('[push] não foi possível ativar:', err))

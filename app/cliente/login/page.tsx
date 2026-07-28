@@ -9,6 +9,7 @@ import {
 } from '../../lib/validacoes'
 import BotaoGoogle from '../../components/BotaoGoogle'
 import CampoSenha, { senhaValida } from '../../components/CampoSenha'
+import CampoConvite from '../../components/CampoConvite'
 
 type Tela =
   | 'escolha'
@@ -286,6 +287,7 @@ export default function ClienteLogin() {
               onKeyDown={e => e.key === 'Enter' && cadastrarComSenha()} className={inp} />
             <CampoSenha id="cad-cliente" value={senha} onChange={setSenha} onEnter={cadastrarComSenha}
               placeholder="Senha *" className={inp} />
+            <CampoConvite className={inp} />
             <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
             <button onClick={cadastrarComSenha} disabled={loading || !senhaValida(senha)}
               className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
