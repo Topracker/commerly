@@ -1,6 +1,7 @@
 'use client'
 import { useEffect } from 'react'
 import { createClient } from '../supabase'
+import { CHAVE_INDICACAO, codigoDeConvite } from '../lib/convite'
 
 // ============================================================================
 // Confirma a indicação pendente (link /convite/[codigo]) assim que o convidado
@@ -22,8 +23,11 @@ export default function IndicacaoClaim() {
     const supabase = createClient()
 
     async function resgatar() {
-      let cod: string | null = null
-      try { cod = localStorage.getItem('commerly:indicacao') } catch { return }
+      // `?ref=CODIGO` em QUALQUER rota do app é capturado aqui e guardado — é o
+      // que faz o convite sobreviver a ser aberto num aparelho diferente
+      // daquele onde o localStorage foi escrito. Sem `?ref=`, cai no código
+      // guardado (visita ao /convite ou campo de convite no cadastro).
+      const cod = codigoDeConvite()
       if (!cod) return
 
       // Sem sessão não há a quem creditar; o código fica guardado para a
@@ -39,7 +43,7 @@ export default function IndicacaoClaim() {
         })
         // Só descarta o código quando o servidor respondeu. Se a rede caiu no
         // meio, apagar aqui perderia a indicação para sempre.
-        if (r.ok) localStorage.removeItem('commerly:indicacao')
+        if (r.ok) localStorage.removeItem(CHAVE_INDICACAO)
       } catch {
         /* tenta de novo na próxima navegação */
       }

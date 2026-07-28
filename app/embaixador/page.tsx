@@ -3,8 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Copy, Check, MessageCircle, Award, Store, User, Bike, MapPin, FileText } from 'lucide-react'
 import { NIVEIS_EMBAIXADOR, nivelDe } from '../lib/crescimento'
-
-const APP_BASE = 'https://commerly.vercel.app'
+import { linkConvite } from '../lib/convite'
 
 export default function EmbaixadorDashboard() {
   const [codigo, setCodigo] = useState<string | null>(null)
@@ -38,8 +37,8 @@ export default function EmbaixadorDashboard() {
   const com = perfil?.comunidade || { comerciantes: 0, clientes: 0, entregadores: 0, pontosCidade: 0 }
   const totalIndic = com.comerciantes + com.clientes + com.entregadores
   const nvl = nivelDe(NIVEIS_EMBAIXADOR, totalIndic)
-  const link = `${APP_BASE}/convite/${codigo}`
-  const msg = `Vem pra Commerly comigo! ${link}`
+  const link = linkConvite(codigo)
+  const msg = `Vem pra Commerly comigo! Use o código ${codigo}: ${link}`
 
   function copiar() {
     navigator.clipboard?.writeText(link).then(() => { setCopiado(true); setTimeout(() => setCopiado(false), 1500) }).catch(() => {})
