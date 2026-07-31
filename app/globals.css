@@ -89,8 +89,11 @@ body {
   --color-gray-100: #f3f4f6;
   --color-gray-300: #d1d5dc;
   --color-gray-400: #99a1af;
-  --color-gray-500: #6a7282;
-  --color-gray-600: #4a5565;
+  /* Tiers de texto secundário/terciário. Os valores originais (#6a7282 e
+     #4a5565) davam 3.5:1 e 2.5:1 sobre o fundo escuro — o rodapé e as legendas
+     ficavam ilegíveis. Clareados mantendo a ordem 400 > 500 > 600. */
+  --color-gray-500: #858d9c;
+  --color-gray-600: #78818f;
   --color-gray-700: #263040;
   --color-gray-800: #1e2530;
   --color-gray-900: #12161b;
@@ -153,10 +156,16 @@ body {
   --color-gray-900: #f7f8fa;
   --color-gray-800: #e4e7ec;
   --color-gray-700: #d3d7de;
-  --color-gray-600: #98a0ad;
-  --color-gray-500: #6b7280;
+  /* `text-gray-600` é texto terciário em ~97 lugares. No #98a0ad anterior dava
+     2.6:1 sobre branco — ilegível. Escurecido até 4.5:1; os 3 usos como
+     `hover:bg/border-gray-600` viram um hover mais escuro, que no claro é o
+     comportamento esperado. */
+  --color-gray-600: #6f7887;
+  --color-gray-500: #636b78;
   --color-gray-400: #55606f;
   --color-gray-300: #374151;
+  /* Faltava no claro: `text-gray-200` seguia #e5e7eb (1.2:1, invisível). */
+  --color-gray-200: #1f2937;
   --color-gray-100: #111827;
 
   /* Azul Commerly. blue-500 fica saturado: é fundo de badge com texto branco. */
@@ -200,6 +209,13 @@ body {
   --color-amber-300: #b45309;
   --color-amber-950: #fffbeb;
 
+  /* Mesma lógica das famílias acima: pastel sobre branco não se lê. */
+  --color-emerald-400: #047857;
+  --color-sky-300: #0369a1;
+  --color-orange-200: #7c2d12;
+  --color-orange-300: #9a3412;
+  --color-orange-400: #c2410c;
+
   --tema-fundo: #ffffff;
   --tema-tinta: #0f172a;
 }
@@ -221,7 +237,7 @@ body {
   .bg-green-500, .bg-green-600, .bg-green-700,
   .bg-red-500, .bg-red-600, .bg-amber-500,
   .bg-purple-600, .bg-purple-700,
-  .bg-acento, .bg-acento-forte,
+  .bg-acento, .bg-acento-forte, .bg-azul,
   .bg-\[\#635BFF\], .bg-\[\#5147e6\]
 ) .text-white,
 [data-theme='light'] :is(
@@ -229,7 +245,7 @@ body {
   .bg-green-500, .bg-green-600, .bg-green-700,
   .bg-red-500, .bg-red-600, .bg-amber-500,
   .bg-purple-600, .bg-purple-700,
-  .bg-acento, .bg-acento-forte,
+  .bg-acento, .bg-acento-forte, .bg-azul,
   .bg-\[\#635BFF\], .bg-\[\#5147e6\]
 ).text-white {
   color: #ffffff;

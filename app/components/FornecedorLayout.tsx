@@ -100,7 +100,9 @@ export function FornecedorLayout({ fornecedor, sair, titulo, children }: Props) 
         </div>
       )}
 
-      <main className="md:ml-56 flex-1 p-4 md:p-6">
+      {/* `min-w-0`: ver AppLayout — evita rolagem horizontal que empurra o
+          controle de aparência para fora da tela no celular. */}
+      <main className="md:ml-56 flex-1 min-w-0 p-4 md:p-6">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-6 md:hidden">
             <button onClick={() => setMenuAberto(true)} className="text-white">

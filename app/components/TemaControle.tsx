@@ -3,6 +3,15 @@ import { useEffect, useRef, useState } from 'react'
 import { Sun, Moon, Palette, Check } from 'lucide-react'
 import { useTema, ACENTOS, BRILHO_MIN, BRILHO_MAX, type Acento } from '../hooks/useTema'
 
+/** Altura aproximada do painel — usada só para decidir se ele abre para cima. */
+const ALTURA_PAINEL = 300
+
+type Props = {
+  /** Lado em que o painel se alinha ao botão. Numa sidebar estreita o painel
+   *  não cabe alinhado à direita (ele sairia pela esquerda da tela). */
+  alinhamento?: 'direita' | 'esquerda'
+}
+
 /**
  * Controle de aparência acessível no header de TODOS os layouts (comerciante,
  * cliente, entregador, fornecedor). Um botão que abre um painel com:
@@ -10,10 +19,15 @@ import { useTema, ACENTOS, BRILHO_MIN, BRILHO_MAX, type Acento } from '../hooks/
  *   - escolha da cor de destaque
  *   - ajuste de brilho
  * Tudo salvo no localStorage via useTema.
+ *
+ * O painel escolhe abrir para baixo ou para cima conforme o espaço livre: preso
+ * a "para baixo" ele já ficou fora da viewport (e inclicável) quando o controle
+ * morava no rodapé da sidebar do cliente.
  */
-export function TemaControle() {
+export function TemaControle({ alinhamento = 'direita' }: Props = {}) {
   const { tema, setTema, alternar, acento, setAcento, brilho, setBrilho } = useTema()
   const [aberto, setAberto] = useState(false)
+  const [paraCima, setParaCima] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -25,10 +39,19 @@ export function TemaControle() {
     return () => document.removeEventListener('mousedown', fora)
   }, [aberto])
 
+  function alternarPainel() {
+    if (!aberto && ref.current) {
+      const r = ref.current.getBoundingClientRect()
+      const abaixo = window.innerHeight - r.bottom
+      setParaCima(abaixo < ALTURA_PAINEL && r.top > abaixo)
+    }
+    setAberto(v => !v)
+  }
+
   return (
     <div className="relative shrink-0" ref={ref}>
       <button
-        onClick={() => setAberto(v => !v)}
+        onClick={alternarPainel}
         title="Aparência"
         aria-label="Aparência"
         aria-expanded={aberto}
@@ -38,7 +61,11 @@ export function TemaControle() {
       </button>
 
       {aberto && (
-        <div className="absolute right-0 mt-2 w-64 z-50 rounded-2xl border border-borda bg-card p-4 shadow-xl anima-surgir">
+        <div
+          className={`absolute w-64 z-50 rounded-2xl border border-borda bg-card p-4 shadow-xl anima-surgir ${
+            alinhamento === 'esquerda' ? 'left-0' : 'right-0'
+          } ${paraCima ? 'bottom-full mb-2' : 'top-full mt-2'}`}
+        >
           <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2 flex items-center gap-1.5">
             <Palette size={13} /> Aparência
           </p>

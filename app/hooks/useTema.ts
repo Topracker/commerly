@@ -30,6 +30,10 @@ function acentoValido(v: string | null): Acento {
   return v && v in ACENTOS ? (v as Acento) : 'verde'
 }
 function brilhoValido(v: string | null): number {
+  // `Number(null)` e `Number('')` valem 0 — que é finito e seria arrastado até
+  // BRILHO_MIN pelo clamp. Quem nunca mexeu no brilho veria "80%" num app que
+  // na prática está em 100%.
+  if (v == null || v.trim() === '') return 1
   const n = Number(v)
   if (!Number.isFinite(n)) return 1
   return Math.min(BRILHO_MAX, Math.max(BRILHO_MIN, n))

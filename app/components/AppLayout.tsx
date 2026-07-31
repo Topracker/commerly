@@ -217,7 +217,10 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
         </div>
       )}
 
-      <main className={`md:ml-56 flex-1 ${noPadding ? '' : 'p-4 md:p-6'}`}>
+      {/* `min-w-0`: impede que um filho largo estique o main e crie rolagem
+          horizontal na página, o que joga o controle de aparência para fora
+          da tela no celular. */}
+      <main className={`md:ml-56 flex-1 min-w-0 ${noPadding ? '' : 'p-4 md:p-6'}`}>
         <div className={noPadding ? 'w-full' : `${maxWidth} mx-auto`}>
           <div className={`flex items-center justify-between mb-6 md:hidden ${noPadding ? 'px-4 pt-4' : ''}`}>
             <button onClick={() => setMenuAberto(true)} className="text-white">

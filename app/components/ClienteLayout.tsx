@@ -54,9 +54,15 @@ export function ClienteLayout({ cliente, sair, children, noPadding = false, full
 
   const SidebarConteudo = () => (
     <div className="flex flex-col h-full p-4 gap-0.5">
-      <div className="mb-4 px-2">
-        <p className="text-xs text-green-400 font-semibold uppercase tracking-wide mb-1">Cliente</p>
-        <p className="text-white font-bold text-lg truncate">{cliente.nome}</p>
+      {/* Header da sidebar: o controle de aparência mora aqui, sempre visível.
+          No rodapé ele ficava fora da viewport em telas baixas — e o painel
+          abria para baixo, além da borda inferior, parecendo não funcionar. */}
+      <div className="mb-4 px-2 flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-acento font-semibold uppercase tracking-wide mb-1">Cliente</p>
+          <p className="text-white font-bold text-lg truncate">{cliente.nome}</p>
+        </div>
+        <TemaControle alinhamento="esquerda" />
       </div>
       {MENU.map(item => {
         const ativo = pathname === item.path ||
@@ -66,32 +72,31 @@ export function ClienteLayout({ cliente, sair, children, noPadding = false, full
           <button
             key={item.path}
             onClick={() => navegar(item.path)}
-            className={`text-left px-3 py-2.5 rounded-xl transition flex items-center gap-3 ${ativo ? 'bg-green-600' : 'hover:bg-gray-800'}`}
+            className={`text-left px-3 py-2.5 rounded-xl transition flex items-center gap-3 ${ativo ? 'bg-acento' : 'hover:bg-gray-800'}`}
           >
             <item.icon size={16} className={ativo ? 'text-white shrink-0' : 'text-gray-400 shrink-0'} />
             <p className="text-white text-sm font-medium flex-1">{item.label}</p>
             {item.label === 'Mensagens' && naoLidas > 0 && (
-              <span className="bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
+              <span className="bg-acento text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
                 {naoLidas}
               </span>
             )}
             {item.label === 'Notificações' && notifNaoLidas > 0 && (
-              <span className="bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
+              <span className="bg-acento text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold shrink-0">
                 {notifNaoLidas}
               </span>
             )}
           </button>
         )
       })}
-      <div className="mt-auto pt-2 flex items-center gap-2">
+      <div className="mt-auto pt-2">
         <button
           onClick={sair}
-          className="flex-1 text-left px-3 py-2.5 rounded-xl hover:bg-gray-800 transition flex items-center gap-3 text-gray-400 text-sm"
+          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-gray-800 transition flex items-center gap-3 text-gray-400 text-sm"
         >
           <LogOut size={16} />
           Sair
         </button>
-        <TemaControle />
       </div>
     </div>
   )
@@ -117,7 +122,11 @@ export function ClienteLayout({ cliente, sair, children, noPadding = false, full
         </div>
       )}
 
-      <main className={`md:ml-56 flex-1 ${fullHeight ? 'flex flex-col overflow-hidden' : noPadding ? '' : 'p-4 md:p-6'}`}>
+      {/* `min-w-0`: sem isto o main (flex-1, min-width:auto) estica junto com
+          qualquer filho largo e a página inteira ganha rolagem horizontal — o
+          que empurrava o controle de aparência (ml-auto) para fora da tela no
+          celular. */}
+      <main className={`md:ml-56 flex-1 min-w-0 ${fullHeight ? 'flex flex-col overflow-hidden' : noPadding ? '' : 'p-4 md:p-6'}`}>
         {fullHeight ? (
           <>
             <div className="md:hidden shrink-0 flex items-center gap-3 px-4 py-2 bg-gray-900 border-b border-gray-800">
