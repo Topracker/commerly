@@ -192,7 +192,7 @@ export const CtaScene: React.FC<Props> = ({ frame, start, end }) => {
                   letterSpacing: -0.5,
                 }}
               >
-                Garanta sua vaga → commerly.vercel.app
+                Garanta sua vaga → commerly.com.br
               </div>
             </MaskedText>
           </div>

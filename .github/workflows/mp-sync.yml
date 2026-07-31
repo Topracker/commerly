@@ -19,7 +19,7 @@ jobs:
       - name: Chamar endpoint de sincronização
         run: |
           code=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
-            -X GET "https://commerly.vercel.app/api/mercadopago/sincronizar-cron" \
+            -X GET "https://commerly.com.br/api/mercadopago/sincronizar-cron" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
           echo "HTTP $code"
           cat /tmp/resp.json || true
