@@ -135,7 +135,12 @@ export default function Produtos() {
       const fileName = `${loja.id}/${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('produtos')
-        .upload(fileName, imagem, { upsert: true, contentType: imagem.type })
+        // Sem `upsert`: com ele o storage faz um INSERT ... ON CONFLICT, que
+        // exige poder LER a linha em storage.objects — e nenhum bucket deste
+        // projeto tem policy de SELECT, então o upload voltava 403 ("new row
+        // violates row-level security policy") mesmo com a pasta correta.
+        // O nome já carrega Date.now(), então não há colisão a resolver.
+        .upload(fileName, imagem, { contentType: imagem.type })
       if (uploadError) {
         // Antes este erro era engolido e o produto era salvo SEM imagem: o
         // comerciante via "Produto cadastrado!" e a foto sumia sem explicação.

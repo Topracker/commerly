@@ -57,9 +57,11 @@ export async function uploadFotoAvaliacao(
 ): Promise<{ url: string } | { error: string }> {
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
   const path = `${pasta}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+  // Sem `upsert`: ele exige SELECT em storage.objects (INSERT ... ON CONFLICT)
+  // e nenhum bucket tem policy de SELECT — o upload voltava 403. O path já é
+  // único (Date.now + sufixo aleatório).
   const { error } = await supabase.storage.from('avaliacoes').upload(path, file, {
     cacheControl: '3600',
-    upsert: true,
     contentType: file.type || 'image/jpeg',
   })
   if (error) return { error: 'Não foi possível enviar a foto. Tente novamente.' }
