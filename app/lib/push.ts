@@ -18,7 +18,7 @@ function garantirVapid() {
   if (configurado) return
   if (!pushConfigurado()) return
   webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || 'mailto:contato@commerly.app',
+    process.env.VAPID_SUBJECT || 'mailto:suporte@commerly.com.br',
     process.env.VAPID_PUBLIC_KEY!,
     process.env.VAPID_PRIVATE_KEY!,
   )
