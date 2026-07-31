@@ -15,7 +15,7 @@ diferentes**, cada uma com seu próprio login:
 | App do entregador | quem entrega | `/entregador-delivery/login` |
 | Painel do fornecedor | quem vende para as lojas (B2B) | `/fornecedor/login` |
 
-**Endereço do app:** `https://commerly.app`
+**Endereço do app:** `https://commerly.com.br`
 
 **Sugestão de divisão dos 2 dias:**
 - **Dia 1:** seções 4 (Dinheiro), 5 (Segurança), 6 (Delivery ponta a ponta), 7 (Festa)
@@ -129,7 +129,7 @@ delivery ligado).
 
 ## 3. Aquecimento (15 minutos, faça primeiro)
 
-- [ ] Abrir `https://commerly.app` no PC e conferir se a home carrega sem erro.
+- [ ] Abrir `https://commerly.com.br` no PC e conferir se a home carrega sem erro.
 - [ ] Fazer login com as 4 contas, uma de cada vez, e confirmar que cada uma cai
       no painel/dashboard certo.
 - [ ] Deslogar de cada uma e confirmar que voltou para a tela de login.
@@ -703,7 +703,7 @@ Logado como **comerciante**, em `/dashboard`:
 
 ### 10.1 PWA (instalar o app na tela inicial)
 
-- [ ] Abrir `https://commerly.app` no navegador do celular.
+- [ ] Abrir `https://commerly.com.br` no navegador do celular.
 - [ ] **Android/Chrome:** menu (⋮) → "Instalar app" / "Adicionar à tela inicial".
       **iPhone/Safari:** botão de compartilhar → "Adicionar à Tela de Início".
 - [ ] Conferir que o **ícone do Commerly** aparece na tela inicial (ícone certo,
