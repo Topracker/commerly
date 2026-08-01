@@ -50,7 +50,18 @@ export default function IndicacaoClaim() {
     }
 
     resgatar()
-    return () => { cancelado = true }
+
+    // O cadastro inteiro (login -> /onboarding -> /planos) é navegação de
+    // cliente: o layout raiz NÃO remonta, então só o `resgatar()` acima rodava
+    // — e ele roda ainda deslogado, na tela de login, quando não há a quem
+    // creditar. Resultado: o convidado se cadastrava, o código ficava guardado
+    // no localStorage e a indicação só nascia se ele por acaso recarregasse a
+    // página. Reagir ao login fecha essa janela.
+    const { data: sub } = supabase.auth.onAuthStateChange((evento) => {
+      if (evento === 'SIGNED_IN' || evento === 'INITIAL_SESSION') void resgatar()
+    })
+
+    return () => { cancelado = true; sub.subscription.unsubscribe() }
   }, [])
 
   return null
