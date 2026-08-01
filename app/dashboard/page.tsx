@@ -9,6 +9,7 @@ import { CopilotCard } from '../components/CopilotCard'
 import { AcademyCard } from '../components/AcademyCard'
 import { PainelGamificacao } from '../components/PainelGamificacao'
 import { CardIndicacao } from '../components/CardIndicacao'
+import { BlocoProgresso } from '../components/BlocoProgresso'
 import { BadgeNivel } from '../components/BadgeNivel'
 import { AvisoCidadeLoja } from '../components/AvisoCidadeLoja'
 import { useFlags } from '../lib/useFlags'
@@ -70,7 +71,9 @@ export default function Dashboard() {
   const [estoqueBaixo, setEstoqueBaixo] = useState<any[]>([])
   const [ultimasVendas, setUltimasVendas] = useState<any[]>([])
   const [totalFiado, setTotalFiado] = useState(0)
-  const [periodo, setPeriodo] = useState('mes')
+  // "Hoje" por padrão: o painel abre respondendo como o negócio está HOJE.
+  // O seletor fica junto dos 4 números para trocar para semana/mês num clique.
+  const [periodo, setPeriodo] = useState('hoje')
   const [carregando, setCarregando] = useState(false)
   const [mpConectado, setMpConectado] = useState(false)
   const [graficoData, setGraficoData] = useState<GraficoDia[]>([])
@@ -381,6 +384,23 @@ export default function Dashboard() {
     crescimento: '/produtos',
   }
   const rotuloPeriodo = periodo === 'hoje' ? 'hoje' : periodo === 'semana' ? 'na semana' : 'no mês'
+  const delivery = isDelivery(loja.tipo)
+
+  // Os 4 números que respondem "como está o negócio agora". Em loja de delivery
+  // o 2º card é "pedidos em andamento" (ação imediata) e o fiado desce para a
+  // linha secundária; sem delivery esse slot não faria sentido (seria sempre 0),
+  // então o fiado sobe para cá.
+  const cardsPrincipais = [
+    { rotulo: `Faturamento ${rotuloPeriodo}`, texto: reais(faturamento), Icone: TrendingUp, cor: 'text-azul', grad: 'from-azul/10', href: null as string | null },
+    ...(delivery
+      ? [{ rotulo: 'Pedidos em andamento', texto: String(pedidosAtivos), Icone: ShoppingBag, cor: 'text-acento', grad: 'from-acento/10', href: '/pedidos' as string | null }]
+      : []),
+    { rotulo: 'Lucro bruto', texto: reais(lucro), Icone: Wallet, cor: 'text-acento', grad: 'from-acento/10', href: '/financeiro' as string | null },
+    { rotulo: 'Gastos', texto: reais(gastos), Icone: TrendingDown, cor: 'text-red-400', grad: 'from-red-500/10', href: '/gastos' as string | null },
+    ...(delivery
+      ? []
+      : [{ rotulo: 'Fiado pendente', texto: reais(totalFiado), Icone: Clock, cor: 'text-amber-300', grad: 'from-amber-500/10', href: '/fiado' as string | null }]),
+  ]
 
   return (
     <AppLayout loja={loja} sair={sair} titulo="Dashboard" maxWidth="max-w-3xl">
@@ -444,11 +464,62 @@ export default function Dashboard() {
           Fica logo abaixo do header, antes de qualquer métrica. */}
       <AvisoCidadeLoja className="mb-6" />
 
-      {/* Gamificação + indicação */}
-      <div className="grid md:grid-cols-2 gap-4 mb-6">
-        <PainelGamificacao papel="comerciante" />
-        <CardIndicacao />
+      {/* ── 1. OS NÚMEROS DO DIA ────────────────────────────────────────────
+          Primeira coisa da página: é para isto que o dono abre o painel. O
+          seletor de período vem junto porque manda nos 3 valores em dinheiro. */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        {[['hoje', 'Hoje'], ['semana', 'Semana'], ['mes', 'Mês']].map(([val, label]) => (
+          <button key={val} onClick={() => setPeriodo(val)}
+            className={`px-3 py-1.5 rounded-xl text-sm font-semibold transition ${periodo === val ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+            {label}
+          </button>
+        ))}
+        {carregando && <span className="text-gray-500 text-xs ml-1">Atualizando…</span>}
       </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        {cardsPrincipais.map(({ rotulo, texto, Icone, cor, grad, href }, i) => {
+          const Tag = href ? 'button' : 'div'
+          return (
+            <Tag
+              key={rotulo}
+              {...(href ? { onClick: () => (window.location.href = href) } : {})}
+              style={{ '--atraso': `${i * 60}ms` } as React.CSSProperties}
+              className={`anima-subir grupo text-left bg-gradient-to-br ${grad} to-transparent bg-gray-900 border border-borda rounded-2xl p-4`}
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <Icone size={15} className={`${cor} grupo-icone`} />
+                <p className="text-gray-400 text-xs">{rotulo}</p>
+              </div>
+              <p className={`font-display text-xl font-bold ${cor}`}>{texto}</p>
+            </Tag>
+          )
+        })}
+      </div>
+
+      {/* Resultado líquido + fiado (secundários, mas ainda "dinheiro hoje") */}
+      <div className={`grid gap-3 mb-6 ${delivery ? 'sm:grid-cols-2' : ''}`}>
+        <div className={`rounded-2xl p-4 ${resultadoLiquido >= 0 ? 'bg-green-950 border border-green-800' : 'bg-red-950 border border-red-800'}`}>
+          <p className="text-gray-300 text-xs mb-1">Resultado líquido (lucro - gastos)</p>
+          <p className={`text-2xl font-bold ${resultadoLiquido >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            {resultadoLiquido >= 0 ? '+' : ''}R$ {resultadoLiquido.toFixed(2)}
+          </p>
+        </div>
+        {delivery && (
+          <button
+            onClick={() => (window.location.href = '/fiado')}
+            className="text-left bg-gray-900 border border-borda rounded-2xl p-4 hover:border-amber-500/50 transition"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Clock size={15} className="text-amber-300" />
+              <p className="text-gray-400 text-xs">Fiado pendente</p>
+            </div>
+            <p className="text-2xl font-bold text-amber-300">{reais(totalFiado)}</p>
+          </button>
+        )}
+      </div>
+
+      {/* ── 2. AÇÃO IMEDIATA ───────────────────────────────────────────────── */}
 
       {/* Lembretes de agendamento — próximas 2 horas */}
       {agProximos.length > 0 && (
@@ -499,6 +570,72 @@ export default function Dashboard() {
           <ChevronRight size={20} className="text-gray-500 shrink-0" />
         </button>
       )}
+
+      {/* Pedidos online do mês (delivery) — fecha o bloco de pedidos */}
+      {delivery && (
+        <div
+          className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6 cursor-pointer hover:border-acento/60 transition"
+          onClick={() => window.location.href = '/pedidos'}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-xl bg-acento/15 flex items-center justify-center shrink-0">
+                <ShoppingBag size={18} className="text-acento" />
+              </div>
+              <p className="text-white font-semibold">Pedidos online</p>
+            </div>
+            <ChevronRight size={18} className="text-gray-500" />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <p className="text-gray-500 text-xs mb-1">Pedidos no mês</p>
+              <p className="text-lg font-bold text-white">{pedidosMesQtd}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-xs mb-1">Valor total</p>
+              <p className="text-lg font-bold text-acento">R$ {pedidosMesTotal.toFixed(2)}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-xs mb-1">Em andamento</p>
+              <p className="text-lg font-bold text-acento">{pedidosMesAndamento}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alerta de estoque em destaque para nichos focados em estoque — é ação
+          imediata para eles, por isso sobe junto com os pedidos. */}
+      {nicho.destaque === 'estoque' && estoqueBaixo.length > 0 && (
+        <div className="bg-red-950 border border-red-800 rounded-2xl p-4 mb-6">
+          <p className="text-red-300 font-semibold mb-2">⚠️ Estoque baixo — reponha logo</p>
+          {estoqueBaixo.map(p => (
+            <p key={p.id} className="text-red-400 text-sm">{p.nome} — {p.quantidade} unidades</p>
+          ))}
+        </div>
+      )}
+
+      {/* ── 3. GRÁFICO DE FATURAMENTO ──────────────────────────────────────── */}
+      <div className="bg-gray-900 rounded-2xl p-5 mb-6">
+        <p className="text-white font-semibold mb-4">Faturamento — últimos 7 dias</p>
+        <ResponsiveContainer width="100%" height={180}>
+          <BarChart data={graficoData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+            {/* Cores do gráfico via var() para acompanharem o tema. */}
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-800)" vertical={false} />
+            <XAxis dataKey="dia" tick={{ fill: 'var(--color-gray-500)', fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: 'var(--color-gray-500)', fontSize: 11 }} axisLine={false} tickLine={false}
+              tickFormatter={(v) => `R$${v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v}`} />
+            <Tooltip
+              contentStyle={{ backgroundColor: 'var(--color-gray-900)', border: '1px solid var(--color-gray-700)', borderRadius: 8 }}
+              labelStyle={{ color: 'var(--tema-tinta)', fontSize: 12 }}
+              formatter={(value) => [`R$ ${Number(value).toFixed(2)}`, 'Faturamento']}
+              cursor={{ fill: 'var(--color-gray-800)' }}
+            />
+            <Bar dataKey="faturamento" fill="var(--color-azul)" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* ── 4. DIAGNÓSTICO: COMMERLY SCORE + COPILOT ───────────────────────── */}
 
       {/* Alvo do item "Commerly Score" no menu. Fica fora do `score &&` para a
           âncora existir mesmo enquanto o Score ainda está carregando. */}
@@ -563,6 +700,26 @@ export default function Dashboard() {
 
       <CopilotCard />
 
+      {/* ── 5. ATALHOS DO NEGÓCIO ──────────────────────────────────────────── */}
+
+      {/* Atalhos personalizados pro nicho do comerciante */}
+      <div className="mb-6">
+        <p className="text-gray-400 text-xs uppercase font-semibold mb-2">{nicho.emoji} Atalhos do seu negócio</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {modulos.map(m => (
+            <button
+              key={m.path}
+              onClick={() => window.location.href = m.path}
+              className="bg-gray-900 hover:bg-gray-800 rounded-2xl p-4 text-left transition flex flex-col gap-1"
+            >
+              <span className="text-2xl">{m.emoji}</span>
+              <p className="text-white font-semibold text-sm">{m.label}</p>
+              <p className="text-gray-500 text-xs">{m.descricao}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Commerly AI + Kit de marketing */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         <a href="/commerly-ai" className="bg-gray-900 border border-gray-800 hover:border-acento/40 rounded-2xl p-4 transition">
@@ -601,43 +758,7 @@ export default function Dashboard() {
 
       <AcademyCard lojaId={loja.id} />
 
-      <div className="flex gap-2 mb-6">
-        {[['hoje', 'Hoje'], ['semana', 'Semana'], ['mes', 'Mês']].map(([val, label]) => (
-          <button key={val} onClick={() => setPeriodo(val)}
-            className={`px-3 py-2 rounded-xl text-sm font-semibold transition ${periodo === val ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Atalhos personalizados pro nicho do comerciante */}
-      <div className="mb-6">
-        <p className="text-gray-400 text-xs uppercase font-semibold mb-2">{nicho.emoji} Atalhos do seu negócio</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {modulos.map(m => (
-            <button
-              key={m.path}
-              onClick={() => window.location.href = m.path}
-              className="bg-gray-900 hover:bg-gray-800 rounded-2xl p-4 text-left transition flex flex-col gap-1"
-            >
-              <span className="text-2xl">{m.emoji}</span>
-              <p className="text-white font-semibold text-sm">{m.label}</p>
-              <p className="text-gray-500 text-xs">{m.descricao}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Alerta de estoque em destaque para nichos focados em estoque */}
-      {nicho.destaque === 'estoque' && estoqueBaixo.length > 0 && (
-        <div className="bg-red-950 border border-red-800 rounded-2xl p-4 mb-6">
-          <p className="text-red-300 font-semibold mb-2">⚠️ Estoque baixo — reponha logo</p>
-          {estoqueBaixo.map(p => (
-            <p key={p.id} className="text-red-400 text-sm">{p.nome} — {p.quantidade} unidades</p>
-          ))}
-        </div>
-      )}
-
+      {/* ── 6. META DO MÊS E RANKING DE PRODUTOS ───────────────────────────── */}
       {carregando ? (
         <div className="text-center py-12 text-gray-500">Atualizando...</div>
       ) : (
@@ -663,124 +784,6 @@ export default function Dashboard() {
               <span className="text-base">🏷️</span>
               <p className={`text-xs font-medium ${descontoFidelidade.cor}`}>{descontoFidelidade.texto}</p>
             </div>
-          </div>
-
-          {/* Gráfico 7 dias */}
-          <div className="bg-gray-900 rounded-2xl p-5 mb-3">
-            <p className="text-white font-semibold mb-4">Faturamento — últimos 7 dias</p>
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={graficoData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                {/* Cores do gráfico via var() para acompanharem o tema. */}
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-800)" vertical={false} />
-                <XAxis dataKey="dia" tick={{ fill: 'var(--color-gray-500)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'var(--color-gray-500)', fontSize: 11 }} axisLine={false} tickLine={false}
-                  tickFormatter={(v) => `R$${v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v}`} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'var(--color-gray-900)', border: '1px solid var(--color-gray-700)', borderRadius: 8 }}
-                  labelStyle={{ color: 'var(--tema-tinta)', fontSize: 12 }}
-                  formatter={(value) => [`R$ ${Number(value).toFixed(2)}`, 'Faturamento']}
-                  cursor={{ fill: 'var(--color-gray-800)' }}
-                />
-                <Bar dataKey="faturamento" fill="var(--color-azul)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Cards de resumo: ícone colorido + gradiente vindo do próprio acento */}
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            {[
-              { rotulo: 'Faturamento', valor: faturamento, Icone: TrendingUp, cor: 'text-azul', grad: 'from-azul/10', href: null },
-              { rotulo: 'Lucro bruto', valor: lucro, Icone: Wallet, cor: 'text-acento', grad: 'from-acento/10', href: '/financeiro' },
-              { rotulo: 'Gastos', valor: gastos, Icone: TrendingDown, cor: 'text-red-400', grad: 'from-red-500/10', href: '/gastos' },
-              { rotulo: 'Fiado pendente', valor: totalFiado, Icone: Clock, cor: 'text-amber-300', grad: 'from-amber-500/10', href: '/fiado' },
-            ].map(({ rotulo, valor, Icone, cor, grad, href }, i) => {
-              const Tag = href ? 'button' : 'div'
-              return (
-                <Tag
-                  key={rotulo}
-                  {...(href ? { onClick: () => (window.location.href = href) } : {})}
-                  style={{ '--atraso': `${i * 60}ms` } as React.CSSProperties}
-                  className={`anima-subir grupo text-left bg-gradient-to-br ${grad} to-transparent bg-gray-900 border border-borda rounded-2xl p-4`}
-                >
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <Icone size={15} className={`${cor} grupo-icone`} />
-                    <p className="text-gray-400 text-xs">{rotulo}</p>
-                  </div>
-                  <p className={`font-display text-xl font-bold ${cor}`}>
-                    R$ {valor.toFixed(2)}
-                  </p>
-                </Tag>
-              )
-            })}
-          </div>
-
-          {/* Pedidos online do mês (delivery) */}
-          {isDelivery(loja.tipo) && (
-            <div
-              className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-3 cursor-pointer hover:border-acento/60 transition"
-              onClick={() => window.location.href = '/pedidos'}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-acento/15 flex items-center justify-center shrink-0">
-                    <ShoppingBag size={18} className="text-acento" />
-                  </div>
-                  <p className="text-white font-semibold">Pedidos online</p>
-                </div>
-                <ChevronRight size={18} className="text-gray-500" />
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <p className="text-gray-500 text-xs mb-1">Pedidos no mês</p>
-                  <p className="text-lg font-bold text-white">{pedidosMesQtd}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 text-xs mb-1">Valor total</p>
-                  <p className="text-lg font-bold text-acento">R$ {pedidosMesTotal.toFixed(2)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 text-xs mb-1">Em andamento</p>
-                  <p className="text-lg font-bold text-acento">{pedidosMesAndamento}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Resultado líquido */}
-          <div className={`rounded-2xl p-4 mb-3 ${resultadoLiquido >= 0 ? 'bg-green-950 border border-green-800' : 'bg-red-950 border border-red-800'}`}>
-            <p className="text-gray-300 text-xs mb-1">Resultado líquido (lucro - gastos)</p>
-            <p className={`text-2xl font-bold ${resultadoLiquido >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {resultadoLiquido >= 0 ? '+' : ''}R$ {resultadoLiquido.toFixed(2)}
-            </p>
-          </div>
-
-          {/* Conquistas */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            {BADGES.map(badge => {
-              const earned = conquistas.includes(badge.tipo)
-              const isNew = novosBadges.includes(badge.tipo)
-              return (
-                <div
-                  key={badge.tipo}
-                  className={`rounded-2xl p-4 flex flex-col items-center gap-1.5 border transition-all ${
-                    earned
-                      ? `${badge.bg} ${badge.border} ${isNew ? 'badge-pop' : ''}`
-                      : 'bg-gray-900 border-gray-800 opacity-40'
-                  }`}
-                >
-                  <span className="text-2xl">{badge.emoji}</span>
-                  <p className={`text-xs font-semibold text-center leading-tight ${earned ? badge.label : 'text-gray-500'}`}>
-                    {badge.nome}
-                  </p>
-                  <p className="text-gray-600 text-xs">
-                    R$ {badge.threshold.toLocaleString('pt-BR')}
-                  </p>
-                  {earned && (
-                    <span className="text-green-400 text-xs font-medium">✓ Conquistado</span>
-                  )}
-                </div>
-              )
-            })}
           </div>
 
           {mpConectado && (
@@ -858,7 +861,7 @@ export default function Dashboard() {
           )}
 
           {ultimasVendas.length > 0 && (
-            <div className="bg-gray-900 rounded-2xl p-5">
+            <div className="bg-gray-900 rounded-2xl p-5 mb-6">
               <h2 className="text-white font-semibold mb-4">{nicho.vocab.ultimasVendas}</h2>
               <div className="flex flex-col gap-3">
                 {ultimasVendas.map(v => (
@@ -878,6 +881,45 @@ export default function Dashboard() {
           )}
         </>
       )}
+
+      {/* ── 7. SEU PROGRESSO ───────────────────────────────────────────────
+          Recompensa, não diagnóstico: fica no fim e recolhido. Continua fora do
+          gate de `carregando` porque cada card busca os próprios dados. */}
+      <BlocoProgresso>
+        <div className="grid md:grid-cols-2 gap-4">
+          <PainelGamificacao papel="comerciante" />
+          <CardIndicacao />
+        </div>
+
+        {/* Conquistas por faturamento (Ascensão / Elite) */}
+        <div className="grid grid-cols-2 gap-3">
+          {BADGES.map(badge => {
+            const earned = conquistas.includes(badge.tipo)
+            const isNew = novosBadges.includes(badge.tipo)
+            return (
+              <div
+                key={badge.tipo}
+                className={`rounded-2xl p-4 flex flex-col items-center gap-1.5 border transition-all ${
+                  earned
+                    ? `${badge.bg} ${badge.border} ${isNew ? 'badge-pop' : ''}`
+                    : 'bg-gray-900 border-gray-800 opacity-40'
+                }`}
+              >
+                <span className="text-2xl">{badge.emoji}</span>
+                <p className={`text-xs font-semibold text-center leading-tight ${earned ? badge.label : 'text-gray-500'}`}>
+                  {badge.nome}
+                </p>
+                <p className="text-gray-600 text-xs">
+                  R$ {badge.threshold.toLocaleString('pt-BR')}
+                </p>
+                {earned && (
+                  <span className="text-green-400 text-xs font-medium">✓ Conquistado</span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </BlocoProgresso>
     </AppLayout>
   )
 }

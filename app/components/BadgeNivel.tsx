@@ -1,17 +1,13 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { carregarPerfil } from '../lib/perfilGamificacao'
 
 // Badge de nível + medalhas ao lado do nome. Compartilha uma única chamada ao
-// /api/gamificacao/sync entre todas as instâncias (cache de módulo).
-let cache: Promise<any> | null = null
-function perfil() {
-  if (!cache) cache = fetch('/api/gamificacao/sync').then(r => (r.ok ? r.json() : null)).catch(() => null)
-  return cache
-}
+// /api/gamificacao/sync entre todas as instâncias (cache em lib/perfilGamificacao).
 
 export function BadgeNivel({ compact = false }: { compact?: boolean }) {
   const [p, setP] = useState<any>(null)
-  useEffect(() => { let v = true; perfil().then(d => { if (v && d && !d.error) setP(d) }); return () => { v = false } }, [])
+  useEffect(() => { let v = true; carregarPerfil().then(d => { if (v && d && !d.error) setP(d) }); return () => { v = false } }, [])
   if (!p) return null
   const emojis = (p.medalhas || []).slice(0, 3).map((m: any) => m.slug)
   return (
