@@ -57,11 +57,23 @@ export default function IndicacaoClaim() {
     // creditar. Resultado: o convidado se cadastrava, o código ficava guardado
     // no localStorage e a indicação só nascia se ele por acaso recarregasse a
     // página. Reagir ao login fecha essa janela.
+    const timers: ReturnType<typeof setTimeout>[] = []
     const { data: sub } = supabase.auth.onAuthStateChange((evento) => {
-      if (evento === 'SIGNED_IN' || evento === 'INITIAL_SESSION') void resgatar()
+      if (evento !== 'SIGNED_IN' && evento !== 'INITIAL_SESSION') return
+      // `setTimeout(0)` NÃO é cosmético: o supabase-js segura o lock de auth
+      // enquanto este callback roda, e `resgatar()` chama `auth.getUser()`, que
+      // disputa o MESMO lock — chamado direto aqui, o resgate trava (deadlock
+      // conhecido do v2; a orientação oficial é não usar métodos de auth dentro
+      // do callback). Sair para a próxima volta do event loop devolve o lock
+      // antes do resgate começar.
+      timers.push(setTimeout(() => { void resgatar() }, 0))
     })
 
-    return () => { cancelado = true; sub.subscription.unsubscribe() }
+    return () => {
+      cancelado = true
+      timers.forEach(clearTimeout)
+      sub.subscription.unsubscribe()
+    }
   }, [])
 
   return null
