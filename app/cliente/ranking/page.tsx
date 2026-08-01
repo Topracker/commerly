@@ -110,7 +110,7 @@ export default function ClienteRanking() {
                   <Star size={14} className="fill-yellow-400 text-yellow-400" />
                   <span className="text-white font-bold">{loja.media.toFixed(1)}</span>
                 </div>
-                <p className="text-gray-500 text-xs">{loja.totalAval} avaliação{loja.totalAval > 1 ? 'ões' : ''}</p>
+                <p className="text-gray-500 text-xs">{loja.totalAval} avaliaç{loja.totalAval > 1 ? 'ões' : 'ão'}</p>
               </div>
             </button>
           ))}

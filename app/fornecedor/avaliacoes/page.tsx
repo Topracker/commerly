@@ -48,7 +48,7 @@ export default function FornecedorAvaliacoes() {
                 <Estrelas nota={Math.round(media)} tamanho="text-base" />
               </div>
               <div className="text-gray-400 text-sm">
-                <p>{avaliacoes.length} avaliação{avaliacoes.length !== 1 ? 'ões' : ''} recebida{avaliacoes.length !== 1 ? 's' : ''}</p>
+                <p>{avaliacoes.length} avaliaç{avaliacoes.length !== 1 ? 'ões' : 'ão'} recebida{avaliacoes.length !== 1 ? 's' : ''}</p>
                 {[5, 4, 3, 2, 1].map(n => {
                   const count = avaliacoes.filter(a => a.nota === n).length
                   const pct = avaliacoes.length > 0 ? (count / avaliacoes.length) * 100 : 0

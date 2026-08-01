@@ -217,7 +217,7 @@ function PlanosConteudo() {
                     className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 ${atual ? 'bg-blue-950 border border-blue-800' : 'bg-gray-950'}`}
                   >
                     <span className={atual ? 'text-blue-300 font-semibold' : 'text-gray-400'}>
-                      {f.indicacoes === 0 ? 'Sem indicações' : `${f.indicacoes}${f.ultimo ? '+' : ''} indicação${f.indicacoes > 1 ? 'ões' : ''}`}
+                      {f.indicacoes === 0 ? 'Sem indicações' : `${f.indicacoes}${f.ultimo ? '+' : ''} indicaç${f.indicacoes > 1 ? 'ões' : 'ão'}`}
                       {atual ? ' · você' : ''}
                     </span>
                     <span className={atual ? 'text-white font-bold' : 'text-gray-300'}>

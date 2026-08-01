@@ -221,7 +221,7 @@ export default function FornecedorPerfil() {
                   <span className="text-yellow-400 text-lg">★</span>
                   <span className="text-white font-bold">{mediaAval.toFixed(1)}</span>
                 </div>
-                <p className="text-gray-400 text-xs">{avaliacoes.length} avaliação{avaliacoes.length > 1 ? 'ões' : ''}</p>
+                <p className="text-gray-400 text-xs">{avaliacoes.length} avaliaç{avaliacoes.length > 1 ? 'ões' : 'ão'}</p>
               </div>
             )}
           </div>

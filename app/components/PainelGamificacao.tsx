@@ -92,7 +92,7 @@ export function PainelGamificacao({ papel }: { papel?: string }) {
           <p className="text-white font-bold tabular-nums">{p.descontoIndicacao?.pct ?? 0}%</p>
           <p className="text-gray-500 text-[10px]">
             {p.descontoIndicacao?.confirmadas
-              ? `off · ${p.descontoIndicacao.confirmadas} indicação${p.descontoIndicacao.confirmadas > 1 ? 'ões' : ''}`
+              ? `off · ${p.descontoIndicacao.confirmadas} indicaç${p.descontoIndicacao.confirmadas > 1 ? 'ões' : 'ão'}`
               : 'off por indicação'}
           </p>
         </div>

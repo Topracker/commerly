@@ -1133,7 +1133,7 @@ function EntregadorDashboard() {
                       <Star key={n} size={16} className={n <= Math.round(mediaNota) ? 'fill-amber-300 text-amber-300' : 'text-gray-600'} />
                     ))}
                   </div>
-                  <span className="text-gray-500 text-xs ml-auto">{avaliacoes.length} avaliação{avaliacoes.length > 1 ? 'ões' : ''}</span>
+                  <span className="text-gray-500 text-xs ml-auto">{avaliacoes.length} avaliaç{avaliacoes.length > 1 ? 'ões' : 'ão'}</span>
                 </div>
                 {comentarios.length > 0 && (
                   <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-borda">

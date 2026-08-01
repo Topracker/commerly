@@ -59,7 +59,7 @@ export function CardIndicacao() {
         <div className="rounded-xl border border-borda bg-superficie px-4 py-3 mb-2">
           <div className="flex items-baseline justify-between gap-2">
             <p className="text-gray-500 text-xs">
-              {desconto.confirmadas} indicação{desconto.confirmadas === 1 ? '' : 'ões'} confirmada{desconto.confirmadas === 1 ? '' : 's'}
+              {desconto.confirmadas} indicaç{desconto.confirmadas === 1 ? 'ão' : 'ões'} confirmada{desconto.confirmadas === 1 ? '' : 's'}
             </p>
             <p className="text-white font-bold text-sm">
               {desconto.pct > 0 ? `${desconto.pct}% off · ` : ''}{brl(desconto.preco)}/mês
