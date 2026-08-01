@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../supabase'
 import { situacaoPlano } from '../lib/plano'
@@ -28,20 +28,36 @@ export function BarraStatusLoja({ loja, onLojaAtualizada }: Props) {
   const supabase = createClient()
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  // Estado local do botão. `loja` chega como PROP (o AppLayout não tem setter e
+  // quase nenhuma página passa `onLojaAtualizada`), e quem a carrega é o hook
+  // useAuth — client-side, com `init()` num useEffect de dependência vazia. Ou
+  // seja: `router.refresh()` revalida só os Server Components e NUNCA relê a
+  // loja, então sem este estado o aviso continuava dizendo "Delivery desligado"
+  // depois de gravar `true` com sucesso — o bug de "cliquei e não mudou nada".
+  // `null` = "sem troca local, manda o que veio do banco".
+  const [ativoLocal, setAtivoLocal] = useState<boolean | null>(null)
+
+  // Releitura real (troca de loja ou refetch) vence a troca local.
+  useEffect(() => { setAtivoLocal(null) }, [loja?.id, loja?.delivery_ativo])
 
   if (!loja) return null
 
   const { assinante, emTeste, diasDeTeste } = situacaoPlano(loja)
   const delivery = isDelivery(loja.tipo)
-  const deliveryAtivo = loja.delivery_ativo !== false
+  const deliveryAtivo = ativoLocal ?? (loja.delivery_ativo !== false)
 
   async function alternarDelivery() {
     const novo = !deliveryAtivo
     setSalvando(true)
     setErro(null)
-    const { error } = await supabase.from('lojas').update({ delivery_ativo: novo }).eq('id', loja.id)
+    // `.select()` é obrigatório aqui: um UPDATE barrado pela RLS devolve 204 sem
+    // `error` nenhum: sucesso falso, zero linhas gravadas. Só o corpo de volta
+    // prova que a linha existia e era do dono.
+    const { data, error } = await supabase
+      .from('lojas').update({ delivery_ativo: novo }).eq('id', loja.id).select('id, delivery_ativo')
     setSalvando(false)
-    if (error) { setErro('Não foi possível mudar o status. Tente de novo.'); return }
+    if (error || !data?.length) { setErro('Não foi possível mudar o status. Tente de novo.'); return }
+    setAtivoLocal(data[0].delivery_ativo !== false)
     onLojaAtualizada?.({ delivery_ativo: novo })
     router.refresh()
   }
