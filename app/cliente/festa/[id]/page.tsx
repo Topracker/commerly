@@ -15,9 +15,11 @@ import {
   Receipt, Clock, ChevronRight,
 } from 'lucide-react'
 
-// Base pública do app — o link de convite é sempre compartilhado com o domínio
-// de produção (mesmo se você estiver testando em localhost).
-const APP_BASE = 'https://commerly.vercel.app'
+// Base pública do app. Sai de `window.location.origin` no navegador — o valor
+// fixo `commerly.vercel.app` que morava aqui é domínio de deploy, não o da
+// marca, e ia parar no WhatsApp de quem recebia o convite (mesma correção já
+// feita em lib/convite.ts).
+const APP_BASE_FALLBACK = 'https://commerly.com.br'
 
 type Item = { produto_id: string; loja_id: string; nome: string; preco: number; quantidade: number }
 type PedidoInfo = {
@@ -173,7 +175,8 @@ export default function FestaSala() {
 
   // Link de convite completo — leva o amigo direto pra dentro da festa (entra
   // sozinho se já estiver logado; senão passa pelo login e cai aqui).
-  const linkConvite = festa ? `${APP_BASE}/cliente/festa/entrar/${festa.codigo}` : ''
+  const base = typeof window !== 'undefined' ? window.location.origin : APP_BASE_FALLBACK
+  const linkConvite = festa ? `${base}/cliente/festa/entrar/${festa.codigo}` : ''
   const msgWhatsApp = `Entra na nossa festa no Commerly! ${linkConvite}`
 
   function copiarLink() {
