@@ -133,9 +133,23 @@ function EntregadorDashboard() {
     if (!online || !entregador || !minhaPos) return
     if (Date.now() - ultimoPing.current < LOCALIZACAO_PING_MS) return
     ultimoPing.current = Date.now()
-    void supabase.from('entregadores').update({
-      latitude: minhaPos.lat, longitude: minhaPos.lng, localizacao_at: new Date().toISOString(),
-    }).eq('id', entregador.id)
+    // O `.then()` é o que DISPARA a query: o builder do PostgREST é preguiçoso
+    // e só monta a requisição quando alguém consome a thenable. Com o `void`
+    // que estava aqui, nenhum HTTP saía da máquina — o ping nunca gravou, e um
+    // entregador que ficou online antes do GPS resolver ficava para sempre sem
+    // `latitude`/`longitude`, invisível para o pool de despacho.
+    supabase
+      .from('entregadores')
+      .update({
+        latitude: minhaPos.lat, longitude: minhaPos.lng, localizacao_at: new Date().toISOString(),
+      })
+      .eq('id', entregador.id)
+      .then(({ error }) => {
+        // Falha de ping é transitória (rede do entregador em movimento): o
+        // próximo watchPosition tenta de novo em ~15s. Só liberamos o throttle
+        // para não esperar o ciclo inteiro depois de um erro.
+        if (error) ultimoPing.current = 0
+      })
   }, [online, minhaPos, entregador, supabase])
 
   // Geolocalização contínua para o mapa e o cálculo de distância até a retirada.
