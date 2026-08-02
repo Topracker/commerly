@@ -376,3 +376,32 @@ a[class*='rounded-2xl']:hover:is([class*='bg-card'], [class*='bg-gray-900']) {
     transparent 10px
   );
 }
+
+/* ---------------------------------------------------------------------------
+   Feed em tela cheia (estilo Reels).
+   A mídia cobre a tela inteira e o fundo é preto NOS DOIS TEMAS — não existe
+   versão clara de um vídeo em tela cheia. Duas regras gerais precisam ser
+   neutralizadas aqui dentro:
+     - `[data-theme='light'] .text-white` viraria tinta escura, sumindo o texto
+       sobreposto ao vídeo;
+     - `[data-theme='light'] .bg-black` clareia para #0f172a (pensado no overlay
+       do menu), o que deixaria uma barra azulada nas laterais da mídia.
+   --------------------------------------------------------------------------- */
+[data-theme='light'] .midia-cheia .text-white {
+  color: #ffffff;
+}
+
+[data-theme='light'] .midia-cheia.bg-black,
+[data-theme='light'] .midia-cheia .bg-black {
+  background-color: #000000;
+}
+
+/* Rolagem sem barra visível: no feed o indicador de posição é o próprio snap. */
+.sem-barra {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sem-barra::-webkit-scrollbar {
+  display: none;
+}

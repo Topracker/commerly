@@ -26,9 +26,18 @@ type Props = {
   children: React.ReactNode
   noPadding?: boolean
   fullHeight?: boolean
+  /**
+   * Só com `fullHeight`: a barra do celular flutua POR CIMA do conteúdo em vez
+   * de empilhar acima dele. É o que deixa o feed em tela cheia ocupar a altura
+   * inteira — com a barra no fluxo, sobrava sempre uma faixa e o snap parava
+   * meio post na tela.
+   */
+  barraSobreposta?: boolean
 }
 
-export function ClienteLayout({ cliente, sair, children, noPadding = false, fullHeight = false }: Props) {
+export function ClienteLayout({
+  cliente, sair, children, noPadding = false, fullHeight = false, barraSobreposta = false,
+}: Props) {
   const [menuAberto, setMenuAberto] = useState(false)
   const [naoLidas, setNaoLidas] = useState(0)
   const { naoLidas: notifNaoLidas, toastNotif, fecharToast } = useNotificacoes()
@@ -102,7 +111,9 @@ export function ClienteLayout({ cliente, sair, children, noPadding = false, full
   )
 
   return (
-    <div className={`${fullHeight ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-gray-950 flex`}>
+    // `h-[100dvh]` e não `h-screen`: no celular o 100vh do CSS ignora a barra
+    // do navegador, e a última faixa da tela ficava embaixo dela.
+    <div className={`${fullHeight ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'} bg-gray-950 flex`}>
       <NotificacaoToast notif={toastNotif} onFechar={fecharToast} />
       <aside className="hidden md:flex w-56 bg-gray-900 flex-col fixed h-full z-10">
         <SidebarConteudo />
@@ -126,11 +137,20 @@ export function ClienteLayout({ cliente, sair, children, noPadding = false, full
           qualquer filho largo e a página inteira ganha rolagem horizontal — o
           que empurrava o controle de aparência (ml-auto) para fora da tela no
           celular. */}
-      <main className={`md:ml-56 flex-1 min-w-0 ${fullHeight ? 'flex flex-col overflow-hidden' : noPadding ? '' : 'p-4 md:p-6'}`}>
+      <main className={`md:ml-56 flex-1 min-w-0 ${fullHeight ? `flex flex-col overflow-hidden${barraSobreposta ? ' relative' : ''}` : noPadding ? '' : 'p-4 md:p-6'}`}>
         {fullHeight ? (
           <>
-            <div className="md:hidden shrink-0 flex items-center gap-3 px-4 py-2 bg-gray-900 border-b border-gray-800">
-              <button onClick={() => setMenuAberto(true)} className="text-white">
+            <div
+              // `midia-cheia` na barra sobreposta: ela flutua sobre o vídeo, e
+              // sem isso o ícone do menu vira tinta escura no tema claro —
+              // preto sobre preto.
+              className={`md:hidden flex items-center gap-3 px-4 py-2 ${
+                barraSobreposta
+                  ? 'midia-cheia absolute top-0 inset-x-0 z-30 bg-gradient-to-b from-black/60 to-transparent'
+                  : 'shrink-0 bg-gray-900 border-b border-gray-800'
+              }`}
+            >
+              <button onClick={() => setMenuAberto(true)} className="text-white drop-shadow">
                 <Menu size={22} />
               </button>
               <div className="ml-auto"><TemaControle /></div>

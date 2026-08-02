@@ -24,6 +24,13 @@ export type Post = {
   legenda: string | null
   produto_id: string | null
   created_at: string
+  /**
+   * Total de compartilhamentos. Mora numa coluna de `posts` (e não numa
+   * contagem de `post_eventos`) porque a RLS de `post_eventos` só deixa cada
+   * cliente ver as próprias linhas — contar de lá daria no máximo 1.
+   * Mantido por trigger; ver sql/2026-08-02-feed-compartilhamentos.sql.
+   */
+  compartilhamentos?: number | null
 }
 
 export type Story = {
@@ -175,6 +182,20 @@ export function agruparStories(stories: Story[]): { loja_id: string; stories: St
       const ultimoB = b.stories[b.stories.length - 1].created_at
       return new Date(ultimoB).getTime() - new Date(ultimoA).getTime()
     })
+}
+
+/**
+ * Contador da coluna lateral do feed: cabe em ~4 caracteres.
+ * 0 → "0" · 999 → "999" · 1500 → "1,5 mil" · 1200000 → "1,2 mi"
+ */
+export function contadorCurto(n: number): string {
+  if (n < 1000) return String(n)
+  if (n < 1_000_000) {
+    const mil = n / 1000
+    return `${(mil < 10 ? mil.toFixed(1) : Math.round(mil).toString()).replace('.', ',')} mil`
+  }
+  const mi = n / 1_000_000
+  return `${(mi < 10 ? mi.toFixed(1) : Math.round(mi).toString()).replace('.', ',')} mi`
 }
 
 /** "há 2 h", "há 3 d" — rótulo curto para o card do post. */

@@ -25,7 +25,11 @@ const csp = [
   "font-src 'self' data:",
   // Browser-side connections: Supabase (REST + Realtime WS) + ViaCEP + Mercado Pago + Stripe
   `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://*.supabase.co wss://*.supabase.co https://viacep.com.br ${mercadoPagoHosts} ${stripeHosts}`,
-  "media-src 'none'",
+  // Vídeos e áudios do feed vivem no Storage do Supabase. Com `'none'` aqui o
+  // navegador bloqueava o <video> ANTES de qualquer byte chegar — o player
+  // ficava cinza e com duração 00:00, parecendo upload corrompido. `blob:`
+  // cobre o preview local (URL.createObjectURL) antes de publicar o post.
+  `media-src 'self' blob: https://${supabaseHost} https://*.supabase.co`,
   "object-src 'none'",
   // Mercado Pago / Stripe embeds secure-field / 3DS / checkout iframes
   `frame-src ${mercadoPagoHosts} ${stripeHosts}`,
