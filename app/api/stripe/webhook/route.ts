@@ -78,7 +78,9 @@ export async function POST(request: NextRequest) {
       loja_id: pend.loja_id,
       cliente_id: pend.cliente_id,
       itens: pend.itens,
-      total: pend.total,               // recalculado pelo guard (bate com o cobrado)
+      // O guard recalcula o subtotal (preço autoritativo) mas MANTÉM esta taxa:
+      // é a que a Stripe cobrou (service_role + stripe_session_id, V2).
+      total: pend.total,
       taxa_entrega: pend.taxa_entrega,
       endereco_entrega: pend.endereco_entrega,
       entrega_latitude: pend.entrega_latitude,

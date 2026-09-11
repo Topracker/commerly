@@ -4,11 +4,11 @@ import { cookies } from 'next/headers'
 import Stripe from 'stripe'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
-import { distanciaKm, taxaEntregaPorDistancia } from '../../../lib/geo'
+import { distanciaKm, taxaEntregaPorDistancia, taxaComPico } from '../../../lib/geo'
 import { isDelivery } from '../../../lib/pedidosClientes'
 import { flagAtiva } from '../../../lib/featureFlags'
 import { descontoDePontos, maxPontosResgataveis } from '../../../lib/fidelidade'
-import { calcularFator, aplicarFator } from '../../../lib/precoDinamico'
+import { calcularFator, aplicarFator, emJanelaDePico } from '../../../lib/precoDinamico'
 
 // Inicia o pagamento ONLINE de um pedido de delivery via Stripe Checkout.
 //
@@ -129,7 +129,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Endereço fora da área de entrega. Esta loja entrega até ${distMax} km.` }, { status: 409 })
   }
 
-  const taxa = taxaEntregaPorDistancia(dist)
+  // Surge de pico (+30% sex/sáb/dom 18h–22h), a MESMA regra do guard — no
+  // fuso de Brasília, porque este código roda em UTC na Vercel. É este valor
+  // que a Stripe cobra e que o guard mantém no pedido pago (V2): sem o surge
+  // aqui, o cliente pagava a taxa base e o banco gravava ×1,3.
+  const pico = emJanelaDePico()
+  const taxa = taxaComPico(taxaEntregaPorDistancia(dist), pico)
 
   // Resgate de pontos (Clube Commerly). O saldo é GLOBAL — vale em qualquer
   // loja — então validamos contra clube_saldo, limitando ao subtotal e nunca
@@ -203,7 +208,7 @@ export async function POST(request: NextRequest) {
       line_items: [
         { quantity: 1, price_data: { currency: 'brl', unit_amount: subtotalCents, product_data: { name: desconto > 0 ? `Pedido — ${loja.nome} (−R$ ${desconto} em pontos)` : `Pedido — ${loja.nome}` } } },
         ...(taxaCents > 0
-          ? [{ quantity: 1, price_data: { currency: 'brl' as const, unit_amount: taxaCents, product_data: { name: 'Taxa de entrega' } } }]
+          ? [{ quantity: 1, price_data: { currency: 'brl' as const, unit_amount: taxaCents, product_data: { name: pico ? 'Taxa de entrega (horário de pico)' : 'Taxa de entrega' } } }]
           : []),
       ],
       payment_intent_data: {
