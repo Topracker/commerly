@@ -713,7 +713,7 @@ export default function Configuracoes() {
         )}
 
         {/* Cardápio por IA (#2 foto, #3 texto) */}
-        {loja?.id && <CardapioIA onPublicado={() => mostrarToast('Produtos publicados!', 'sucesso')} />}
+        {loja?.id && <CardapioIA onPublicado={() => mostrarToast('Produtos publicados! Entraram com estoque 100 e custo em branco — ajuste em Produtos se precisar.', 'sucesso')} />}
 
         {/* Preço dinâmico (#5), drone (#14) e classificação nutricional (#9) */}
         {isDelivery(tipo) && loja?.id && (

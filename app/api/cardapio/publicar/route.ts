@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '../../../lib/rate-limit'
 import { supabaseDaRota, usuarioDaRota, lojaDoUsuario } from '../../../lib/rotaSupabase'
-import { MAX_ITENS_RASCUNHO, type ItemRascunho } from '../../../lib/cardapioIA'
+import { MAX_ITENS_RASCUNHO, ESTOQUE_INICIAL_CARDAPIO_IA, type ItemRascunho } from '../../../lib/cardapioIA'
 
 export const runtime = 'nodejs'
 
@@ -51,7 +51,11 @@ export async function POST(request: NextRequest) {
       descricao: typeof b.descricao === 'string' ? b.descricao.trim().slice(0, 300) || null : null,
       categoria: typeof b.categoria === 'string' ? b.categoria.trim().slice(0, 40) || null : null,
       preco_venda: Math.round(preco * 100) / 100,
-      quantidade: 0,
+      // A IA não sabe o custo e `custo` é NOT NULL: sem esta linha o insert
+      // caía em 23502 e TODA publicação falhava com "Não foi possível salvar".
+      // Fica 0 até o comerciante preencher em /produtos.
+      custo: 0,
+      quantidade: ESTOQUE_INICIAL_CARDAPIO_IA,
     })
   }
 

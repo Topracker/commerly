@@ -16,6 +16,15 @@ export type ItemRascunho = {
 
 export const MAX_ITENS_RASCUNHO = 40
 
+/**
+ * Estoque com que um item publicado pela IA nasce. A IA não sabe estoque, e
+ * `quantidade: 0` escondia o item de toda a vitrine (`.gt('quantidade', 0)` em
+ * /cardapio, /cliente/loja, /loja e /vendas): o comerciante publicava o
+ * cardápio e nada aparecia. 100 = "disponível" na prática para cardápio de
+ * restaurante; ele ajusta em /produtos se quiser controlar de verdade.
+ */
+export const ESTOQUE_INICIAL_CARDAPIO_IA = 100
+
 const num = (v: unknown): number => {
   const n = typeof v === 'number' ? v : Number(String(v ?? '').replace(',', '.').replace(/[^0-9.]/g, ''))
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : 0
