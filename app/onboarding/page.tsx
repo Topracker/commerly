@@ -60,6 +60,10 @@ export default function Onboarding() {
   const [erroIG, setErroIG] = useState('')
   const [erroSite, setErroSite] = useState('')
   const [loading, setLoading] = useState(false)
+  // Já existe loja para este usuário (lida no mount). Vira trava no salvar():
+  // o redirect do useEffect é assíncrono e não impede um clique em "Começar"
+  // antes dele — foi por aí que uma segunda loja chegou a ser criada.
+  const jaTemLoja = useRef(false)
 
   // Fluxo de IA para tipo "Outro"
   const [iaDescricao, setIaDescricao] = useState('')
@@ -76,8 +80,8 @@ export default function Onboarding() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) { router.push('/login'); return }
-      supabase.from('lojas').select('id').eq('user_id', user.id).maybeSingle().then(({ data }) => {
-        if (data) router.push('/dashboard')
+      supabase.from('lojas').select('id').eq('user_id', user.id).limit(1).maybeSingle().then(({ data }) => {
+        if (data) { jaTemLoja.current = true; router.push('/dashboard') }
       })
     })
   }, [])
@@ -146,6 +150,14 @@ export default function Onboarding() {
       ? `${horarioAbertura} - ${horarioFechamento}`
       : ''
 
+    // Um usuário = uma loja (índice único lojas_user_id_uidx). Se a leitura do
+    // mount já achou uma, não tenta inserir outra.
+    if (jaTemLoja.current) {
+      mostrarToast('Você já tem uma loja cadastrada.', 'erro')
+      router.push('/dashboard')
+      return
+    }
+
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -180,6 +192,15 @@ export default function Onboarding() {
       plano: 'inativo',
     }).select('id').single()
     if (error) {
+      // 23505 no índice único de user_id = a loja já existe (duplo clique, duas
+      // abas, ou o useAuth mandou um comerciante existente para cá). Não é
+      // erro do comerciante: leva-o para o painel dele.
+      const textoErro = `${error.message} ${(error as { details?: string }).details ?? ''}`
+      if (error.code === '23505' && textoErro.includes('lojas_user_id_uidx')) {
+        mostrarToast('Você já tem uma loja cadastrada.', 'erro')
+        router.push('/dashboard')
+        return
+      }
       if (error.code === '23505') mostrarToast('Este CPF/CNPJ já está cadastrado no Commerly!', 'erro')
       else mostrarToast('Não foi possível salvar seu cadastro. Tente novamente.', 'erro')
       setLoading(false)
