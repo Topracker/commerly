@@ -95,6 +95,21 @@ export async function ofertarProximoEntregador(
     .from('corrida_ofertas')
     .insert({ pedido_id: pedidoId, entregador_id: escolhido.id, loja_id: loja.id, status: 'pendente', distancia_km: distKm, expira_em })
     .select('*').single()
+
+  // 23505 = unique(pedido_id, entregador_id). Duas passadas do despacho rodaram
+  // ao mesmo tempo (o painel da loja e o acompanhamento do cliente disparam por
+  // conta própria) e escolheram o mesmo entregador: a checagem de "oferta
+  // pendente válida" lá em cima passou nas duas antes de qualquer INSERT.
+  // A oferta existe — só não foi esta chamada que a criou. Tratar como erro
+  // devolvia um 500 "Erro ao ofertar a corrida" para o comerciante.
+  if (error && (error as { code?: string }).code === '23505') {
+    const { data: existente } = await admin
+      .from('corrida_ofertas').select('*')
+      .eq('pedido_id', pedidoId).eq('entregador_id', escolhido.id).maybeSingle()
+    if (existente) {
+      return { tipo: 'esperando', oferta: existente, entregador: { nome: escolhido.nome } }
+    }
+  }
   if (error || !oferta) throw new Error(error?.message || 'Erro ao criar oferta')
 
   await dispatchPushOferta(admin, oferta.id)

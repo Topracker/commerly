@@ -23,6 +23,10 @@ export default function ClientePedidos() {
   const [nomesLoja, setNomesLoja] = useState<Record<string, string>>({})
   const [entregadores, setEntregadores] = useState<Record<string, EntregadorPublico>>({})
   const [localizacoes, setLocalizacoes] = useState<Record<string, LocalizacaoEntrega>>({})
+  // Código de confirmação por pedido. Fica em `pedido_codigos` (tabela separada)
+  // justamente para o ENTREGADOR não conseguir lê-lo: se ele vê o código, pode
+  // marcar "entregue" sem encontrar o cliente, que é o que o código impede.
+  const [codigos, setCodigos] = useState<Record<string, string>>({})
   const [carregando, setCarregando] = useState(true)
 
   // Avaliações
@@ -102,6 +106,17 @@ export default function ClientePedidos() {
       const em: Record<string, EntregadorPublico> = {}
       for (const e of (ents || []) as EntregadorPublico[]) em[e.id] = e
       setEntregadores(em)
+    }
+
+    // Código de confirmação dos pedidos em rota (RLS: só o cliente e a loja).
+    const emRota = lista.filter(p => p.status === 'saiu').map(p => p.id)
+    if (emRota.length > 0) {
+      const { data: cods } = await supabase.from('pedido_codigos').select('pedido_id, codigo').in('pedido_id', emRota)
+      const cm: Record<string, string> = {}
+      for (const c of (cods || []) as { pedido_id: string; codigo: string }[]) cm[c.pedido_id] = c.codigo
+      setCodigos(cm)
+    } else {
+      setCodigos({})
     }
 
     // Posição em tempo real dos pedidos que saíram para entrega.
@@ -352,12 +367,12 @@ export default function ClientePedidos() {
                   )}
 
                   {/* Código de confirmação (quando saiu para entrega) */}
-                  {p.status === 'saiu' && p.codigo_confirmacao && (
+                  {p.status === 'saiu' && (codigos[p.id] || p.codigo_confirmacao) && (
                     <div className="mb-3 bg-acento/10 border border-acento/40 rounded-xl p-3 flex items-center gap-3">
                       <KeyRound size={20} className="text-acento shrink-0" />
                       <div className="min-w-0">
                         <p className="text-gray-300 text-xs">Passe este código ao entregador na entrega:</p>
-                        <p className="font-display text-white font-bold text-2xl tracking-[0.3em]">{p.codigo_confirmacao}</p>
+                        <p className="font-display text-white font-bold text-2xl tracking-[0.3em]">{codigos[p.id] || p.codigo_confirmacao}</p>
                       </div>
                     </div>
                   )}

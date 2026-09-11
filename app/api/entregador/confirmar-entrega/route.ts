@@ -41,8 +41,17 @@ export async function POST(request: NextRequest) {
   if (!pedido) return NextResponse.json({ error: 'Pedido não encontrado' }, { status: 404 })
   if (pedido.entregador_id !== entregador.id) return NextResponse.json({ error: 'Este pedido não é seu.' }, { status: 403 })
   if (pedido.status === 'entregue') return NextResponse.json({ ok: true, already: true })
-  if (!pedido.codigo_confirmacao) return NextResponse.json({ error: 'Este pedido ainda não saiu para entrega.' }, { status: 409 })
-  if (String(codigo).trim() !== pedido.codigo_confirmacao) {
+
+  // O código vive em `pedido_codigos`, que o entregador NÃO consegue ler (só o
+  // cliente e a loja) — se ele vê o código, marca "entregue" sem encontrar o
+  // cliente, que é exatamente o que o código existe para impedir.
+  // `codigo_confirmacao` é coluna legada e hoje é sempre null; fica como
+  // fallback só para não quebrar algum pedido anterior à migração.
+  const { data: linhaCodigo } = await admin
+    .from('pedido_codigos').select('codigo').eq('pedido_id', pedido_id).maybeSingle()
+  const esperado = linhaCodigo?.codigo || pedido.codigo_confirmacao
+  if (!esperado) return NextResponse.json({ error: 'Este pedido ainda não saiu para entrega.' }, { status: 409 })
+  if (String(codigo).trim() !== esperado) {
     return NextResponse.json({ error: 'Código incorreto. Confira com o cliente.' }, { status: 400 })
   }
 
