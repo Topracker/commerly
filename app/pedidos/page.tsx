@@ -31,6 +31,8 @@ export default function PedidosComerciante() {
   const [despacho, setDespacho] = useState<Record<string, Despacho>>({})
   // Relógio de 1s só para atualizar a contagem regressiva na tela.
   const [, setAgora] = useState(0)
+  // Pedido aguardando confirmação de cancelamento (modal).
+  const [cancelando, setCancelando] = useState<PedidoCliente | null>(null)
 
   useEffect(() => { if (loja) carregar() }, [loja])
 
@@ -173,6 +175,10 @@ export default function PedidosComerciante() {
   }
 
   async function mudarStatus(pedido: PedidoCliente, novo: StatusPedidoCliente) {
+    // Cancelamento tem caminho próprio (rota com estorno + modal) — ver
+    // cancelarPedido. O guard do banco recusa 'cancelado' em pedido pago
+    // online vindo daqui (chave anon), então nem tentamos.
+    if (novo === 'cancelado') { setCancelando(pedido); return }
     setSalvando(pedido.id)
     const { error } = await supabase.from('pedidos_clientes').update({ status: novo }).eq('id', pedido.id)
     setSalvando(null)
@@ -185,6 +191,39 @@ export default function PedidosComerciante() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pedido_id: pedido.id }),
     }).catch(() => {})
+  }
+
+  // Cancela pela rota da loja (service role): se o pedido foi pago online, a
+  // rota estorna o cliente na Stripe ANTES de cancelar (auditoria 2026-09-11,
+  // V1). Funciona mesmo com plano vencido. A rota já dispara o push.
+  async function cancelarPedido(pedido: PedidoCliente) {
+    setSalvando(pedido.id)
+    let res: Response
+    try {
+      res = await fetch('/api/loja/cancelar-pedido', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pedido_id: pedido.id }),
+      })
+    } catch {
+      setSalvando(null)
+      mostrarToast('Sem conexão. Tente novamente.', 'erro')
+      return
+    }
+    const data = await res.json().catch(() => null)
+    setSalvando(null)
+    if (!res.ok) {
+      mostrarToast(data?.error || 'Não foi possível cancelar o pedido.', 'erro')
+      carregar()
+      return
+    }
+    setCancelando(null)
+    setPedidos(prev => prev.map(p => (p.id === pedido.id
+      ? { ...p, status: 'cancelado', ...(data?.estornado ? { pagamento_status: 'estornado' as const } : {}) }
+      : p)))
+    mostrarToast(data?.estornado
+      ? `Pedido cancelado — R$ ${Number(data.valor).toFixed(2)} estornados ao cliente.`
+      : 'Pedido cancelado.', 'sucesso')
   }
 
   if (loading) return (
@@ -263,7 +302,9 @@ export default function PedidosComerciante() {
           )}
           <p className="font-display text-white font-bold text-sm mt-1">Total: R$ {Number(p.total).toFixed(2)}</p>
           <p className="mt-1">
-            {p.pagamento_metodo === 'online' ? (
+            {p.pagamento_status === 'estornado' ? (
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-500/15 text-gray-300 font-medium">↩︎ Estornado ao cliente</span>
+            ) : p.pagamento_metodo === 'online' ? (
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-300 font-medium">💳 Pago online</span>
             ) : (
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-medium">💵 Recebe na entrega</span>
@@ -384,7 +425,7 @@ export default function PedidosComerciante() {
               </button>
             ) : null}
             <button
-              onClick={() => mudarStatus(p, 'cancelado')}
+              onClick={() => setCancelando(p)}
               disabled={salvando === p.id}
               aria-label="Cancelar pedido"
               className="shrink-0 w-11 flex items-center justify-center bg-gray-800 border border-gray-800 hover:bg-red-500/15 hover:border-red-500/40 text-gray-400 hover:text-red-400 rounded-xl transition"
@@ -397,9 +438,51 @@ export default function PedidosComerciante() {
     )
   }
 
+  const pagoOnline = !!cancelando && cancelando.pagamento_metodo === 'online' && cancelando.pagamento_status === 'pago'
+
   return (
     <AppLayout loja={loja} sair={sair} titulo="Pedidos online">
       <Toast toast={toast} />
+
+      {/* Confirmação de cancelamento — avisa do estorno quando pago online. */}
+      {cancelando && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => { if (salvando !== cancelando.id) setCancelando(null) }}>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <h2 className="font-display text-white font-bold text-lg mb-1">Cancelar este pedido?</h2>
+            <p className="text-gray-400 text-sm mb-3">
+              Pedido de <strong className="text-white">{cancelando.anonimo ? 'cliente anônimo' : (cancelando.cliente_nome || 'cliente')}</strong>
+              {' '}— R$ {Number(cancelando.total).toFixed(2)}
+            </p>
+            {pagoOnline ? (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 mb-4 text-sm text-amber-200">
+                💳 Pago online: <strong>o cliente será estornado em R$ {Number(cancelando.total).toFixed(2)}</strong> via Stripe.
+                O repasse do pedido à sua conta é revertido.
+              </div>
+            ) : (
+              <p className="text-gray-500 text-xs mb-4">Pagamento na entrega — nada a estornar.</p>
+            )}
+            {cancelando.status === 'saiu' && cancelando.entregador_id && (
+              <p className="text-red-300 text-xs mb-4 flex items-center gap-1.5"><AlertTriangle size={13} /> O entregador já está a caminho.</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCancelando(null)}
+                disabled={salvando === cancelando.id}
+                className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold py-2.5 rounded-xl transition text-sm"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={() => cancelarPedido(cancelando)}
+                disabled={salvando === cancelando.id}
+                className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition text-sm"
+              >
+                {salvando === cancelando.id ? (pagoOnline ? 'Estornando...' : 'Cancelando...') : 'Cancelar pedido'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="max-w-2xl">
         {/* Solicitações de parceria de entregadores */}
         {pendentes.length > 0 && (

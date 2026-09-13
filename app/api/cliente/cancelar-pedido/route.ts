@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
 
   // Pagamento online já efetivado -> estorno total antes de cancelar.
   let estornado = false
+  let refundId: string | null = null
   const pagoOnline = pedido.pagamento_metodo === 'online' && pedido.pagamento_status === 'pago'
   if (pagoOnline) {
     if (!process.env.STRIPE_SECRET_KEY || !pedido.stripe_payment_intent) {
@@ -56,26 +57,46 @@ export async function POST(request: NextRequest) {
     }
     try {
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-      await stripe.refunds.create({
-        payment_intent: pedido.stripe_payment_intent,
-        // Destination charge: reverte também a parte transferida para a loja.
-        reverse_transfer: true,
-      })
+      const refund = await stripe.refunds.create(
+        {
+          payment_intent: pedido.stripe_payment_intent,
+          // Destination charge: reverte também a parte transferida para a loja.
+          reverse_transfer: true,
+          metadata: { pedido_id: pedido.id, origem: 'cliente' },
+        },
+        // Um refund por pedido, mesmo repetindo a requisição (V1): a mesma
+        // chave que /api/loja/cancelar-pedido usa — quem estornar primeiro vale.
+        { idempotencyKey: `refund-pedido-${pedido.id}` },
+      )
+      refundId = refund.id
       estornado = true
     } catch (e) {
       console.error('[cancelar-pedido] erro no estorno:', e)
+      // Conta Connect `standard` com o subtotal já sacado pela loja: a Stripe
+      // não reverte o transfer. Não cancela — resolve-se manualmente na Stripe.
+      const code = (e as { code?: string } | null)?.code
+      if (code === 'balance_insufficient') {
+        return NextResponse.json({
+          error: 'O estorno precisa ser feito manualmente pela loja. Fale com o suporte.',
+          code,
+        }, { status: 409 })
+      }
       return NextResponse.json({ error: 'Não foi possível estornar o pagamento agora. Tente de novo em instantes.' }, { status: 502 })
     }
   }
 
-  const { error: updErr } = await admin
+  const { data: atualizado, error: updErr } = await admin
     .from('pedidos_clientes')
-    .update({ status: 'cancelado' })
+    .update({
+      status: 'cancelado',
+      ...(estornado ? { pagamento_status: 'estornado', estornado_em: new Date().toISOString(), stripe_refund_id: refundId } : {}),
+    })
     .eq('id', pedido.id)
     .eq('status', 'recebido') // idempotente: não cancela se já mudou de status
-  if (updErr) {
-    console.error('[cancelar-pedido] erro ao cancelar:', updErr.message)
-    // O estorno pode já ter saído; peça para o cliente conferir com o suporte.
+    .select('id')
+  if (updErr || !atualizado?.length) {
+    console.error('[cancelar-pedido] erro ao cancelar:', updErr?.message ?? 'nenhuma linha')
+    // O estorno pode já ter saído (idempotente: repetir não estorna de novo).
     return NextResponse.json({ error: 'O pedido não pôde ser cancelado. Fale com o suporte.' }, { status: 500 })
   }
 

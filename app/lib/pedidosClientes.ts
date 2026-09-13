@@ -28,7 +28,10 @@ export type PedidoCliente = {
   status: StatusPedidoCliente
   // Pagamento do pedido pelo cliente: online (cartão via Stripe) ou na entrega.
   pagamento_metodo?: 'online' | 'entrega'
-  pagamento_status?: 'pendente' | 'pago'
+  pagamento_status?: 'pendente' | 'pago' | 'estornado'
+  /** Preenchidos pela rota de estorno (loja ou cliente) quando pago online. */
+  estornado_em?: string | null
+  stripe_refund_id?: string | null
   // Entrega por entregador parceiro (opcional).
   entregador_id: string | null
   valor_corrida: number

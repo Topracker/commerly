@@ -50,12 +50,17 @@ const APIS_COMERCIANTE = [
   '/api/tendencias', '/api/loja', '/api/ads', '/api/entrega/buscar-entregador',
 ]
 
-// APIs do comerciante que são CADASTRO, não feature: exigem login mas passam
-// pelo paywall. Resolver a cidade da loja precisa funcionar no onboarding (o
-// plano ainda é 'inativo' quando a loja é criada) e para quem está voltando de
-// um plano vencido — senão a loja regulariza e continua sem receber pedido,
-// porque `cidade_slug` nulo derruba o gating de `delivery` no escopo global.
-const APIS_SEM_PAYWALL = ['/api/loja/cidade']
+// APIs do comerciante que são CADASTRO ou OBRIGAÇÃO, não feature: exigem
+// login mas passam pelo paywall.
+// - /api/loja/cidade: resolver a cidade precisa funcionar no onboarding (o
+//   plano ainda é 'inativo' quando a loja é criada) e para quem está voltando
+//   de um plano vencido — senão a loja regulariza e continua sem receber
+//   pedido, porque `cidade_slug` nulo derruba o gating de `delivery`.
+// - /api/loja/cancelar-pedido: devolver o dinheiro do cliente (estorno via
+//   Stripe) é obrigação, não feature — e é justamente quando a loja some da
+//   vitrine por plano vencido que os pedidos abertos precisam ser fechados.
+//   A rota roda com service role, então também passa pela RLS `paywall_plano`.
+const APIS_SEM_PAYWALL = ['/api/loja/cidade', '/api/loja/cancelar-pedido']
 
 /**
  * Páginas que exigem apenas LOGIN (qualquer papel), SEM paywall: mostram
