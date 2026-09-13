@@ -7,6 +7,7 @@ import BotaoGoogle from '../components/BotaoGoogle'
 import CampoSenha, { senhaValida } from '../components/CampoSenha'
 import CampoConvite from '../components/CampoConvite'
 import { situacaoPlano, type PlanoLoja } from '../lib/plano'
+import { outroPapel, msgLoginOutroPapel, msgCadastroOutroPapel } from '../lib/papeis'
 
 type Tela =
   | 'escolha'
@@ -50,13 +51,11 @@ export default function Login() {
       const { data: loja } = await supabase.from('lojas').select('id, plano, trial_expira_em').eq('user_id', userId).maybeSingle()
       if (loja) { router.push(rotaLoja(loja)); return }
 
-      const [{ data: clienteData }, { data: fornecedorData }] = await Promise.all([
-        supabase.from('clientes').select('id').eq('user_id', userId).maybeSingle(),
-        supabase.from('fornecedores').select('id').eq('user_id', userId).maybeSingle(),
-      ])
-      if (clienteData || fornecedorData) {
+      // Conta exclusiva: cliente/fornecedor/entregador não viram comerciante.
+      const outro = await outroPapel(supabase, userId, 'comerciante')
+      if (outro) {
         await supabase.auth.signOut()
-        setErro('Este e-mail está cadastrado como ' + (clienteData ? 'cliente' : 'fornecedor') + '. Use a área correta para fazer login.')
+        setErro(msgLoginOutroPapel(outro))
         return
       }
 
@@ -70,12 +69,8 @@ export default function Login() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setErro('Sessão expirada. Tente novamente.'); return false }
 
-    const [{ data: clienteExiste }, { data: fornecedorExiste }] = await Promise.all([
-      supabase.from('clientes').select('id').eq('user_id', user.id).maybeSingle(),
-      supabase.from('fornecedores').select('id').eq('user_id', user.id).maybeSingle(),
-    ])
-    if (clienteExiste) { setErro('Este e-mail já está cadastrado como cliente. Faça login para acessar sua conta.'); return false }
-    if (fornecedorExiste) { setErro('Este e-mail já está cadastrado como fornecedor. Faça login para acessar sua conta.'); return false }
+    const outro = await outroPapel(supabase, user.id, 'comerciante')
+    if (outro) { setErro(msgCadastroOutroPapel(outro)); return false }
 
     const { data: loja } = await supabase.from('lojas').select('id, plano, trial_expira_em').eq('user_id', user.id).maybeSingle()
     router.push(rotaLoja(loja))
@@ -89,13 +84,10 @@ export default function Login() {
     const { data: loja } = await supabase.from('lojas').select('id, plano, trial_expira_em').eq('user_id', user.id).maybeSingle()
     if (loja) { router.push(rotaLoja(loja)); return true }
 
-    const [{ data: clienteData }, { data: fornecedorData }] = await Promise.all([
-      supabase.from('clientes').select('id').eq('user_id', user.id).maybeSingle(),
-      supabase.from('fornecedores').select('id').eq('user_id', user.id).maybeSingle(),
-    ])
-    if (clienteData || fornecedorData) {
+    const outro = await outroPapel(supabase, user.id, 'comerciante')
+    if (outro) {
       await supabase.auth.signOut()
-      setErro('Esta conta está cadastrada como ' + (clienteData ? 'cliente' : 'fornecedor') + '. Use a área correta para fazer login.')
+      setErro(msgLoginOutroPapel(outro))
       return false
     }
 

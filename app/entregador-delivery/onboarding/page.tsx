@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import {
   validarCPF, formatarCPF, formatarTelefone,
   erroCPF, erroTelefone, checarDuplicidade, MSG_DUPLICADO,
-  registrarCadastroIp, AVISO_VERIFICACAO,
+  checarLimiteCadastroIp, registrarCadastroIp, AVISO_VERIFICACAO,
 } from '../../lib/validacoes'
+import { outroPapel, msgCadastroOutroPapel } from '../../lib/papeis'
 import {
   uploadFotoEntregador, VEICULOS, CATEGORIAS_CNH, exigeCNH, exigeDocsDrone, idadeEmAnos,
   LINK_BOLSA, COMPROMISSO_BOLSA, type TipoVeiculo,
@@ -133,14 +134,10 @@ export default function EntregadorOnboarding() {
     if (!user) { router.push('/entregador-delivery/login'); return }
 
     // Conta exclusiva: não pode já ser loja/cliente/fornecedor.
-    const [{ data: loja }, { data: cliente }, { data: fornecedor }] = await Promise.all([
-      supabase.from('lojas').select('id').eq('user_id', user.id).maybeSingle(),
-      supabase.from('clientes').select('id').eq('user_id', user.id).maybeSingle(),
-      supabase.from('fornecedores').select('id').eq('user_id', user.id).maybeSingle(),
-    ])
-    if (loja || cliente || fornecedor) {
+    const outro = await outroPapel(supabase, user.id, 'entregador')
+    if (outro) {
       await supabase.auth.signOut()
-      setErro('Este e-mail já está cadastrado em outra área do Commerly.'); setLoading(false); return
+      setErro(msgCadastroOutroPapel(outro)); setLoading(false); return
     }
     const { data: jaExiste } = await supabase.from('entregadores').select('id').eq('user_id', user.id).maybeSingle()
     if (jaExiste) { router.push('/entregador-delivery/dashboard'); return }
@@ -150,7 +147,8 @@ export default function EntregadorOnboarding() {
     if (dup.erro) { setErro(dup.erro); setLoading(false); return }
     if (dup.duplicado) { setErro(MSG_DUPLICADO[dup.duplicado]); setLoading(false); return }
 
-    const lim = await registrarCadastroIp('entregador')
+    // Anti-spam: limite de contas por dia por IP (só checa; grava após o insert).
+    const lim = await checarLimiteCadastroIp('entregador')
     if (!lim.ok) { setErro(lim.erro!); setLoading(false); return }
 
     // Uploads (rosto + documento + CNH quando aplicável).
@@ -198,6 +196,7 @@ export default function EntregadorOnboarding() {
       else setErro('Erro ao salvar. Tente novamente.')
       setLoading(false); return
     }
+    await registrarCadastroIp('entregador')
     router.push('/entregador-delivery/dashboard')
   }
 

@@ -4,8 +4,9 @@ import { createClient } from '../../supabase'
 import { useRouter } from 'next/navigation'
 import {
   validarCNPJ, formatarCNPJ, formatarTelefone, erroTelefone,
-  checarDuplicidade, MSG_DUPLICADO, registrarCadastroIp, AVISO_VERIFICACAO,
+  checarDuplicidade, MSG_DUPLICADO, checarLimiteCadastroIp, registrarCadastroIp, AVISO_VERIFICACAO,
 } from '../../lib/validacoes'
+import { outroPapel, msgLoginOutroPapel, msgCadastroOutroPapel } from '../../lib/papeis'
 import FornecedorIaOutro from '../../components/FornecedorIaOutro'
 import BotaoGoogle from '../../components/BotaoGoogle'
 import CampoSenha, { senhaValida } from '../../components/CampoSenha'
@@ -59,13 +60,11 @@ export default function FornecedorLogin() {
       const { data: fornecedorData } = await supabase.from('fornecedores').select('id').eq('user_id', userId).maybeSingle()
       if (fornecedorData) { router.push('/fornecedor/dashboard'); return }
 
-      const [{ data: lojaData }, { data: clienteData }] = await Promise.all([
-        supabase.from('lojas').select('id').eq('user_id', userId).maybeSingle(),
-        supabase.from('clientes').select('id').eq('user_id', userId).maybeSingle(),
-      ])
-      if (lojaData || clienteData) {
+      // Conta exclusiva: comerciante/cliente/entregador não viram fornecedor.
+      const outro = await outroPapel(supabase, userId, 'fornecedor')
+      if (outro) {
         await supabase.auth.signOut()
-        setErro('Esta conta está cadastrada como ' + (lojaData ? 'comerciante' : 'cliente') + '. Use a área correta para fazer login.')
+        setErro(msgLoginOutroPapel(outro))
         return
       }
 
@@ -79,12 +78,8 @@ export default function FornecedorLogin() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setErro('Sessão expirada. Tente novamente.'); return false }
 
-    const [{ data: lojaExiste }, { data: clienteExiste }] = await Promise.all([
-      supabase.from('lojas').select('id').eq('user_id', user.id).maybeSingle(),
-      supabase.from('clientes').select('id').eq('user_id', user.id).maybeSingle(),
-    ])
-    if (lojaExiste) { setErro('Este e-mail já está cadastrado como comerciante. Faça login para acessar sua conta.'); return false }
-    if (clienteExiste) { setErro('Este e-mail já está cadastrado como cliente. Faça login para acessar sua conta.'); return false }
+    const outro = await outroPapel(supabase, user.id, 'fornecedor')
+    if (outro) { setErro(msgCadastroOutroPapel(outro)); return false }
 
     const { data: fornecedorExiste } = await supabase.from('fornecedores').select('id').eq('user_id', user.id).maybeSingle()
     if (fornecedorExiste) { router.push('/fornecedor/dashboard'); return true }
@@ -94,8 +89,8 @@ export default function FornecedorLogin() {
     if (dup.erro) { setErro(dup.erro); return false }
     if (dup.duplicado) { setErro(MSG_DUPLICADO[dup.duplicado]); return false }
 
-    // Anti-spam: no máx. 1 conta por dia por IP.
-    const lim = await registrarCadastroIp('fornecedor')
+    // Anti-spam: limite de contas por dia por IP (só checa; grava após o insert).
+    const lim = await checarLimiteCadastroIp('fornecedor')
     if (!lim.ok) { setErro(lim.erro!); return false }
 
     const categoriaFinal = categoria === 'Outro' ? (categoriaCustom.trim() || 'Outro') : categoria
@@ -110,6 +105,7 @@ export default function FornecedorLogin() {
       else setErro('Erro ao criar conta. Tente novamente.')
       return false
     }
+    await registrarCadastroIp('fornecedor')
     router.push('/fornecedor/dashboard')
     return true
   }
@@ -121,13 +117,10 @@ export default function FornecedorLogin() {
     const { data: fornecedor } = await supabase.from('fornecedores').select('id').eq('user_id', user.id).maybeSingle()
     if (fornecedor) { router.push('/fornecedor/dashboard'); return true }
 
-    const [{ data: lojaData }, { data: clienteData }] = await Promise.all([
-      supabase.from('lojas').select('id').eq('user_id', user.id).maybeSingle(),
-      supabase.from('clientes').select('id').eq('user_id', user.id).maybeSingle(),
-    ])
-    if (lojaData || clienteData) {
+    const outro = await outroPapel(supabase, user.id, 'fornecedor')
+    if (outro) {
       await supabase.auth.signOut()
-      setErro('Esta conta está cadastrada como ' + (lojaData ? 'comerciante' : 'cliente') + '. Use a área correta para fazer login.')
+      setErro(msgLoginOutroPapel(outro))
       return false
     }
 

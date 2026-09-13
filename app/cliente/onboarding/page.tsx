@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import {
   soDigitos, validarCPF, formatarCPF, formatarTelefone,
   erroTelefone, checarDuplicidade, MSG_DUPLICADO,
-  registrarCadastroIp, AVISO_VERIFICACAO,
+  checarLimiteCadastroIp, registrarCadastroIp, AVISO_VERIFICACAO,
 } from '../../lib/validacoes'
+import { outroPapel, msgCadastroOutroPapel } from '../../lib/papeis'
 
 export default function ClienteOnboarding() {
   const [nome, setNome] = useState('')
@@ -32,12 +33,9 @@ export default function ClienteOnboarding() {
     setErro('')
     const { data: { user } } = await supabase.auth.getUser()
 
-    const [{ data: lojaExiste }, { data: fornecedorExiste }] = await Promise.all([
-      supabase.from('lojas').select('id').eq('user_id', user!.id).maybeSingle(),
-      supabase.from('fornecedores').select('id').eq('user_id', user!.id).maybeSingle(),
-    ])
-    if (lojaExiste) { setErro('Este e-mail já está cadastrado como comerciante. Faça login para acessar sua conta.'); setLoading(false); return }
-    if (fornecedorExiste) { setErro('Este e-mail já está cadastrado como fornecedor. Faça login para acessar sua conta.'); setLoading(false); return }
+    // Conta exclusiva: comerciante/fornecedor/entregador não viram cliente.
+    const outro = await outroPapel(supabase, user!.id, 'cliente')
+    if (outro) { setErro(msgCadastroOutroPapel(outro)); setLoading(false); return }
 
     // CPF e telefone não podem se repetir em outra conta do Commerly.
     const dup = await checarDuplicidade({
@@ -47,8 +45,8 @@ export default function ClienteOnboarding() {
     if (dup.erro) { setErro(dup.erro); setLoading(false); return }
     if (dup.duplicado) { setErro(MSG_DUPLICADO[dup.duplicado]); setLoading(false); return }
 
-    // Anti-spam: no máx. 1 conta por dia por IP.
-    const lim = await registrarCadastroIp('cliente')
+    // Anti-spam: limite de contas por dia por IP (só checa; grava após o insert).
+    const lim = await checarLimiteCadastroIp('cliente')
     if (!lim.ok) { setErro(lim.erro!); setLoading(false); return }
 
     const { error } = await supabase.from('clientes').insert({
@@ -58,6 +56,7 @@ export default function ClienteOnboarding() {
       ...(telefone ? { telefone } : {}),
     })
     if (error) { setErro('Erro ao salvar. Tente novamente.'); setLoading(false); return }
+    await registrarCadastroIp('cliente')
     router.push('/cliente/buscar')
   }
 

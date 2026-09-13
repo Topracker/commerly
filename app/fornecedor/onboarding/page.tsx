@@ -4,8 +4,9 @@ import { createClient } from '../../supabase'
 import { useRouter } from 'next/navigation'
 import {
   validarCNPJ, formatarCNPJ, erroCNPJ, formatarTelefone, erroTelefone,
-  checarDuplicidade, MSG_DUPLICADO, registrarCadastroIp, AVISO_VERIFICACAO,
+  checarDuplicidade, MSG_DUPLICADO, checarLimiteCadastroIp, registrarCadastroIp, AVISO_VERIFICACAO,
 } from '../../lib/validacoes'
+import { outroPapel, msgCadastroOutroPapel } from '../../lib/papeis'
 import FornecedorIaOutro from '../../components/FornecedorIaOutro'
 import { EnderecoAutocomplete } from '../../components/EnderecoAutocomplete'
 
@@ -56,20 +57,17 @@ export default function FornecedorOnboarding() {
     setErro('')
     const { data: { user } } = await supabase.auth.getUser()
 
-    const [{ data: lojaExiste }, { data: clienteExiste }] = await Promise.all([
-      supabase.from('lojas').select('id').eq('user_id', user!.id).maybeSingle(),
-      supabase.from('clientes').select('id').eq('user_id', user!.id).maybeSingle(),
-    ])
-    if (lojaExiste) { setErro('Este e-mail já está cadastrado como comerciante. Faça login para acessar sua conta.'); setLoading(false); return }
-    if (clienteExiste) { setErro('Este e-mail já está cadastrado como cliente. Faça login para acessar sua conta.'); setLoading(false); return }
+    // Conta exclusiva: comerciante/cliente/entregador não viram fornecedor.
+    const outro = await outroPapel(supabase, user!.id, 'fornecedor')
+    if (outro) { setErro(msgCadastroOutroPapel(outro)); setLoading(false); return }
 
     // CNPJ e telefone não podem se repetir em outra conta do Commerly.
     const dup = await checarDuplicidade({ cnpj, ...(telefone ? { telefone } : {}) })
     if (dup.erro) { setErro(dup.erro); setLoading(false); return }
     if (dup.duplicado) { setErro(MSG_DUPLICADO[dup.duplicado]); setLoading(false); return }
 
-    // Anti-spam: no máx. 1 conta por dia por IP.
-    const lim = await registrarCadastroIp('fornecedor')
+    // Anti-spam: limite de contas por dia por IP (só checa; grava após o insert).
+    const lim = await checarLimiteCadastroIp('fornecedor')
     if (!lim.ok) { setErro(lim.erro!); setLoading(false); return }
 
     const categoriaFinal = categoria === 'Outro' ? (categoriaCustom.trim() || 'Outro') : categoria
@@ -93,6 +91,7 @@ export default function FornecedorOnboarding() {
       setLoading(false)
       return
     }
+    await registrarCadastroIp('fornecedor')
     router.push('/fornecedor/dashboard')
   }
 

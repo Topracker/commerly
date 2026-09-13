@@ -12,8 +12,9 @@ import { Toast } from '../components/Toast'
 import {
   validarCPF, validarCNPJ, formatarDocumento,
   formatarTelefone, erroTelefone, checarDuplicidade, MSG_DUPLICADO,
-  registrarCadastroIp, AVISO_VERIFICACAO, normalizarWebsite, erroWebsite,
+  checarLimiteCadastroIp, registrarCadastroIp, AVISO_VERIFICACAO, normalizarWebsite, erroWebsite,
 } from '../lib/validacoes'
+import { outroPapel, msgCadastroOutroPapel } from '../lib/papeis'
 
 // Módulos que a IA pode sugerir / o usuário pode escolher no fluxo "Outro".
 const MODULOS_ESCOLHIVEIS: ModuloKey[] = ['agenda', 'servicos', 'pedidos', 'estoque', 'produtos', 'vendas', 'fornecedores']
@@ -161,12 +162,9 @@ export default function Onboarding() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
 
-    const [{ data: clienteExiste }, { data: fornecedorExiste }] = await Promise.all([
-      supabase.from('clientes').select('id').eq('user_id', user!.id).maybeSingle(),
-      supabase.from('fornecedores').select('id').eq('user_id', user!.id).maybeSingle(),
-    ])
-    if (clienteExiste) { mostrarToast('Este e-mail já está cadastrado como cliente. Faça login para acessar sua conta.', 'erro'); setLoading(false); return }
-    if (fornecedorExiste) { mostrarToast('Este e-mail já está cadastrado como fornecedor. Faça login para acessar sua conta.', 'erro'); setLoading(false); return }
+    // Conta exclusiva: cliente/fornecedor/entregador não viram comerciante.
+    const outro = await outroPapel(supabase, user!.id, 'comerciante')
+    if (outro) { mostrarToast(msgCadastroOutroPapel(outro), 'erro'); setLoading(false); return }
 
     // CPF/CNPJ e telefone não podem se repetir em outra conta do Commerly.
     const dup = await checarDuplicidade({
@@ -179,8 +177,8 @@ export default function Onboarding() {
     // Para "Outro", usa o ramo sugerido pela IA (se houver) como tipo da loja.
     const tipoFinal = tipo === 'Outro' && tipoCustom.trim() ? tipoCustom.trim() : tipo
 
-    // Anti-spam: no máx. 1 conta por dia por IP.
-    const lim = await registrarCadastroIp('comerciante')
+    // Anti-spam: limite de contas por dia por IP (só checa; grava após o insert).
+    const lim = await checarLimiteCadastroIp('comerciante')
     if (!lim.ok) { mostrarToast(lim.erro!, 'erro'); setLoading(false); return }
 
     const { data: lojaInserida, error } = await supabase.from('lojas').insert({
@@ -206,6 +204,7 @@ export default function Onboarding() {
       setLoading(false)
       return
     }
+    await registrarCadastroIp('comerciante')
 
     // Fotos da fachada: só dá pra subir agora que temos o loja_id (o caminho no
     // Storage inclui o "{loja_id}/"). Se falhar, segue o fluxo — dá pra

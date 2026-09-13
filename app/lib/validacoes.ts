@@ -244,16 +244,21 @@ export const AVISO_VERIFICACAO =
   'Seus dados serão verificados — contas com informações falsas serão suspensas.'
 
 // ---------------------------------------------------------------------------
-// Limite de criação de conta por IP (anti-spam: 1 por dia por IP)
+// Limite de criação de conta por IP (anti-spam: N por dia por IP)
 // ---------------------------------------------------------------------------
-
-// Chamado imediatamente antes de criar o perfil (loja/cliente/fornecedor). O
-// servidor registra o IP e bloqueia se já houve uma criação nas últimas 24h.
-// Falha "aberta" (ok) em erro de rede pra não travar cadastro legítimo — o
+// Duas etapas (ver app/lib/cadastroIp.ts — achado A2 da auditoria 2026-09-11):
+//   1. checarLimiteCadastroIp  ANTES do insert do perfil — só conta, bloqueia
+//      se a rede já criou o máximo de contas em 24h.
+//   2. registrarCadastroIp     DEPOIS do insert dar certo — só grava o IP.
+// Antes era uma chamada só que gravava antes do insert: se o insert falhasse,
+// o IP ficava queimado à toa.
+//
+// Ambas falham "abertas" em erro de rede pra não travar cadastro legítimo — o
 // servidor é a barreira real de qualquer forma.
-export async function registrarCadastroIp(area: string): Promise<{ ok: boolean; erro?: string }> {
+
+export async function checarLimiteCadastroIp(area: string): Promise<{ ok: boolean; erro?: string }> {
   try {
-    const res = await fetch('/api/cadastro/registrar', {
+    const res = await fetch('/api/cadastro/checar-ip', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ area }),
@@ -264,4 +269,15 @@ export async function registrarCadastroIp(area: string): Promise<{ ok: boolean; 
   } catch {
     return { ok: true }
   }
+}
+
+/** Só chame depois que o perfil foi inserido com sucesso. Nunca lança. */
+export async function registrarCadastroIp(area: string): Promise<void> {
+  try {
+    await fetch('/api/cadastro/registrar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ area }),
+    })
+  } catch {}
 }

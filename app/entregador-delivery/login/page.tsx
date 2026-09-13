@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '../../supabase'
 import { useRouter } from 'next/navigation'
 import { AVISO_VERIFICACAO } from '../../lib/validacoes'
+import { outroPapel, msgLoginOutroPapel } from '../../lib/papeis'
 import BotaoGoogle from '../../components/BotaoGoogle'
 import CampoSenha, { senhaValida } from '../../components/CampoSenha'
 import CampoConvite from '../../components/CampoConvite'
@@ -48,17 +49,10 @@ export default function EntregadorLogin() {
     }
     if (entregador) { router.push('/entregador-delivery/dashboard'); return true }
 
-    const [{ data: loja }, { data: cliente }, { data: fornecedor }] = await Promise.all([
-      supabase.from('lojas').select('id').eq('user_id', userId).maybeSingle(),
-      supabase.from('clientes').select('id').eq('user_id', userId).maybeSingle(),
-      supabase.from('fornecedores').select('id').eq('user_id', userId).maybeSingle(),
-    ])
-    if (loja || cliente || fornecedor) {
+    const outro = await outroPapel(supabase, userId, 'entregador')
+    if (outro) {
       await supabase.auth.signOut()
-      if (mostrarErro) {
-        const papel = loja ? 'comerciante' : cliente ? 'cliente' : 'fornecedor'
-        setErro(`Esta conta está cadastrada como ${papel}. Use a área correta para fazer login.`)
-      }
+      if (mostrarErro) setErro(msgLoginOutroPapel(outro))
       return false
     }
     router.push('/entregador-delivery/onboarding')
