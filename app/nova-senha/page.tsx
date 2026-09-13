@@ -4,6 +4,7 @@ import { createClient } from '../supabase'
 import { useRouter } from 'next/navigation'
 import { emailResetLembrado, lembrarEmailReset } from '../lib/ultimoEmail'
 import CampoSenha, { senhaValida } from '../components/CampoSenha'
+import { situacaoPlano } from '../lib/plano'
 
 // Página de destino do link de redefinição de senha. O e-mail é enviado por
 // /api/auth/recuperar (Admin API + Resend) com link direto para cá no formato
@@ -162,8 +163,9 @@ export default function NovaSenha() {
   // Após redefinir a senha, manda o usuário para a área do seu papel
   // (já está autenticado pela sessão de recuperação).
   async function rotearPorPapel(userId: string) {
-    const { data: loja } = await supabase.from('lojas').select('id, plano').eq('user_id', userId).maybeSingle()
-    if (loja) { router.push(loja.plano === 'ativo' ? '/dashboard' : '/planos'); return }
+    const { data: loja } = await supabase.from('lojas').select('id, plano, trial_expira_em').eq('user_id', userId).maybeSingle()
+    // Assinatura ativa OU teste ainda correndo libera o dashboard (regra única em lib/plano).
+    if (loja) { router.push(situacaoPlano(loja).liberada ? '/dashboard' : '/planos'); return }
 
     const [{ data: cliente }, { data: fornecedor }, { data: entregador }] = await Promise.all([
       supabase.from('clientes').select('id').eq('user_id', userId).maybeSingle(),

@@ -6,6 +6,7 @@ import { AVISO_VERIFICACAO } from '../lib/validacoes'
 import BotaoGoogle from '../components/BotaoGoogle'
 import CampoSenha, { senhaValida } from '../components/CampoSenha'
 import CampoConvite from '../components/CampoConvite'
+import { situacaoPlano, type PlanoLoja } from '../lib/plano'
 
 type Tela =
   | 'escolha'
@@ -30,9 +31,12 @@ export default function Login() {
   const supabase = createClient()
 
   // Destino conforme o estado da loja (cadastro de dados fica em /onboarding).
-  function rotaLoja(loja: { plano?: string } | null): string {
+  // Mesma regra do useAuth/proxy: assinatura ativa OU teste ainda correndo
+  // libera o dashboard — só `plano === 'ativo'` mandava a loja em trial para
+  // /planos sem saída.
+  function rotaLoja(loja: PlanoLoja | null): string {
     if (!loja) return '/onboarding'
-    return loja.plano === 'ativo' ? '/dashboard' : '/planos'
+    return situacaoPlano(loja).liberada ? '/dashboard' : '/planos'
   }
 
   useEffect(() => {
@@ -43,7 +47,7 @@ export default function Login() {
       if (!session) return
       const userId = session.user.id
 
-      const { data: loja } = await supabase.from('lojas').select('id, plano').eq('user_id', userId).maybeSingle()
+      const { data: loja } = await supabase.from('lojas').select('id, plano, trial_expira_em').eq('user_id', userId).maybeSingle()
       if (loja) { router.push(rotaLoja(loja)); return }
 
       const [{ data: clienteData }, { data: fornecedorData }] = await Promise.all([
@@ -73,7 +77,7 @@ export default function Login() {
     if (clienteExiste) { setErro('Este e-mail já está cadastrado como cliente. Faça login para acessar sua conta.'); return false }
     if (fornecedorExiste) { setErro('Este e-mail já está cadastrado como fornecedor. Faça login para acessar sua conta.'); return false }
 
-    const { data: loja } = await supabase.from('lojas').select('id, plano').eq('user_id', user.id).maybeSingle()
+    const { data: loja } = await supabase.from('lojas').select('id, plano, trial_expira_em').eq('user_id', user.id).maybeSingle()
     router.push(rotaLoja(loja))
     return true
   }
@@ -82,7 +86,7 @@ export default function Login() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setErro('Sessão expirada. Tente novamente.'); return false }
 
-    const { data: loja } = await supabase.from('lojas').select('id, plano').eq('user_id', user.id).maybeSingle()
+    const { data: loja } = await supabase.from('lojas').select('id, plano, trial_expira_em').eq('user_id', user.id).maybeSingle()
     if (loja) { router.push(rotaLoja(loja)); return true }
 
     const [{ data: clienteData }, { data: fornecedorData }] = await Promise.all([

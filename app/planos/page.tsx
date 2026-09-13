@@ -2,9 +2,10 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../supabase'
-import { CheckCircle, Zap } from 'lucide-react'
+import { CheckCircle, Clock, Zap } from 'lucide-react'
 
 import { PRECO_FUNDADOR, PRECO_NORMAL, brl, tabelaDescontos } from '../lib/precos'
+import { situacaoPlano } from '../lib/plano'
 
 function PlanosConteudo() {
   const router = useRouter()
@@ -26,7 +27,7 @@ function PlanosConteudo() {
       if (!user) { setLoading(false); return }
       const { data } = await supabase
         .from('lojas')
-        .select('id, nome, plano, fundador, stripe_subscription_id')
+        .select('id, nome, plano, fundador, stripe_subscription_id, trial_expira_em')
         .eq('user_id', user.id)
         .maybeSingle()
       setLoja(data)
@@ -59,7 +60,12 @@ function PlanosConteudo() {
     iso ? new Date(iso).toLocaleDateString('pt-BR') : null
 
   const temAssinatura = !!loja?.stripe_subscription_id
-  const planoAtivo = loja?.plano === 'ativo'
+  // Regra única (lib/plano): assinante OU em teste = liberada. Antes só
+  // `plano === 'ativo'` contava, e a loja em trial ficava presa aqui sem
+  // botão de voltar.
+  const situacao = situacaoPlano(loja)
+  const planoAtivo = situacao.assinante
+  const emTeste = situacao.emTeste
   const ehFundador = !!loja?.fundador
   // Base = preço do plano (fundador tem o preço travado). Sobre ela ainda pode
   // incidir o desconto por indicação, que vem do servidor.
@@ -100,12 +106,30 @@ function PlanosConteudo() {
         )}
 
         {!loading && loja && (
-          <div className={`rounded-2xl p-4 border ${planoAtivo ? 'bg-green-950 border-green-800' : 'bg-blue-950 border-blue-800'}`}>
-            <p className={`text-sm font-semibold ${planoAtivo ? 'text-green-300' : 'text-blue-300'}`}>
-              {planoAtivo ? '✓ Plano ativo' : 'Assine para acessar o dashboard'}
-            </p>
-            <p className="text-gray-500 text-xs mt-1">{loja.nome}</p>
-          </div>
+          planoAtivo ? (
+            <div className="rounded-2xl p-4 border bg-green-950 border-green-800">
+              <p className="text-sm font-semibold text-green-300">✓ Plano ativo</p>
+              <p className="text-gray-500 text-xs mt-1">{loja.nome}</p>
+            </div>
+          ) : emTeste ? (
+            <div className="rounded-2xl p-4 border bg-amber-950 border-amber-800 flex items-start gap-3">
+              <Clock size={18} className="text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-300">
+                  Em teste — {situacao.diasDeTeste} {situacao.diasDeTeste === 1 ? 'dia restante' : 'dias restantes'}
+                </p>
+                <p className="text-amber-200/70 text-xs mt-1">
+                  Você já pode usar o dashboard. Assine antes do fim do teste para não perder o acesso.
+                </p>
+                <p className="text-gray-500 text-xs mt-1">{loja.nome}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl p-4 border bg-blue-950 border-blue-800">
+              <p className="text-sm font-semibold text-blue-300">Assine para acessar o dashboard</p>
+              <p className="text-gray-500 text-xs mt-1">{loja.nome}</p>
+            </div>
+          )
         )}
 
         <div className="bg-gray-900 rounded-2xl p-5 border-2 border-blue-600 relative">
@@ -235,7 +259,7 @@ function PlanosConteudo() {
           </div>
         )}
 
-        {loja && (planoAtivo || temAssinatura) && (
+        {loja && (situacao.liberada || temAssinatura) && (
           <button onClick={() => router.push('/dashboard')} className="text-gray-500 text-sm hover:text-gray-400 transition text-center">
             ← Voltar ao dashboard
           </button>
