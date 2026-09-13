@@ -68,70 +68,30 @@ export default function Vendas() {
     if (carrinho.length === 0) { mostrarToast('Carrinho vazio!', 'erro'); return }
     setConfirmando(true)
 
-    // Decrementa estoque ANTES de registrar venda — filtro .gte('quantidade', N)
-    // garante atomicidade: se outra venda concorrente ja zerou o estoque, o update
-    // afeta 0 linhas (count=0) e abortamos antes de inserir a venda fantasma.
-    const decrementos = await Promise.all(
-      carrinho.map(item =>
-        supabase
-          .from('produtos')
-          .update({ quantidade: item.produto.quantidade - item.quantidade })
-          .eq('id', item.produto.id)
-          .eq('loja_id', loja.id)
-          .gte('quantidade', item.quantidade)
-          .select('id')
-      )
-    )
-
-    const indexFalhou = decrementos.findIndex(r => r.error || (r.data && r.data.length === 0))
-    if (indexFalhou !== -1) {
-      // Reverte os decrementos ja aplicados (best-effort, sem transacao)
-      const aplicados = decrementos.slice(0, indexFalhou)
-      await Promise.all(
-        aplicados.map((_, i) => {
-          const item = carrinho[i]
-          return supabase
-            .from('produtos')
-            .update({ quantidade: item.produto.quantidade })
-            .eq('id', item.produto.id)
-            .eq('loja_id', loja.id)
-        })
-      )
-      const item = carrinho[indexFalhou]
-      mostrarToast(`Estoque insuficiente para "${item.produto.nome}". Atualize a página.`, 'erro')
+    // Baixa de estoque + registro da venda numa RPC só (registrar_venda, em
+    // sql/2026-09-13-registrar-venda-rpc.sql), em transação no banco:
+    //   * decremento RELATIVO (quantidade = quantidade - N) com "quantidade >= N"
+    //     — antes gravávamos "cache do mount - N", e duas abas vendendo o mesmo
+    //     produto deixavam o estoque maior que o real (lost update, achado P1);
+    //   * valor_total/lucro saem do preço/custo VIVOS do banco, não do cache;
+    //   * qualquer item sem estoque desfaz tudo — sem os "reverts" manuais que
+    //     gravavam o cache por cima do banco.
+    const { data, error } = await supabase.rpc('registrar_venda', {
+      p_loja_id: loja.id,
+      p_itens: carrinho.map(item => ({ produto_id: item.produto.id, quantidade: item.quantidade })),
+      p_forma_pagamento: pagamento,
+    })
+    if (error) {
+      // A mensagem do RAISE já vem pronta ("Estoque insuficiente para X
+      // (disponível: N)", "Plano vencido...", ...).
+      mostrarToast(error.message || 'Erro ao registrar venda', 'erro')
       setConfirmando(false)
       carregar()
       return
     }
 
-    const inserts = carrinho.map(item => ({
-      loja_id: loja.id,
-      produto_id: item.produto.id,
-      quantidade: item.quantidade,
-      valor_total: item.produto.preco_venda * item.quantidade,
-      lucro: (item.produto.preco_venda - item.produto.custo) * item.quantidade,
-      forma_pagamento: pagamento,
-      origem: 'manual',
-    }))
-
-    const { error } = await supabase.from('vendas').insert(inserts)
-    if (error) {
-      // Reverte estoque ja decrementado
-      await Promise.all(
-        carrinho.map(item =>
-          supabase
-            .from('produtos')
-            .update({ quantidade: item.produto.quantidade })
-            .eq('id', item.produto.id)
-            .eq('loja_id', loja.id)
-        )
-      )
-      mostrarToast('Erro ao registrar venda', 'erro')
-      setConfirmando(false)
-      return
-    }
-
-    mostrarToast(`✓ Venda registrada! ${carrinho.length} produto(s)`, 'sucesso')
+    const total = Number(data?.valor_total ?? totalCarrinho)
+    mostrarToast(`✓ Venda registrada! ${carrinho.length} produto(s) — R$ ${total.toFixed(2)}`, 'sucesso')
     setCarrinho([])
     setProdutoId('')
     setQuantidade('1')
