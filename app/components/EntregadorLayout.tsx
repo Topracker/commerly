@@ -1,6 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
-import { LogOut, Bike, Bell } from 'lucide-react'
+import { Bike, Bell } from 'lucide-react'
+import BotaoSair from './BotaoSair'
 import type { Entregador } from '../lib/entregadores'
 import { useNotificacoes } from '../hooks/useNotificacoes'
 import { NotificacaoToast } from './NotificacaoToast'
@@ -44,13 +45,8 @@ export function EntregadorLayout({ entregador, sair, titulo, children }: Props) 
           )}
         </button>
         <TemaControle />
-        <button
-          onClick={sair}
-          className="shrink-0 text-gray-400 hover:text-white flex items-center gap-1.5 text-sm"
-          aria-label="Sair"
-        >
-          <LogOut size={16} />
-        </button>
+        {/* Texto some abaixo de 360px para não espremer o título; o ícone fica. */}
+        <BotaoSair variante="compacto" onClick={sair} className="[&>span]:hidden min-[360px]:[&>span]:inline" />
       </header>
       <main className="max-w-2xl mx-auto px-4 py-5 pb-24">{children}</main>
     </div>

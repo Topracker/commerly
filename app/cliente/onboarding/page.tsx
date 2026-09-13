@@ -7,6 +7,7 @@ import {
   erroTelefone, checarDuplicidade, MSG_DUPLICADO,
   checarLimiteCadastroIp, registrarCadastroIp, AVISO_VERIFICACAO,
 } from '../../lib/validacoes'
+import BotaoSair from '../../components/BotaoSair'
 import { outroPapel, msgCadastroOutroPapel } from '../../lib/papeis'
 
 export default function ClienteOnboarding() {
@@ -18,11 +19,22 @@ export default function ClienteOnboarding() {
   const router = useRouter()
   const supabase = createClient()
 
+  // E-mail da conta logada, só para o "Não é a sua conta? Sair".
+  const [emailConta, setEmailConta] = useState('')
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) router.push('/cliente/login')
+      if (!user) { router.push('/cliente/login'); return }
+      setEmailConta(user.email || '')
     })
   }, [])
+
+  // Única saída desta tela sem concluir o cadastro (mesma armadilha corrigida
+  // no onboarding do comerciante em 2026-09-13).
+  async function sairDaConta() {
+    await supabase.auth.signOut()
+    router.push('/cliente/login')
+  }
 
   async function salvar() {
     if (!nome.trim()) { setErro('Informe seu nome!'); return }
@@ -67,7 +79,13 @@ export default function ClienteOnboarding() {
       <div className="bg-gray-900 rounded-3xl p-8 w-full max-w-sm">
         <p className="text-green-400 text-sm font-semibold mb-1">Área do Cliente</p>
         <h1 className="text-2xl font-bold text-white mb-1">Bem-vindo!</h1>
-        <p className="text-gray-400 mb-6">Complete seu cadastro</p>
+        <p className="text-gray-400 mb-1">Complete seu cadastro</p>
+        <div className="mb-6 flex flex-col gap-2">
+          <p className="text-gray-500 text-xs">
+            Entrando como <span className="text-gray-300 break-all">{emailConta || 'sua conta'}</span>. Não é a sua conta?
+          </p>
+          <BotaoSair variante="destaque" onClick={sairDaConta} disabled={loading} label="Sair e entrar com outra conta" />
+        </div>
 
         {erro && <p className="text-red-400 text-sm mb-4">{erro}</p>}
 

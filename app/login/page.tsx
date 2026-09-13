@@ -8,6 +8,7 @@ import CampoSenha, { senhaValida } from '../components/CampoSenha'
 import CampoConvite from '../components/CampoConvite'
 import { situacaoPlano, type PlanoLoja } from '../lib/plano'
 import { outroPapel, msgLoginOutroPapel, msgCadastroOutroPapel } from '../lib/papeis'
+import BotaoSair from '../components/BotaoSair'
 
 type Tela =
   | 'escolha'
@@ -255,11 +256,8 @@ export default function Login() {
               <p className="font-bold">Criar minha loja</p>
               <p className="text-blue-200 text-sm">Cadastrar a loja nesta conta</p>
             </button>
-            <button onClick={trocarDeConta}
-              className="bg-gray-800 hover:bg-gray-700 text-white py-4 rounded-xl transition text-left px-5">
-              <p className="font-bold">Entrar com outra conta</p>
-              <p className="text-gray-400 text-sm">Minha loja foi cadastrada com outro e-mail</p>
-            </button>
+            <BotaoSair variante="destaque" onClick={trocarDeConta} label="Sair e entrar com outra conta" className="py-4" />
+            <p className="text-gray-500 text-xs text-center -mt-1">Minha loja foi cadastrada com outro e-mail</p>
           </div>
         )}
 

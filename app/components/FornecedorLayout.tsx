@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '../supabase'
 import { TemaControle } from './TemaControle'
-import { LayoutDashboard, Package, LogOut, Menu, X, MessageCircle, Settings, Star } from 'lucide-react'
+import { LayoutDashboard, Package, Menu, X, MessageCircle, Settings, Star } from 'lucide-react'
+import BotaoSair from './BotaoSair'
 
 const MENU = [
   { label: 'Dashboard', path: '/fornecedor/dashboard', icon: LayoutDashboard },
@@ -69,13 +70,7 @@ export function FornecedorLayout({ fornecedor, sair, titulo, children }: Props) 
         )
       })}
       <div className="mt-auto pt-2">
-        <button
-          onClick={sair}
-          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-gray-800 transition flex items-center gap-3 text-gray-400 text-sm"
-        >
-          <LogOut size={16} />
-          Sair
-        </button>
+        <BotaoSair variante="menu" onClick={sair} />
       </div>
     </div>
   )

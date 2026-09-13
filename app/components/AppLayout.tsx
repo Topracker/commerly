@@ -10,7 +10,8 @@ import { BarraStatusLoja } from './BarraStatusLoja'
 import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos } from '../lib/nicheStore'
 import { montarMenu, secaoDaRota, type BadgeKey } from '../lib/menu'
-import { LogOut, Menu, X, ChevronDown } from 'lucide-react'
+import { Menu, X, ChevronDown } from 'lucide-react'
+import BotaoSair from './BotaoSair'
 
 type Props = {
   loja: any
@@ -185,13 +186,7 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
       </div>
 
       <div className="pt-2 shrink-0">
-        <button
-          onClick={sair}
-          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-gray-800 transition flex items-center gap-3 text-gray-400 text-sm"
-        >
-          <LogOut size={16} />
-          Sair
-        </button>
+        <BotaoSair variante="menu" onClick={sair} />
       </div>
     </div>
   )

@@ -5,7 +5,8 @@ import { createClient } from '../supabase'
 import { useNotificacoes } from '../hooks/useNotificacoes'
 import { NotificacaoToast } from './NotificacaoToast'
 import { TemaControle } from './TemaControle'
-import { Search, Heart, MessageCircle, User, LogOut, Menu, X, Trophy, ShoppingBag, Bell, Sparkles, Rss, PartyPopper } from 'lucide-react'
+import { Search, Heart, MessageCircle, User, Menu, X, Trophy, ShoppingBag, Bell, Sparkles, Rss, PartyPopper } from 'lucide-react'
+import BotaoSair from './BotaoSair'
 
 const MENU = [
   { label: 'Feed', path: '/cliente/feed', icon: Rss },
@@ -99,13 +100,7 @@ export function ClienteLayout({
         )
       })}
       <div className="mt-auto pt-2">
-        <button
-          onClick={sair}
-          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-gray-800 transition flex items-center gap-3 text-gray-400 text-sm"
-        >
-          <LogOut size={16} />
-          Sair
-        </button>
+        <BotaoSair variante="menu" onClick={sair} />
       </div>
     </div>
   )
