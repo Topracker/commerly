@@ -65,6 +65,8 @@ export default function Onboarding() {
   // o redirect do useEffect é assíncrono e não impede um clique em "Começar"
   // antes dele — foi por aí que uma segunda loja chegou a ser criada.
   const jaTemLoja = useRef(false)
+  // E-mail da conta logada, só para o rodapé "Não é a sua conta? Sair".
+  const [emailConta, setEmailConta] = useState('')
 
   // Fluxo de IA para tipo "Outro"
   const [iaDescricao, setIaDescricao] = useState('')
@@ -81,11 +83,21 @@ export default function Onboarding() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) { router.push('/login'); return }
+      setEmailConta(user.email || '')
       supabase.from('lojas').select('id').eq('user_id', user.id).limit(1).maybeSingle().then(({ data }) => {
         if (data) { jaTemLoja.current = true; router.push('/dashboard') }
       })
     })
   }, [])
+
+  // Única saída desta tela sem criar loja. Sem isto, quem chegava aqui por
+  // engano (ex.: "Entrar com Google" numa conta nova, com a loja cadastrada em
+  // outro e-mail) ficava preso: todo o painel devolve para o onboarding quem
+  // não tem loja. O signOut apaga os cookies de sessão do @supabase/ssr.
+  async function sairDaConta() {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   function handleDocumento(valor: string) {
     const formatado = formatarDocumento(valor)
@@ -276,7 +288,14 @@ export default function Onboarding() {
       <Toast toast={toast} />
       <div className="bg-gray-900 rounded-3xl p-8 w-full max-w-md">
         <h1 className="text-2xl font-bold text-white mb-1">Cadastro da loja</h1>
-        <p className="text-gray-400 mb-6">Conta pra gente sobre o seu negócio</p>
+        <p className="text-gray-400 mb-1">Conta pra gente sobre o seu negócio</p>
+        <p className="text-gray-500 text-xs mb-6">
+          Entrando como <span className="text-gray-300 break-all">{emailConta || 'sua conta'}</span>.
+          Não é a sua conta?{' '}
+          <button type="button" onClick={sairDaConta} disabled={loading} className="text-blue-400 hover:text-blue-300 underline underline-offset-2">
+            Sair
+          </button>
+        </p>
 
         <div className="flex flex-col gap-4">
           <input

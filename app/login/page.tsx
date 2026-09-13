@@ -16,6 +16,10 @@ type Tela =
   | 'cadastro-otp-codigo'
   | 'login-otp-email'
   | 'login-otp-codigo'
+  // Sessão válida (ex.: voltou do Google) mas a conta não tem loja nem outro
+  // papel: em vez de cair direto no /onboarding — que não tinha saída — o
+  // usuário escolhe criar a loja ou trocar de conta.
+  | 'sem-loja'
 
 export default function Login() {
   const [tela, setTela] = useState<Tela>('escolha')
@@ -28,6 +32,8 @@ export default function Login() {
   const [usarOtp, setUsarOtp] = useState(false)
   const [erro, setErro] = useState('')
   const [loading, setLoading] = useState(false)
+  // E-mail da sessão sem loja (tela 'sem-loja').
+  const [emailSessao, setEmailSessao] = useState('')
   const router = useRouter()
   const supabase = createClient()
 
@@ -59,9 +65,26 @@ export default function Login() {
         return
       }
 
-      router.push('/onboarding')
+      // Sessão sem loja e sem outro papel. É o que acontece com "Entrar com
+      // Google" numa conta que ainda não existia (o OAuth cria a conta na
+      // hora) — ou com quem abandonou o cadastro. Não mandamos direto ao
+      // /onboarding: quem tem loja em OUTRO e-mail ficava preso lá sem
+      // entender (o onboarding não tinha saída e todo o painel devolve para
+      // ele). A tela 'sem-loja' deixa escolher: criar a loja ou trocar de conta.
+      setEmailSessao(session.user.email || '')
+      setTela('sem-loja')
     })
   }, [])
+
+  // "Entrar com outra conta": encerra a sessão (o @supabase/ssr apaga os
+  // cookies sb-*-auth-token, os mesmos que o /auth/callback gravou) e volta
+  // à tela inicial zerada.
+  async function trocarDeConta() {
+    await supabase.auth.signOut()
+    setEmailSessao('')
+    setEmail(''); setSenha(''); setErro('')
+    setTela('escolha')
+  }
 
   // ---- Etapas compartilhadas (após autenticar por senha ou OTP) ----
 
@@ -219,6 +242,26 @@ export default function Login() {
         <h1 className="text-2xl font-bold text-white mb-6">Commerly</h1>
 
         {erro && <p className="text-red-400 text-sm mb-4">{erro}</p>}
+
+        {tela === 'sem-loja' && (
+          <div className="flex flex-col gap-3">
+            <div className="bg-gray-800 rounded-xl px-5 py-4">
+              <p className="text-gray-400 text-sm">Você entrou como</p>
+              <p className="text-white font-semibold break-all">{emailSessao || 'sua conta'}</p>
+              <p className="text-gray-400 text-sm mt-2">Esta conta ainda não tem uma loja no Commerly.</p>
+            </div>
+            <button onClick={() => router.push('/onboarding')}
+              className="bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl transition text-left px-5">
+              <p className="font-bold">Criar minha loja</p>
+              <p className="text-blue-200 text-sm">Cadastrar a loja nesta conta</p>
+            </button>
+            <button onClick={trocarDeConta}
+              className="bg-gray-800 hover:bg-gray-700 text-white py-4 rounded-xl transition text-left px-5">
+              <p className="font-bold">Entrar com outra conta</p>
+              <p className="text-gray-400 text-sm">Minha loja foi cadastrada com outro e-mail</p>
+            </button>
+          </div>
+        )}
 
         {tela === 'escolha' && (
           <div className="flex flex-col gap-3">
