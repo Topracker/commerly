@@ -7,7 +7,7 @@ import { Toast } from '../components/Toast'
 import { isDelivery, STATUS_META, FLUXO_STATUS, proximoStatus, pedidoEmAndamento, type PedidoCliente, type StatusPedidoCliente } from '../lib/pedidosClientes'
 import { RAIO_BUSCA_KM, type ParceriaEntregador } from '../lib/entregadores'
 import { formatarDistancia } from '../lib/geo'
-import { MapPin, Phone, ShoppingBag, ChevronRight, Ban, Bike, Check, X, Search, SearchX, Loader2, AlertTriangle, Users } from 'lucide-react'
+import { MapPin, Phone, ShoppingBag, ChevronRight, Ban, Bike, Check, X, Search, SearchX, Loader2, AlertTriangle, Users, RefreshCw } from 'lucide-react'
 
 type EntregadorPublico = { id: string; nome: string; foto_url: string | null; telefone: string | null }
 
@@ -33,6 +33,8 @@ export default function PedidosComerciante() {
   const [, setAgora] = useState(0)
   // Pedido aguardando confirmação de cancelamento (modal).
   const [cancelando, setCancelando] = useState<PedidoCliente | null>(null)
+  // Pedido aguardando confirmação de LIBERAÇÃO do entregador sumido (modal).
+  const [liberando, setLiberando] = useState<PedidoCliente | null>(null)
 
   useEffect(() => { if (loja) carregar() }, [loja])
 
@@ -69,6 +71,27 @@ export default function PedidosComerciante() {
     } catch {
       setDespacho(prev => ({ ...prev, [pedidoId]: { status: 'erro', msg: 'Erro de rede.' } }))
     }
+  }
+
+  // Libera um pedido cujo entregador sumiu (GPS parado e sem resposta). O botão
+  // só aparece depois que a plataforma já perguntou a ele — tirar a corrida de
+  // quem está com o GPS em dia seria arbitrário, e a API recusa com 409.
+  async function liberarEntregador(pedido: PedidoCliente) {
+    setSalvando(pedido.id)
+    try {
+      const res = await fetch('/api/entrega/liberar-entregador', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pedido_id: pedido.id }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) { mostrarToast(d.error || 'Não foi possível liberar.', 'erro'); return }
+      mostrarToast(
+        d.redispatch === 'ofertado' ? 'Pedido liberado. Já ofertamos a outro entregador.' : 'Pedido liberado. Procurando outro entregador.',
+        'sucesso',
+      )
+      setLiberando(null)
+      carregar()
+    } catch { mostrarToast('Erro de rede.', 'erro') } finally { setSalvando(null) }
   }
 
   function pararBusca(pedidoId: string) {
@@ -315,15 +338,40 @@ export default function PedidosComerciante() {
         {/* Entrega por entregador parceiro */}
         <div className="mt-3 pt-3 border-t border-gray-800 flex flex-col gap-2">
           {p.entregador_id ? (
-            <div className="flex items-center gap-2 text-sm">
-              <Bike size={15} className="text-acento shrink-0" />
-              <span className="text-gray-300 truncate">Entregador: <strong className="text-white">{entregadores[p.entregador_id]?.nome || 'atribuído'}</strong></span>
-              {p.status === 'entregue' && (
-                <span className={`ml-auto shrink-0 text-[11px] px-2 py-0.5 rounded-full ${p.pagamento_corrida === 'pago' ? 'bg-green-500/15 text-green-300' : 'bg-amber-500/15 text-amber-300'}`}>
-                  {p.pagamento_corrida === 'pago' ? 'Corrida paga' : 'Pagamento pendente'}
-                </span>
+            <>
+              <div className="flex items-center gap-2 text-sm">
+                <Bike size={15} className="text-acento shrink-0" />
+                <span className="text-gray-300 truncate">Entregador: <strong className="text-white">{entregadores[p.entregador_id]?.nome || 'atribuído'}</strong></span>
+                {p.status === 'entregue' && (
+                  <span className={`ml-auto shrink-0 text-[11px] px-2 py-0.5 rounded-full ${p.pagamento_corrida === 'pago' ? 'bg-green-500/15 text-green-300' : 'bg-amber-500/15 text-amber-300'}`}>
+                    {p.pagamento_corrida === 'pago' ? 'Corrida paga' : 'Pagamento pendente'}
+                  </span>
+                )}
+              </div>
+              {/* ENTREGADOR SEM SINAL: o GPS dele parou de subir e a plataforma já
+                  perguntou se ainda está com o pedido. Antes, o pedido era repassado
+                  em silêncio e ninguém ficava sabendo — nem o comerciante. */}
+              {p.status === 'saiu' && p.entrega_confirmacao_pedida_em && (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
+                  <p className="text-amber-200 text-xs font-semibold flex items-start gap-1.5">
+                    <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+                    <span>Entregador sem sinal de GPS. Perguntamos se ele ainda está com o pedido.</span>
+                  </p>
+                  <p className="text-gray-400 text-[11px] mt-1">
+                    {p.festa_id
+                      ? 'Pedido de festa: não repassamos automaticamente. Liberar aqui repassa a festa inteira.'
+                      : 'Se ele não responder, repassamos automaticamente. Fale com ele antes de liberar — pode estar chegando no cliente.'}
+                  </p>
+                  <button
+                    onClick={() => setLiberando(p)}
+                    disabled={salvando === p.id}
+                    className="mt-2 w-full flex items-center justify-center gap-1.5 bg-gray-800 hover:bg-amber-500/20 hover:border-amber-500/50 border border-gray-700 text-gray-200 text-xs font-semibold py-2 rounded-xl transition disabled:opacity-50"
+                  >
+                    <RefreshCw size={13} /> Liberar para outro entregador
+                  </button>
+                </div>
               )}
-            </div>
+            </>
           ) : pedidoEmAndamento(p.status) ? (
             <div>
               {/* Alertas de demora do watchdog (15 min amarelo / 30 min vermelho). */}
@@ -443,6 +491,41 @@ export default function PedidosComerciante() {
   return (
     <AppLayout loja={loja} sair={sair} titulo="Pedidos online">
       <Toast toast={toast} />
+
+      {/* Confirmação de liberação — tira a corrida de alguém, então pergunta antes. */}
+      {liberando && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => { if (salvando !== liberando.id) setLiberando(null) }}>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <h2 className="font-display text-white font-bold text-lg mb-1">Liberar para outro entregador?</h2>
+            <p className="text-gray-400 text-sm mb-3">
+              Pedido de <strong className="text-white">{liberando.anonimo ? 'cliente anônimo' : (liberando.cliente_nome || 'cliente')}</strong>
+              {' '}— entregador atual: <strong className="text-white">{(liberando.entregador_id && entregadores[liberando.entregador_id]?.nome) || 'atribuído'}</strong>
+            </p>
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 mb-4 text-sm text-amber-200">
+              ⚠️ Ele pode estar com o pedido em mãos e só sem sinal. <strong>Tente falar com ele antes.</strong>
+              {liberando.festa_id
+                ? ' Esta é uma entrega de festa: a festa inteira será repassada.'
+                : ' Ao liberar, a corrida deixa de ser dele e chamamos outro entregador.'}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setLiberando(null)}
+                disabled={salvando === liberando.id}
+                className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold py-2.5 rounded-xl transition text-sm"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={() => liberarEntregador(liberando)}
+                disabled={salvando === liberando.id}
+                className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition text-sm"
+              >
+                {salvando === liberando.id ? 'Liberando...' : 'Liberar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmação de cancelamento — avisa do estorno quando pago online. */}
       {cancelando && (

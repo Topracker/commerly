@@ -454,6 +454,43 @@ código (ID) e trocar esse código pelo de outra pessoa.
 - [ ] Pagar e conferir que o pedido aparece em `/cliente/pedidos` **depois** do
       pagamento (pode levar alguns segundos).
 
+### Entregador sem sinal de GPS (D6)
+
+> Cenário: o entregador está **com o pedido em mãos** mas bloqueou a tela do
+> celular, e o GPS para de subir. Antes disto o pedido era repassado a outro
+> entregador em silêncio — ninguém era avisado, nem ele. Agora a plataforma
+> **pergunta** antes: 6 min sem GPS abrem a pergunta, e são mais 4 min para ele
+> responder (10 min no total, igual ao prazo antigo).
+
+- [ ] **Entregador:** aceitar um pedido, o comerciante marcar **"saiu para
+      entrega"**, e então **desligar a localização** do aparelho (ou fechar o app).
+- [ ] Nos **primeiros 6 minutos**, conferir que **nada** acontece nos três papéis
+      (sem notificação, sem alerta, sem repasse).
+- [ ] Aos **~6 minutos**: o **entregador** recebe a notificação "Ainda está com o
+      pedido? 🛵" (e o push, se tiver permitido); o **comerciante** vê a faixa
+      âmbar "Entregador sem sinal de GPS" com o botão **"Liberar para outro
+      entregador"**; o **cliente** vê "Confirmando com o entregador...".
+- [ ] **Entregador:** tocar em **"Sim, estou com o pedido"** e conferir que o
+      alerta some nos três papéis e que a loja recebe "Entregador confirmou".
+- [ ] Repetir o ciclo (desligar o GPS de novo) e conferir que a pergunta volta
+      depois de ~6 min — o relógio reinicia a cada confirmação.
+- [ ] Deixar o prazo **vencer sem responder**: aos ~10 min o pedido é repassado,
+      o entregador antigo recebe "Corrida repassada", o cliente vê "Buscando novo
+      entregador" e a corrida é ofertada a outro entregador.
+- [ ] **Sem tocar em nada:** provocar a pergunta e depois apenas **reabrir o app
+      do entregador**. Só voltar para a tela deve mandar a posição e apagar o
+      alerta sozinho (é o caso mais comum na rua).
+- [ ] Repetir e, desta vez, o **comerciante** clicar em **"Liberar para outro
+      entregador"** por volta dos 7 min: confirmar que o modal avisa que ele pode
+      estar só sem sinal, e que ao liberar a corrida sai das mãos dele.
+- [ ] **Multi-entrega:** com **2 pedidos no mesmo lote**, deixar um ser liberado e
+      conferir que o **lote se desfaz** (o pedido irmão volta a ser agrupável).
+- [ ] **Modo Festa:** com um pedido de festa, conferir que aos 10 min o pedido
+      **NÃO** é repassado automaticamente (só o alerta fica) e que o botão da loja
+      libera a **festa inteira**.
+- [ ] **Contraprova (importante):** um pedido com o GPS **normal** por 15 minutos
+      não pode gerar nenhum alerta nem repasse.
+
 ---
 
 ## 7. MODO FESTA E MULTI-ENTREGA

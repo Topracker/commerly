@@ -65,6 +65,15 @@ export type PedidoCliente = {
   despacho_esgotado_em?: string | null
   despacho_pool_em?: string | null
   despacho_alerta?: 'amarelo' | 'vermelho' | null
+  // Modo Festa: pedidos de uma mesma festa são entregues juntos num endereço só
+  // e a corrida é ofertada por `festa_id`, não por pedido.
+  festa_id?: string | null
+  // Entregador sumido EM ROTA (lib/entregaConfirmacao.ts): quando perguntamos a
+  // ele se ainda está com o pedido (GPS parado) e quando ele respondeu que sim.
+  // `entrega_confirmacao_pedida_em` não-nulo = pendência aberta: o entregador vê
+  // o botão de confirmar e a loja vê o botão de liberar para outro.
+  entrega_confirmacao_pedida_em?: string | null
+  entrega_confirmada_em?: string | null
   created_at: string
   updated_at: string
 }

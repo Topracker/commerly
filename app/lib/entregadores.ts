@@ -94,8 +94,18 @@ export const TEMPO_RESPOSTA_CORRIDA_S = 30
 export const FRESCOR_LOCALIZACAO_MS = 5 * 60_000
 /** Intervalo com que o app do entregador grava a posição no banco enquanto online (ms). */
 export const LOCALIZACAO_PING_MS = 15_000
-/** Sem atualizar o GPS por este tempo (saiu para entrega) => reentrega automática. */
-export const GPS_INATIVIDADE_MS = 10 * 60_000
+// ── Entregador sumido em rota: confirmação pendente, não liberação silenciosa ──
+// Antes, 10 min sem GPS liberavam o pedido na hora e ninguém era avisado — nem o
+// entregador, que podia estar com o pedido EM MÃOS e só com a tela bloqueada (o
+// navegador congela o JS e o GPS para de subir). Agora a inatividade abre uma
+// PERGUNTA; a liberação só vem se ele não responder nem voltar a mandar posição.
+// As duas janelas somam os mesmos 10 min de antes: o cliente não espera mais que
+// esperava, e a loja ainda pode liberar antes disso por botão.
+
+/** Sem GPS por este tempo (em rota) => pergunta ao entregador se ainda está com o pedido. */
+export const GPS_SEM_SINAL_MS = 6 * 60_000
+/** Tempo que o entregador tem para responder (ou mandar GPS novo) antes de perder a corrida. */
+export const CONFIRMACAO_ENTREGA_MS = 4 * 60_000
 
 export type StatusOferta = 'pendente' | 'aceita' | 'recusada' | 'expirada'
 

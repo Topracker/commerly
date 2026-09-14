@@ -353,6 +353,20 @@ export default function ClientePedidos() {
                     </div>
                   )}
 
+                  {/* ENTREGADOR SEM SINAL — estado intermediário. Antes o pedido
+                      pulava direto de "a caminho" para "buscando novo entregador";
+                      na maioria das vezes é só a tela do entregador bloqueada e ele
+                      volta em segundos, então vale dizer o que está acontecendo. */}
+                  {p.status === 'saiu' && p.entregador_id && p.entrega_confirmacao_pedida_em && (
+                    <div className="mb-3 bg-amber-500/10 border border-amber-500/40 rounded-xl p-3 flex items-center gap-3">
+                      <Loader2 size={20} className="text-amber-300 shrink-0 animate-spin" />
+                      <div className="min-w-0">
+                        <p className="text-amber-200 font-semibold text-sm">Confirmando com o entregador...</p>
+                        <p className="text-gray-400 text-xs">Ficamos sem a localização dele por alguns minutos. Se não confirmar, chamamos outro entregador.</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* ETA dinâmico — "Chegando em X minutos" (atualiza a cada 10s) */}
                   {p.status === 'saiu' && eta != null && (
                     <div className="mb-3 bg-green-500/10 border border-green-500/40 rounded-xl p-3 flex items-center gap-3">

@@ -27,7 +27,7 @@ import Link from 'next/link'
 import {
   Store, MapPin, Navigation, CircleDollarSign, Check, Handshake, PackageCheck,
   Star, History, Power, Wallet, Bike, TrendingUp,
-  Award, Trophy, Target, Camera, WifiOff, RefreshCw, X, Layers,
+  Award, Trophy, Target, Camera, WifiOff, RefreshCw, X, Layers, AlertTriangle,
 } from 'lucide-react'
 
 type Avaliacao = { nota: number; comentario: string | null; created_at: string }
@@ -70,6 +70,11 @@ function EntregadorDashboard() {
   const [comprovantes, setComprovantes] = useState<Record<string, { file: File; preview: string }>>({})
   // Conexão: 'online' | 'offline' | 'sincronizando' (Modo Offline do GPS).
   const [conexao, setConexao] = useState<'online' | 'offline' | 'sincronizando'>('online')
+  // Ids das entregas que são minhas AGORA, e se a lista já carregou uma vez.
+  // Lidos de dentro de listeners (online/visibilitychange) cujo closure é
+  // criado uma vez só — por isso ref, e não a variável derivada do render.
+  const ativasIdsRef = useRef<Set<string>>(new Set())
+  const pedidosCarregadosRef = useRef(false)
 
   // Online/Offline: agora persistido no banco (entregadores.disponivel) — é o que
   // coloca o entregador no POOL de despacho. Offline = não recebe corridas.
@@ -189,7 +194,35 @@ function EntregadorDashboard() {
     setPedidos((pedidosRes.data || []) as PedidoCliente[])
     setAvaliacoes((avalRes.data || []) as Avaliacao[])
     setRanking((rankingRes.data || []) as RankingEntregador[])
+    pedidosCarregadosRef.current = true
     setCarregando(false)
+  }
+
+  // "Ainda estou com o pedido": responde ao aviso de GPS parado. Manda a posição
+  // junto quando o navegador deixa — é o GPS novo que de fato reinicia o relógio.
+  async function confirmarRota(pedidoId: string) {
+    setAcao(pedidoId)
+    const enviarConfirmacao = async (coords?: { latitude: number; longitude: number }) => {
+      try {
+        const res = await fetch('/api/entregador/confirmar-rota', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pedido_id: pedidoId, ...coords }),
+        })
+        const d = await res.json().catch(() => ({}))
+        if (!res.ok) { mostrarToast(d.error || 'Não foi possível confirmar.', 'erro'); return }
+        mostrarToast('Confirmado! A loja foi avisada de que você está com o pedido.', 'sucesso')
+        carregar()
+      } catch { mostrarToast('Erro de rede.', 'erro') } finally { setAcao(null) }
+    }
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => void enviarConfirmacao({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+        () => void enviarConfirmacao(),
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 9000 },
+      )
+    } else {
+      void enviarConfirmacao()
+    }
   }
 
   async function checarStripe() {
@@ -355,9 +388,19 @@ function EntregadorDashboard() {
   async function sincronizarFila() {
     const fila = lerFila()
     if (fila.length === 0) return
+    // Sem a lista carregada não dá para saber o que ainda é meu; o próximo tique
+    // do GPS tenta de novo.
+    if (!pedidosCarregadosRef.current) return
+    // Pedido que já não é meu não recebe mais posição minha. `entregas_localizacao`
+    // tem PK (pedido_id) — uma linha por pedido — e enquanto a Parte 2 do fix D6
+    // (policy exigindo o dono ATUAL do pedido) não for aplicada, este despejo
+    // sobrescreveria o GPS do entregador novo e o cliente veria a posição errada.
+    const fresca = fila.filter(f => ativasIdsRef.current.has(f.pedido_id))
+    if (fresca.length !== fila.length) gravarFila(fresca)
+    if (fresca.length === 0) { setConexao('online'); return }
     setConexao('sincronizando')
     const pendentes: GpsPonto[] = []
-    for (const ponto of fila) {
+    for (const ponto of fresca) {
       const { error } = await supabase.from('entregas_localizacao').upsert(ponto)
       if (error) pendentes.push(ponto)
     }
@@ -379,6 +422,9 @@ function EntregadorDashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entregador?.id])
+
+  // Espelha as entregas que são minhas agora para quem lê de dentro de listener.
+  useEffect(() => { ativasIdsRef.current = new Set(ativas.map(p => p.id)) })
 
   // ---- GPS em tempo real: enquanto houver entrega "saiu para entrega" ----
   const emRotaKey = ativas.filter(p => p.status === 'saiu').map(p => p.id).join(',')
@@ -415,9 +461,44 @@ function EntregadorDashboard() {
         { enableHighAccuracy: true, maximumAge: 5000, timeout: 9000 },
       )
     }
+    // WAKE LOCK: segura a tela acesa enquanto ele está em rota, para o navegador
+    // não suspender o JS no timeout automático. Não impede o bloqueio MANUAL do
+    // aparelho — é por isso que a confirmação pendente existe; isto só reduz a
+    // frequência do problema. Sem suporte (Safari antigo) ou negado: segue sem.
+    let wakeLock: { release?: () => Promise<void>; addEventListener?: (e: string, f: () => void) => void } | null = null
+    async function pedirWakeLock() {
+      try {
+        const nav = navigator as unknown as { wakeLock?: { request: (t: string) => Promise<any> } }
+        if (!nav.wakeLock || wakeLock || document.visibilityState !== 'visible') return
+        wakeLock = await nav.wakeLock.request('screen')
+        wakeLock?.addEventListener?.('release', () => { wakeLock = null })
+      } catch { /* sem wake lock: o fluxo de confirmação cobre */ }
+    }
+
+    // VOLTOU PARA A TELA: recarrega a lista ANTES de mandar posição (se ele
+    // perdeu a corrida enquanto o celular estava bloqueado, não queremos gravar
+    // GPS num pedido que já é de outro) e manda uma posição na hora, sem esperar
+    // o próximo tique. Esse ping é o que apaga a pergunta "ainda está com o
+    // pedido?" sozinho, sem ele precisar tocar em nada.
+    const aoVoltar = () => {
+      if (document.visibilityState !== 'visible') return
+      void pedirWakeLock()
+      void (async () => {
+        await carregar()
+        if (!parado) enviar()
+      })()
+    }
+
     enviar()
+    void pedirWakeLock()
+    document.addEventListener('visibilitychange', aoVoltar)
     const iv = setInterval(enviar, GPS_INTERVALO_MS)
-    return () => { parado = true; clearInterval(iv) }
+    return () => {
+      parado = true
+      clearInterval(iv)
+      document.removeEventListener('visibilitychange', aoVoltar)
+      try { void wakeLock?.release?.() } catch { /* já liberado */ }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emRotaKey, entregador?.id])
 
@@ -911,6 +992,24 @@ function EntregadorDashboard() {
 
                       {p.status === 'saiu' ? (
                         <div className="mt-3">
+                          {/* GPS parou de subir: a plataforma perguntou se ele ainda
+                              está com o pedido. Sem resposta (nem GPS novo) a corrida
+                              é repassada — antes isso acontecia em silêncio. */}
+                          {p.entrega_confirmacao_pedida_em && (
+                            <div className="mb-3 bg-amber-500/10 border border-amber-500/40 rounded-xl p-3">
+                              <p className="text-amber-200 text-sm font-semibold flex items-center gap-1.5">
+                                <AlertTriangle size={14} className="shrink-0" /> Ainda está com este pedido?
+                              </p>
+                              <p className="text-amber-100/80 text-xs mt-1">
+                                Sua localização parou de chegar até nós. Confirme para não perder a corrida —
+                                a loja já foi avisada e pode repassar a entrega.
+                              </p>
+                              <button onClick={() => confirmarRota(p.id)} disabled={acao === p.id}
+                                className="mt-2.5 w-full flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-black font-bold py-2.5 rounded-xl transition text-sm">
+                                <Check size={16} /> {acao === p.id ? 'Confirmando...' : 'Sim, estou com o pedido'}
+                              </button>
+                            </div>
+                          )}
                           {/* Comprovante de entrega (foto opcional) */}
                           <div className="flex items-center gap-3 mb-2.5">
                             {comprovantes[p.id]?.preview && (

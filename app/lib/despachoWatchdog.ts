@@ -3,6 +3,10 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { ofertarProximoEntregador } from './dispatch'
 import { RAIO_BUSCA_KM } from './entregadores'
 import { dispatchPushPedido } from './pushDispatch'
+import {
+  avaliarEntregaEmRota, CAMPOS_PEDIDO_EM_ROTA,
+  type LojaEntrega, type PedidoEmRota,
+} from './entregaConfirmacao'
 
 // ============================================================================
 // WATCHDOG DE DESPACHO
@@ -40,6 +44,8 @@ const PRECISA_ENTREGADOR = ['recebido', 'preparando']
 export type AcaoWatchdog =
   | 'ofertado' | 'esperando' | 'esgotado' | 'pool_liberado'
   | 'alerta_amarelo' | 'alerta_vermelho' | 'sem_localizacao' | 'nada'
+  // Entrega JÁ em rota (lib/entregaConfirmacao.ts).
+  | 'confirmacao_pedida' | 'entrega_liberada' | 'aguardando_festa'
 
 export type ResultadoWatchdog = { pedido_id: string; acoes: AcaoWatchdog[] }
 
@@ -182,6 +188,59 @@ async function processarPedido(
 }
 
 /**
+ * Entregas JÁ EM ROTA (status 'saiu'): mantém andando a máquina de confirmação
+ * pendente de lib/entregaConfirmacao.ts — pergunta ao entregador cujo GPS parou
+ * e, vencido o prazo sem resposta, libera o pedido.
+ *
+ * Sem esta passada, a máquina só andaria enquanto a tela do CLIENTE estivesse
+ * aberta (é ela que chama /api/entrega/checar-entregador). Cliente de tela
+ * fechada + entregador de tela bloqueada = corrida presa até alguém abrir algo.
+ * Aqui o painel do comerciante (poll de 30s) e o cron diário também empurram.
+ */
+async function rodarEntregasEmRota(
+  admin: SupabaseClient,
+  lojaId?: string,
+  pedidoId?: string,
+): Promise<ResultadoWatchdog[]> {
+  let q = admin
+    .from('pedidos_clientes')
+    .select(CAMPOS_PEDIDO_EM_ROTA)
+    .eq('status', 'saiu')
+    .not('entregador_id', 'is', null)
+    .order('updated_at', { ascending: true })
+    .limit(lojaId || pedidoId ? 50 : 200)
+  if (lojaId) q = q.eq('loja_id', lojaId)
+  if (pedidoId) q = q.eq('id', pedidoId)
+
+  const { data } = await q
+  const emRota = (data || []) as unknown as PedidoEmRota[]
+  if (emRota.length === 0) return []
+
+  const lojaIds = [...new Set(emRota.map(p => p.loja_id))]
+  const { data: lojas } = await admin
+    .from('lojas').select('id, user_id, nome, latitude, longitude').in('id', lojaIds)
+  const mapaLojas = new Map(((lojas || []) as unknown as LojaEntrega[]).map(l => [l.id, l]))
+
+  const resultados: ResultadoWatchdog[] = []
+  for (const pedido of emRota) {
+    const loja = mapaLojas.get(pedido.loja_id)
+    if (!loja) continue
+    try {
+      const r = await avaliarEntregaEmRota(admin, pedido, loja)
+      if (r.estado === 'ok') continue
+      const acao: AcaoWatchdog =
+        r.estado === 'liberado' ? 'entrega_liberada'
+          : r.estado === 'confirmacao_pedida' ? 'confirmacao_pedida'
+            : 'aguardando_festa'
+      resultados.push({ pedido_id: pedido.id, acoes: [acao] })
+    } catch (e) {
+      console.error('[watchdog] entrega em rota falhou para', pedido.id, e)
+    }
+  }
+  return resultados
+}
+
+/**
  * Roda o watchdog. Sem `lojaId`, varre todos os pedidos pendentes da plataforma
  * (uso do cron); com `lojaId`, só os daquela loja (uso do painel /pedidos, que
  * chama isto periodicamente enquanto o comerciante está com a aba aberta).
@@ -196,6 +255,10 @@ export async function rodarWatchdog(
   await admin.from('corrida_ofertas').update({ status: 'expirada' })
     .eq('status', 'pendente').lt('expira_em', new Date().toISOString())
 
+  // Entregas em rota primeiro: um pedido liberado aqui vira, no mesmo instante,
+  // pedido SEM entregador — e a varredura abaixo já o pega na cadeia de ofertas.
+  const resultados: ResultadoWatchdog[] = await rodarEntregasEmRota(admin, lojaId, pedidoId)
+
   let q = admin
     .from('pedidos_clientes')
     .select('id, loja_id, status, created_at, despacho_esgotado_em, despacho_pool_em, despacho_alerta')
@@ -208,7 +271,7 @@ export async function rodarWatchdog(
 
   const { data: pedidos } = await q
   const lista = (pedidos || []) as PedidoWatchdog[]
-  if (lista.length === 0) return []
+  if (lista.length === 0) return resultados
 
   // O watchdog só cuida de pedidos cuja BUSCA JÁ FOI INICIADA — pelo botão
   // "Buscar entregador próximo" ou pelo despacho da festa. Comerciante que
@@ -218,14 +281,13 @@ export async function rodarWatchdog(
     .from('corrida_ofertas').select('pedido_id').in('pedido_id', lista.map(p => p.id))
   const iniciados = new Set((comOferta || []).map(o => o.pedido_id as string))
   const alvos = lista.filter(p => iniciados.has(p.id) || p.despacho_pool_em)
-  if (alvos.length === 0) return []
+  if (alvos.length === 0) return resultados
 
   const lojaIds = [...new Set(alvos.map(p => p.loja_id))]
   const { data: lojas } = await admin
     .from('lojas').select('id, user_id, nome, latitude, longitude, delivery_ativo').in('id', lojaIds)
   const mapaLojas = new Map((lojas || []).map((l: any) => [l.id, l as LojaWatchdog]))
 
-  const resultados: ResultadoWatchdog[] = []
   for (const pedido of alvos) {
     const loja = mapaLojas.get(pedido.loja_id)
     if (!loja) continue

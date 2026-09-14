@@ -8,6 +8,8 @@ export type TipoNotificacao =
   | 'flash_sale' | 'retencao' | 'relatorio' | 'despacho'
   | 'kit_status' | 'medalha' | 'missao' | 'ranking' | 'cidade' | 'convite'
   | 'promocao' | 'boas_vindas'
+  // "Ainda está com o pedido?" — entregador em rota cujo GPS parou de subir.
+  | 'entrega_confirmar'
 
 export type Notificacao = {
   id: string
@@ -41,6 +43,7 @@ export const EMOJI_NOTIFICACAO: Record<TipoNotificacao, string> = {
   convite: '💌',
   promocao: '🏷️',
   boas_vindas: '🎉',
+  entrega_confirmar: '🛵',
 }
 
 // ── Categorias da tela de notificações ──────────────────────────────────────
@@ -56,7 +59,7 @@ export type CategoriaNotificacao = {
 }
 
 export const CATEGORIAS_NOTIFICACAO: CategoriaNotificacao[] = [
-  { id: 'pedidos',   label: 'Pedidos',   tipos: ['pedido_novo', 'pedido_status', 'despacho', 'corrida_oferta', 'kit_status'] },
+  { id: 'pedidos',   label: 'Pedidos',   tipos: ['pedido_novo', 'pedido_status', 'despacho', 'corrida_oferta', 'entrega_confirmar', 'kit_status'] },
   { id: 'medalhas',  label: 'Medalhas',  tipos: ['medalha'] },
   { id: 'missoes',   label: 'Missões',   tipos: ['missao'] },
   { id: 'ranking',   label: 'Ranking',   tipos: ['ranking'] },
