@@ -255,8 +255,12 @@ export async function rodarWatchdog(
   await admin.from('corrida_ofertas').update({ status: 'expirada' })
     .eq('status', 'pendente').lt('expira_em', new Date().toISOString())
 
-  // Entregas em rota primeiro: um pedido liberado aqui vira, no mesmo instante,
-  // pedido SEM entregador — e a varredura abaixo já o pega na cadeia de ofertas.
+  // Entregas em rota primeiro. Atenção: o pedido liberado continua em 'saiu'
+  // (é o visual "buscando" do cliente), e a varredura abaixo só olha 'recebido'
+  // e 'preparando' — quem reoferta é a própria liberação, chamando
+  // ofertarProximoEntregador uma vez. Se ESSA oferta esgotar, hoje ninguém
+  // retoma a cadeia para um pedido em 'saiu'; é um buraco que já existia antes
+  // deste fix e que continua aqui.
   const resultados: ResultadoWatchdog[] = await rodarEntregasEmRota(admin, lojaId, pedidoId)
 
   let q = admin
