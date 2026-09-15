@@ -8,6 +8,15 @@
 //
 // Sem essa garantia isto vira aumento de preço no meio do checkout, que além
 // de hostil é problema de CDC (art. 39, X — elevar preço sem justa causa).
+//
+// A recíproca também vale, e é o achado V2b da auditoria de 2026-09-11: depois
+// que o cliente PAGOU, o preço cobrado é a fonte da verdade e nada o recalcula.
+// O Pix tem 30 min de QR, então o pedido cobrado às 21:55 com fator 1,10 pode
+// nascer às 22:03, fora da janela — e o guard gravava o subtotal sem o fator,
+// 10% abaixo do que foi cobrado e transferido para a loja. Hoje o guard mantém
+// `itens[].preco` do pedido pendente quando o insert vem do webhook
+// (service_role + stripe_session_id); ver
+// sql/2026-09-14-guard-subtotal-pedido-pago.sql.
 
 /**
  * Janela de pico: sexta (5), sábado (6) e domingo (0), das 18h às 21h59.

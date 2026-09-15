@@ -74,12 +74,37 @@ export async function POST(request: NextRequest) {
 
     const paymentIntent = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id
 
+    // Conferência de valor: o pendente foi montado no checkout e é ele que o
+    // guard usa como fonte da verdade do pedido pago (V2 na taxa, V2b no
+    // subtotal). Se por algum motivo ele divergir do que a Stripe realmente
+    // cobrou, é sinal de bug no checkout — registramos com o que dá para
+    // rastrear e SEGUIMOS: o cliente já pagou, e não criar o pedido seria pior
+    // do que criá-lo com um centavo de diferença.
+    const cobradoCents = session.amount_total ?? null
+    const pendenteCents = Math.round((Number(pend.total) || 0) * 100)
+    if (cobradoCents != null && cobradoCents !== pendenteCents) {
+      console.error(
+        '[stripe/webhook] divergência de valor no pedido pago:',
+        JSON.stringify({
+          pendente_id: pendenteId,
+          session_id: session.id,
+          payment_intent: paymentIntent,
+          loja_id: pend.loja_id,
+          cobrado_cents: cobradoCents,
+          pendente_cents: pendenteCents,
+          diferenca_cents: cobradoCents - pendenteCents,
+        }),
+      )
+    }
+
     const { data: novoPedido, error: insErr } = await supabase.from('pedidos_clientes').insert({
       loja_id: pend.loja_id,
       cliente_id: pend.cliente_id,
+      // O guard MANTÉM estes preços em vez de recalcular: são os que a Stripe
+      // cobrou (service_role + stripe_session_id — V2 na taxa, V2b nos itens).
+      // Recalcular aqui gravava valores diferentes do pago sempre que o Pix
+      // cruzava 18h/22h, ou que o preço/promoção mudou durante os 30 min do QR.
       itens: pend.itens,
-      // O guard recalcula o subtotal (preço autoritativo) mas MANTÉM esta taxa:
-      // é a que a Stripe cobrou (service_role + stripe_session_id, V2).
       total: pend.total,
       taxa_entrega: pend.taxa_entrega,
       endereco_entrega: pend.endereco_entrega,
@@ -92,6 +117,9 @@ export async function POST(request: NextRequest) {
       anonimo: pend.anonimo === true,
       // #5 Teto de preço que foi exibido ao cliente antes de ele pagar.
       fator_exibido: pend.fator_exibido ?? null,
+      // #5/V2b Fator efetivamente COBRADO no checkout. O guard registra este no
+      // pedido; recalculá-lo com a hora do webhook zerava o pico (straddle).
+      preco_dinamico_fator: pend.preco_dinamico_fator ?? null,
       // Resgate de pontos: o guard reaplica o mesmo desconto (determinístico a
       // partir de pontos_usados) e o trigger de acúmulo debita/credita o saldo.
       pontos_usados: pend.pontos_usados || 0,

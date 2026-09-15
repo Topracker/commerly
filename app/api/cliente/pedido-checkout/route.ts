@@ -87,6 +87,10 @@ export async function POST(request: NextRequest) {
   // #5 Preço dinâmico: o Stripe precisa cobrar exatamente o que o guard vai
   // gravar no pedido. Repetimos aqui a mesma conta — fator real, limitado pelo
   // fator que foi exibido ao cliente.
+  //
+  // V2b: este fator é o COBRADO, e é ele que vale no pedido — o guard não
+  // recalcula preço de pedido pago (o Pix tem 30 min de QR e cruzaria as 22h
+  // com outro fator). Por isso ele viaja no pendente até o webhook.
   const { data: lojaPreco } = await admin
     .from('lojas').select('preco_dinamico').eq('id', loja.id).maybeSingle()
 
@@ -177,6 +181,9 @@ export async function POST(request: NextRequest) {
     // #5 Teto de preço mostrado ao cliente; sobrevive à ida ao Stripe.
     fator_exibido: Number.isFinite(Number(fator_exibido)) && Number(fator_exibido) >= 1
       ? Number(fator_exibido) : null,
+    // #5/V2b Fator efetivamente COBRADO (≠ teto). O guard grava este no pedido
+    // pago em vez de recalcular com a hora do webhook.
+    preco_dinamico_fator: fator,
   }).select('id').single()
   if (pendErr || !pend) {
     console.error('[pedido-checkout] erro ao gravar pendente:', pendErr?.message)
