@@ -29,6 +29,8 @@ import {
 //   5. 30 min sem entregador -> alerta VERMELHO + sugestão de aumentar o raio.
 //
 // Cada alerta sai UMA vez (a coluna `despacho_alerta` guarda o último enviado).
+// Os passos 4 e 5 valem só para pedido que NUNCA teve entregador — o que perdeu
+// o seu em rota (status 'saiu') escala pelos passos 2 e 3; ver processarPedido.
 // ============================================================================
 
 /** Esgotou o raio: tempo até devolver o pedido ao pool aberto. */
@@ -38,8 +40,16 @@ export const ALERTA_AMARELO_MS = 15 * 60_000
 /** Sem entregador por este tempo -> alerta vermelho. */
 export const ALERTA_VERMELHO_MS = 30 * 60_000
 
-/** Status em que o pedido ainda precisa de entregador. */
-const PRECISA_ENTREGADOR = ['recebido', 'preparando']
+/**
+ * Status em que o pedido ainda precisa de entregador.
+ *
+ * `'saiu'` está aqui por causa da LIBERAÇÃO: quando o entregador some em rota
+ * (lib/entregaConfirmacao.ts) o pedido perde o `entregador_id` mas CONTINUA em
+ * 'saiu' — é o que mantém o "buscando novo entregador" na tela do cliente. Sem
+ * este status na lista, a única reoferta era a que a própria liberação dispara;
+ * esgotada ela, o pedido ficava preso sem ninguém retomar a cadeia.
+ */
+const PRECISA_ENTREGADOR = ['recebido', 'preparando', 'saiu']
 
 export type AcaoWatchdog =
   | 'ofertado' | 'esperando' | 'esgotado' | 'pool_liberado'
@@ -164,6 +174,14 @@ async function processarPedido(
   }
 
   // ── 4 e 5. Alertas de demora (uma vez cada, o vermelho substitui o amarelo) ─
+  // Só para pedido que NUNCA teve entregador: a idade é medida desde
+  // `created_at`, e o texto ("nenhum entregador aceitou em 30 minutos") só faz
+  // sentido nesse caso. Num pedido em 'saiu' — que teve entregador e o perdeu —
+  // a conta dispararia o alerta vermelho no primeiro instante, mentindo sobre o
+  // que aconteceu. A escalada dele já existe e é honesta: passo 2 avisa que
+  // esgotou o raio e passo 3 devolve ao pool aberto 5 min depois.
+  if (pedido.status === 'saiu') return acoes.length > 0 ? acoes : ['nada']
+
   if (idade >= ALERTA_VERMELHO_MS && pedido.despacho_alerta !== 'vermelho') {
     await admin.from('pedidos_clientes').update({ despacho_alerta: 'vermelho' }).eq('id', pedido.id)
     acoes.push('alerta_vermelho')
@@ -255,18 +273,26 @@ export async function rodarWatchdog(
   await admin.from('corrida_ofertas').update({ status: 'expirada' })
     .eq('status', 'pendente').lt('expira_em', new Date().toISOString())
 
-  // Entregas em rota primeiro. Atenção: o pedido liberado continua em 'saiu'
-  // (é o visual "buscando" do cliente), e a varredura abaixo só olha 'recebido'
-  // e 'preparando' — quem reoferta é a própria liberação, chamando
-  // ofertarProximoEntregador uma vez. Se ESSA oferta esgotar, hoje ninguém
-  // retoma a cadeia para um pedido em 'saiu'; é um buraco que já existia antes
-  // deste fix e que continua aqui.
+  // Entregas em rota primeiro: um pedido liberado aqui perde o `entregador_id`
+  // mas continua em 'saiu' (o visual "buscando" do cliente), e a varredura
+  // abaixo o pega na mesma passada — 'saiu' faz parte de PRECISA_ENTREGADOR.
+  // Antes disso a única reoferta era a que a liberação dispara; esgotada ela,
+  // ninguém retomava a cadeia e o pedido ficava preso.
   const resultados: ResultadoWatchdog[] = await rodarEntregasEmRota(admin, lojaId, pedidoId)
 
+  // FESTA fora daqui, explicitamente. Uma corrida de festa cobre vários pedidos
+  // num endereço só: a oferta aponta para `festa_id` e atribui todos de uma vez
+  // (lib/festaDispatch.ts). Ofertar um pedido de festa por
+  // `ofertarProximoEntregador` partiria o grupo entre dois entregadores.
+  // Na prática eles já escapavam por acidente — ofertas de festa gravam
+  // `pedido_id: null`, então o gate `iniciados` abaixo nunca os continha — mas
+  // depender disso é frágil, ainda mais agora que 'saiu' entrou na varredura
+  // (liberarFesta deixa o pedido exatamente assim: 'saiu', sem entregador).
   let q = admin
     .from('pedidos_clientes')
     .select('id, loja_id, status, created_at, despacho_esgotado_em, despacho_pool_em, despacho_alerta')
     .is('entregador_id', null)
+    .is('festa_id', null)
     .in('status', PRECISA_ENTREGADOR)
     .order('created_at', { ascending: true })
     .limit(lojaId || pedidoId ? 50 : 200)

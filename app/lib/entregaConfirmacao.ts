@@ -311,7 +311,15 @@ export async function liberarEntregador(
 
   const { data: rows, error } = await admin
     .from('pedidos_clientes')
-    .update({ entregador_id: null, entrega_confirmacao_pedida_em: null, entrega_confirmada_em: null })
+    .update({
+      entregador_id: null, entrega_confirmacao_pedida_em: null, entrega_confirmada_em: null,
+      // Estado de despacho da RODADA ANTERIOR não vale para a nova busca. Sem
+      // zerar aqui, um pedido que já tinha ido ao pool antes de ser aceito
+      // voltaria com `despacho_pool_em` preenchido — e o guard do passo 3 do
+      // watchdog (`!pedido.despacho_pool_em`) nunca mais o devolveria ao pool,
+      // deixando a cadeia morrer de vez quando o raio esgotasse.
+      despacho_esgotado_em: null, despacho_pool_em: null, despacho_alerta: null,
+    })
     .eq('id', pedido.id)
     .eq('entregador_id', antigo)
     .select('id')
@@ -368,6 +376,17 @@ export async function liberarEntregador(
   )
   await dispatchPushPedido(admin, pedido.id)
 
+  // Esta reoferta alcança só quem NUNCA recebeu oferta deste pedido: o
+  // histórico em `corrida_ofertas` continua valendo como "já tentei com esse".
+  // Na prática ela costuma esgotar em segundos, e quem reabre o leque é o passo
+  // 3 do watchdog, 5 min depois (apaga as ofertas não-aceitas e todo o raio
+  // volta a ser elegível).
+  //
+  // MELHORIA FUTURA, deliberadamente fora deste fix: limpar aqui as ofertas
+  // não-aceitas — exceto a do entregador que acabou de cair, que está com a tela
+  // travada e só queimaria os 30s da janela — daria retentativa ampla imediata
+  // em vez de esperar os 5 min. É mudança de POLÍTICA de despacho, não conserto
+  // do buraco de reoferta; merece decisão própria.
   let redispatch = 'sem_loja'
   try {
     const r = await ofertarProximoEntregador(admin, pedido.id, loja)
@@ -405,7 +424,13 @@ export async function liberarFesta(
 
   const { data: rows, error } = await admin
     .from('pedidos_clientes')
-    .update({ entregador_id: null, entrega_confirmacao_pedida_em: null, entrega_confirmada_em: null })
+    .update({
+      entregador_id: null, entrega_confirmacao_pedida_em: null, entrega_confirmada_em: null,
+      // Mesma limpeza da liberação individual: a nova rodada começa do zero.
+      // (A festa não é varrida pelo watchdog — quem reoferta é `ofertarFesta`,
+      // logo abaixo — mas deixar lixo de despacho na linha só confunde o painel.)
+      despacho_esgotado_em: null, despacho_pool_em: null, despacho_alerta: null,
+    })
     .eq('festa_id', festaId).eq('entregador_id', antigo).neq('status', 'cancelado')
     .select('id')
   if (error) {

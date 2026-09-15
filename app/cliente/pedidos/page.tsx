@@ -119,23 +119,33 @@ export default function ClientePedidos() {
       setCodigos({})
     }
 
-    // Posição em tempo real dos pedidos que saíram para entrega.
+    // Posição em tempo real dos pedidos que saíram para entrega. Só tem GPS
+    // quem tem entregador — daí o filtro mais estreito aqui do que no poll.
     const saiu = lista.filter(p => p.status === 'saiu' && p.entregador_id).map(p => p.id)
     if (saiu.length > 0) {
       const { data: locs } = await supabase.from('entregas_localizacao').select('*').in('pedido_id', saiu)
       const lm: Record<string, LocalizacaoEntrega> = {}
       for (const l of (locs || []) as LocalizacaoEntrega[]) lm[l.pedido_id] = l
       setLocalizacoes(lm)
-      // Reentrega automática: pede ao servidor para checar se o entregador sumiu
-      // (10min sem GPS). Só age quando a inatividade é confirmada no servidor.
-      for (const id of saiu) {
-        fetch('/api/entrega/checar-entregador', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pedido_id: id }),
-        }).catch(() => {})
-      }
     } else {
       setLocalizacoes({})
+    }
+
+    // Pede ao servidor uma passada em cada pedido em rota. A rota decide o que
+    // fazer conforme o caso e o cliente nunca escolhe nada:
+    //   COM entregador  -> máquina de confirmação (GPS parou? pergunta, depois libera);
+    //   SEM entregador  -> watchdog de despacho, que reoferta a corrida.
+    //
+    // O segundo caso é o que mantém andando o pedido LIBERADO, que continua em
+    // 'saiu' sem entregador. Enquanto ele ficava de fora deste filtro, a tela de
+    // quem está esperando o pedido — o gatilho mais confiável que existe, já que
+    // o cron do Hobby é diário — era a única que não empurrava a busca.
+    const emRotaPoll = lista.filter(p => p.status === 'saiu').map(p => p.id)
+    for (const id of emRotaPoll) {
+      fetch('/api/entrega/checar-entregador', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pedido_id: id }),
+      }).catch(() => {})
     }
 
     // Avaliações já feitas (para não repetir).
