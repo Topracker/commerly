@@ -10,6 +10,7 @@ import { Phone, AtSign, MapPin, Clock, Globe, UtensilsCrossed, MessageCircle } f
 import { isDelivery } from '../../lib/pedidosClientes'
 import { VIEW_AVAL_LOJAS } from '../../lib/avaliacoes'
 import { SeloVerificado } from '../../components/SeloVerificado'
+import { LojaIndisponivel } from '../../components/LojaIndisponivel'
 import { linkWhatsApp, textoPedido, whatsappDaLoja } from '../../lib/whatsapp'
 
 // Página pública da loja — acessível sem login. Lê os dados via service role
@@ -30,12 +31,13 @@ type Loja = {
   fotos_fachada: string[] | null
   website_url: string | null
   whatsapp_business: string | null
+  disponivel: boolean | null
 }
 
 async function carregar(id: string) {
   const supabase = createAdminClient()
   const [lojaRes, prodRes, avalRes, promoRes] = await Promise.all([
-    supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, website_url, whatsapp_business').eq('id', id).maybeSingle(),
+    supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, website_url, whatsapp_business, disponivel').eq('id', id).maybeSingle(),
     supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
     supabase.from(VIEW_AVAL_LOJAS).select('nota, comentario, created_at, foto_url, hash').eq('loja_id', id).order('created_at', { ascending: false }),
     supabase.from('promocoes').select('produto_id, desconto_pct, preco_promocional').eq('loja_id', id).eq('ativa', true),
@@ -43,6 +45,12 @@ async function carregar(id: string) {
 
   const loja = lojaRes.data as Loja | null
   if (!loja) return null
+
+  // Plano do comerciante vencido. Devolve marcado em vez de `null` para a
+  // página distinguir "não existe" (404) de "fora do ar" (mensagem). O cardápio
+  // e a loja no app do cliente já faziam isto; esta página, que é a indexada
+  // pelo Google, continuava mostrando normalmente uma loja que não pode vender.
+  if (loja.disponivel === false) return { indisponivel: true as const }
 
   const avaliacoes = (avalRes.data || []) as { nota: number; comentario: string | null; created_at: string; foto_url: string | null; hash: string | null }[]
   const media = avaliacoes.length > 0
@@ -70,6 +78,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params
   const dados = await carregar(id)
   if (!dados) return { title: 'Loja não encontrada', robots: { index: false, follow: false } }
+  // Fora do ar não entra no índice: evita o Google servir a loja que não vende.
+  if ('indisponivel' in dados) {
+    return { title: 'Loja indisponível', robots: { index: false, follow: false } }
+  }
 
   const { loja } = dados
   const local = loja.localizacao ? ` · ${loja.localizacao}` : ''
@@ -103,6 +115,18 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
   const { id } = await params
   const dados = await carregar(id)
   if (!dados) notFound()
+
+  if ('indisponivel' in dados) return (
+    <main data-theme="dark" className="min-h-screen bg-gray-950 font-body flex items-center justify-center">
+      <LojaIndisponivel
+        acao={
+          <Link href="/cliente/buscar" className="px-5 py-2.5 rounded-xl bg-primaria text-white font-semibold text-sm hover:opacity-90">
+            Ver outras lojas
+          </Link>
+        }
+      />
+    </main>
+  )
 
   const { loja, produtos, avaliacoes, media } = dados
   const whatsapp = linkWhatsApp(whatsappDaLoja(loja), textoPedido(loja.nome))

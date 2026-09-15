@@ -364,12 +364,21 @@ export default function Configuracoes() {
     }
     const fotosAntigas: string[] = loja.fotos_fachada || []
     const removidas = fotosAntigas.filter(u => !fotosFinais.includes(u))
-    await Promise.all(removidas.map(u => removerFachada(supabase, u)))
 
-    const { error } = await supabase.from('lojas').update({
+    // O update vem ANTES de apagar do Storage. Na ordem inversa, um update que
+    // falhasse (rede, RLS, plano vencido) deixava o arquivo já destruído e
+    // `fotos_fachada` ainda apontando para ele — fachada quebrada e sem volta.
+    // Arquivo órfão no bucket é desperdício de bytes; referência morta o
+    // comerciante vê. `.select()` porque update sem select não distingue
+    // "não bateu" de "bateu" (RLS devolve 204 sem `error`).
+    const { data: salvo, error } = await supabase.from('lojas').update({
       nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, website_url: websiteFinal, whatsapp_business: whatsappFinal, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais,
-    }).eq('id', loja.id)
-    if (error) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
+    }).eq('id', loja.id).select('id')
+    if (error || !salvo?.length) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
+
+    // Gravou: agora as fotos removidas podem sair do Storage. Best-effort — se
+    // a exclusão falhar, sobra arquivo sem referência, que não quebra nada.
+    await Promise.all(removidas.map(u => removerFachada(supabase, u)))
 
     // Distância máxima (delivery). Update separado e best-effort: se a coluna
     // ainda não existir (pré-migração) o erro é ignorado — não quebra o salvar.
