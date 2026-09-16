@@ -60,11 +60,17 @@ export default function ClientePedidos() {
 
   // Volta do Stripe Checkout. Em ?pagamento=sucesso o pedido é criado pelo
   // webhook (assíncrono) — recarrega algumas vezes até ele aparecer.
+  //
+  // A mensagem NÃO afirma que o pagamento foi confirmado: no Pix o Checkout
+  // manda o cliente para cá assim que a sessão fecha, e o `completed` chega com
+  // payment_status=unpaid (ver app/api/stripe/webhook) — quem confirma é o
+  // `async_payment_succeeded`, que pode demorar. Dizer "confirmado" aqui fazia
+  // o cliente do Pix ler "pago" e encontrar a lista vazia.
   useEffect(() => {
     if (!cliente) return
     const pg = new URLSearchParams(window.location.search).get('pagamento')
     if (pg === 'sucesso') {
-      mostrarToast('Pagamento confirmado! Preparando seu pedido...', 'sucesso')
+      mostrarToast('Pagamento enviado! Assim que for confirmado, seu pedido aparece aqui.', 'sucesso')
       const t1 = setTimeout(() => carregar(true), 2500)
       const t2 = setTimeout(() => carregar(true), 6000)
       return () => { clearTimeout(t1); clearTimeout(t2) }

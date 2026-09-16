@@ -19,7 +19,7 @@ type Despacho =
   | { status: 'erro'; msg: string }
 
 export default function PedidosComerciante() {
-  const { loja, loading, supabase, sair } = useAuth()
+  const { user, loja, loading, supabase, sair } = useAuth()
   const { toast, mostrarToast } = useToast()
   const [pedidos, setPedidos] = useState<PedidoCliente[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -102,21 +102,45 @@ export default function PedidosComerciante() {
   // passada a cada 30s. É o servidor que decide ofertar ao próximo, marcar
   // "esgotado", devolver ao pool aos 5 min e alertar aos 15/30 min — aqui só
   // recarregamos a lista para refletir o que ele fez.
+  //
+  // O refresh é INCONDICIONAL. Antes só recarregávamos quando o watchdog
+  // devolvia alguma ação, e ele só enxerga pedidos cuja busca já foi iniciada
+  // (lib/despachoWatchdog.ts filtra por `corrida_ofertas`): pedido novo e
+  // aceite vindo do pool devolviam lista vazia, então a tela ficava parada até
+  // o comerciante recarregar na mão.
   useEffect(() => {
     if (!loja?.id) return
     let vivo = true
     const passada = async () => {
       try {
-        const res = await fetch('/api/entrega/watchdog', { method: 'POST' })
-        const d = await res.json().catch(() => ({}))
-        if (vivo && res.ok && Array.isArray(d.pedidos) && d.pedidos.length > 0) carregar()
+        await fetch('/api/entrega/watchdog', { method: 'POST' })
       } catch { /* rede instável: a próxima passada tenta de novo */ }
+      if (vivo) carregar()
     }
     void passada()
     const iv = setInterval(passada, 30_000)
     return () => { vivo = false; clearInterval(iv) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loja?.id])
+
+  // Pedido novo em tempo real. `pedidos_clientes` não está na publication
+  // `supabase_realtime`, mas `notificacoes` está — e o trigger
+  // `trg_notif_novo_pedido` grava uma linha 'pedido_novo' para o dono da loja a
+  // cada pedido. Assinamos essa linha e recarregamos: o comerciante vê o pedido
+  // chegar sem esperar os 30s do watchdog nem recarregar a página.
+  useEffect(() => {
+    if (!user?.id) return
+    const canal = supabase
+      .channel(`pedidos-novos:${user.id}:${Math.random().toString(36).slice(2)}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notificacoes', filter: `user_id=eq.${user.id}` },
+        payload => { if ((payload.new as { tipo?: string }).tipo === 'pedido_novo') carregar() },
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(canal) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   // Acompanha as ofertas em andamento: quando aceita -> recarrega; quando
   // recusada/expirada -> oferta ao próximo automaticamente.
@@ -463,7 +487,18 @@ export default function PedidosComerciante() {
 
         {pedidoEmAndamento(p.status) && (
           <div className="flex gap-2 mt-3">
-            {prox ? (
+            {prox === 'entregue' && p.entregador_id ? (
+              // Quem fecha a entrega é o entregador, digitando o código de 4
+              // dígitos do cliente (/api/entregador/confirmar-entrega). Marcar
+              // "Entregue" daqui pularia o código e — como o guard congela o
+              // status em 'entregue' — a rota do entregador sairia no
+              // early-return, deixando o repasse da corrida pendente para
+              // sempre. Então o botão some e explicamos o porquê.
+              <div className="flex-1 flex items-center justify-center gap-1.5 bg-gray-900 border border-gray-800 text-gray-400 py-2.5 rounded-xl text-sm text-center">
+                <Check size={15} className="shrink-0 text-gray-500" />
+                Aguardando o código do cliente
+              </div>
+            ) : prox ? (
               <button
                 onClick={() => mudarStatus(p, prox)}
                 disabled={salvando === p.id}
