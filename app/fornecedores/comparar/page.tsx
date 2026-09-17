@@ -19,20 +19,22 @@ export default function CompararFornecedores() {
 
   async function carregar() {
     setCarregando(true)
+    // Catálogo de TODOS os fornecedores: view pública (a tabela só enxerga o
+    // dono). `fornecedor_nome` vem no corpo da view, não por embed.
     const { data } = await supabase
-      .from('fornecedor_produtos')
-      .select('id, nome, preco, unidade, minimo_pedido, estoque, fornecedor_id, fornecedores(nome)')
+      .from('fornecedor_produtos_publicos')
+      .select('id, nome, preco, unidade, minimo_pedido, em_estoque, fornecedor_id, fornecedor_nome')
       .eq('ativo', true)
 
     setOfertas((data || []).map((p: any) => ({
       produto_id: p.id,
       fornecedor_id: p.fornecedor_id,
-      fornecedor_nome: p.fornecedores?.nome || 'Fornecedor',
+      fornecedor_nome: p.fornecedor_nome || 'Fornecedor',
       nome: p.nome,
       preco: Number(p.preco) || 0,
       unidade: p.unidade || 'un',
       minimo_pedido: Number(p.minimo_pedido) || 1,
-      estoque: p.estoque == null ? null : Number(p.estoque),
+      em_estoque: p.em_estoque === true,
     })))
     setCarregando(false)
   }
@@ -111,7 +113,7 @@ export default function CompararFornecedores() {
                         <p className="text-white text-sm truncate">{o.fornecedor_nome}</p>
                         <p className="text-gray-500 text-xs">
                           mín. {o.minimo_pedido} {o.unidade}
-                          {o.estoque != null && ` · ${o.estoque} em estoque`}
+                          {o.em_estoque ? ' · em estoque' : ' · sem estoque'}
                         </p>
                       </div>
                       <div className="text-right shrink-0">

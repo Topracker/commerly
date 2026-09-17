@@ -44,8 +44,19 @@ export default function FornecedorPerfil() {
     // Perfil publico — carrega dados do fornecedor mesmo sem sessao.
     // Consultas dependentes do user (loja, avaliacao propria) so rodam logado.
     const queries: any[] = [
-      supabase.from('fornecedores').select('*').eq('id', id).single(),
-      supabase.from('fornecedor_produtos').select('*').eq('fornecedor_id', id).order('created_at', { ascending: false }),
+      // Views públicas: o cadastro sem CNPJ/Stripe e o catálogo sem o estoque
+      // real. São elas também que fazem esta página funcionar DESLOGADA — as
+      // tabelas só têm policy para `authenticated`, então o visitante anônimo
+      // via catálogo vazio mesmo o proxy tratando /fornecedor/[id] como pública.
+      supabase.from('fornecedores_publicos').select('*').eq('id', id).single(),
+      supabase
+        .from('fornecedor_produtos_publicos')
+        .select('id, fornecedor_id, nome, descricao, preco, unidade, minimo_pedido, em_estoque')
+        // Produto desativado pelo fornecedor não é oferta: a tela de comparação
+        // já filtrava, esta não.
+        .eq('ativo', true)
+        .eq('fornecedor_id', id)
+        .order('created_at', { ascending: false }),
       supabase.from('avaliacoes_fornecedores').select('nota, comentario, created_at, user_id').eq('fornecedor_id', id).order('created_at', { ascending: false }),
     ]
     if (user) {

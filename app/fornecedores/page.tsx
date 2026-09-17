@@ -20,8 +20,9 @@ export default function BuscarFornecedores() {
 
   async function buscar() {
     setBuscando(true)
+    // Catálogo de fornecedores de terceiros: view pública (sem CNPJ/Stripe).
     let query = supabase
-      .from('fornecedores')
+      .from('fornecedores_publicos')
       .select('id, nome, categoria, localizacao, descricao, latitude, longitude, avaliacoes_fornecedores(nota)')
       .order('created_at', { ascending: false })
       .limit(50)

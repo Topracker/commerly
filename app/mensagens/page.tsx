@@ -86,7 +86,7 @@ export default function MensagensComercianteList() {
 
     const ids = Object.keys(mapa)
     const { data: fornecedores } = await supabase
-      .from('fornecedores')
+      .from('fornecedores_publicos')
       .select('id, nome, categoria')
       .in('id', ids)
 

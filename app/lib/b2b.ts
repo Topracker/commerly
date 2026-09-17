@@ -37,7 +37,10 @@ export type OfertaFornecedor = {
   preco: number
   unidade: string
   minimo_pedido: number
-  estoque: number | null
+  // Booleano, não a quantidade: o estoque exato do fornecedor não sai da conta
+  // dele (view `fornecedor_produtos_publicos`). Se o comprador precisar do
+  // número um dia, o caminho é uma RPC estoque_suficiente(produto_id, qtd).
+  em_estoque: boolean
 }
 
 export type GrupoComparacao = {
