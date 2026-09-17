@@ -96,7 +96,10 @@ export default function ClienteLoja() {
   async function carregarLoja() {
     const [lojaRes, prodRes, avalRes, promoRes] = await Promise.all([
       supabase.from('lojas_publicas').select('id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, website_url, whatsapp_business, disponivel').eq('id', id).single(),
-      supabase.from('produtos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).gt('quantidade', 0),
+      // Vitrine de loja de terceiro: `produtos_publicos` (a tabela `produtos` só
+      // enxerga a própria loja). `em_estoque` substitui o antigo
+      // `.gt('quantidade', 0)` — o estoque real não sai do painel do dono.
+      supabase.from('produtos_publicos').select('id, nome, preco_venda, imagem_url, categoria').eq('loja_id', id).eq('em_estoque', true),
       supabase.from(VIEW_AVAL_LOJAS).select('id, nota, comentario, created_at, cliente_id, foto_url, hash').eq('loja_id', id).order('created_at', { ascending: false }),
       supabase.from('promocoes').select('produto_id, desconto_pct, preco_promocional').eq('loja_id', id).eq('ativa', true),
     ])

@@ -48,7 +48,8 @@ export default function ClienteBuscar() {
     if (filtroNutri.length === 0) { setLojasComTag(null); return }
     let vivo = true
     supabase
-      .from('produtos')
+      // Varre TODAS as lojas: tem que ser a view pública.
+      .from('produtos_publicos')
       .select('loja_id')
       .contains('tags_nutri', filtroNutri)
       .then(({ data }: any) => {

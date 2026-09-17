@@ -88,7 +88,8 @@ export default function ClienteFeed() {
       [...listaPosts, ...listaStories].map(p => p.produto_id).filter((x): x is string => !!x),
     )]
     if (idsProdutos.length) {
-      const { data } = await supabase.from('produtos').select('id, nome, preco_venda').in('id', idsProdutos)
+      // Produto marcado pode ser de qualquer loja seguida: view pública.
+      const { data } = await supabase.from('produtos_publicos').select('id, nome, preco_venda').in('id', idsProdutos)
       setProdutos(new Map(((data || []) as ProdutoMarcado[]).map(p => [p.id, p])))
     }
 

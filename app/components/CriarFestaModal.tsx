@@ -60,7 +60,7 @@ export function CriarFestaModal({ onFechar, onCriada, onErro }: Props) {
       const ids = delivery.map(l => l.id)
       const [ratings, prodRes] = await Promise.all([
         getRatingsPorLoja(supabase, ids),
-        supabase.from('produtos').select('loja_id, nome').in('loja_id', ids).gt('quantidade', 0),
+        supabase.from('produtos_publicos').select('loja_id, nome').in('loja_id', ids).eq('em_estoque', true),
       ])
       if (!ativo) return
       const comNota = delivery.map(l => ({ ...l, media: ratings[l.id]?.media ?? 0, totalAval: ratings[l.id]?.total ?? 0 }))

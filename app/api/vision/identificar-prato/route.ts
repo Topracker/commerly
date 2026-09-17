@@ -96,8 +96,11 @@ export async function POST(request: NextRequest) {
   // ---------------------------------------------------------------------------
   const filtros = ident.termos.flatMap(t => [`nome.ilike.%${t}%`, `descricao.ilike.%${t}%`]).join(',')
 
+  // Única rota /api/* que lê produtos de OUTRAS lojas com o client do usuário
+  // (as demais usam service role ou filtram pela loja do dono): tem que ser a
+  // view pública, senão a busca volta vazia sem erro nenhum.
   const { data: produtos, error } = await supabase
-    .from('produtos')
+    .from('produtos_publicos')
     .select('id, loja_id, nome, descricao, preco_venda, imagem_url')
     .or(filtros)
     .limit(120)
