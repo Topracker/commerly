@@ -8,7 +8,8 @@ import {
   STORY_HORAS, erroMidia, tempoDoPost, tipoDaMidia, uploadMidiaFeed,
   type Post, type Story, type TipoMidia,
 } from '../lib/feed'
-import { Image as ImageIcon, Film, Trash2, Eye, Heart, MessageCircle, ShoppingBag, Clock, Upload } from 'lucide-react'
+import { Image as ImageIcon, Film, Trash2, Eye, Heart, MessageCircle, ShoppingBag, Clock } from 'lucide-react'
+import { SeletorMidiaFeed } from '../components/SeletorMidiaFeed'
 
 type Produto = { id: string; nome: string; preco_venda: number }
 type Metrica = { post_id: string; likes: number; comentarios: number; visualizacoes: number; cliques_pedir: number }
@@ -59,9 +60,14 @@ export default function PostsDaLoja() {
     setArquivo({ file, preview: URL.createObjectURL(file), tipo: tipoDaMidia(file)! })
   }
 
-  function limpar() {
+  /** Só a mídia — o ✕ do preview não pode apagar a legenda já escrita. */
+  function limparMidia() {
     if (arquivo) URL.revokeObjectURL(arquivo.preview)
     setArquivo(null)
+  }
+
+  function limpar() {
+    limparMidia()
     setLegenda('')
     setProdutoId('')
   }
@@ -113,13 +119,13 @@ export default function PostsDaLoja() {
       <Toast toast={toast} />
 
       {/* Criar */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6">
+      <div className="bg-card border border-borda rounded-2xl p-5 mb-6">
         <div className="flex gap-2 mb-4">
           {(['post', 'story'] as const).map(m => (
             <button
               key={m}
               onClick={() => setModo(m)}
-              className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition ${modo === m ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+              className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition ${modo === m ? 'bg-azul text-white' : 'bg-elevado text-gray-400 hover:text-white'}`}
             >
               {m === 'post' ? 'Criar post' : 'Criar story'}
             </button>
@@ -135,25 +141,7 @@ export default function PostsDaLoja() {
             : `O story aparece no topo do feed e some em ${STORY_HORAS} horas.`}
         </p>
 
-        <label className="flex flex-col items-center justify-center gap-2 border border-dashed border-gray-700 hover:border-blue-500/60 rounded-2xl py-6 cursor-pointer transition">
-          {arquivo ? (
-            arquivo.tipo === 'video'
-              ? <video src={arquivo.preview} className="max-h-52 rounded-xl" controls playsInline />
-              : <img src={arquivo.preview} alt="" className="max-h-52 rounded-xl object-contain" />
-          ) : (
-            <>
-              <Upload size={22} className="text-gray-500" />
-              <span className="text-gray-400 text-sm">Escolher foto ou vídeo</span>
-              <span className="text-gray-600 text-xs">JPG, PNG, WebP · MP4, WebM, MOV</span>
-            </>
-          )}
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
-            className="hidden"
-            onChange={e => selecionar(e.target.files?.[0])}
-          />
-        </label>
+        <SeletorMidiaFeed midia={arquivo} onSelecionar={selecionar} onLimpar={limparMidia} />
 
         {modo === 'post' && (
           <textarea
@@ -162,7 +150,7 @@ export default function PostsDaLoja() {
             rows={2}
             maxLength={500}
             placeholder="Escreva uma legenda (opcional)"
-            className="mt-3 w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-blue-500/60 resize-none"
+            className="mt-3 w-full bg-superficie border border-borda text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-acento/60 resize-none"
           />
         )}
 
@@ -174,7 +162,7 @@ export default function PostsDaLoja() {
             <select
               value={produtoId}
               onChange={e => setProdutoId(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-blue-500/60"
+              className="w-full bg-superficie border border-borda text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-acento/60"
             >
               <option value="">Nenhum produto</option>
               {produtos.map(p => (
@@ -188,12 +176,12 @@ export default function PostsDaLoja() {
           <button
             onClick={publicar}
             disabled={publicando || !arquivo}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold py-2.5 rounded-xl transition text-sm"
+            className="flex-1 bg-azul hover:bg-azul/85 disabled:opacity-40 text-white font-semibold py-2.5 rounded-xl transition text-sm"
           >
             {publicando ? 'Publicando...' : modo === 'post' ? 'Publicar post' : 'Publicar story'}
           </button>
           {arquivo && (
-            <button onClick={limpar} className="px-4 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-sm transition">
+            <button onClick={limpar} className="px-4 bg-elevado hover:bg-superficie text-gray-300 rounded-xl text-sm transition">
               Limpar
             </button>
           )}
@@ -216,7 +204,7 @@ export default function PostsDaLoja() {
               <div className="flex gap-3 overflow-x-auto pb-1">
                 {stories.map(s => (
                   <div key={s.id} className="shrink-0 w-28">
-                    <div className="relative w-28 h-40 rounded-xl overflow-hidden bg-gray-800 border border-gray-700">
+                    <div className="relative w-28 h-40 rounded-xl overflow-hidden bg-elevado border border-borda">
                       {s.tipo === 'video'
                         ? <video src={s.midia_url} className="w-full h-full object-cover" muted playsInline />
                         : <img src={s.midia_url} alt="" className="w-full h-full object-cover" />}
@@ -238,7 +226,7 @@ export default function PostsDaLoja() {
           {/* Posts + métricas */}
           <section>
             <h2 className="text-white font-semibold mb-2 flex items-center gap-2">
-              <ImageIcon size={16} className="text-blue-400" /> Posts
+              <ImageIcon size={16} className="text-azul" /> Posts
               <span className="text-gray-500 text-xs font-normal">({posts.length})</span>
             </h2>
             {posts.length === 0 ? (
@@ -248,8 +236,8 @@ export default function PostsDaLoja() {
                 {posts.map(p => {
                   const m = metricas[p.id]
                   return (
-                    <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-3 flex gap-3">
-                      <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-800 shrink-0 relative">
+                    <div key={p.id} className="bg-card border border-borda rounded-2xl p-3 flex gap-3">
+                      <div className="w-20 h-20 rounded-xl overflow-hidden bg-elevado shrink-0 relative">
                         {p.tipo === 'video'
                           ? <video src={p.midia_url} className="w-full h-full object-cover" muted playsInline />
                           : <img src={p.midia_url} alt="" className="w-full h-full object-cover" />}
