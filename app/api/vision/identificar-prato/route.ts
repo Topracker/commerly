@@ -110,15 +110,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ erro: 'Falha ao buscar lojas.' }, { status: 500 })
   }
 
-  const lojaIds = [...new Set((produtos ?? []).map(p => p.loja_id))]
-  if (lojaIds.length === 0) {
-    return NextResponse.json({ ...ident, lojas: [], aviso: `Identifiquei "${ident.prato}", mas nenhuma loja por perto vende algo parecido.` })
-  }
+  const semLoja = () => NextResponse.json({
+    ...ident, lojas: [],
+    aviso: `Identifiquei "${ident.prato}", mas nenhuma loja por perto vende algo parecido.`,
+  })
 
+  const lojaIds = [...new Set((produtos ?? []).map(p => p.loja_id))]
+  if (lojaIds.length === 0) return semLoja()
+
+  // `disponivel` corta a loja com plano vencido: o produto dela continua na
+  // view, mas a loja está fora do ar para o cliente e `/cliente/loja/[id]`
+  // responde 404. Sem este filtro o Vision mostrava um card que não abre.
+  // Filtrar aqui e não na view é a regra 4 do CLAUDE.md.
   const { data: lojas } = await supabase
     .from('lojas_publicas')
     .select('id, nome, localizacao, latitude, longitude, fotos_fachada, taxa_entrega')
     .in('id', lojaIds)
+    .eq('disponivel', true)
+
+  // O aviso é decidido DEPOIS do filtro: casar produtos só de lojas vencidas
+  // deixa `lojaIds` cheio e `lojas` vazio, e sem isto a tela mostraria o prato
+  // identificado com uma lista vazia e nenhuma explicação.
+  if (!lojas || lojas.length === 0) return semLoja()
 
   // Distância só quando o cliente mandou coordenadas; sem elas, não ordenamos
   // por proximidade (e dizemos isso na UI em vez de inventar uma ordem).
