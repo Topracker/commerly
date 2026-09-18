@@ -66,6 +66,28 @@ const CERTIFICADOS: Record<string, CertDef> = {
   },
 }
 
+// ---------------------------------------------------------------------------
+// Quem pode emitir cada certificado.
+//
+// O certificado é um artefato de marca, com o nome da pessoa e botão de
+// compartilhar — ou seja, uma alegação pública. Antes, `tipo` era só um
+// parâmetro de apresentação: qualquer conta logada abria `/certificado/fundador`
+// e baixava um PDF dizendo "Certificamos que <nome> é um verdadeiro fundador da
+// Commerly", sem ter a medalha.
+//
+// `EXIGE_MEDALHA` liga o certificado à medalha que o motor concede de fato
+// (`gamificacaoServer.ts`). Só `fundador` e `embaixador` têm uma hoje.
+//
+// `SEM_CRITERIO` são os certificados cuja condição ainda não foi definida pelo
+// produto. `pioneiro` entra aqui junto com os outros três porque a medalha
+// `pioneiro` é uma das que nenhum código concede (ver `emBreve` em
+// `crescimento.ts`) — mapeá-lo para `primeira-entrega` seria inventar critério.
+const EXIGE_MEDALHA: Record<string, string> = {
+  fundador: 'fundador',
+  embaixador: 'embaixador',
+}
+const SEM_CRITERIO = new Set(['pioneiro', 'parceiro', 'comerciante-ouro', 'top-cidade'])
+
 export default function Certificado({ params }: { params: Promise<{ tipo: string }> }) {
   const { tipo } = use(params)
   const cert = CERTIFICADOS[tipo]
@@ -74,6 +96,10 @@ export default function Certificado({ params }: { params: Promise<{ tipo: string
   const [perfilUrl, setPerfilUrl] = useState<string>('')
   const [carregando, setCarregando] = useState(true)
   const [gerando, setGerando] = useState(false)
+  // Começa em `false` e só vira `true` com a medalha confirmada: se o sync
+  // falhar, a resposta vier estranha ou a sessão tiver caído, o certificado
+  // NÃO é emitido. Falhar fechado é o ponto central desta tela.
+  const [temDireito, setTemDireito] = useState(false)
 
   useEffect(() => {
     let vivo = true
@@ -88,6 +114,9 @@ export default function Certificado({ params }: { params: Promise<{ tipo: string
             const total = (p.comunidade.comerciantes || 0) + (p.comunidade.clientes || 0) + (p.comunidade.entregadores || 0)
             setExtra(`nível ${nivelDe(NIVEIS_EMBAIXADOR, total).atual.nome}`)
           }
+          const exigida = EXIGE_MEDALHA[tipo]
+          const medalhas: { slug: string }[] = Array.isArray(p.medalhas) ? p.medalhas : []
+          setTemDireito(!!exigida && medalhas.some((m) => m?.slug === exigida))
         }
       })
       .catch(() => {})
@@ -105,6 +134,42 @@ export default function Certificado({ params }: { params: Promise<{ tipo: string
           <Link href="/" className="text-acento text-sm">Voltar ao início</Link>
         </div>
       </main>
+    )
+  }
+
+  // Aviso: mesmo layout das três saídas que não emitem o certificado.
+  const aviso = (titulo: string, texto: string) => (
+    <main data-theme="dark" className="min-h-screen bg-fundo flex items-center justify-center px-6 text-center">
+      <div className="max-w-md">
+        <div className="text-5xl mb-4 opacity-40 grayscale">{cert.selo}</div>
+        <p className="text-white font-semibold mb-2">{titulo}</p>
+        <p className="text-gray-400 text-sm mb-6">{texto}</p>
+        <Link href="/medalhas" className="text-acento text-sm">Ver as medalhas</Link>
+      </div>
+    </main>
+  )
+
+  if (SEM_CRITERIO.has(tipo)) {
+    return aviso(
+      `Certificado ${cert.titulo} ainda não disponível`,
+      'Este certificado ainda não tem condição definida. Assim que existir um critério, ele passa a ser emitido para quem cumprir.',
+    )
+  }
+
+  // Enquanto o sync não responde, nada de certificado na tela — senão ele
+  // pisca por um instante para quem não tem direito.
+  if (carregando) {
+    return (
+      <main data-theme="dark" className="min-h-screen bg-fundo flex items-center justify-center px-6 text-center">
+        <p className="text-gray-500 text-sm flex items-center gap-2"><Loader2 size={15} className="animate-spin" /> Verificando sua conquista…</p>
+      </main>
+    )
+  }
+
+  if (!temDireito) {
+    return aviso(
+      `Você ainda não tem o certificado ${cert.titulo}`,
+      'Ele é emitido para quem já conquistou a medalha correspondente. Veja no catálogo o que falta para chegar lá.',
     )
   }
 
@@ -166,7 +231,7 @@ export default function Certificado({ params }: { params: Promise<{ tipo: string
           <div className="my-8">
             <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Concedido a</p>
             <p className="font-display text-2xl sm:text-3xl font-bold" style={{ color: cert.cor }}>
-              {carregando ? '…' : nomeExibido}
+              {nomeExibido}
             </p>
           </div>
 
@@ -202,7 +267,6 @@ export default function Certificado({ params }: { params: Promise<{ tipo: string
           <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 bg-[#0a66c2] text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
             LinkedIn
           </a>
-          {carregando && <span className="flex items-center gap-1 text-gray-500 text-xs"><Loader2 size={13} className="animate-spin" /> personalizando…</span>}
         </div>
         <p className="no-print text-center text-gray-500 text-xs mt-3">
           O PDF sai pronto, com o QR do seu perfil — sem passar pelo diálogo de impressão.

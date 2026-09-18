@@ -84,21 +84,29 @@ export const NIVEIS_EMBAIXADOR: NivelDef[] = [
 // ---------------------------------------------------------------------------
 export type Medalha = {
   slug: string; nome: string; emoji: string; descricao: string; como: string; secreta?: boolean
+  /**
+   * Medalha que existe no catálogo mas que NENHUM código concede — o motor
+   * (`gamificacaoServer.ts`) não tem ramo para ela. Ficavam anunciadas em
+   * `/medalhas` com "0 pessoas" e sem caminho possível, e o card PNG deixava
+   * qualquer um baixar uma conquista que ninguém pode ter. Marcadas como
+   * "em breve" até a condição ser definida e implementada.
+   */
+  emBreve?: boolean
 }
 export const MEDALHAS: Medalha[] = [
   { slug: 'fundador', nome: 'Fundador', emoji: '🏅', descricao: 'Um dos 50 primeiros comerciantes da Commerly.', como: 'Estar entre os 50 primeiros comerciantes cadastrados.' },
-  { slug: 'pioneiro', nome: 'Pioneiro', emoji: '🚀', descricao: 'Entre os primeiros da sua cidade.', como: 'Ser um dos 100 primeiros de uma cidade recém-lançada.' },
+  { slug: 'pioneiro', nome: 'Pioneiro', emoji: '🚀', descricao: 'Entre os primeiros da sua cidade.', como: 'Ser um dos 100 primeiros de uma cidade recém-lançada.' , emBreve: true },
   { slug: 'embaixador', nome: 'Embaixador', emoji: '🎖️', descricao: 'Leva a Commerly para novas pessoas.', como: 'Indicar pessoas com o seu código exclusivo.' },
-  { slug: 'cidade-campea', nome: 'Cidade Campeã', emoji: '🏆', descricao: 'Ajudou a cidade a bater a meta.', como: 'Somar pontos numa cidade que foi escolhida.' },
+  { slug: 'cidade-campea', nome: 'Cidade Campeã', emoji: '🏆', descricao: 'Ajudou a cidade a bater a meta.', como: 'Somar pontos numa cidade que foi escolhida.' , emBreve: true },
   { slug: 'primeira-compra', nome: 'Primeira Compra', emoji: '🛍️', descricao: 'Fez o primeiro pedido.', como: 'Concluir seu primeiro pedido.' },
   { slug: 'primeira-entrega', nome: 'Primeira Entrega', emoji: '📦', descricao: 'Completou a primeira entrega.', como: 'Concluir sua primeira entrega como entregador.' },
   { slug: 'fa-da-commerly', nome: 'Fã da Commerly', emoji: '💛', descricao: '1 ano na plataforma.', como: 'Completar 1 ano de conta ativa.' },
   { slug: 'maratonista', nome: 'Maratonista', emoji: '🏃', descricao: '100 pedidos.', como: 'Atingir 100 pedidos.' },
-  { slug: 'velocista', nome: 'Velocista', emoji: '⚡', descricao: 'Entrega em menos de 20 min.', como: 'Concluir uma entrega em menos de 20 minutos.' },
+  { slug: 'velocista', nome: 'Velocista', emoji: '⚡', descricao: 'Entrega em menos de 20 min.', como: 'Concluir uma entrega em menos de 20 minutos.' , emBreve: true },
   { slug: 'estrela', nome: 'Estrela', emoji: '⭐', descricao: 'Nota 5.0 por 50 pedidos.', como: 'Manter avaliação 5.0 ao longo de 50 pedidos.' },
-  { slug: 'top-vendedor', nome: 'Top Vendedor', emoji: '👑', descricao: 'Mais pedidos do mês.', como: 'Ser o comerciante com mais pedidos no mês.' },
-  { slug: 'rei-da-cidade', nome: 'Rei da Cidade', emoji: '👑', descricao: 'Mais bem avaliado da cidade.', como: 'Ter a melhor avaliação da sua cidade.' },
-  { slug: 'entregador-do-mes', nome: 'Entregador do Mês', emoji: '🥇', descricao: 'Destaque do mês.', como: 'Ser o entregador destaque do mês.' },
+  { slug: 'top-vendedor', nome: 'Top Vendedor', emoji: '👑', descricao: 'Mais pedidos do mês.', como: 'Ser o comerciante com mais pedidos no mês.' , emBreve: true },
+  { slug: 'rei-da-cidade', nome: 'Rei da Cidade', emoji: '👑', descricao: 'Mais bem avaliado da cidade.', como: 'Ter a melhor avaliação da sua cidade.' , emBreve: true },
+  { slug: 'entregador-do-mes', nome: 'Entregador do Mês', emoji: '🥇', descricao: 'Destaque do mês.', como: 'Ser o entregador destaque do mês.' , emBreve: true },
   { slug: 'cliente-vip', nome: 'Cliente VIP', emoji: '💎', descricao: 'Cliente nível Diamante.', como: 'Chegar ao nível Diamante como cliente.' },
   { slug: 'super-embaixador', nome: 'Super Embaixador', emoji: '🎖️', descricao: 'Embaixador nível Elite.', como: 'Chegar ao nível Elite de embaixador.' },
   { slug: 'coruja', nome: '???', emoji: '🦉', descricao: 'Conquista secreta.', como: 'Fazer o primeiro pedido à meia-noite em ponto.', secreta: true },

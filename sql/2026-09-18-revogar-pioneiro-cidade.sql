@@ -1,0 +1,46 @@
+-- ============================================================================
+-- GAMIFICAÇÃO: revoga a concessão indevida de `pioneiro-cidade`
+-- ----------------------------------------------------------------------------
+-- A medalha secreta "primeiro comerciante da sua cidade" era decidida assim
+-- (`app/lib/gamificacaoServer.ts`, antes do deploy de 2026-09-18):
+--
+--   .eq('localizacao', loja.localizacao).lt('created_at', loja.created_at)
+--
+-- `localizacao` é o ENDEREÇO COMPLETO em texto livre ("Avenida T-63, Setor
+-- Bueno, Goiânia, GO"), não a cidade. Duas lojas da mesma cidade nunca
+-- colidem, então a contagem dava 0 para todo mundo e a condição era
+-- estruturalmente sempre verdadeira: qualquer comerciante virava "pioneiro da
+-- cidade" no primeiro /api/gamificacao/sync.
+--
+-- Medido em produção antes da correção — as 7 lojas, todas com `anteriores = 0`,
+-- sendo 3 delas de Goiânia. Só 2 tinham a medalha porque só 2 chegaram a abrir
+-- o dashboard depois de o recurso existir, não porque a condição tenha
+-- filtrado alguém.
+--
+-- O código passou a usar `cidade_slug` (campo normalizado: goiania,
+-- sao-goncalo). Sob a regra corrigida:
+--
+--   Burger House   goiania      2026-07-09   anteriores=2   -> NAO e pioneira
+--   testeEDI       sao-goncalo  2026-07-31   anteriores=0   -> E pioneira
+--
+-- Por isso este arquivo apaga UMA linha, não as duas. A do `testeEDI` é
+-- legítima sob a regra nova, e apagá-la seria inútil de qualquer forma:
+-- `grantMedalhas` é upsert idempotente e o próximo sync reconcederia.
+--
+-- ----------------------------------------------------------------------------
+-- ORDEM IMPORTA: este DELETE roda DEPOIS do deploy do código corrigido.
+--
+-- Com o código antigo ainda em produção, qualquer carregamento do dashboard da
+-- Burger House chama o sync e reconcede a medalha na hora, porque a condição
+-- velha continua sempre verdadeira. É o inverso da ordem usual do projeto
+-- (SQL primeiro, deploy depois).
+--
+-- ROLLBACK: insert into public.medalhas_usuarios (user_id, slug)
+--           values ('d0719d73-4be7-4d45-854e-63cbe362f776', 'pioneiro-cidade');
+--
+-- APLICADO em produção em 2026-09-18 via MCP do Supabase, após o deploy.
+-- ============================================================================
+
+delete from public.medalhas_usuarios
+ where slug = 'pioneiro-cidade'
+   and user_id = 'd0719d73-4be7-4d45-854e-63cbe362f776';  -- matheus@teste.com / Burger House

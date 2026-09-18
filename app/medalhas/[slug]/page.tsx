@@ -44,18 +44,18 @@ export default async function MedalhaDetalhe({ params }: { params: Promise<{ slu
         <div className="grid grid-cols-2 gap-3 mt-8 text-left">
           <div className="bg-card border border-borda rounded-2xl p-4">
             <p className="text-gray-500 text-xs mb-1">Quem tem</p>
-            <p className="text-white font-bold text-2xl tabular-nums">{count || 0}</p>
-            <p className="text-gray-500 text-xs">pessoas conquistaram</p>
+            <p className="text-white font-bold text-2xl tabular-nums">{m.emBreve ? '—' : (count || 0)}</p>
+            <p className="text-gray-500 text-xs">{m.emBreve ? 'ainda não disponível' : 'pessoas conquistaram'}</p>
           </div>
           <div className="bg-card border border-borda rounded-2xl p-4">
             <p className="text-gray-500 text-xs mb-1">Como conquistar</p>
-            <p className="text-gray-300 text-sm">{m.como}</p>
+            <p className="text-gray-300 text-sm">{m.emBreve ? 'Esta medalha ainda está em preparação. Em breve.' : m.como}</p>
           </div>
         </div>
 
         {/* Compartilhar */}
         <div className="flex items-center justify-center flex-wrap gap-2 mt-8">
-          <BaixarConquista emoji={m.emoji} titulo={m.secreta ? 'Conquista secreta' : m.nome} subtitulo={m.descricao} arquivo={`medalha-${slug}`} />
+          <BaixarConquista slug={slug} emoji={m.emoji} titulo={m.secreta ? 'Conquista secreta' : m.nome} subtitulo={m.descricao} arquivo={`medalha-${slug}`} />
           <a href={`https://wa.me/?text=${encodeURIComponent(share)}`} target="_blank" rel="noopener noreferrer" className="bg-[#25D366] text-white text-sm font-semibold px-4 py-2 rounded-xl">WhatsApp</a>
           <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(`${SITE_URL}/medalhas/${slug}`)}`} target="_blank" rel="noopener noreferrer" className="bg-[#0a66c2] text-white text-sm font-semibold px-4 py-2 rounded-xl">LinkedIn</a>
           <a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" className="bg-gradient-to-br from-[#f09433] via-[#dc2743] to-[#bc1888] text-white text-sm font-semibold px-4 py-2 rounded-xl">Instagram</a>

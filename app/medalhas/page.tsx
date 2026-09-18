@@ -26,9 +26,13 @@ export default async function Medalhas() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {MEDALHAS.map(m => (
           <Link key={m.slug} href={`/medalhas/${m.slug}`} className="grupo bg-card border border-borda rounded-2xl p-4 text-center hover:border-acento/40 transition">
-            <div className="text-4xl mb-2 grupo-icone">{m.emoji}</div>
+            <div className={`text-4xl mb-2 grupo-icone${m.emBreve ? ' opacity-40 grayscale' : ''}`}>{m.emoji}</div>
             <p className="text-white text-sm font-semibold">{m.secreta ? 'Secreta' : m.nome}</p>
-            <p className="text-gray-500 text-[11px] mt-1">{contagem[m.slug] || 0} {(contagem[m.slug] || 0) === 1 ? 'pessoa' : 'pessoas'}</p>
+            {m.emBreve ? (
+              <p className="text-gray-500 text-[11px] mt-1">Em breve</p>
+            ) : (
+              <p className="text-gray-500 text-[11px] mt-1">{contagem[m.slug] || 0} {(contagem[m.slug] || 0) === 1 ? 'pessoa' : 'pessoas'}</p>
+            )}
           </Link>
         ))}
       </div>

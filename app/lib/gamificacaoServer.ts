@@ -67,7 +67,7 @@ async function atualizarStreak(admin: SupabaseClient, userId: string) {
 export async function reconciliarUsuario(admin: SupabaseClient, userId: string): Promise<PerfilGamificacao | null> {
   // Descobre papel + entidade.
   const [{ data: loja }, { data: cli }, { data: ent }, { data: forn }] = await Promise.all([
-    admin.from('lojas').select('id, nome, tipo, localizacao, created_at').eq('user_id', userId).maybeSingle(),
+    admin.from('lojas').select('id, nome, tipo, localizacao, cidade_slug, created_at').eq('user_id', userId).maybeSingle(),
     admin.from('clientes').select('id, nome, telefone, cpf, created_at').eq('user_id', userId).maybeSingle(),
     admin.from('entregadores').select('id, nome, telefone, created_at').eq('user_id', userId).maybeSingle(),
     admin.from('fornecedores').select('id, nome, created_at').eq('user_id', userId).maybeSingle(),
@@ -136,11 +136,21 @@ export async function reconciliarUsuario(admin: SupabaseClient, userId: string):
     if (avalCount >= 50 && avalMedia >= 4.95) idealMedalhas.push('estrela')
     missoes.push('cadastrar-comercio')
     if (nome && loja.tipo) missoes.push('completar-perfil')
-    // Easter egg "pioneiro-cidade": primeiro comerciante da cidade (localizacao).
-    if (loja.localizacao) {
+    // Easter egg "pioneiro-cidade": primeiro comerciante da CIDADE.
+    //
+    // Comparava `localizacao`, que é o endereço completo em texto livre
+    // ("Avenida T-63, Setor Bueno, Goiânia, GO"). Duas lojas da mesma cidade
+    // nunca colidiam, então a contagem dava 0 para todo mundo e a medalha
+    // secreta era concedida a QUALQUER comerciante no primeiro sync. Medido em
+    // produção: as 7 lojas com `anteriores = 0`, sendo 3 de Goiânia.
+    //
+    // `cidade_slug` é o campo normalizado (goiania, sao-goncalo). Nulo = loja
+    // que ainda não definiu cidade e não vende — não concede, senão todas elas
+    // empatariam em `null` e a primeira levaria a medalha.
+    if (loja.cidade_slug) {
       const { count: anteriores } = await admin.from('lojas')
         .select('id', { count: 'exact', head: true })
-        .eq('localizacao', loja.localizacao).lt('created_at', loja.created_at)
+        .eq('cidade_slug', loja.cidade_slug).lt('created_at', loja.created_at)
       if ((anteriores || 0) === 0) idealMedalhas.push('pioneiro-cidade')
     }
   }
