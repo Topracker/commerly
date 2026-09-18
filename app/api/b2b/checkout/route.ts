@@ -68,12 +68,28 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Recalcula o total a partir dos itens: nunca confiar no `total` gravado.
+  // `itens` e `total` são AUTORITATIVOS: o trigger `pedidos_b2b_guard`
+  // (sql/2026-09-17-b2b-guard-preco.sql) reescreve os dois a partir de
+  // `fornecedor_produtos` no INSERT e os congela no UPDATE.
+  //
+  // Até ele existir, este bloco recalculava o total a partir de `itens[].preco`
+  // — que o navegador do COMPRADOR tinha acabado de escrever. Era
+  // autoconsistência, não autoridade: um `preco: 0.01` no insert virava
+  // `unit_amount: 1` no Stripe e o fornecedor entregava a mercadoria de graça.
   const itens = (Array.isArray(pedido.itens) ? pedido.itens : []) as ItemPedidoB2B[]
   if (itens.length === 0) return NextResponse.json({ erro: 'Pedido sem itens' }, { status: 400 })
 
-  const total = totalDosItens(itens)
-  if (total <= 0) return NextResponse.json({ erro: 'Total inválido' }, { status: 400 })
+  const total = Number(pedido.total)
+  if (!(total > 0)) return NextResponse.json({ erro: 'Total inválido' }, { status: 400 })
+
+  // Defesa em profundidade: a soma dos itens gravados tem que bater com o total
+  // gravado. Divergir significa que alguma escrita escapou do guard — nesse
+  // caso não se cobra nada, porque é o `total` que vira dinheiro no Stripe.
+  const somaDosItens = totalDosItens(itens)
+  if (Math.abs(somaDosItens - total) > 0.01) {
+    console.error('[b2b/checkout] total diverge dos itens:', { pedido_id: pedido.id, total, somaDosItens })
+    return NextResponse.json({ erro: 'Pedido inconsistente. Refaça o pedido.' }, { status: 409 })
+  }
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 

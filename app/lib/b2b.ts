@@ -23,6 +23,14 @@ export function comissaoEmCentavos(total: number): number {
   return Math.round(total * (COMISSAO_PCT / 100) * 100)
 }
 
+/**
+ * Soma dos itens JÁ GRAVADOS no pedido.
+ *
+ * Não é a fonte do valor cobrado: quem decide preço e total é o trigger
+ * `pedidos_b2b_guard`, a partir de `fornecedor_produtos`. No checkout isto
+ * serve só de CONFERÊNCIA contra `pedidos.total`. Chamar isto com itens vindos
+ * do navegador do comprador não valida nada — foi exatamente esse o bug.
+ */
 export function totalDosItens(itens: ItemPedidoB2B[]): number {
   return Math.round(itens.reduce((a, i) => a + i.preco * i.quantidade, 0) * 100) / 100
 }

@@ -6,6 +6,7 @@ import { Estrelas } from '../../components/Estrelas'
 import { useToast } from '../../hooks/useToast'
 import { Toast } from '../../components/Toast'
 import { STATUS_META, type Pedido } from '../../lib/pedidos'
+import { brl } from '../../lib/precos'
 import { Phone, AtSign, MapPin, MessageCircle, ArrowLeft, Package, ShoppingCart, Plus, Minus, X, CreditCard } from 'lucide-react'
 
 export default function FornecedorPerfil() {
@@ -148,16 +149,35 @@ export default function FornecedorPerfil() {
     if (!lojaId) { router.push('/login'); return }
     if (itensSelecionados.length === 0) { mostrarToast('Selecione ao menos um produto', 'erro'); return }
     setEnviandoPedido(true)
-    const { error } = await supabase.from('pedidos').insert({
+    // `preco` e `total` daqui são só o que a tela mostrou. Quem manda é o
+    // trigger `pedidos_b2b_guard`, que reescreve os itens a partir do catálogo
+    // do fornecedor — por isso o `.select()`: sem ele o pedido volta 204 sem
+    // `error` e a tela mente sobre o valor se o catálogo mudou entre abrir a
+    // página e enviar (regra 9).
+    const { data: criado, error } = await supabase.from('pedidos').insert({
       loja_id: lojaId,
       fornecedor_id: id,
       itens: itensSelecionados,
       total: totalPedido,
       observacao: observacao.trim() || null,
       status: 'pendente',
-    })
-    if (error) { mostrarToast('Erro ao enviar pedido', 'erro'); setEnviandoPedido(false); return }
-    mostrarToast('Pedido enviado!', 'sucesso')
+    }).select('total').single()
+
+    if (error || !criado) {
+      // P0001 é regra de negócio do guard, escrita para o comerciante ler
+      // ("O pedido minimo de X e de N unidade(s)"). O resto fica genérico.
+      mostrarToast(error?.code === 'P0001' ? error.message : 'Erro ao enviar pedido', 'erro')
+      setEnviandoPedido(false)
+      return
+    }
+
+    const totalReal = Number(criado.total)
+    mostrarToast(
+      Math.abs(totalReal - totalPedido) > 0.01
+        ? `Pedido enviado por ${brl(totalReal)} — o preço do catálogo mudou.`
+        : 'Pedido enviado!',
+      'sucesso',
+    )
     setEnviandoPedido(false)
     setModalPedido(false)
     carregarMeusPedidos(lojaId)
