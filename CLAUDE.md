@@ -83,7 +83,7 @@ remotion-ad/        vídeo de anúncio (projeto à parte)
 | Cliente | `/cliente/*` | cliente@teste.com |
 | Entregador | `/entregador-delivery/*` | entregador@teste.com |
 | Fornecedor | `/fornecedor/*` | fornecedor@teste.com |
-| Admin | `/admin` (guard por e-mail) | — |
+| Admin | caminho com entropia — `ADMIN_BASE` em `app/lib/adminIdentidade.ts` (guard por `user_id` via `ADMIN_USER_IDS`, falha fechada) | — |
 
 Senhas das contas de teste diferem por conta — estão na memória do projeto, não chute.
 

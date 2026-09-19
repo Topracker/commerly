@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { exigirAdmin } from '../../../lib/admin'
+import { exigirAdminAuditado } from '../../../lib/admin'
 
 export const runtime = 'nodejs'
 
@@ -14,9 +14,9 @@ const ORDEM = [
   'saiu_entrega', 'recebido', 'ativado',
 ]
 
-export async function GET() {
-  const ctx = await exigirAdmin()
-  if (!ctx) return NextResponse.json({ error: 'Acesso restrito' }, { status: 403 })
+export async function GET(request: NextRequest) {
+  const ctx = await exigirAdminAuditado(request, 'kit')
+  if (!ctx.ok) return new NextResponse(null, { status: 404 })
   const { admin } = ctx
 
   const { data } = await admin
@@ -29,8 +29,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const ctx = await exigirAdmin()
-  if (!ctx) return NextResponse.json({ error: 'Acesso restrito' }, { status: 403 })
+  const ctx = await exigirAdminAuditado(request, 'kit')
+  if (!ctx.ok) return new NextResponse(null, { status: 404 })
   const { admin } = ctx
 
   const body = await request.json().catch(() => ({}))

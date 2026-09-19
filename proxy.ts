@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { situacaoPlano } from './app/lib/plano'
+import { ehAdmin, ehRotaAdmin } from './app/lib/adminIdentidade'
 
 // ============================================================================
 // PAYWALL DO LADO DO SERVIDOR (auditoria 2026-07-22)
@@ -123,6 +124,7 @@ export async function proxy(request: NextRequest) {
 
   if (NUNCA_BLOQUEAR.some(p => pathname.includes(p))) return response
 
+  const ehAdminRota = ehRotaAdmin(pathname)
   const ehApi = casa(pathname, APIS_COMERCIANTE)
   const ehApiSemPaywall = casa(pathname, APIS_SEM_PAYWALL)
   const ehPagina = casa(pathname, PAGINAS_COMERCIANTE)
@@ -141,7 +143,7 @@ export async function proxy(request: NextRequest) {
 
   // Nada a proteger nesta rota (ex.: perfil público, home): segue direto e evita
   // um getUser() de rede à toa.
-  if (!ehApi && !ehPagina && !ehAutenticada && !ehOnboarding && !ehAreaPapel) return response
+  if (!ehAdminRota && !ehApi && !ehPagina && !ehAutenticada && !ehOnboarding && !ehAreaPapel) return response
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -161,6 +163,20 @@ export async function proxy(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
+
+  // PAINEL MASTER — primeira camada. Responde 404 (não 401/403, não redirect)
+  // para todo mundo que não for o dono, inclusive anônimo: a resposta de quem
+  // não tem acesso fica IDÊNTICA à de um caminho que não existe, então nem a
+  // existência do painel é confirmável por quem varre URLs.
+  //
+  // Isto NÃO substitui o guard da rota (`exigirAdmin`), que continua valendo
+  // ponto a ponto: quem faz a checagem forte é lá, com MFA e auditoria.
+  if (ehAdminRota) {
+    if (!ehAdmin({ id: user?.id, email: user?.email })) {
+      return new NextResponse(null, { status: 404 })
+    }
+    return response
+  }
 
   if (!user) {
     // API responde 401 em JSON; página vai para o login apropriado.
@@ -198,6 +214,9 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // Estático de propósito: o matcher é analisado em build e não aceita variável.
   matcher: [
+    // Painel master (caminho com entropia — ver app/lib/adminIdentidade.ts).
+    // Literal porque o matcher é lido em build: mudou a constante, mude aqui.
+    '/gestao-9qhdsu7ed26t/:path*', '/api/gestao-9qhdsu7ed26t/:path*',
     '/dashboard/:path*', '/vendas/:path*', '/produtos/:path*', '/fiado/:path*',
     '/gastos/:path*', '/historico/:path*', '/funcionarios/:path*',
     '/fornecedores/:path*', '/mensagens/:path*', '/configuracoes/:path*',

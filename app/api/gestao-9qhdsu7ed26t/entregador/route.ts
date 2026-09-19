@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { exigirAdmin } from '../../../lib/admin'
+import { exigirAdminAuditado } from '../../../lib/admin'
 
 export const runtime = 'nodejs'
 
 // Aprova/reprova um entregador (admin).
 export async function POST(request: NextRequest) {
-  const ctx = await exigirAdmin()
-  if (!ctx) return NextResponse.json({ error: 'Acesso restrito' }, { status: 403 })
+  const ctx = await exigirAdminAuditado(request, 'entregador')
+  if (!ctx.ok) return new NextResponse(null, { status: 404 })
   const { admin } = ctx
 
   const body = await request.json().catch(() => ({}))
