@@ -7,6 +7,7 @@ import { ClienteLayout } from '../../components/ClienteLayout'
 import { CardIndicacao } from '../../components/CardIndicacao'
 import { PainelGamificacao } from '../../components/PainelGamificacao'
 import { PerfilPrivacidadeCard } from '../../components/PerfilPrivacidadeCard'
+import { ExcluirContaCard } from '../../components/ExcluirContaCard'
 import { nivelDoCliente } from '../../lib/fidelidade'
 import { Sparkles } from 'lucide-react'
 
@@ -180,6 +181,9 @@ export default function ClienteDashboard() {
             {salvandoPerfil ? 'Salvando...' : 'Salvar alterações'}
           </button>
         </div>
+
+        {/* Exclusão de conta (exigência da Google Play; fluxo em /conta/excluir) */}
+        <ExcluirContaCard />
       </div>
     </ClienteLayout>
   )

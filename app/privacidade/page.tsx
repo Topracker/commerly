@@ -90,9 +90,14 @@ export default function Privacidade() {
 
       <Secao titulo="6. Por quanto tempo guardamos">
         <Lista itens={[
-          'Dados de cadastro: enquanto a conta existir.',
-          'Registros de pedidos, vendas e pagamentos: 5 anos após a transação, para fins fiscais e de defesa em eventual processo.',
+          'Dados de cadastro (nome, CPF/CNPJ, telefone, endereço, fotos, documentos, localização): enquanto a conta existir, mais o prazo de carência de 30 dias após o pedido de exclusão.',
+          'Registros de pedidos, corridas e pagamentos feitos pela plataforma: 5 anos após a transação, para fins fiscais e de defesa em eventual processo (art. 16, I, da LGPD). Após a exclusão da conta esses registros são anonimizados: ficam valores, datas e situação; saem nome, telefone, endereço e localização.',
+          'Avaliações que você publicou: nota e comentário permanecem, atribuídos a "Cliente removido", porque integram a reputação de terceiros e uma cadeia de verificação de integridade. Fotos são apagadas.',
+          'Mensagens trocadas com lojas ou fornecedores: permanecem visíveis apenas para a outra parte, com o seu nome removido.',
           'Registros de acesso: 6 meses, conforme o Marco Civil da Internet (Lei nº 12.965/2014, art. 15).',
+          'Código irreversível derivado do CPF/CNPJ (hash com segredo): 2 anos após a exclusão, para impedir fraude no período de teste gratuito e nas recompensas por indicação (art. 7º, IX). Não permite reconstruir o documento.',
+          'Registro do pedido de exclusão (e-mail e datas): o e-mail é apagado 6 meses após a exclusão; as datas permanecem como prova de atendimento.',
+          'Dados de cobrança na Stripe (faturas da assinatura): mantidos pela Stripe conforme obrigação contábil própria.',
           'Conversas com o Assistente de IA: até você excluí-las ou encerrar a conta.',
         ]} />
       </Secao>
@@ -109,7 +114,15 @@ export default function Privacidade() {
           'Revogação do consentimento.',
         ]} />
         <p>
-          Para exercer qualquer um deles, escreva para{' '}
+          <strong className="text-gray-300">Exclusão da conta:</strong> você pode pedir dentro do app
+          (Configurações → Excluir minha conta) ou, sem estar logado, na página{' '}
+          <a href="/excluir-conta" className="text-blue-400 hover:text-blue-300 underline">commerly.com.br/excluir-conta</a>.
+          A conta é desativada na hora, fica 30 dias em carência (período em que você pode
+          desistir) e depois é apagada definitivamente, respeitados os prazos de retenção da
+          seção 6. Antes de confirmar, você pode baixar uma cópia dos seus dados (portabilidade).
+        </p>
+        <p>
+          Para exercer qualquer outro direito, escreva para{' '}
           <a href={`mailto:${CONTATO.encarregado}`} className="text-blue-400 hover:text-blue-300 underline">
             {CONTATO.encarregado}
           </a>. Respondemos em até 15 dias.

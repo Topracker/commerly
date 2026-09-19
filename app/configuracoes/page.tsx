@@ -16,6 +16,7 @@ import { isDelivery } from '../lib/pedidosClientes'
 import { normalizarWebsite, erroWebsite, checarDuplicidade, MSG_DOCUMENTO_EM_OUTRA_LOJA, erroDocumentoDuplicado } from '../lib/validacoes'
 import { numeroWhatsApp } from '../lib/whatsapp'
 import { Eye, EyeOff, Store, Copy, ExternalLink, FileText, Download } from 'lucide-react'
+import { ExcluirContaCard } from '../components/ExcluirContaCard'
 
 type Fatura = {
   id: string
@@ -852,6 +853,11 @@ export default function Configuracoes() {
             </div>
           )
         )}
+      </div>
+
+      {/* Exclusão de conta (exigência da Google Play; fluxo em /conta/excluir) */}
+      <div className="mt-6">
+        <ExcluirContaCard />
       </div>
     </AppLayout>
   )

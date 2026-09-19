@@ -77,7 +77,22 @@ const APIS_SEM_PAYWALL = ['/api/loja/cidade', '/api/loja/cancelar-pedido']
  */
 const PAGINAS_AUTENTICADAS = [
   '/embaixador', '/certificado', '/marketing', '/commerly-ai', '/feedback',
+  // Exclusão de conta: a tela de carência exige sessão. /conta/excluir fica
+  // FORA de propósito — o link da página pública chega sem sessão e a própria
+  // página troca o token por sessão (verifyOtp), como /nova-senha.
+  '/conta/agendada',
 ]
+
+// ----------------------------------------------------------------------------
+// CONTA EM CARÊNCIA DE EXCLUSÃO (2026-09-19). Quem pediu para excluir a conta
+// e entrou de novo nos 30 dias só pode ver /conta/agendada (Reativar / Sair).
+// A checagem é uma RPC (minha_exclusao, SECURITY DEFINER) por requisição
+// protegida — uma leitura indexada em exclusoes_conta. Não vale para API
+// nunca-bloqueável (webhook/cron) nem para o painel master. As rotas
+// /api/conta/* não passam pelo Proxy (não estão no matcher) e checam a sessão
+// por conta própria — é o que permite reativar durante a carência.
+// ----------------------------------------------------------------------------
+const PAGINA_AGENDADA = '/conta/agendada'
 
 // ----------------------------------------------------------------------------
 // ÁREAS POR PAPEL (cliente / entregador / fornecedor) — exigem LOGIN, sem
@@ -190,8 +205,23 @@ export async function proxy(request: NextRequest) {
     return response
   }
 
-  // Logado. Áreas de papel, páginas só-login e onboarding não têm paywall:
-  // basta a sessão, já validada acima.
+  // Logado. Conta em carência de exclusão? Só /conta/agendada e as APIs que
+  // servem a essa tela passam; o resto redireciona (página) ou 403 (API).
+  if (pathname !== PAGINA_AGENDADA) {
+    const { data: exclusao } = await supabase.rpc('minha_exclusao')
+    if (exclusao) {
+      if (ehApi) {
+        return NextResponse.json(
+          { error: 'Conta agendada para exclusão. Reative para continuar.', exclusao: true },
+          { status: 403 },
+        )
+      }
+      return NextResponse.redirect(new URL(PAGINA_AGENDADA, request.url))
+    }
+  }
+
+  // Áreas de papel, páginas só-login e onboarding não têm paywall: basta a
+  // sessão, já validada acima.
   if (ehAreaPapel || ehAutenticada || ehOnboarding || ehApiSemPaywall) return response
   if (!ehApi && !ehPagina) return response
 
@@ -231,6 +261,7 @@ export const config = {
     '/academy/:path*', '/ads/:path*',
     // Páginas que exigem só login (qualquer papel), sem paywall:
     '/embaixador/:path*', '/certificado/:path*', '/marketing/:path*', '/commerly-ai/:path*',
+    '/conta/agendada',
     // Áreas por papel — o Proxy roda em todo o prefixo; o código decide o que é
     // protegido (listas explícitas) e o que é público (perfis, login, convite).
     '/cliente/:path*', '/entregador-delivery/:path*', '/fornecedor/:path*',

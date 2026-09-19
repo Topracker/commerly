@@ -20,6 +20,7 @@ import { MAX_ENTREGAS_SIMULTANEAS, podemSerAgrupados, type PedidoRota } from '..
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { PainelGamificacao } from '../../components/PainelGamificacao'
 import { CardIndicacao } from '../../components/CardIndicacao'
+import { ExcluirContaCard } from '../../components/ExcluirContaCard'
 import { QRGerador } from '../../components/QRGerador'
 import { perfilSlug } from '../../lib/crescimento'
 import { QrCode } from 'lucide-react'
@@ -1267,6 +1268,11 @@ function EntregadorDashboard() {
           </section>
         </div>
       )}
+
+      {/* Exclusão de conta (exigência da Google Play; fluxo em /conta/excluir) */}
+      <div className="mt-4">
+        <ExcluirContaCard />
+      </div>
     </EntregadorLayout>
   )
 }

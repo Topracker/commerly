@@ -43,13 +43,23 @@ export async function POST(request: NextRequest) {
   if (!dono || dono.user_id === user.id) return NextResponse.json({ ok: false, ignorado: 'invalido' })
 
   // Papel do indicado.
-  const [{ data: loja }, { data: ent }, { data: forn }] = await Promise.all([
-    admin.from('lojas').select('id, nome').eq('user_id', user.id).maybeSingle(),
-    admin.from('entregadores').select('id').eq('user_id', user.id).maybeSingle(),
-    admin.from('fornecedores').select('id').eq('user_id', user.id).maybeSingle(),
+  const [{ data: loja }, { data: ent }, { data: forn }, { data: cli }] = await Promise.all([
+    admin.from('lojas').select('id, nome, documento').eq('user_id', user.id).maybeSingle(),
+    admin.from('entregadores').select('id, cpf').eq('user_id', user.id).maybeSingle(),
+    admin.from('fornecedores').select('id, cnpj').eq('user_id', user.id).maybeSingle(),
+    admin.from('clientes').select('id, cpf').eq('user_id', user.id).maybeSingle(),
   ])
   const papelIndicado = loja ? 'comerciante' : ent ? 'entregador' : forn ? 'fornecedor' : 'cliente'
   const rec = RECOMPENSA[papelIndicado]
+
+  // Antifraude (exclusão de conta, 2026-09-19): apagar a conta e voltar com o
+  // mesmo CPF/CNPJ usando o código de um amigo não rende indicação nem
+  // crédito. O hash fica 2 anos em exclusoes_conta.
+  const documento = loja?.documento ?? ent?.cpf ?? forn?.cnpj ?? cli?.cpf ?? null
+  if (documento) {
+    const { data: quarentena } = await admin.rpc('documento_em_quarentena', { p_doc: documento })
+    if (quarentena === true) return NextResponse.json({ ok: false, ignorado: 'quarentena' })
+  }
 
   // Comerciante fica 'pendente' até assinar; os demais papéis não têm o que
   // assinar, então a recompensa (créditos) sai na hora.

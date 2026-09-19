@@ -6,6 +6,7 @@ import { FornecedorLayout } from '../../components/FornecedorLayout'
 import { Toast } from '../../components/Toast'
 import { EnderecoAutocomplete } from '../../components/EnderecoAutocomplete'
 import { FlashSaleForm } from '../../components/FlashSale'
+import { ExcluirContaCard } from '../../components/ExcluirContaCard'
 
 const CATEGORIAS = [
   'Alimentos e bebidas',
@@ -169,6 +170,9 @@ export default function FornecedorConfiguracoes() {
 
         {/* #13 Flash Sale */}
         <FlashSaleForm onCriada={() => mostrarToast('Promoção lançada!', 'sucesso')} />
+
+        {/* Exclusão de conta (exigência da Google Play; fluxo em /conta/excluir) */}
+        <ExcluirContaCard />
       </div>
     </FornecedorLayout>
   )

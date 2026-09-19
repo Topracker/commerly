@@ -132,10 +132,24 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="11. Encerramento">
+      <Secao titulo="11. Encerramento e exclusão da conta">
         <p>
-          Você pode encerrar sua conta a qualquer momento. Podemos encerrá-la em caso de violação
-          destes Termos ou de exigência legal. Após o encerramento, tratamos seus dados conforme a{' '}
+          Você pode excluir sua conta a qualquer momento, dentro do app (Configurações → Excluir
+          minha conta) ou pela página{' '}
+          <a href="/excluir-conta" className="text-blue-400 hover:text-blue-300 underline">commerly.com.br/excluir-conta</a>.
+          O pedido desativa a conta imediatamente; por 30 dias você pode desistir entrando de novo
+          e reativando; após esse prazo a exclusão é definitiva e irreversível.
+        </p>
+        <Lista itens={[
+          'Assinaturas (mensalidade e Ads) são canceladas no ato do pedido, sem reembolso proporcional do período em curso e sem cobranças futuras.',
+          'Pedidos, corridas ou pedidos a fornecedores em andamento precisam ser concluídos ou cancelados antes; o app indica o que falta.',
+          'Pontos do Clube, conquistas, cupons e créditos não utilizados são perdidos e não são convertidos em dinheiro.',
+          'Dados da loja (produtos, vendas, gastos, fiado, agenda, funcionários) são apagados. Ofereceremos uma cópia para download antes da confirmação; a guarda dos registros fiscais do seu negócio é sua responsabilidade.',
+          'Registros que a lei nos obriga a manter permanecem, anonimizados, conforme a Política de Privacidade (seção 6).',
+        ]} />
+        <p>
+          Podemos encerrar sua conta em caso de violação destes Termos ou de exigência legal. Após
+          o encerramento, tratamos seus dados conforme a{' '}
           <a href="/privacidade" className="text-blue-400 hover:text-blue-300 underline">Política de Privacidade</a>.
         </p>
       </Secao>
