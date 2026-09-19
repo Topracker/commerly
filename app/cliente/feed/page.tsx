@@ -76,7 +76,7 @@ export default function ClienteFeed() {
     setCompartilhamentos(Object.fromEntries(listaPosts.map(p => [p.id, p.compartilhamentos || 0])))
 
     // Curtidas: as minhas (para o coração) e a contagem por post (todas são
-    // legíveis; `post_likes` tem select público).
+    // legíveis por qualquer logado; `post_likes_select_authenticated`).
     const todasCurtidas = (likesRes.data || []) as { post_id: string; cliente_id: string }[]
     setCurtidos(new Set(todasCurtidas.filter(l => l.cliente_id === cliente.id).map(l => l.post_id)))
     const contagem: Record<string, number> = {}
