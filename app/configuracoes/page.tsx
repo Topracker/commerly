@@ -13,7 +13,7 @@ import { CardapioIA } from '../components/CardapioIA'
 import { ConfigDelivery } from '../components/ConfigDelivery'
 import { uploadFachada, removerFachada } from '../lib/fachada'
 import { isDelivery } from '../lib/pedidosClientes'
-import { normalizarWebsite, erroWebsite } from '../lib/validacoes'
+import { normalizarWebsite, erroWebsite, checarDuplicidade, MSG_DOCUMENTO_EM_OUTRA_LOJA, erroDocumentoDuplicado } from '../lib/validacoes'
 import { numeroWhatsApp } from '../lib/whatsapp'
 import { Eye, EyeOff, Store, Copy, ExternalLink, FileText, Download } from 'lucide-react'
 
@@ -338,6 +338,16 @@ export default function Configuracoes() {
     if (erroSite) { mostrarToast('Endereço de site inválido!', 'erro'); return }
     if (erroWhats) { mostrarToast('Número de WhatsApp inválido!', 'erro'); return }
 
+    // Documento mudou? Pergunta ao servidor se outra conta já o usa (a RLS não
+    // deixa o navegador ver as lojas dos outros). É só o aviso amigável: quem
+    // barra de verdade é o índice único `lojas_documento_uidx`, tratado no
+    // erro do update abaixo. Erro de rede aqui não trava o salvar.
+    const docAntes = (loja.documento || '').replace(/\D/g, '')
+    if (nums && nums !== docAntes && (nums.length === 11 || nums.length === 14)) {
+      const dup = await checarDuplicidade(nums.length === 11 ? { cpf: nums } : { cnpj: nums })
+      if (dup.duplicado) { mostrarToast(MSG_DOCUMENTO_EM_OUTRA_LOJA, 'erro'); return }
+    }
+
     const websiteFinal = normalizarWebsite(website)
     // Vazio grava null: `whatsappDaLoja` então cai no telefone da loja.
     const whatsappFinal = whatsappBiz.replace(/\D/g, '') ? whatsappBiz : null
@@ -374,7 +384,10 @@ export default function Configuracoes() {
     const { data: salvo, error } = await supabase.from('lojas').update({
       nome, tipo: tipoFinal, documento, localizacao, latitude: latFinal, longitude: lngFinal, telefone, instagram, website_url: websiteFinal, whatsapp_business: whatsappFinal, horario, meta_mensal: metaMensal, fotos_fachada: fotosFinais,
     }).eq('id', loja.id).select('id')
-    if (error || !salvo?.length) { mostrarToast('Erro ao salvar configurações', 'erro'); setSalvando(false); return }
+    if (error || !salvo?.length) {
+      mostrarToast(erroDocumentoDuplicado(error) ? MSG_DOCUMENTO_EM_OUTRA_LOJA : 'Erro ao salvar configurações', 'erro')
+      setSalvando(false); return
+    }
 
     // Gravou: agora as fotos removidas podem sair do Storage. Best-effort — se
     // a exclusão falhar, sobra arquivo sem referência, que não quebra nada.

@@ -217,6 +217,17 @@ export const MSG_DUPLICADO: Record<CampoDuplicado, string> = {
   telefone: 'Este telefone já está cadastrado em outra conta do Commerly.',
 }
 
+// Barreira REAL do documento entre lojas: o índice único
+// `lojas_documento_uidx` (sobre o documento sem máscara). A checagem acima é
+// só conforto de UI — é TOCTOU e falha aberta em erro de rede; quem segura de
+// verdade é o 23505 do banco, que insert e update precisam traduzir.
+export const MSG_DOCUMENTO_EM_OUTRA_LOJA = 'Este CPF/CNPJ já está cadastrado em outra loja.'
+
+export function erroDocumentoDuplicado(error: { code?: string; message?: string; details?: string } | null | undefined): boolean {
+  if (!error || error.code !== '23505') return false
+  return `${error.message ?? ''} ${error.details ?? ''}`.includes('lojas_documento_uidx')
+}
+
 // Consulta a rota server-side (que usa service role pra contornar a RLS) e
 // devolve qual campo está duplicado, se houver. Em caso de erro de rede
 // retorna { erro } — o chamador decide se bloqueia ou segue.

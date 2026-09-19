@@ -12,6 +12,7 @@ import { Toast } from '../components/Toast'
 import {
   validarCPF, validarCNPJ, formatarDocumento,
   formatarTelefone, erroTelefone, checarDuplicidade, MSG_DUPLICADO,
+  MSG_DOCUMENTO_EM_OUTRA_LOJA, erroDocumentoDuplicado,
   checarLimiteCadastroIp, registrarCadastroIp, AVISO_VERIFICACAO, normalizarWebsite, erroWebsite,
 } from '../lib/validacoes'
 import { outroPapel, msgCadastroOutroPapel } from '../lib/papeis'
@@ -212,7 +213,8 @@ export default function Onboarding() {
         router.push('/dashboard')
         return
       }
-      if (error.code === '23505') mostrarToast('Este CPF/CNPJ já está cadastrado no Commerly!', 'erro')
+      if (erroDocumentoDuplicado(error)) mostrarToast(MSG_DOCUMENTO_EM_OUTRA_LOJA, 'erro')
+      else if (error.code === '23505') mostrarToast('Este CPF/CNPJ já está cadastrado no Commerly!', 'erro')
       else mostrarToast('Não foi possível salvar seu cadastro. Tente novamente.', 'erro')
       setLoading(false)
       return
