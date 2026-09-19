@@ -276,6 +276,11 @@ export default function Onboarding() {
         'erro',
       )
       await new Promise(r => setTimeout(r, 3000))
+    } else {
+      // Os 3 dias de teste vêm do banco (default da coluna + trigger), não
+      // deste insert — por isso o insert acima não manda trial_expira_em.
+      mostrarToast('Loja criada! Você tem 3 dias grátis para testar tudo.', 'sucesso')
+      await new Promise(r => setTimeout(r, 1500))
     }
 
     router.push('/planos')
