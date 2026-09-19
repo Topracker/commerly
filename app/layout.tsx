@@ -84,7 +84,7 @@ export default function RootLayout({
     >
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#0a0f1a" />
+        <meta name="theme-color" content="#0a0f1a" />{/* = manifest.json theme_color/background_color e --color-fundo: mudou um, mude os três */}
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

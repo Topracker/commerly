@@ -1,11 +1,15 @@
 /* Commerly service worker — minimal & conservative */
-const VERSION = 'commerly-v4';
+// v5 (2026-09-19): manifest mudou (start_url /entrar, theme_color, maskable,
+// shortcuts) — o precache antigo servia o manifest velho cache-first.
+const VERSION = 'commerly-v5';
 const STATIC_CACHE = `${VERSION}-static`;
 
 const PRECACHE = [
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
+  '/icon-maskable-192.png',
+  '/icon-maskable-512.png',
 ];
 
 self.addEventListener('install', (event) => {
