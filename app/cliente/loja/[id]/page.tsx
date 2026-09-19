@@ -18,6 +18,7 @@ import { PedidoModal } from '../../../components/PedidoModal'
 import { isDelivery } from '../../../lib/pedidosClientes'
 import { linkWhatsApp, textoPedido, whatsappDaLoja } from '../../../lib/whatsapp'
 import { AtSign, MapPin, Clock, MessageCircle, ArrowLeft, Heart, ShoppingBag, Globe, UserPlus, UserCheck } from 'lucide-react'
+import { SeloAberto } from '../../../components/SeloAberto'
 
 export default function ClienteLoja() {
   const { id } = useParams<{ id: string }>()
@@ -228,7 +229,7 @@ export default function ClienteLoja() {
                 <p className="text-gray-400 flex items-center gap-2.5"><MapPin size={15} className="text-gray-500 shrink-0" />{loja.localizacao}</p>
               )}
               {loja.horario && (
-                <p className="text-gray-400 flex items-center gap-2.5"><Clock size={15} className="text-gray-500 shrink-0" />{loja.horario}</p>
+                <p className="text-gray-400 flex items-center gap-2.5 flex-wrap"><Clock size={15} className="text-gray-500 shrink-0" />{loja.horario} <SeloAberto horario={loja.horario} /></p>
               )}
               {loja.instagram && (
                 <p className="text-gray-400 flex items-center gap-2.5"><AtSign size={15} className="text-gray-500 shrink-0" />{loja.instagram}</p>

@@ -7,6 +7,7 @@ import { MiniMapa } from '../../components/MiniMapa'
 import { RatingBadge } from '../../components/RatingBadge'
 import { ProdutoCard } from '../../components/ProdutoCard'
 import { Phone, AtSign, MapPin, Clock, Globe, UtensilsCrossed, MessageCircle } from 'lucide-react'
+import { SeloAberto } from '../../components/SeloAberto'
 import { isDelivery } from '../../lib/pedidosClientes'
 import { VIEW_AVAL_LOJAS } from '../../lib/avaliacoes'
 import { SeloVerificado } from '../../components/SeloVerificado'
@@ -181,7 +182,7 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
             {/* A localização já aparece no hero — aqui só o que não está lá. */}
             <div className="flex flex-col gap-2 text-sm">
               {loja.horario && (
-                <p className="text-gray-400 flex items-center gap-2.5"><Clock size={15} className="text-gray-500 shrink-0" />{loja.horario}</p>
+                <p className="text-gray-400 flex items-center gap-2.5 flex-wrap"><Clock size={15} className="text-gray-500 shrink-0" />{loja.horario} <SeloAberto horario={loja.horario} /></p>
               )}
               {loja.telefone && (
                 <p className="text-gray-400 flex items-center gap-2.5"><Phone size={15} className="text-gray-500 shrink-0" />{loja.telefone}</p>

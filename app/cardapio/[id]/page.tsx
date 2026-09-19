@@ -7,6 +7,7 @@ import { LojaIndisponivel } from '../../components/LojaIndisponivel'
 import { emojiCategoria, corAcentoNicho } from '../../lib/temaLoja'
 import { linkWhatsApp, textoPedidoCardapio, whatsappDaLoja } from '../../lib/whatsapp'
 import { MapPin, Clock, Phone, ShoppingBag, UtensilsCrossed, MessageCircle } from 'lucide-react'
+import { SeloAberto } from '../../components/SeloAberto'
 
 // Cardápio digital público — acessível sem login (ideal para QR code na mesa/
 // balcão). Mostra a loja e todos os produtos disponíveis agrupados por
@@ -181,7 +182,7 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
                 <p className="text-gray-400 flex items-center gap-2.5"><MapPin size={15} className="text-gray-500 shrink-0" />{loja.localizacao}</p>
               )}
               {loja.horario && (
-                <p className="text-gray-400 flex items-center gap-2.5"><Clock size={15} className="text-gray-500 shrink-0" />{loja.horario}</p>
+                <p className="text-gray-400 flex items-center gap-2.5 flex-wrap"><Clock size={15} className="text-gray-500 shrink-0" />{loja.horario} <SeloAberto horario={loja.horario} /></p>
               )}
               {loja.telefone && (
                 <p className="text-gray-400 flex items-center gap-2.5"><Phone size={15} className="text-gray-500 shrink-0" />{loja.telefone}</p>

@@ -460,6 +460,9 @@ export default function Onboarding() {
                 {HORAS.map(h => <option key={h} value={h}>{h}</option>)}
               </select>
             </div>
+            <p className="text-gray-500 text-xs mt-2">
+              Fora desse horário a loja não recebe pedidos. Fechamento antes da abertura atravessa a meia-noite (ex.: 18:00 até 02:00).
+            </p>
           </div>
 
           <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>

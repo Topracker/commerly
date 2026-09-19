@@ -6,6 +6,7 @@ import { distanciaKm, taxaEntregaPorDistancia, taxaComPico, ehHorarioPico, forma
 import { descontoDePontos, maxPontosResgataveis } from '../lib/fidelidade'
 import { aplicarFator } from '../lib/precoDinamico'
 import { MapaConfirmar } from './MapaConfirmar'
+import { lojaAberta, msgLojaFechada } from '../lib/horario'
 
 // `preco_venda` já vem com o desconto aplicado quando há promoção ativa;
 // `preco_original`/`desconto_pct` existem só para exibir o "de/por".
@@ -21,7 +22,7 @@ type Produto = {
 type Sugestao = { lat: number; lng: number; display_name: string }
 
 type Props = {
-  loja: { id: string; nome: string; latitude?: number | null; longitude?: number | null; aceita_pagamento_online?: boolean; distancia_maxima_entrega?: number | null }
+  loja: { id: string; nome: string; horario?: string | null; latitude?: number | null; longitude?: number | null; aceita_pagamento_online?: boolean; distancia_maxima_entrega?: number | null }
   cliente: { id: string; nome?: string | null; telefone?: string | null }
   produtos: Produto[]
   supabase: any
@@ -176,6 +177,10 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
     if (!endereco.trim()) { onErro('Informe o endereço de entrega.'); return }
     if (!coord) { onErro('Selecione o endereço nas sugestões e confirme o ponto no mapa para calcular a taxa.'); return }
     if (foraDeArea) { onErro(`Endereço fora da área de entrega. Esta loja entrega até ${distMax} km.`); return }
+    // Fora do horário: mesma regra do trigger do banco (app/lib/horario.ts ↔
+    // loja_aberta()). Vale para os dois caminhos — online é recusado no
+    // checkout antes de cobrar, e na entrega o trigger recusa o insert.
+    if (!lojaAberta(loja.horario)) { onErro(msgLojaFechada(loja.horario)); return }
     setEnviando(true)
 
     // Pagamento ONLINE: cria a sessão de checkout no servidor e vai pro Stripe.
@@ -240,7 +245,9 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
     if (error) {
       onErro(error.message?.includes('Delivery indisponível')
         ? 'Delivery indisponível na sua cidade no momento. 💛'
-        : 'Não foi possível enviar o pedido. Tente novamente.')
+        : error.message?.includes('fechada agora')
+          ? msgLojaFechada(loja.horario)
+          : 'Não foi possível enviar o pedido. Tente novamente.')
       setEnviando(false); return
     }
 

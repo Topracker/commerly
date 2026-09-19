@@ -103,6 +103,11 @@ export async function POST(request: NextRequest) {
       console.error('[festa/fechar] erro ao criar pedido:', error?.message)
       // Best-effort rollback dos pedidos já criados desta festa.
       await admin.from('pedidos_clientes').delete().eq('festa_id', festaId)
+      // Loja fechada (trigger trg_bloquear_fora_horario): a mensagem do banco
+      // já diz qual loja e o horário — repassa em vez do erro genérico.
+      if (error?.message?.includes('fechada agora')) {
+        return NextResponse.json({ error: error.message }, { status: 409 })
+      }
       return NextResponse.json({ error: 'Não foi possível gerar os pedidos da festa.' }, { status: 500 })
     }
     criados.push({ participante_id: p.id, pedido_id: pedido.id })
