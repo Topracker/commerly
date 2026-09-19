@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { enviarEmail } from '../../../lib/email'
+import { enviarEmail, emailDaEquipe, escaparHtml as escapar } from '../../../lib/email'
 import { rateLimit } from '../../../lib/rate-limit'
 
 // Formulário de contato do /suporte. O e-mail sai pelo Resend a partir do
@@ -7,24 +7,10 @@ import { rateLimit } from '../../../lib/rate-limit'
 // endereço de quem escreveu vai no reply_to — assim, responder no cliente de
 // e-mail cai direto na caixa do usuário, sem copiar e colar endereço.
 
-const DESTINO = 'suportecommerly@gmail.com'
-
 const ASSUNTOS = ['Dúvida', 'Problema técnico', 'Financeiro', 'Sugestão', 'Outro'] as const
 type Assunto = (typeof ASSUNTOS)[number]
 
 const LIMITES = { nome: 100, email: 254, mensagem: 5000 }
-
-// Escapa o que o usuário escreveu antes de interpolar no HTML do e-mail. Sem
-// isso, uma mensagem com "<img onerror=...>" viraria markup no cliente de
-// e-mail de quem lê — o formulário é público, então trate tudo como hostil.
-function escapar(texto: string): string {
-  return texto
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
@@ -101,7 +87,7 @@ export async function POST(req: NextRequest) {
   ].join('\n')
 
   const envio = await enviarEmail({
-    para: DESTINO,
+    para: emailDaEquipe(),
     assunto: `[Suporte / ${assunto}] ${nome}`,
     html,
     texto,

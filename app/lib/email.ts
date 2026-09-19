@@ -16,6 +16,26 @@ function remetente(): string {
   return process.env.RESEND_FROM || 'Commerly <suporte@commerly.com.br>'
 }
 
+// Caixa da equipe que recebe o que o usuário escreve para a gente (contato do
+// /suporte e feedback do painel). Uma env var só, para os dois: quem troca a
+// caixa troca num lugar. O fallback é o endereço que sempre recebeu o suporte,
+// para a mensagem nunca ficar sem destino por falta de configuração.
+export function emailDaEquipe(): string {
+  return process.env.EMAIL_EQUIPE || 'suportecommerly@gmail.com'
+}
+
+// Escapa o que o usuário escreveu antes de interpolar no HTML do e-mail. Sem
+// isso, uma mensagem com "<img onerror=...>" viraria markup no cliente de
+// e-mail de quem lê — trate tudo que vem do formulário como hostil.
+export function escaparHtml(texto: string): string {
+  return texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export type ResultadoEmail = { ok: true; id?: string } | { ok: false; erro: string }
 
 export async function enviarEmail(opts: {

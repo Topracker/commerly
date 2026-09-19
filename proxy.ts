@@ -34,7 +34,7 @@ import { ehAdmin, ehRotaAdmin } from './app/lib/adminIdentidade'
 /** Páginas do painel do comerciante — as 24 que hoje chamam `useAuth()`. */
 const PAGINAS_COMERCIANTE = [
   '/dashboard', '/vendas', '/produtos', '/fiado', '/gastos', '/historico',
-  '/funcionarios', '/fornecedores', '/mensagens', '/configuracoes', '/feedback',
+  '/funcionarios', '/fornecedores', '/mensagens', '/configuracoes',
   '/assistente', '/integracoes', '/servicos', '/pedidos', '/clientes',
   '/financeiro', '/agenda', '/combos', '/promocoes', '/notificacoes', '/posts',
   '/academy', '/ads',
@@ -70,9 +70,13 @@ const APIS_SEM_PAYWALL = ['/api/loja/cidade', '/api/loja/cancelar-pedido']
  * (só falhavam nas chamadas de API). Agora o Proxy manda quem não tem sessão
  * para o login antes de renderizar. Não entram no paywall porque também servem
  * a cliente/entregador (que não têm loja); a checagem de plano é pulada.
+ *
+ * /feedback está aqui de propósito: comerciante com plano vencido PRECISA
+ * conseguir reclamar. A gravação vai por /api/feedback (service role, passa
+ * pela RLS `paywall_plano`); a página só monta o formulário.
  */
 const PAGINAS_AUTENTICADAS = [
-  '/embaixador', '/certificado', '/marketing', '/commerly-ai',
+  '/embaixador', '/certificado', '/marketing', '/commerly-ai', '/feedback',
 ]
 
 // ----------------------------------------------------------------------------

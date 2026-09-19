@@ -6,7 +6,7 @@ import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 
 export default function Feedback() {
-  const { loja, loading, supabase, sair } = useAuth()
+  const { loja, loading, sair } = useAuth()
   const { toast, mostrarToast } = useToast()
   const [mensagem, setMensagem] = useState('')
   const [tipo, setTipo] = useState('Ideia')
@@ -15,8 +15,16 @@ export default function Feedback() {
   async function enviar() {
     if (!mensagem) { mostrarToast('Escreva uma mensagem!', 'erro'); return }
     setEnviando(true)
-    const { error } = await supabase.from('feedbacks').insert({ loja_id: loja.id, mensagem, tipo })
-    if (error) { mostrarToast('Erro ao enviar feedback', 'erro'); setEnviando(false); return }
+    // A rota resolve a loja pelo JWT, grava com service role (passa pelo
+    // paywall — quem está com plano vencido também pode reclamar) e avisa a
+    // equipe por e-mail. Aqui só vai o que o comerciante digitou.
+    const res = await fetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo, mensagem }),
+    }).catch(() => null)
+    const corpo = await res?.json().catch(() => null)
+    if (!res?.ok) { mostrarToast(corpo?.erro || 'Erro ao enviar feedback', 'erro'); setEnviando(false); return }
     mostrarToast('Feedback enviado! Obrigado!', 'sucesso')
     setMensagem('')
     setEnviando(false)
