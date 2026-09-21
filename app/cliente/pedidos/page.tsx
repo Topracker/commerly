@@ -467,7 +467,8 @@ export default function ClientePedidos() {
                       </span>
                     ) : (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-medium">
-                        💵 Pagar na entrega
+                        {p.status === 'entregue' ? '💵 Pago na entrega' : '💵 Pagar na entrega'}
+                        {p.troco_para != null && Number(p.troco_para) > Number(p.total) && ` · troco para R$ ${Number(p.troco_para).toFixed(2).replace('.', ',')}`}
                       </span>
                     )}
                   </div>

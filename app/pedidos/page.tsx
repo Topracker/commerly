@@ -7,7 +7,8 @@ import { Toast } from '../components/Toast'
 import { isDelivery, STATUS_META, FLUXO_STATUS, proximoStatus, pedidoEmAndamento, type PedidoCliente, type StatusPedidoCliente } from '../lib/pedidosClientes'
 import { RAIO_BUSCA_KM, type ParceriaEntregador } from '../lib/entregadores'
 import { formatarDistancia } from '../lib/geo'
-import { MapPin, Phone, ShoppingBag, ChevronRight, Ban, Bike, Check, X, Search, SearchX, Loader2, AlertTriangle, Users, RefreshCw } from 'lucide-react'
+import { MapPin, Phone, ShoppingBag, ChevronRight, Ban, Bike, Check, X, Search, SearchX, Loader2, AlertTriangle, Users, RefreshCw, Banknote } from 'lucide-react'
+import { situacaoAcerto, trocoDevido, reais, type AcertoComConfirmacoes } from '../lib/acertos'
 
 type EntregadorPublico = { id: string; nome: string; foto_url: string | null; telefone: string | null }
 
@@ -35,6 +36,11 @@ export default function PedidosComerciante() {
   const [cancelando, setCancelando] = useState<PedidoCliente | null>(null)
   // Pedido aguardando confirmação de LIBERAÇÃO do entregador sumido (modal).
   const [liberando, setLiberando] = useState<PedidoCliente | null>(null)
+  // Acertos em DINHEIRO (lib/acertos.ts): o que cada entregador deve repassar a
+  // esta loja e se já confirmamos. RLS devolve só as linhas desta loja.
+  const [acertos, setAcertos] = useState<Record<string, AcertoComConfirmacoes>>({})
+  const [contestando, setContestando] = useState<AcertoComConfirmacoes | null>(null)
+  const [motivoContestacao, setMotivoContestacao] = useState('')
 
   useEffect(() => { if (loja) carregar() }, [loja])
 
@@ -180,6 +186,13 @@ export default function PedidosComerciante() {
     setPedidos(lista)
     setParcerias(pars)
 
+    // Repasses em dinheiro por pedido (só o que a loja recebe do entregador).
+    const { data: acs } = await supabase.from('acertos_dinheiro').select('*, acertos_confirmacoes(*)')
+      .eq('loja_id', loja.id).eq('para_papel', 'loja').eq('tipo', 'repasse_loja').is('estorna_id', null)
+    const amap: Record<string, AcertoComConfirmacoes> = {}
+    for (const a of (acs || []) as AcertoComConfirmacoes[]) amap[a.pedido_id] = a
+    setAcertos(amap)
+
     // Nomes/fotos dos entregadores (parceiros + atribuídos) via view pública.
     const ids = [...new Set([
       ...pars.map(p => p.entregador_id),
@@ -273,6 +286,33 @@ export default function PedidosComerciante() {
       : 'Pedido cancelado.', 'sucesso')
   }
 
+  // Confirma (ou contesta) o repasse em dinheiro do entregador. Rota service
+  // role: é ela que vira `pagamento_status` em 'pago' — a chave anon não pode
+  // (guard). Recarrega no fim para ler a confirmação e o status do banco.
+  async function responderAcerto(a: AcertoComConfirmacoes, resultado: 'confirmado' | 'contestado', observacao?: string) {
+    setSalvando(a.pedido_id)
+    let res: Response
+    try {
+      res = await fetch('/api/acertos/confirmar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acerto_id: a.id, resultado, observacao }),
+      })
+    } catch {
+      setSalvando(null)
+      mostrarToast('Sem conexão. Tente novamente.', 'erro')
+      return
+    }
+    const data = await res.json().catch(() => null)
+    setSalvando(null)
+    if (!res.ok) { mostrarToast(data?.error || 'Não foi possível registrar.', 'erro'); return }
+    setContestando(null); setMotivoContestacao('')
+    mostrarToast(resultado === 'confirmado'
+      ? `Recebimento de ${reais(Number(a.valor))} confirmado — pedido pago.`
+      : 'Contestação registrada. O entregador foi avisado.', 'sucesso')
+    carregar()
+  }
+
   if (loading) return (
     <main className="min-h-screen bg-gray-950 flex items-center justify-center">
       <p className="text-gray-400">Carregando...</p>
@@ -351,13 +391,20 @@ export default function PedidosComerciante() {
             <p className="flex justify-between text-green-400"><span>🎟️ Cupom (Modo Festa)</span><span>− R$ {Number(p.desconto_cupom).toFixed(2)}</span></p>
           )}
           <p className="font-display text-white font-bold text-sm mt-1">Total: R$ {Number(p.total).toFixed(2)}</p>
-          <p className="mt-1">
+          <p className="mt-1 flex items-center gap-1.5 flex-wrap">
             {p.pagamento_status === 'estornado' ? (
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-500/15 text-gray-300 font-medium">↩︎ Estornado ao cliente</span>
             ) : p.pagamento_metodo === 'online' ? (
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-300 font-medium">💳 Pago online</span>
+            ) : p.pagamento_status === 'pago' ? (
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-300 font-medium">💵 Recebido em dinheiro</span>
             ) : (
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-medium">💵 Recebe na entrega</span>
+            )}
+            {p.pagamento_metodo !== 'online' && p.troco_para != null && trocoDevido(p.troco_para, Number(p.total)) > 0 && (
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-elevado border border-borda text-gray-300 font-medium">
+                Troco: cliente paga com {reais(Number(p.troco_para))} → {reais(trocoDevido(p.troco_para, Number(p.total)))}
+              </span>
             )}
           </p>
         </div>
@@ -375,6 +422,37 @@ export default function PedidosComerciante() {
                   </span>
                 )}
               </div>
+              {/* DINHEIRO (Caminho B, lib/acertos.ts): o entregador cobrou o total
+                  na porta, ficou com a taxa e deve repassar o resto. A loja diz se
+                  recebeu — é isso que vira o pedido em "pago". */}
+              {p.status === 'entregue' && p.pagamento_metodo !== 'online' && acertos[p.id] && (() => {
+                const a = acertos[p.id]
+                const sit = situacaoAcerto(a)
+                return (
+                  <div className={`rounded-xl p-3 border ${sit === 'confirmado' ? 'bg-green-500/10 border-green-500/30' : sit === 'contestado' ? 'bg-red-500/10 border-red-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
+                    <p className={`text-xs font-semibold flex items-start gap-1.5 ${sit === 'confirmado' ? 'text-green-200' : sit === 'contestado' ? 'text-red-300' : 'text-amber-200'}`}>
+                      <Banknote size={13} className="shrink-0 mt-0.5" />
+                      <span>
+                        {sit === 'confirmado' && `Você confirmou o recebimento de ${reais(Number(a.valor))}.`}
+                        {sit === 'contestado' && `Você contestou o repasse de ${reais(Number(a.valor))}. Combine com o entregador.`}
+                        {sit === 'pendente' && `${reais(Number(a.valor))} a receber de ${entregadores[p.entregador_id!]?.nome || 'o entregador'} (total ${reais(Number(p.total))} − taxa ${reais(Number(p.taxa_entrega))}).`}
+                      </span>
+                    </p>
+                    {sit === 'pendente' && (
+                      <div className="mt-2 flex gap-2">
+                        <button onClick={() => responderAcerto(a, 'confirmado')} disabled={salvando === p.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold py-2 rounded-xl transition disabled:opacity-50">
+                          <Check size={13} /> Confirmar recebimento
+                        </button>
+                        <button onClick={() => { setContestando(a); setMotivoContestacao('') }} disabled={salvando === p.id}
+                          className="shrink-0 px-3 bg-gray-800 border border-gray-700 hover:border-red-500/50 hover:text-red-400 text-gray-300 text-xs font-semibold py-2 rounded-xl transition disabled:opacity-50">
+                          Não recebi
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
               {/* ENTREGADOR SEM SINAL: o GPS dele parou de subir e a plataforma já
                   perguntou se ainda está com o pedido. Antes, o pedido era repassado
                   em silêncio e ninguém ficava sabendo — nem o comerciante. */}
@@ -463,12 +541,13 @@ export default function PedidosComerciante() {
             </div>
           ) : null}
 
-          {/* Corrida do entregador = taxa de entrega (automática por distância).
-              Paga direto ao entregador via Stripe; o comerciante não define. */}
+          {/* Corrida do entregador = taxa de entrega (automática por distância);
+              o comerciante não define. Online: a plataforma repassa via Stripe.
+              Dinheiro: o entregador fica com ela do que cobrou na porta. */}
           <p className="text-xs text-gray-500">
             Corrida do entregador: <strong className="text-gray-300">R$ {Number(p.valor_corrida).toFixed(2)}</strong>
             {p.distancia_km != null && <span> · {Number(p.distancia_km).toFixed(1).replace('.', ',')} km</span>}
-            <span className="text-gray-600"> (taxa de entrega, paga via Stripe)</span>
+            <span className="text-gray-600">{p.pagamento_metodo === 'online' ? ' (taxa de entrega, paga via Stripe)' : ' (taxa de entrega; o entregador fica com ela do que cobra do cliente)'}</span>
           </p>
         </div>
 
@@ -559,6 +638,43 @@ export default function PedidosComerciante() {
                 className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition text-sm"
               >
                 {salvando === liberando.id ? 'Liberando...' : 'Liberar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contestação do repasse em dinheiro — pede o motivo e avisa o entregador. */}
+      {contestando && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => { if (salvando !== contestando.pedido_id) setContestando(null) }}>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <h2 className="font-display text-white font-bold text-lg mb-1">Não recebeu {reais(Number(contestando.valor))}?</h2>
+            <p className="text-gray-400 text-sm mb-3">
+              O entregador <strong className="text-white">{(contestando.entregador_id && entregadores[contestando.entregador_id]?.nome) || ''}</strong> será avisado
+              e a contestação fica registrada para a equipe Commerly. O pedido continua como não pago até você confirmar.
+            </p>
+            <textarea
+              value={motivoContestacao}
+              onChange={e => setMotivoContestacao(e.target.value)}
+              rows={2}
+              maxLength={300}
+              placeholder="O que aconteceu? (opcional)"
+              className="w-full bg-gray-950 border border-gray-800 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-red-500/50 resize-none mb-4"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setContestando(null)}
+                disabled={salvando === contestando.pedido_id}
+                className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold py-2.5 rounded-xl transition text-sm"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={() => responderAcerto(contestando, 'contestado', motivoContestacao.trim() || undefined)}
+                disabled={salvando === contestando.pedido_id}
+                className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition text-sm"
+              >
+                {salvando === contestando.pedido_id ? 'Registrando...' : 'Registrar contestação'}
               </button>
             </div>
           </div>

@@ -28,8 +28,9 @@ import Link from 'next/link'
 import {
   Store, MapPin, Navigation, CircleDollarSign, Check, Handshake, PackageCheck,
   Star, History, Power, Wallet, Bike, TrendingUp,
-  Award, Trophy, Target, Camera, WifiOff, RefreshCw, X, Layers, AlertTriangle,
+  Award, Trophy, Target, Camera, WifiOff, RefreshCw, X, Layers, AlertTriangle, Banknote,
 } from 'lucide-react'
+import { resumoCobranca, repasseLoja, situacaoAcerto, SITUACAO_META, type AcertoComConfirmacoes } from '../../lib/acertos'
 
 type Avaliacao = { nota: number; comentario: string | null; created_at: string }
 type LojaDelivery = { id: string; nome: string; tipo?: string; localizacao?: string | null; latitude?: number | null; longitude?: number | null }
@@ -96,10 +97,11 @@ function EntregadorDashboard() {
   // Stripe Connect
   const [stripeOnboarded, setStripeOnboarded] = useState(false)
   const [stripeHasAccount, setStripeHasAccount] = useState(false)
-  const [pagamentoManual, setPagamentoManual] = useState(false)
+  // Acertos em dinheiro (lib/acertos.ts): o que este entregador deve repassar
+  // a cada loja e se a loja já confirmou. RLS: só as linhas dele.
+  const [acertos, setAcertos] = useState<AcertoComConfirmacoes[]>([])
 
   useEffect(() => { if (entregador) { carregar(); checarStripe() } }, [entregador])
-  useEffect(() => { if (entregador?.pagamento_manual) setPagamentoManual(true) }, [entregador])
 
   // Estado online vem do banco (entregadores.disponivel).
   useEffect(() => {
@@ -170,9 +172,9 @@ function EntregadorDashboard() {
   }, [])
 
   useEffect(() => {
-    if (params.get('stripe') === 'ok') { checarStripe(); setPagamentoManual(false); mostrarToast('Conta Stripe conectada!', 'sucesso') }
+    if (params.get('stripe') === 'ok') { checarStripe(); mostrarToast('Conta Stripe conectada!', 'sucesso') }
     if (params.get('stripe') === 'erro') mostrarToast('Não foi possível conectar a Stripe. Tente de novo.', 'erro')
-    if (params.get('stripe') === 'manual') { setPagamentoManual(true); mostrarToast('Não foi possível conectar ao Stripe agora. Combine o pagamento das corridas com o suporte.', 'erro') }
+    if (params.get('stripe') === 'manual') { mostrarToast('Não foi possível conectar ao Stripe agora. Corridas em dinheiro você recebe na porta; tente conectar de novo mais tarde.', 'erro') }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -190,6 +192,9 @@ function EntregadorDashboard() {
       // Ranking semanal (view agregada; ignora silenciosamente se ainda não migrada).
       supabase.from('ranking_entregadores_semana').select('*').order('entregas', { ascending: false }),
     ])
+    const acertosRes = await supabase.from('acertos_dinheiro').select('*, acertos_confirmacoes(*)')
+      .eq('entregador_id', entregador!.id).is('estorna_id', null).order('created_at', { ascending: false }).limit(200)
+    setAcertos((acertosRes.data || []) as AcertoComConfirmacoes[])
     setLojas((lojasRes.lojas || []) as LojaDelivery[])
     setParcerias((parceriasRes.data || []) as ParceriaEntregador[])
     setPedidos((pedidosRes.data || []) as PedidoCliente[])
@@ -288,6 +293,11 @@ function EntregadorDashboard() {
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
   const entregasFeitas = historico.length
   const totalRecebido = historico.filter(p => p.pagamento_corrida === 'pago').reduce((s, p) => s + (Number(p.valor_corrida) || 0), 0)
+  // Repasses em dinheiro que a loja ainda não confirmou (Caminho B).
+  const repasses = acertos.filter(a => a.tipo === 'repasse_loja')
+  const repassesPendentes = repasses.filter(a => situacaoAcerto(a) === 'pendente')
+  const totalARepassar = repassesPendentes.reduce((s, a) => s + Number(a.valor), 0)
+  const acertoDoPedido = (pedidoId: string) => repasses.find(a => a.pedido_id === pedidoId) || null
 
   // Métricas de hoje.
   const hoje = hojeLocal()
@@ -655,7 +665,10 @@ function EntregadorDashboard() {
       })
       const d = await res.json()
       if (!res.ok) { mostrarToast(d.error || 'Código incorreto.', 'erro'); return }
-      mostrarToast(d.pago ? `Entrega confirmada! R$ ${Number(d.valor).toFixed(2)} a caminho da sua conta.` : 'Entrega confirmada!', 'sucesso')
+      mostrarToast(
+        d.pago ? `Entrega confirmada! R$ ${Number(d.valor).toFixed(2)} a caminho da sua conta.`
+        : d.dinheiro ? `Entrega confirmada! A taxa (${reais(Number(d.valor))}) é sua; repasse ${reais(Number(d.repasse_loja))} à loja.`
+        : 'Entrega confirmada!', 'sucesso')
       setCodigos(prev => { const n = { ...prev }; delete n[pedidoId]; return n })
       setComprovantes(prev => { const n = { ...prev }; delete n[pedidoId]; return n })
       carregar()
@@ -879,30 +892,36 @@ function EntregadorDashboard() {
       )}
 
       {/* Stripe Connect (recebimento das corridas) */}
-      <section className={`rounded-2xl p-4 mb-4 border ${stripeOnboarded ? 'bg-green-500/10 border-green-500/40' : pagamentoManual && !stripeOnboarded ? 'bg-amber-500/10 border-amber-500/40' : 'bg-card border-borda'}`}>
+      <section className={`rounded-2xl p-4 mb-4 border ${stripeOnboarded ? 'bg-green-500/10 border-green-500/40' : 'bg-card border-borda'}`}>
         <div className="flex items-center gap-3">
           <CircleDollarSign size={20} className={stripeOnboarded ? 'text-green-400' : 'text-acento'} />
           <div className="flex-1 min-w-0">
             <p className="text-white font-semibold text-sm">Recebimento das corridas</p>
             <p className="text-gray-400 text-xs">
-              {stripeOnboarded ? 'Conta pronta para receber via Stripe.'
-                : pagamentoManual ? 'Pagamento manual pelo comerciante (por enquanto).'
-                : 'Conecte sua conta para receber o valor das corridas.'}
+              {stripeOnboarded ? 'Conta pronta para receber as corridas pagas online via Stripe.'
+                : 'Pedidos pagos online: conecte sua conta para receber a corrida via Stripe.'}
             </p>
           </div>
-          {!stripeOnboarded && !pagamentoManual && (
+          {!stripeOnboarded && (
             <button onClick={conectarStripe} className="shrink-0 bg-[#635BFF] hover:bg-[#5249e0] text-white text-xs font-semibold px-3 py-2 rounded-lg transition">
               {stripeHasAccount ? 'Continuar' : 'Conectar'}
             </button>
           )}
           {stripeOnboarded && <Check size={18} className="text-green-400 shrink-0" />}
         </div>
-        {!stripeOnboarded && pagamentoManual && (
-          <div className="mt-3 pt-3 border-t border-amber-500/20">
-            <p className="text-amber-200 text-xs">💳 Configure seus dados bancários com o suporte. Enquanto isso, o comerciante pode pagar suas corridas manualmente.</p>
-            <button onClick={conectarStripe} className="mt-2 text-[#8b83ff] text-xs font-semibold hover:underline">Tentar conectar ao Stripe de novo</button>
-          </div>
-        )}
+        {/* DINHEIRO (Caminho B, lib/acertos.ts): a taxa da corrida fica com o
+            entregador na hora; o resto do que ele cobrou vai para a loja. */}
+        <div className="mt-3 pt-3 border-t border-borda">
+          <p className="text-gray-400 text-xs flex items-start gap-1.5">
+            <Banknote size={13} className="shrink-0 mt-0.5 text-acento" />
+            <span>Pedidos em <strong className="text-gray-200">dinheiro</strong>: você cobra o total na porta, fica com a taxa de entrega e repassa o valor dos produtos à loja. A loja confirma o repasse aqui no app.</span>
+          </p>
+          {repassesPendentes.length > 0 && (
+            <p className="mt-2 text-amber-200 text-xs font-semibold">
+              {reais(totalARepassar)} em {repassesPendentes.length} repasse(s) aguardando confirmação da loja.
+            </p>
+          )}
+        </div>
       </section>
 
       {carregando ? (
@@ -982,6 +1001,12 @@ function EntregadorDashboard() {
                         <span className="text-gray-500 text-xs">Corrida</span>
                         <span className="text-acento font-bold text-sm">{Number(p.valor_corrida) > 0 ? reais(Number(p.valor_corrida)) : 'A definir'}</span>
                       </div>
+                      {p.pagamento_metodo !== 'online' && (
+                        <p className="mt-2 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5 flex items-start gap-1.5">
+                          <Banknote size={13} className="shrink-0 mt-0.5" />
+                          <span>{resumoCobranca({ total: Number(p.total), taxa_entrega: Number(p.taxa_entrega), troco_para: p.troco_para })}</span>
+                        </p>
+                      )}
 
                       {/* Navegar — abre a rota loja -> cliente no Google Maps/Waze */}
                       {navUrl && (
@@ -1176,8 +1201,24 @@ function EntregadorDashboard() {
                     <div className="text-right shrink-0">
                       <p className="text-acento font-bold text-sm">{Number(p.valor_corrida) > 0 ? reais(Number(p.valor_corrida)) : '—'}</p>
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${p.pagamento_corrida === 'pago' ? 'bg-green-500/15 text-green-300 border-green-500/40' : 'bg-amber-500/15 text-amber-300 border-amber-500/40'}`}>
-                        {p.pagamento_corrida === 'pago' ? 'Pago' : 'Pendente'}
+                        {p.pagamento_corrida === 'pago' ? (p.pagamento_metodo === 'online' ? 'Pago' : 'Recebido na porta') : 'Pendente'}
                       </span>
+                      {/* Repasse em dinheiro à loja e se ela já confirmou. */}
+                      {(() => {
+                        const a = acertoDoPedido(p.id)
+                        if (a) {
+                          const sit = SITUACAO_META[situacaoAcerto(a)]
+                          return (
+                            <p className="mt-1 text-[10px] text-gray-400">
+                              Repasse {reais(Number(a.valor))} · <span className={`px-1.5 py-0.5 rounded-full border ${sit.classes}`}>{sit.label}</span>
+                            </p>
+                          )
+                        }
+                        if (p.pagamento_metodo !== 'online') {
+                          return <p className="mt-1 text-[10px] text-gray-500">Repasse à loja: {reais(repasseLoja(Number(p.total), Number(p.taxa_entrega)))}</p>
+                        }
+                        return null
+                      })()}
                     </div>
                   </div>
                 ))}

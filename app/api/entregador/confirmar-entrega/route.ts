@@ -8,7 +8,11 @@ import { dispatchPushPedido } from '../../../lib/pushDispatch'
 
 // Entregador digita o código de 4 dígitos do cliente para confirmar a entrega.
 // Confere o código, marca o pedido como 'entregue' e paga a corrida via
-// Stripe Connect (transfer para a conta do entregador).
+// Stripe Connect (transfer para a conta do entregador) quando o pedido foi pago
+// online. Em DINHEIRO (Caminho B, lib/acertos.ts) não há transfer: o entregador
+// já cobrou o total na porta e ficou com a taxa; o guard marca
+// `pagamento_corrida='pago'` e o trigger `acertos_gerar_na_entrega` registra o
+// que ele deve repassar à loja (`acertos_dinheiro`).
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -95,5 +99,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, pago, valor })
+  const dinheiro = pedido.pagamento_metodo !== 'online'
+  const repasseLoja = dinheiro ? Math.max(0, Math.round((Number(pedido.total) - Number(pedido.taxa_entrega)) * 100) / 100) : 0
+  return NextResponse.json({ ok: true, pago, valor, dinheiro, repasse_loja: repasseLoja })
 }

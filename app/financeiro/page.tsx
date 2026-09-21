@@ -5,7 +5,8 @@ import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
-import { Landmark, TrendingUp, TrendingDown, Wallet, AlertTriangle, Receipt } from 'lucide-react'
+import { Landmark, TrendingUp, TrendingDown, Wallet, AlertTriangle, Receipt, Banknote } from 'lucide-react'
+import { situacaoAcerto, type AcertoComConfirmacoes } from '../lib/acertos'
 import {
   LIMITE_MEI_ANUAL, SALARIO_MINIMO, cmvDosItens, fluxoDeCaixa, limiteMeiProporcional,
   usoDoLimiteMei, valorDasMei, type AtividadeMei, type Entrada, type MesFinanceiro, type Saida,
@@ -29,6 +30,9 @@ export default function Financeiro() {
   const [carregando, setCarregando] = useState(true)
   const [regime, setRegime] = useState<string>('mei')
   const [atividade, setAtividade] = useState<AtividadeMei>('comercio')
+  // Acertos em dinheiro (lib/acertos.ts): repasses de entregadores ainda não
+  // confirmados e créditos que a Commerly deve à loja (cupom da Garantia).
+  const [acertos, setAcertos] = useState<AcertoComConfirmacoes[]>([])
 
   useEffect(() => {
     if (!loja) return
@@ -76,8 +80,24 @@ export default function Financeiro() {
 
     setEntradas(ents)
     setSaidas((gastosRes.data || []).map(g => ({ valor: Number(g.valor) || 0, data: g.created_at as string })))
+
+    const { data: acs } = await supabase.from('acertos_dinheiro').select('*, acertos_confirmacoes(*)')
+      .eq('loja_id', loja.id).eq('para_papel', 'loja').is('estorna_id', null).order('created_at', { ascending: false }).limit(300)
+    setAcertos((acs || []) as AcertoComConfirmacoes[])
     setCarregando(false)
   }
+
+  // "A receber": só o que ainda não foi confirmado como recebido pela loja.
+  const aReceber = useMemo(() => {
+    const pend = acertos.filter(a => situacaoAcerto(a) !== 'confirmado')
+    const soma = (xs: AcertoComConfirmacoes[]) => xs.reduce((s, a) => s + Number(a.valor), 0)
+    return {
+      entregadores: soma(pend.filter(a => a.de_papel === 'entregador')),
+      nEntregadores: pend.filter(a => a.de_papel === 'entregador').length,
+      commerly: soma(pend.filter(a => a.de_papel === 'commerly')),
+      nCommerly: pend.filter(a => a.de_papel === 'commerly').length,
+    }
+  }, [acertos])
 
   const meses: MesFinanceiro[] = useMemo(
     () => fluxoDeCaixa(entradas, saidas, MESES_GRAFICO),
@@ -138,6 +158,31 @@ export default function Financeiro() {
               <p className={`text-lg font-bold ${mesAtual.lucroReal >= 0 ? 'text-acento' : 'text-red-400'}`}>{reais(mesAtual.lucroReal)}</p>
             </div>
           </div>
+
+          {/* A receber em dinheiro (Caminho B): entregadores e Commerly */}
+          {(aReceber.nEntregadores > 0 || aReceber.nCommerly > 0) && (
+            <div className="bg-gray-900 rounded-2xl p-5 mb-4">
+              <p className="text-white font-semibold text-sm mb-3 flex items-center gap-2"><Banknote size={15} className="text-acento" /> A receber</p>
+              <div className="flex flex-col gap-2 text-sm">
+                {aReceber.nEntregadores > 0 && (
+                  <div className="flex justify-between gap-2">
+                    <span className="text-gray-400">Repasses de entregadores ({aReceber.nEntregadores} pedido{aReceber.nEntregadores > 1 ? 's' : ''} em dinheiro)</span>
+                    <span className="text-amber-300 font-semibold shrink-0">{reais(aReceber.entregadores)}</span>
+                  </div>
+                )}
+                {aReceber.nCommerly > 0 && (
+                  <div className="flex justify-between gap-2">
+                    <span className="text-gray-400">Crédito da Commerly (cupom da Garantia bancado pela plataforma)</span>
+                    <span className="text-amber-300 font-semibold shrink-0">{reais(aReceber.commerly)}</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-gray-500 text-xs mt-3">
+                Confirme os repasses em <a href="/pedidos" className="text-acento hover:underline">Pedidos</a> quando o entregador acertar com você.
+                As entradas acima já contam esses pedidos como vendidos.
+              </p>
+            </div>
+          )}
 
           {/* Lucro real explicado */}
           <div className="bg-gray-900 rounded-2xl p-5 mb-4">

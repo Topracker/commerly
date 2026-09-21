@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
   // Só as lojas que têm pedido (as pernas reais da viagem).
   const { data: pedidos } = await admin
-    .from('pedidos_clientes').select('id, loja_id, valor_corrida').eq('festa_id', festa.id).neq('status', 'cancelado')
+    .from('pedidos_clientes').select('id, loja_id, valor_corrida, total').eq('festa_id', festa.id).neq('status', 'cancelado')
   const lojasComPedido = [...new Set((pedidos || []).map((p: any) => p.loja_id as string))]
   const { data: lojas } = await admin.from('lojas').select('id, nome')
     .in('id', lojasComPedido.length ? lojasComPedido : ['00000000-0000-0000-0000-000000000000'])
@@ -49,5 +49,7 @@ export async function GET(request: NextRequest) {
     valor_total: Number(oferta.valor_total) || 0,
     bonus_pct: oferta.bonus_pct,
     distancia_km: oferta.distancia_km,
+    // Festa é sempre em dinheiro: o que o entregador cobra na porta, somado.
+    total_cobrar: Math.round((pedidos || []).reduce((s: number, p: any) => s + (Number(p.total) || 0), 0) * 100) / 100,
   })
 }

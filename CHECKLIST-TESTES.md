@@ -491,6 +491,54 @@ código (ID) e trocar esse código pelo de outra pessoa.
 - [ ] **Contraprova (importante):** um pedido com o GPS **normal** por 15 minutos
       não pode gerar nenhum alerta nem repasse.
 
+### 6.9 Pagamento em dinheiro na entrega (acerto entregador ↔ loja)
+
+Regra única (Caminho B): o **cliente paga o total ao entregador**, o entregador
+**fica com a taxa de entrega** e **repassa o resto à loja**; a loja **confirma**
+que recebeu e só então o pedido vira **pago**. A Commerly não intermedia o
+dinheiro — só registra o acerto para os dois lados verem a mesma conta.
+
+- [ ] **Cliente:** no pedido, escolher **"Pagar na entrega"** e marcar
+      **"Preciso de troco"**. Chips de R$ 20/50/100/200 só aparecem acima do
+      total; digitar um valor **menor que o total** mostra erro e não envia;
+      valor válido mostra "Troco: R$ X". Placeholder da observação **não**
+      sugere mais escrever o troco ali.
+- [ ] Em `/cliente/pedidos` aparece "💵 Pagar na entrega · troco para R$ X".
+- [ ] **Loja (`/pedidos`):** o card mostra "💵 Recebe na entrega" e o chip
+      "Troco: cliente paga com R$ X → R$ Y". A linha "Corrida do entregador"
+      **não** diz mais "paga via Stripe" em pedido em dinheiro.
+- [ ] **Loja:** "Buscar entregador próximo". **Entregador:** a **push** e o
+      **modal da oferta** dizem "💵 dinheiro, cobrar R$ total, troco para R$ X"
+      e "repasse R$ Z à loja". Aceitar.
+- [ ] **Entregador:** o card da entrega ativa mostra "Cobrar R$ … · troco R$ …
+      · repassar R$ … à loja". Confirmar com o código do cliente → toast diz
+      que a taxa é dele e quanto repassar.
+- [ ] **Depois de entregue:** no entregador, histórico mostra "Recebido na
+      porta" e "Repasse R$ Z · Aguardando confirmação"; na loja, o card mostra
+      "R$ Z a receber de <entregador>" com **Confirmar recebimento** /
+      **Não recebi**; o pedido continua "Recebe na entrega" (pendente).
+- [ ] **Loja → "Não recebi"** (com motivo): entregador recebe "Repasse
+      contestado"; pedido continua pendente; a contestação aparece no painel
+      master (aba **Acertos**).
+- [ ] **Loja → "Confirmar recebimento"**: pedido vira **"💵 Recebido em
+      dinheiro"**, entregador recebe "Repasse confirmado", histórico dele passa
+      a "Confirmado". Clicar de novo não duplica (409).
+- [ ] **Loja entrega ela mesma** (sem entregador): ao marcar "Entregue" o pedido
+      já vira **pago** e não aparece botão de confirmar.
+- [ ] **Financeiro (`/financeiro`):** bloco **"A receber"** lista repasses
+      pendentes de entregadores e crédito da Commerly (cupom da Garantia).
+- [ ] **Painel master → Acertos:** dívidas da Commerly (cupom da Garantia à
+      loja, bônus do Modo Festa ao entregador) com "Marcar liquidado" +
+      referência do Pix; contestações listadas com o motivo.
+- [ ] **Segurança:** pela chave anon o cliente **não** consegue criar pedido
+      `online/pago` (vira `entrega/pendente`); a loja **não** muda
+      `pagamento_status` por PATCH; ninguém edita/apaga `acertos_dinheiro`
+      (nem o service role — só estorno). Scripts:
+      `node scripts/testar-acertos-dinheiro.mjs` (REST+JWT) e
+      `APP=http://localhost:3000 node scripts/testar-acertos-dinheiro.mjs`
+      (fluxo completo, 39 asserções). O ledger é append-only: o script imprime
+      o SQL para apagar os pedidos de teste.
+
 ---
 
 ## 7. MODO FESTA E MULTI-ENTREGA

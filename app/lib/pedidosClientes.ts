@@ -27,8 +27,15 @@ export type PedidoCliente = {
   cliente_telefone: string | null
   status: StatusPedidoCliente
   // Pagamento do pedido pelo cliente: online (cartão via Stripe) ou na entrega.
+  // Na entrega (Caminho B, lib/acertos.ts): o cliente paga o total ao entregador,
+  // que fica com a taxa e repassa o resto à loja; `pagamento_status` só vira
+  // 'pago' quando a loja confirma o repasse (ou ao marcar entregue, se ela
+  // mesma entregou). Só o service role escreve estes campos (guard).
   pagamento_metodo?: 'online' | 'entrega'
   pagamento_status?: 'pendente' | 'pago' | 'estornado'
+  // Nota com que o cliente vai pagar em dinheiro (troco = troco_para − total).
+  // Nulo = sem troco / Pix / valor exato. Validado no guard (≥ total).
+  troco_para?: number | null
   /** Preenchidos pela rota de estorno (loja ou cliente) quando pago online. */
   estornado_em?: string | null
   stripe_refund_id?: string | null

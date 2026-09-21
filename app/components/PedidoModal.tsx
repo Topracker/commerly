@@ -7,6 +7,7 @@ import { descontoDePontos, maxPontosResgataveis } from '../lib/fidelidade'
 import { aplicarFator } from '../lib/precoDinamico'
 import { MapaConfirmar } from './MapaConfirmar'
 import { lojaAberta, msgLojaFechada } from '../lib/horario'
+import { TEXTO_PAGAR_NA_ENTREGA, sugestoesTroco, validarTroco, trocoDevido, reais } from '../lib/acertos'
 
 // `preco_venda` já vem com o desconto aplicado quando há promoção ativa;
 // `preco_original`/`desconto_pct` existem só para exibir o "de/por".
@@ -46,6 +47,11 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   // o padrão. Continua disponível como escolha, mas o pedido já abre no online
   // (que é o que a loja quer receber, e o único caminho com estorno automático).
   const [pagamento, setPagamento] = useState<'online' | 'entrega'>(aceitaOnline ? 'online' : 'entrega')
+  // Troco (só "na entrega"): a nota com que o cliente vai pagar. Vai em
+  // `troco_para` — campo próprio, não na observação — para o entregador ver
+  // quanto levar já na oferta da corrida. O guard revalida (≥ total).
+  const [precisaTroco, setPrecisaTroco] = useState(false)
+  const [trocoPara, setTrocoPara] = useState<string>('')
 
   // #6 Modo invisível: o nome e o telefone não chegam a ser gravados no pedido
   // (o guard do banco os anula). O histórico do cliente continua pelo cliente_id.
@@ -181,6 +187,14 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
     // loja_aberta()). Vale para os dois caminhos — online é recusado no
     // checkout antes de cobrar, e na entrega o trigger recusa o insert.
     if (!lojaAberta(loja.horario)) { onErro(msgLojaFechada(loja.horario)); return }
+    const trocoNum = pagamento === 'entrega' && precisaTroco && trocoPara.trim() !== ''
+      ? Number(trocoPara.replace(',', '.'))
+      : null
+    if (pagamento === 'entrega' && precisaTroco) {
+      if (trocoNum == null) { onErro('Informe com que nota vai pagar para calcularmos o troco.'); return }
+      const erroTroco = validarTroco(trocoNum, total)
+      if (erroTroco) { onErro(erroTroco); return }
+    }
     setEnviando(true)
 
     // Pagamento ONLINE: cria a sessão de checkout no servidor e vai pro Stripe.
@@ -239,15 +253,19 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
       // Resgate de pontos: o guard valida contra o saldo, calcula o desconto e
       // ajusta o total no servidor (aqui é só a intenção do cliente).
       pontos_usados: pontosUsados,
-      // pagamento_metodo default 'entrega' no banco — omitido para não quebrar
-      // caso a coluna ainda não exista (pré-migração).
+      // pagamento_metodo default 'entrega' no banco; o guard força 'entrega'/
+      // 'pendente' em todo insert que não venha do webhook da Stripe.
+      // Troco: nulo = sem troco / Pix / valor exato.
+      troco_para: trocoNum,
     }).select('id').single()
     if (error) {
       onErro(error.message?.includes('Delivery indisponível')
         ? 'Delivery indisponível na sua cidade no momento. 💛'
         : error.message?.includes('fechada agora')
           ? msgLojaFechada(loja.horario)
-          : 'Não foi possível enviar o pedido. Tente novamente.')
+          : error.message?.includes('troco')
+            ? 'Confira o valor para troco: precisa ser pelo menos o total do pedido.'
+            : 'Não foi possível enviar o pedido. Tente novamente.')
       setEnviando(false); return
     }
 
@@ -391,7 +409,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
               value={observacao}
               onChange={e => setObservacao(e.target.value)}
               rows={2}
-              placeholder="Ex: sem cebola, troco pra R$ 50..."
+              placeholder="Ex: sem cebola, tocar o interfone..."
               className="w-full bg-superficie border border-borda text-white rounded-xl px-4 py-3 outline-none focus:border-acento/60 resize-none text-sm"
             />
           </div>
@@ -449,10 +467,48 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                 <Banknote size={20} className="text-acento shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-medium">Pagar na entrega</p>
-                  <p className="text-gray-500 text-xs">Dinheiro ou Pix direto com o entregador</p>
+                  <p className="text-gray-500 text-xs">{TEXTO_PAGAR_NA_ENTREGA}</p>
                 </div>
                 {pagamento === 'entrega' && <Check size={16} className="text-acento shrink-0" />}
               </button>
+
+              {pagamento === 'entrega' && (
+                <div className="rounded-xl border border-borda bg-superficie p-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={precisaTroco} onChange={e => { setPrecisaTroco(e.target.checked); if (!e.target.checked) setTrocoPara('') }} className="w-4 h-4 shrink-0 accent-[var(--color-acento)]" />
+                    <span className="text-white text-sm font-medium">Preciso de troco</span>
+                    <span className="text-gray-500 text-xs ml-auto">Pix ou valor exato? Deixe desmarcado.</span>
+                  </label>
+                  {precisaTroco && (
+                    <div className="mt-2.5">
+                      <p className="text-gray-400 text-xs mb-1.5">Vou pagar com:</p>
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {sugestoesTroco(total).map(n => (
+                          <button key={n} type="button" onClick={() => setTrocoPara(String(n))}
+                            className={`text-xs font-semibold px-2.5 py-1 rounded-full border transition ${Number(trocoPara) === n ? 'border-acento bg-acento/15 text-acento' : 'border-borda text-gray-300 hover:border-acento/50'}`}>
+                            R$ {n}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        inputMode="decimal"
+                        value={trocoPara}
+                        onChange={e => setTrocoPara(e.target.value.replace(/[^0-9.,]/g, ''))}
+                        placeholder="Outro valor (R$)"
+                        className="w-full bg-card border border-borda text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-acento/60"
+                      />
+                      {(() => {
+                        const n = trocoPara.trim() === '' ? null : Number(trocoPara.replace(',', '.'))
+                        const erro = validarTroco(n, total)
+                        if (n == null) return null
+                        return erro
+                          ? <p className="text-red-400 text-xs mt-1.5">{erro}</p>
+                          : <p className="text-green-400 text-xs mt-1.5">Troco: {reais(trocoDevido(n, total))}. O entregador já sai com o troco certo.</p>
+                      })()}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {aceitaOnline ? (
                 <button

@@ -15,6 +15,7 @@ import { RAIO_BUSCA_KM, TEMPO_RESPOSTA_CORRIDA_S } from './entregadores'
 import { PONTOS_POR_REAL, PONTOS_POR_BLOCO, DESCONTO_POR_BLOCO } from './fidelidade'
 import { TOLERANCIA_MIN, DESCONTO_PCT, VALIDADE_DIAS } from './garantia'
 import { CARENCIA_DIAS } from './exclusaoConta'
+import { REGRA_DINHEIRO } from './acertos'
 import { CONTATO } from './legal'
 
 export type Publico = 'comerciante' | 'cliente' | 'entregador' | 'fornecedor'
@@ -294,9 +295,17 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
         id: 'formas-de-pagamento',
         pergunta: 'Quais formas de pagamento posso usar no pedido?',
         resposta:
-          'Online, com cartão de crédito ou Pix, na hora de fechar o pedido; ou na entrega, combinando com a loja (dinheiro, maquininha ou Pix direto). A forma escolhida aparece para a loja e para o entregador.',
-        tags: ['pix', 'cartao', 'dinheiro', 'maquininha', 'pagar na entrega'],
+          'Online, com cartão de crédito ou Pix, na hora de fechar o pedido; ou na entrega, em dinheiro ou Pix direto com o entregador. Se for pagar em dinheiro, marque "Preciso de troco" e diga com que nota vai pagar — o entregador já sai com o troco certo. A forma escolhida aparece para a loja e para o entregador.',
+        tags: ['pix', 'cartao', 'dinheiro', 'troco', 'pagar na entrega'],
         publico: ['cliente'],
+      },
+      {
+        id: 'pagamento-em-dinheiro',
+        pergunta: 'Como funciona o pagamento em dinheiro na entrega?',
+        resposta:
+          REGRA_DINHEIRO + '\n\nSem entregador (a loja mesma entregou), ela recebe direto do cliente e o pedido já fica como pago ao ser marcado como entregue.',
+        tags: ['dinheiro', 'troco', 'repasse', 'quem fica com a taxa', 'acerto', 'na entrega'],
+        publico: ['cliente', 'comerciante', 'entregador'],
       },
       {
         id: 'estorno-prazo',
@@ -310,7 +319,7 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
         id: 'receber-pagamentos-online',
         pergunta: 'Como recebo os pagamentos online dos pedidos?',
         resposta:
-          'Conecte sua conta em "Integrações" → Stripe. O valor dos produtos é repassado para a sua conta a cada pedido pago; a taxa de entrega vai para o entregador. Sem a conta conectada, os clientes só conseguem pagar na entrega.',
+          'Conecte sua conta em "Integrações" → Stripe. O valor dos produtos é repassado para a sua conta a cada pedido pago online; a taxa de entrega vai para o entregador. Sem a conta conectada, os clientes só conseguem pagar na entrega — nesse caso o entregador cobra na porta e repassa o valor dos produtos a você (veja "Como funciona o pagamento em dinheiro").',
         tags: ['stripe', 'connect', 'repasse', 'saque', 'receber'],
         publico: ['comerciante'],
         link: { label: 'Abrir Integrações', href: '/integracoes' },
@@ -319,7 +328,7 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
         id: 'taxas-sobre-pedido',
         pergunta: 'A Commerly cobra comissão sobre os pedidos?',
         resposta:
-          'Não. A mensalidade é o único custo da plataforma: a loja recebe o valor integral dos produtos, a taxa de entrega vai para o entregador e as tarifas do processador de pagamento ficam por conta da Commerly. Pedidos pagos na entrega não passam pela plataforma.',
+          'Não. A mensalidade é o único custo da plataforma: a loja recebe o valor integral dos produtos, a taxa de entrega vai para o entregador e as tarifas do processador de pagamento ficam por conta da Commerly. Em pedidos pagos na entrega o dinheiro não passa pela Commerly — o entregador repassa o valor dos produtos direto a você e o acerto fica registrado em "Pedidos" para os dois lados verem a mesma conta.',
         tags: ['comissao', 'porcentagem', 'taxa da plataforma'],
         publico: ['comerciante'],
       },
@@ -352,7 +361,7 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
         id: 'taxa-entrega',
         pergunta: 'Como a taxa de entrega é calculada?',
         resposta:
-          'Pela distância em linha reta entre a loja e o endereço do cliente: R$ 3,00 fixos + R$ 1,00 por km, com mínimo de R$ 3,00 e máximo de R$ 25,00. Nas noites de sexta, sábado e domingo (18h às 22h) há um acréscimo de 30%.\n\nA taxa vai integralmente para o entregador.',
+          'Pela distância em linha reta entre a loja e o endereço do cliente: R$ 3,00 fixos + R$ 1,00 por km, com mínimo de R$ 3,00 e máximo de R$ 25,00. Nas noites de sexta, sábado e domingo (18h às 22h) há um acréscimo de 30%.\n\nA taxa vai integralmente para o entregador: via Stripe quando o pedido é pago online, ou retida do que ele cobra na porta quando é pago em dinheiro.',
         tags: ['frete', 'valor da entrega', 'quanto custa entrega', 'pico'],
         publico: ['cliente', 'comerciante', 'entregador'],
       },
@@ -507,8 +516,8 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
         id: 'repasse-entregador',
         pergunta: 'Quando e como recebo pelas corridas?',
         resposta:
-          'Conecte sua conta bancária em "Recebimentos" (Stripe) no painel do entregador. A taxa de entrega de cada pedido é repassada após a confirmação da entrega pelo código do cliente. Em pedidos pagos na entrega, a taxa é acertada diretamente com a loja.',
-        tags: ['pagamento', 'saque', 'ganhos', 'stripe', 'quanto ganho'],
+          'Depende de como o cliente pagou. Pedido pago online: conecte sua conta bancária em "Recebimentos" (Stripe) no painel; a taxa de entrega é repassada após a confirmação da entrega pelo código do cliente. Pedido em dinheiro: você cobra o total na porta, fica com a taxa de entrega na hora e repassa o valor dos produtos à loja — ela confirma o repasse no painel e você acompanha no seu histórico. Antes de aceitar a corrida, a oferta já mostra se é em dinheiro, quanto cobrar e quanto troco levar.',
+        tags: ['pagamento', 'saque', 'ganhos', 'stripe', 'quanto ganho', 'dinheiro', 'troco', 'repasse'],
         publico: ['entregador'],
         link: { label: 'Meu painel', href: '/entregador-delivery/dashboard' },
       },

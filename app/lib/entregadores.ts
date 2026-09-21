@@ -134,6 +134,8 @@ export type FestaOfertaResumo = {
   valor_total: number
   bonus_pct: number
   distancia_km: number | null
+  // Festa é sempre paga na entrega: soma dos totais que o entregador cobra na porta.
+  total_cobrar?: number
 }
 
 export type StatusParceria = 'pendente' | 'aceita' | 'recusada'

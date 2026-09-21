@@ -1,9 +1,10 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { Bike, MapPin, Store, Check, X, PartyPopper } from 'lucide-react'
+import { Bike, MapPin, Store, Check, X, PartyPopper, Banknote } from 'lucide-react'
 import { TEMPO_RESPOSTA_CORRIDA_S, type OfertaCorrida, type FestaOfertaResumo } from '../lib/entregadores'
 import type { PedidoCliente } from '../lib/pedidosClientes'
 import { formatarDistancia } from '../lib/geo'
+import { trocoDevido, repasseLoja } from '../lib/acertos'
 
 type Props = {
   oferta: OfertaCorrida
@@ -48,6 +49,13 @@ export function OfertaCorridaModal({ oferta, pedido, nomeLoja, festa, respondend
   const pct = Math.max(0, Math.min(100, (restanteMs / totalMs) * 100))
   const dist = oferta.distancia_km != null ? Number(oferta.distancia_km) : null
   const valor = ehFesta ? (festa?.valor_total ?? Number(oferta.valor_total) ?? 0) : (pedido ? Number(pedido.valor_corrida) : 0)
+  // DINHEIRO (Caminho B, lib/acertos.ts): o entregador decide com a conta na
+  // mão — quanto cobrar, quanto troco levar e quanto repassar à loja. Festa é
+  // sempre na entrega; o total a cobrar vem somado pela rota festa-oferta.
+  const emDinheiro = ehFesta ? true : pedido?.pagamento_metodo === 'entrega'
+  const totalCobrar = ehFesta ? (festa?.total_cobrar ?? null) : (pedido ? Number(pedido.total) : null)
+  const troco = !ehFesta && pedido ? trocoDevido(pedido.troco_para, Number(pedido.total)) : 0
+  const repasse = !ehFesta && pedido ? repasseLoja(Number(pedido.total), Number(pedido.taxa_entrega)) : null
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-5 z-[60] backdrop-blur-sm">
@@ -92,6 +100,19 @@ export function OfertaCorridaModal({ oferta, pedido, nomeLoja, festa, respondend
             <div className="flex items-start gap-2 text-xs text-gray-400">
               <MapPin size={13} className="shrink-0 mt-0.5" />
               <span className="line-clamp-2">{ehFesta ? festa?.festa.endereco_entrega : pedido?.endereco_entrega}</span>
+            </div>
+          )}
+          {emDinheiro && totalCobrar != null && (
+            <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-xs">
+              <p className="text-amber-200 font-semibold flex items-center gap-1.5">
+                <Banknote size={14} className="shrink-0" /> Pagamento em dinheiro: cobrar {reais(totalCobrar)}
+              </p>
+              <p className="text-amber-200/80 mt-0.5">
+                {troco > 0
+                  ? `Leve ${reais(troco)} de troco (cliente paga com ${reais(Number(pedido?.troco_para))}).`
+                  : ehFesta ? 'Cada pessoa paga a parte dela na porta.' : 'Cliente disse que não precisa de troco (ou paga no Pix).'}
+                {repasse != null && ` A taxa é sua; repasse ${reais(repasse)} à loja.`}
+              </p>
             </div>
           )}
           <div className="flex items-center justify-between pt-2 border-t border-borda">

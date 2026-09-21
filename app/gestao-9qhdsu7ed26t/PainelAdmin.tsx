@@ -3,14 +3,14 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   ShieldCheck, Users, Store, Bike, Package, MapPin, DollarSign, Loader2, Check, X,
-  TrendingUp, Award, Handshake, CreditCard, MessageSquare, AlertTriangle, Wallet,
+  TrendingUp, Award, Handshake, CreditCard, MessageSquare, AlertTriangle, Wallet, Banknote,
 } from 'lucide-react'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { FEATURE_FLAGS } from '../lib/crescimento'
 import { ADMIN_API_BASE } from '../lib/adminIdentidade'
 
 type Dados = any
-const TABS = ['Visão geral', 'Faturamento', 'Usuários', 'Feedback', 'Aprovações', 'Cidades & Flags'] as const
+const TABS = ['Visão geral', 'Faturamento', 'Acertos', 'Usuários', 'Feedback', 'Aprovações', 'Cidades & Flags'] as const
 
 const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -154,6 +154,8 @@ export default function Admin() {
         )}
 
         {tab === 'Faturamento' && <Faturamento banco={dados.faturamentoBanco} />}
+
+        {tab === 'Acertos' && <Acertos />}
 
         {tab === 'Feedback' && <Feedbacks itens={dados.listas.feedbacks || []} />}
 
@@ -305,6 +307,112 @@ function Faturamento({ banco }: { banco: any }) {
 // A RLS de `feedbacks` só deixa o DONO ler o que escreveu; esta lista só existe
 // porque a rota lê com service role. Antes, o feedback entrava no banco e
 // ninguém nunca lia — nem você.
+// ============================================================================
+// ACERTOS EM DINHEIRO (Caminho B, lib/acertos.ts): o que a Commerly deve
+// (cupom da Garantia à loja, bônus do Modo Festa ao entregador) e as
+// contestações entre entregador e loja. "Liquidar" registra o Pix manual com a
+// referência; quando virar Caminho A, o transfer da Stripe ocupa esse lugar.
+// ============================================================================
+function Acertos() {
+  const [dados, setDados] = useState<any>(null)
+  const [erro, setErro] = useState('')
+  const [busy, setBusy] = useState<string | null>(null)
+  const [ref, setRef] = useState<Record<string, string>>({})
+  // Recarrega quando `versao` muda (depois de liquidar). Mesmo padrão do
+  // Faturamento: fetch dentro do effect, estado só no .then.
+  const [versao, setVersao] = useState(0)
+  useEffect(() => {
+    let vivo = true
+    fetch(`${ADMIN_API_BASE}/acertos`)
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then(j => { if (vivo) setDados(j) })
+      .catch(() => { if (vivo) setErro('Não foi possível carregar os acertos.') })
+    return () => { vivo = false }
+  }, [versao])
+  const carregar = () => setVersao(v => v + 1)
+
+  async function liquidar(id: string) {
+    setBusy(id)
+    const r = await fetch(`${ADMIN_API_BASE}/acertos`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acerto_id: id, referencia_externa: ref[id] || null }),
+    }).catch(() => null)
+    setBusy(null)
+    if (!r || !r.ok) { setErro('Não foi possível liquidar.'); return }
+    carregar()
+  }
+
+  if (erro) return <p className="text-red-400 text-sm">{erro}</p>
+  if (!dados) return <p className="text-gray-500 text-sm flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Carregando…</p>
+
+  const nomeLoja = (id: string) => dados.nomes?.lojas?.[id] || id.slice(0, 8)
+  const nomeEnt = (id: string | null) => (id && dados.nomes?.entregadores?.[id]) || '—'
+  const TIPO: Record<string, string> = { cupom_garantia: 'Cupom Garantia → loja', bonus_festa: 'Bônus festa → entregador', repasse_loja: 'Repasse entregador → loja', cobranca: 'Cobrança' }
+  const pendentes = (dados.devidos || []).filter((a: any) => a.situacao !== 'confirmado')
+  const liquidados = (dados.devidos || []).filter((a: any) => a.situacao === 'confirmado')
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <Kpi icon={Banknote} label="Commerly deve (pendente)" v={brl(dados.resumo.commerly_deve_pendente)} dica="Cupom da Garantia (à loja) e bônus do Modo Festa (ao entregador) em pedidos pagos em dinheiro." />
+        <Kpi icon={Check} label="Liquidado" v={brl(dados.resumo.commerly_deve_liquidado)} />
+        <Kpi icon={AlertTriangle} label="Contestações" v={dados.resumo.contestados} dica="Loja disse que não recebeu o repasse do entregador (ou vice-versa)." />
+      </div>
+
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+        <h3 className="text-white font-semibold text-sm mb-3">A liquidar ({pendentes.length})</h3>
+        {pendentes.length === 0 ? <p className="text-gray-500 text-xs">Nada pendente.</p> : (
+          <div className="flex flex-col gap-2">
+            {pendentes.map((a: any) => (
+              <div key={a.id} className="flex flex-col md:flex-row md:items-center gap-2 bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs">
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium">{TIPO[a.tipo] || a.tipo} · <span className="text-acento font-bold">{brl(Number(a.valor))}</span></p>
+                  <p className="text-gray-500 truncate">
+                    {a.para_papel === 'loja' ? `Loja: ${nomeLoja(a.loja_id)}` : `Entregador: ${nomeEnt(a.entregador_id)}`} · pedido {String(a.pedido_id).slice(0, 8)} · {new Date(a.created_at).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+                <input value={ref[a.id] || ''} onChange={e => setRef(prev => ({ ...prev, [a.id]: e.target.value }))}
+                  placeholder="Ref. do Pix (opcional)" className="bg-gray-900 border border-gray-800 text-white rounded-lg px-2 py-1.5 text-xs w-full md:w-44" />
+                <button onClick={() => liquidar(a.id)} disabled={busy === a.id}
+                  className="shrink-0 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold px-3 py-1.5 rounded-lg">
+                  {busy === a.id ? '…' : 'Marcar liquidado'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+        <h3 className="text-white font-semibold text-sm mb-3">Contestações ({(dados.contestados || []).length})</h3>
+        {(dados.contestados || []).length === 0 ? <p className="text-gray-500 text-xs">Nenhuma.</p> : (
+          <div className="flex flex-col gap-2">
+            {dados.contestados.map((a: any) => {
+              const c = (a.acertos_confirmacoes || []).find((x: any) => x.resultado === 'contestado')
+              return (
+                <div key={a.id} className="bg-gray-950 border border-red-500/30 rounded-xl px-3 py-2 text-xs">
+                  <p className="text-white font-medium">{TIPO[a.tipo] || a.tipo} · <span className="text-red-300 font-bold">{brl(Number(a.valor))}</span></p>
+                  <p className="text-gray-400">Loja {nomeLoja(a.loja_id)} · entregador {nomeEnt(a.entregador_id)} · pedido {String(a.pedido_id).slice(0, 8)}</p>
+                  {c?.observacao && <p className="text-gray-300 italic mt-1">“{c.observacao}”</p>}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {liquidados.length > 0 && (
+        <Tabela titulo="Liquidados" cols={['Tipo', 'Valor', 'Para', 'Quando']}
+          linhas={liquidados.slice(0, 50).map((a: any) => [
+            TIPO[a.tipo] || a.tipo, brl(Number(a.valor)),
+            a.para_papel === 'loja' ? nomeLoja(a.loja_id) : nomeEnt(a.entregador_id),
+            new Date(a.created_at).toLocaleDateString('pt-BR'),
+          ])} />
+      )}
+    </div>
+  )
+}
+
 function Feedbacks({ itens }: { itens: any[] }) {
   const [filtro, setFiltro] = useState<string>('Todos')
   const tipos = ['Todos', 'Bug', 'Ideia', 'Melhoria']
