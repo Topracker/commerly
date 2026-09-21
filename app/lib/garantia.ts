@@ -3,6 +3,12 @@
 // O cupom é da PLATAFORMA (`loja_id = null`), não da loja: o atraso pode ser da
 // cozinha, do entregador ou do trânsito, e penalizar o comerciante por chuva na
 // avenida seria injusto. O custo do cupom é da Commerly.
+//
+// ONDE VALE (2026-09-20): no Modo Festa, em qualquer loja com `aceita_cupom`.
+// O abatimento entra no `total` do pedido (o cliente paga menos na entrega) e
+// `cupom_usos.custeado_por = 'plataforma'` registra que a Commerly deve esse
+// valor à loja — a liquidação desse repasse é decisão pendente de produto
+// (ver sql/2026-09-20-cupom-modo-festa.sql).
 
 /** Tolerância sobre o ETA antes de considerar atraso. */
 export const TOLERANCIA_MIN = 30

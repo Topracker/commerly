@@ -447,6 +447,12 @@ export default function ClientePedidos() {
                       <span>R$ {Number(p.taxa_entrega).toFixed(2)}</span>
                     </div>
                   )}
+                  {Number(p.desconto_cupom) > 0 && (
+                    <div className="flex justify-between gap-2 text-xs text-green-400 mt-1">
+                      <span>🎟️ Cupom</span>
+                      <span>− R$ {Number(p.desconto_cupom).toFixed(2)}</span>
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-borda">
                     <p className="text-gray-500 text-xs flex items-center gap-1.5 min-w-0">

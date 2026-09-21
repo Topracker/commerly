@@ -4,6 +4,7 @@ import { rateLimit } from '../../../lib/rate-limit'
 import { distanciaKm, taxaEntregaPorDistancia } from '../../../lib/geo'
 import { taxaPorPessoa, valorCorridaFesta, FESTA_BONUS_PCT } from '../../../lib/festas'
 import { ofertarFesta } from '../../../lib/festaDispatch'
+import type { CupomAplicado, CupomPrevia } from '../../../lib/cupons'
 
 // Fecha a festa (só o criador). Aqui mora a matemática do dinheiro:
 //
@@ -14,6 +15,13 @@ import { ofertarFesta } from '../../../lib/festaDispatch'
 //    (o guard confia nesses valores porque festa_id está setado).
 //  - Pagamento SEMPRE na entrega. Depois de criar os pedidos, oferta a corrida
 //    ao entregador online mais próximo.
+//  - CUPOM (opcional, `cupom_id` no body): o criador aplica um cupom dele. A
+//    pré-checagem (`festa_cupom_previa`) roda ANTES de criar os pedidos para
+//    não gerar pedido à toa; a aplicação (`aplicar_cupom_festa`) roda DEPOIS,
+//    numa transação só, sobre o `total` que o guard já tornou autoritativo:
+//    rateia em centavos entre os pedidos das lojas que aceitam, atualiza os
+//    totais, grava cupom_usos e consome o cupom. Se falhar, os pedidos são
+//    desfeitos (mesmo rollback de "loja fechada") e o cliente vê o motivo.
 export async function POST(request: NextRequest) {
   const auth = await autenticarCliente()
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
@@ -23,7 +31,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Muitas tentativas. Aguarde.' }, { status: 429 })
   }
 
-  const festaId = String((await bodyDe(request))?.festa_id || '')
+  const body = await bodyDe(request)
+  const festaId = String(body?.festa_id || '')
+  const cupomId: string | null = typeof body?.cupom_id === 'string' && body.cupom_id ? body.cupom_id : null
   if (!festaId) return NextResponse.json({ error: 'festa_id obrigatório' }, { status: 400 })
 
   const { data: festa } = await admin.from('festas').select('*').eq('id', festaId).maybeSingle()
@@ -44,6 +54,17 @@ export async function POST(request: NextRequest) {
   )
   if (comItens.length === 0) {
     return NextResponse.json({ error: 'Ninguém adicionou itens ainda. A festa precisa de pelo menos um pedido.' }, { status: 400 })
+  }
+
+  // Pré-checagem do cupom (posse, validade, alguma loja elegível). Sem lock —
+  // a checagem definitiva é a aplicação, depois dos pedidos.
+  if (cupomId) {
+    const { data: previa, error: pe } = await admin.rpc('festa_cupom_previa', {
+      p_festa_id: festaId, p_cupom_id: cupomId, p_cliente_id: cliente.id,
+    })
+    if (pe) return NextResponse.json({ error: limparErroBanco(pe.message) }, { status: 409 })
+    const pv = previa as CupomPrevia
+    if (!pv?.ok) return NextResponse.json({ error: pv?.motivo || 'Este cupom não vale nesta festa.' }, { status: 409 })
   }
 
   // Lojas que efetivamente têm pedido (uma perna cada).
@@ -114,6 +135,23 @@ export async function POST(request: NextRequest) {
     await admin.from('festa_participantes').update({ pedido_id: pedido.id }).eq('id', p.id)
   }
 
+  // Aplica o cupom sobre os pedidos criados (transação única no banco).
+  let cupom: CupomAplicado | null = null
+  if (cupomId) {
+    const { data, error: ce } = await admin.rpc('aplicar_cupom_festa', {
+      p_festa_id: festaId, p_cupom_id: cupomId, p_cliente_id: cliente.id,
+    })
+    if (ce || !data?.ok) {
+      console.error('[festa/fechar] cupom recusado:', ce?.message)
+      // Mesmo rollback de "loja fechada": o cliente escolheu fechar COM cupom;
+      // fechar sem ele por baixo dos panos seria cobrar mais do que ele viu.
+      // (festa_participantes.pedido_id volta a null pelo ON DELETE SET NULL.)
+      await admin.from('pedidos_clientes').delete().eq('festa_id', festaId)
+      return NextResponse.json({ error: limparErroBanco(ce?.message || 'Não foi possível aplicar o cupom.') }, { status: 409 })
+    }
+    cupom = data as CupomAplicado
+  }
+
   // Fecha a festa com o snapshot da taxa.
   await admin.from('festas').update({
     status: 'fechada',
@@ -139,5 +177,11 @@ export async function POST(request: NextRequest) {
     taxa_por_pessoa: rateio,
     valor_corrida: valorCorrida,
     despacho,
+    cupom,
   })
+}
+
+/** "P0001: Este cupom ja foi utilizado." -> "Este cupom ja foi utilizado." */
+function limparErroBanco(msg: string): string {
+  return msg.replace(/^.*P0001[^:]*:?\s*/, '').trim() || 'Não foi possível aplicar o cupom.'
 }

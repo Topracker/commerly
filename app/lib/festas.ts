@@ -35,6 +35,8 @@ export type Festa = {
   taxa_total: number | null
   taxa_por_pessoa: number | null
   bonus_pct: number
+  // Cupom usado no fechamento (lido de cupons.festa_id).
+  cupom?: { id: string; codigo: string; desconto_aplicado: number; custeado_por: 'loja' | 'plataforma' } | null
   fechada_em: string | null
   expira_em: string
   created_at: string

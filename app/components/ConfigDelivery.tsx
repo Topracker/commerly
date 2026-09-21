@@ -3,6 +3,7 @@
 //   #5  Preço dinâmico
 //   #9  Classificação nutricional dos produtos (IA)
 //   #14 Aceitar entrega por drone
+//   Cupom no Modo Festa (2026-09-20)
 
 import { useEffect, useState } from 'react'
 import { Loader2, Salad, Zap } from 'lucide-react'
@@ -10,6 +11,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { FATOR_PICO, FATOR_DEMANDA, LIMIAR_DEMANDA } from '../lib/precoDinamico'
 import { DRONE_RAIO_MAX_KM, DRONE_PESO_MAX_KG, DRONE_HORA_INICIO, DRONE_HORA_FIM } from '../lib/drone'
 import { AVISO_NUTRI } from '../lib/nutri'
+import { AVISO_CUPOM_LOJA } from '../lib/cupons'
 
 type Props = {
   supabase: SupabaseClient
@@ -45,6 +47,7 @@ function Alternador({ ligado, onMudar, titulo, children }: {
 export function ConfigDelivery({ supabase, lojaId, onToast }: Props) {
   const [precoDinamico, setPrecoDinamico] = useState(false)
   const [aceitaDrone, setAceitaDrone] = useState(false)
+  const [aceitaCupom, setAceitaCupom] = useState(false)
   const [carregado, setCarregado] = useState(false)
 
   const [classificando, setClassificando] = useState(false)
@@ -52,23 +55,31 @@ export function ConfigDelivery({ supabase, lojaId, onToast }: Props) {
 
   useEffect(() => {
     if (!lojaId) return
-    supabase.from('lojas').select('preco_dinamico, aceita_drone').eq('id', lojaId).maybeSingle()
+    supabase.from('lojas').select('preco_dinamico, aceita_drone, aceita_cupom').eq('id', lojaId).maybeSingle()
       .then(({ data }: any) => {
         if (data) {
           setPrecoDinamico(!!data.preco_dinamico)
           setAceitaDrone(!!data.aceita_drone)
+          setAceitaCupom(!!data.aceita_cupom)
         }
         setCarregado(true)
       })
   }, [lojaId, supabase])
 
-  async function salvarFlag(campo: 'preco_dinamico' | 'aceita_drone', valor: boolean) {
-    const anterior = campo === 'preco_dinamico' ? precoDinamico : aceitaDrone
-    const setter = campo === 'preco_dinamico' ? setPrecoDinamico : setAceitaDrone
+  type Flag = 'preco_dinamico' | 'aceita_drone' | 'aceita_cupom'
+  const flags: Record<Flag, [boolean, (v: boolean) => void]> = {
+    preco_dinamico: [precoDinamico, setPrecoDinamico],
+    aceita_drone: [aceitaDrone, setAceitaDrone],
+    aceita_cupom: [aceitaCupom, setAceitaCupom],
+  }
+
+  async function salvarFlag(campo: Flag, valor: boolean) {
+    const [anterior, setter] = flags[campo]
     setter(valor)
 
-    const { error } = await supabase.from('lojas').update({ [campo]: valor }).eq('id', lojaId)
-    if (error) {
+    // `.select()` de propósito: a RLS bloqueia em silêncio (204, zero linhas).
+    const { data, error } = await supabase.from('lojas').update({ [campo]: valor }).eq('id', lojaId).select('id')
+    if (error || !data || data.length === 0) {
       setter(anterior) // reverte o otimismo
       onToast('Não foi possível salvar. Tente novamente.', 'erro')
       return
@@ -131,6 +142,21 @@ export function ConfigDelivery({ supabase, lojaId, onToast }: Props) {
         </p>
         <p className="mt-1 text-gray-500">
           Para o limite de peso funcionar, cadastre o peso dos seus produtos.
+        </p>
+      </Alternador>
+
+      <Alternador
+        ligado={aceitaCupom}
+        onMudar={v => salvarFlag('aceita_cupom', v)}
+        titulo="🎟️ Aceito cupom no Modo Festa"
+      >
+        <p>
+          No Modo Festa várias pessoas pedem juntas, de até 3 lojas, para um endereço só — são
+          pedidos maiores. Com o cupom liberado, sua loja aparece com o selo &quot;Aceita cupom&quot;
+          e entra no rateio do desconto de quem criou a festa.
+        </p>
+        <p className="mt-1 text-gray-500">
+          {AVISO_CUPOM_LOJA}
         </p>
       </Alternador>
 

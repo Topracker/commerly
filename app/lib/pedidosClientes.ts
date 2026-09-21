@@ -68,6 +68,10 @@ export type PedidoCliente = {
   // Modo Festa: pedidos de uma mesma festa são entregues juntos num endereço só
   // e a corrida é ofertada por `festa_id`, não por pedido.
   festa_id?: string | null
+  // Cupom aplicado no fechamento da festa (rateio em cupom_usos). O `total`
+  // já vem com o abatimento; `desconto_cupom` é só para a tela explicar.
+  cupom_id?: string | null
+  desconto_cupom?: number
   // Entregador sumido EM ROTA (lib/entregaConfirmacao.ts): quando perguntamos a
   // ele se ainda está com o pedido (GPS parado) e quando ele respondeu que sim.
   // `entrega_confirmacao_pedida_em` não-nulo = pendência aberta: o entregador vê

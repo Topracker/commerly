@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   const lojaIds = (fl || []).map(r => r.loja_id as string)
 
   const [lojasRes, produtosRes, promoRes, partsRes] = await Promise.all([
-    admin.from('lojas').select('id, nome, tipo, latitude, longitude').in('id', lojaIds),
+    admin.from('lojas').select('id, nome, tipo, latitude, longitude, horario, aceita_cupom').in('id', lojaIds),
     admin.from('produtos').select('id, loja_id, nome, preco_venda, imagem_url, categoria').in('loja_id', lojaIds).gt('quantidade', 0),
     admin.from('promocoes').select('produto_id, loja_id, preco_promocional, desconto_pct').in('loja_id', lojaIds).eq('ativa', true),
     admin.from('festa_participantes').select('id, cliente_id, itens, pronto, pedido_id, entrou_em').eq('festa_id', festaId).order('entrou_em', { ascending: true }),
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
   if (pedidoIds.length > 0) {
     const { data: peds } = await admin
       .from('pedidos_clientes')
-      .select('id, status, total, taxa_entrega, entregador_id, tempo_preparo_min, distancia_km, eta_em, created_at')
+      .select('id, status, total, taxa_entrega, desconto_cupom, cupom_id, entregador_id, tempo_preparo_min, distancia_km, eta_em, created_at')
       .in('id', pedidoIds)
     for (const pd of peds || []) pedidosMap.set(pd.id, pd)
   }
@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
         status: pedido.status,
         total: Number(pedido.total) || 0,
         taxa_entrega: Number(pedido.taxa_entrega) || 0,
+        desconto_cupom: Number(pedido.desconto_cupom) || 0,
         tem_entregador: !!pedido.entregador_id,
         tempo_preparo_min: pedido.tempo_preparo_min,
         distancia_km: pedido.distancia_km,
@@ -81,8 +82,17 @@ export async function GET(request: NextRequest) {
     }
   })
 
+  // Cupom aplicado no fechamento (um por festa — índice único em cupons.festa_id).
+  const { data: cupomRow } = await admin
+    .from('cupons').select('id, codigo, loja_id, desconto_aplicado').eq('festa_id', festaId).maybeSingle()
+  const cupom = cupomRow ? {
+    id: cupomRow.id, codigo: cupomRow.codigo,
+    desconto_aplicado: Number(cupomRow.desconto_aplicado) || 0,
+    custeado_por: cupomRow.loja_id ? 'loja' : 'plataforma',
+  } : null
+
   return NextResponse.json({
-    festa,
+    festa: { ...festa, cupom },
     sou_criador: festa.criador_cliente_id === cliente.id,
     lojas: lojasRes.data || [],
     produtos,

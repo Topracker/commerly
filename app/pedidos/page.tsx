@@ -347,6 +347,9 @@ export default function PedidosComerciante() {
           {Number(p.taxa_entrega) > 0 && (
             <p className="flex justify-between"><span>Taxa de entrega</span><span>R$ {Number(p.taxa_entrega).toFixed(2)}</span></p>
           )}
+          {Number(p.desconto_cupom) > 0 && (
+            <p className="flex justify-between text-green-400"><span>🎟️ Cupom (Modo Festa)</span><span>− R$ {Number(p.desconto_cupom).toFixed(2)}</span></p>
+          )}
           <p className="font-display text-white font-bold text-sm mt-1">Total: R$ {Number(p.total).toFixed(2)}</p>
           <p className="mt-1">
             {p.pagamento_status === 'estornado' ? (

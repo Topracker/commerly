@@ -226,9 +226,18 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
         id: 'pedido-atrasado',
         pergunta: 'Meu pedido está atrasado. O que faço?',
         resposta:
-          `Primeiro fale com a loja pelo chat — quase sempre é preparo ou trânsito. Se o pedido passar mais de ${TOLERANCIA_MIN} minutos do horário previsto, a Commerly Garantia registra o atraso e você recebe uma notificação com um cupom de ${DESCONTO_PCT}% para a próxima compra, válido por ${VALIDADE_DIAS} dias.`,
+          `Primeiro fale com a loja pelo chat — quase sempre é preparo ou trânsito. Se o pedido passar mais de ${TOLERANCIA_MIN} minutos do horário previsto, a Commerly Garantia registra o atraso e você recebe uma notificação com um cupom de ${DESCONTO_PCT}% válido por ${VALIDADE_DIAS} dias. O cupom é usado no Modo Festa: quem cria a festa escolhe o cupom antes de fechar e o desconto é dividido entre os pedidos das lojas que aceitam cupom.`,
         tags: ['demora', 'atraso', 'garantia', 'cupom'],
         publico: ['cliente'],
+      },
+      {
+        id: 'cupom-onde-usar',
+        pergunta: 'Ganhei um cupom. Onde eu uso?',
+        resposta:
+          'No Modo Festa. Ao fechar uma festa que você criou, os seus cupons válidos aparecem em "Usar cupom" com uma prévia do desconto. O valor é dividido entre os pedidos de todos os participantes, na proporção do valor de cada pedido, e só nas lojas com o selo "Aceita cupom" — se alguma loja da festa não aceita, o desconto fica menor e o app avisa antes de fechar. Um cupom de loja ("sentimos sua falta") só vale nos pedidos daquela loja.\n\nSe todos os pedidos que receberam o desconto forem cancelados, o cupom volta para você com a validade estendida pelo tempo que ficou preso.',
+        tags: ['cupom', 'desconto', 'festa', 'aceita cupom', 'como usar cupom'],
+        publico: ['cliente'],
+        link: { label: 'Abrir Modo Festa', href: '/cliente/festa' },
       },
       {
         id: 'pedido-nao-apareceu',
@@ -442,6 +451,15 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
         tags: ['desconto', 'cupom', 'combo', 'oferta', 'flash sale'],
         publico: ['comerciante'],
         link: { label: 'Abrir Promoções', href: '/promocoes' },
+      },
+      {
+        id: 'cupom-modo-festa-loja',
+        pergunta: 'O que é "Aceito cupom no Modo Festa" e quem paga o desconto?',
+        resposta:
+          'É um interruptor em Configurações > Delivery avançado (desligado por padrão). Ligado, sua loja aparece com o selo "Aceita cupom" para quem monta uma festa e entra no rateio do desconto — pedidos em grupo costumam ser maiores. Você só absorve o desconto dos cupons que você mesma enviou pela campanha "sentimos sua falta"; ele sai do valor do pedido, como no Clube de pontos. O cupom da Commerly Garantia (atraso na entrega) é bancado pela Commerly, não pela loja. Nos dois casos o abatimento aparece na linha "Cupom" do pedido.',
+        tags: ['cupom', 'aceita cupom', 'modo festa', 'quem paga', 'desconto'],
+        publico: ['comerciante'],
+        link: { label: 'Abrir Configurações', href: '/configuracoes' },
       },
       {
         id: 'assistente-ia',

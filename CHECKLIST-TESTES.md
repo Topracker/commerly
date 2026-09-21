@@ -533,6 +533,43 @@ não deve aparecer opção de pagar online.
 - [ ] Testar entrar numa festa **já fechada** e conferir que o app avisa em vez de
       quebrar.
 
+#### 7.1.1 Cupom no Modo Festa
+
+O cupom (Garantia por atraso ou "sentimos sua falta" da loja) **só vale no
+Modo Festa**, aplicado por quem criou a festa. O desconto é dividido entre os
+pedidos das lojas com o selo **"Aceita cupom"**, na proporção do valor de cada
+pedido. A loja liga isso em **Configurações → Delivery avançado → "Aceito cupom
+no Modo Festa"** (desligado por padrão).
+
+- [ ] **Comerciante:** ligar o toggle e conferir o texto: a loja só absorve os
+      cupons que ela mesma criou; o da Garantia é da Commerly.
+- [ ] **Cliente A:** em "Criar festa", conferir os **selos**: verde "Aceita cupom",
+      vermelho "Não aceita cupom"; loja **fechada** aparece cinza, escrito
+      "Fechada · HH:MM - HH:MM" e **não dá para selecionar**.
+- [ ] Testar os chips **"Abertas agora"** e **"Aceita cupom"** no modal.
+- [ ] Na sala da festa, em "Meu pedido": produtos **agrupados por categoria**
+      (como no cardápio) e chips de **categoria** e **faixa de preço**
+      funcionando; chips de loja "Abertas agora" / "Aceita cupom" / "Não aceita".
+- [ ] **Cliente A (criador) com cupom:** ver a seção **"Usar cupom"** com a prévia
+      "Você ganha R$ X". Com uma loja da festa que **não aceita**, o aviso amarelo
+      diz que o desconto vale só nas outras lojas (e que é menor que o cupom).
+- [ ] **Cliente B (não criador):** **não** vê a seção de cupom.
+- [ ] Fechar com o cupom: toast mostra "Cupom aplicado: −R$ X"; no **Resumo da
+      festa** aparece a linha "Cupom CÓDIGO −R$ X" e, em cada pessoa, a parcela
+      dela. **A soma das parcelas tem que dar exatamente o valor do cupom** (ou o
+      total elegível, se for menor). Anote os centavos.
+- [ ] Cupom de loja ("VOLTA-…") só abate nos pedidos **daquela loja**.
+- [ ] `/pedidos` da loja e `/cliente/pedidos` mostram a linha **"🎟️ Cupom −R$"**
+      e o total já abatido. O entregador cobra o **total** (já com desconto).
+- [ ] Tentar usar o **mesmo cupom** em outra festa → erro "já foi utilizado".
+- [ ] **Cancelamento:** cancelar **todos** os pedidos que receberam desconto → o
+      cliente recebe "Seu cupom voltou" e o cupom reaparece com a **validade
+      estendida** pelo tempo que ficou preso. Cancelar **só um** → o cupom **não**
+      volta.
+- [ ] Automatizado: `node scripts/testar-cupom-festa.mjs` (segurança com JWT
+      real) e `APP=http://localhost:3000 node scripts/testar-cupom-festa.mjs`
+      (fluxo completo com o dev server).
+
 ### 7.2 Multi-entrega (2 pedidos na mesma viagem)
 
 - [ ] **Entregador:** com **uma** entrega em andamento, conferir que outro pedido

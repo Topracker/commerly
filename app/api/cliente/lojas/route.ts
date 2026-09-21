@@ -15,7 +15,7 @@ import { createAdminClient } from '../../../lib/supabase-admin'
 //   GET /api/cliente/lojas            -> lista (com filtros ?tipo= e ?busca=)
 //   GET /api/cliente/lojas?id=<uuid>  -> detalhe de uma loja
 const COLS =
-  'id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, created_at, destaque, disponivel'
+  'id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, created_at, destaque, disponivel, aceita_cupom'
 
 /**
  * O delivery está mesmo aberto nesta loja? Duas chaves independentes, ambas

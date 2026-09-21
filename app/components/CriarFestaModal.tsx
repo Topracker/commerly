@@ -1,19 +1,24 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { X, MapPin, Check, PartyPopper, Store, Search, Star, Navigation } from 'lucide-react'
+import { X, MapPin, Check, PartyPopper, Store, Search, Star, Navigation, Clock, Ticket } from 'lucide-react'
 import { createClient } from '../supabase'
 import { distanciaKm, formatarDistancia } from '../lib/geo'
 import { isDelivery } from '../lib/pedidosClientes'
 import { getRatingsPorLoja } from '../lib/avaliacoes'
 import { FESTA_MAX_LOJAS, FESTA_RAIO_LOJAS_KM } from '../lib/festas'
+import { lojaAberta, parseHorario } from '../lib/horario'
+import { SELO_CUPOM } from '../lib/cupons'
 import { MapaConfirmar } from './MapaConfirmar'
+import { ChipFiltro } from './ChipFiltro'
 
 type LojaOpt = {
   id: string; nome: string; tipo: string
   latitude: number | null; longitude: number | null
   fotos_fachada?: string[] | null; localizacao?: string | null; destaque?: boolean
+  horario?: string | null; aceita_cupom?: boolean
   media?: number; totalAval?: number
 }
+type FiltroLoja = 'abertas' | 'cupom'
 type Sugestao = { lat: number; lng: number; display_name: string }
 
 type Props = {
@@ -38,6 +43,14 @@ export function CriarFestaModal({ onFechar, onCriada, onErro }: Props) {
   // Nomes de produtos por loja — a busca casa por nome da loja E por produto.
   const [produtosPorLoja, setProdutosPorLoja] = useState<Record<string, string[]>>({})
   const [userPos, setUserPos] = useState<{ latitude: number; longitude: number } | null>(null)
+  const [filtros, setFiltros] = useState<Set<FiltroLoja>>(new Set())
+  // "Agora" reavaliado por minuto: loja fechada não entra na festa (o trigger
+  // de horário recusaria o pedido dela no fechamento e derrubaria a festa).
+  const [agora, setAgora] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setAgora(Date.now()), 60_000)
+    return () => clearInterval(t)
+  }, [])
 
   // Localização do usuário (só para exibir distância nos cards).
   useEffect(() => {
@@ -124,15 +137,23 @@ export function CriarFestaModal({ onFechar, onCriada, onErro }: Props) {
     return false
   }
 
-  // Filtro de busca: nome da loja OU nome de algum produto disponível.
+  const estaAberta = (l: LojaOpt) => lojaAberta(l.horario, new Date(agora))
+
+  // Filtro de busca: nome da loja OU nome de algum produto disponível; mais os
+  // chips "Abertas agora" e "Aceita cupom".
   const lojasFiltradas = useMemo(() => {
     const q = buscaLoja.trim().toLowerCase()
-    if (!q) return lojas
-    return lojas.filter(l =>
-      l.nome.toLowerCase().includes(q) ||
-      (produtosPorLoja[l.id] || []).some(n => n.includes(q)),
-    )
-  }, [lojas, buscaLoja, produtosPorLoja])
+    return lojas.filter(l => {
+      if (q && !(l.nome.toLowerCase().includes(q) || (produtosPorLoja[l.id] || []).some(n => n.includes(q)))) return false
+      if (filtros.has('abertas') && !lojaAberta(l.horario, new Date(agora))) return false
+      if (filtros.has('cupom') && !l.aceita_cupom) return false
+      return true
+    })
+  }, [lojas, buscaLoja, produtosPorLoja, filtros, agora])
+
+  function alternarFiltro(f: FiltroLoja) {
+    setFiltros(prev => { const n = new Set(prev); if (n.has(f)) n.delete(f); else n.add(f); return n })
+  }
 
   function toggleLoja(id: string) {
     setSelec(prev => {
@@ -244,17 +265,32 @@ export function CriarFestaModal({ onFechar, onCriada, onErro }: Props) {
               />
             </div>
 
+            {/* Filtros rápidos (mesmo padrão da Central de Ajuda) */}
+            <div className="flex gap-2 mb-3 overflow-x-auto pb-0.5" role="group" aria-label="Filtrar lojas">
+              <ChipFiltro ativo={filtros.has('abertas')} onClick={() => alternarFiltro('abertas')}>
+                <Clock size={12} /> Abertas agora
+              </ChipFiltro>
+              <ChipFiltro ativo={filtros.has('cupom')} onClick={() => alternarFiltro('cupom')}>
+                <Ticket size={12} /> Aceita cupom
+              </ChipFiltro>
+            </div>
+
             {lojas.length === 0 ? (
               <p className="text-gray-500 text-sm py-4 text-center">Nenhuma loja de delivery encontrada.</p>
             ) : lojasFiltradas.length === 0 ? (
-              <p className="text-gray-500 text-sm py-4 text-center">Nenhuma loja ou produto com "{buscaLoja}".</p>
+              <p className="text-gray-500 text-sm py-4 text-center">
+                {buscaLoja ? `Nenhuma loja ou produto com "${buscaLoja}".` : 'Nenhuma loja com esses filtros.'}
+              </p>
             ) : (
               <div className="grid grid-cols-2 gap-2.5 max-h-[19rem] overflow-y-auto pr-0.5">
                 {lojasFiltradas.map(l => {
                   const on = selec.includes(l.id)
                   const fora = foraDoRaio(l)
                   const cheio = !on && selec.length >= FESTA_MAX_LOJAS
-                  const bloq = !on && (fora || cheio)
+                  const aberta = estaAberta(l)
+                  const horario = parseHorario(l.horario)
+                  // Fechada: cinza e não selecionável (ver comentário em `agora`).
+                  const bloq = !on && (fora || cheio || !aberta)
                   const dist = userPos ? distanciaKm(userPos, { latitude: l.latitude, longitude: l.longitude }) : null
                   return (
                     <button
@@ -264,7 +300,8 @@ export function CriarFestaModal({ onFechar, onCriada, onErro }: Props) {
                       disabled={bloq}
                       className={`relative text-left rounded-2xl overflow-hidden border transition disabled:opacity-40 ${
                         on ? 'border-acento ring-1 ring-acento/50' : 'border-borda hover:border-[#2b3440]'
-                      }`}
+                      } ${!aberta ? 'grayscale' : ''}`}
+                      aria-label={`${l.nome}${!aberta ? ' (fechada)' : ''}`}
                     >
                       {/* Fachada */}
                       <div className="relative h-24 bg-elevado">
@@ -296,6 +333,17 @@ export function CriarFestaModal({ onFechar, onCriada, onErro }: Props) {
                       <div className="p-2.5 pt-2">
                         <p className="text-white text-sm font-semibold truncate">{l.nome}</p>
                         <p className="text-gray-500 text-[11px] truncate">{l.tipo}</p>
+                        {aberta ? (
+                          <span className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            l.aceita_cupom ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
+                          }`}>
+                            <Ticket size={10} /> {l.aceita_cupom ? SELO_CUPOM.aceita : SELO_CUPOM.naoAceita}
+                          </span>
+                        ) : (
+                          <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-gray-500/15 px-2 py-0.5 text-[10px] font-semibold text-gray-400">
+                            <Clock size={10} /> Fechada{horario ? ` · ${horario.abre} - ${horario.fecha}` : ''}
+                          </span>
+                        )}
                         {fora && !on && (
                           <p className="text-amber-400 text-[10px] mt-1">Fora do raio de {FESTA_RAIO_LOJAS_KM} km</p>
                         )}
