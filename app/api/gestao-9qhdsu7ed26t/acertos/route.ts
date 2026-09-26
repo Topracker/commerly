@@ -38,8 +38,8 @@ export async function GET(request: NextRequest) {
   const lojaIds = [...new Set(comSituacao.map(a => a.loja_id))]
   const entIds = [...new Set(comSituacao.map(a => a.entregador_id).filter(Boolean))] as string[]
   const [{ data: lojas }, { data: ents }] = await Promise.all([
-    lojaIds.length ? admin.from('lojas').select('id, nome').in('id', lojaIds) : Promise.resolve({ data: [] as any[] }),
-    entIds.length ? admin.from('entregadores').select('id, nome').in('id', entIds) : Promise.resolve({ data: [] as any[] }),
+    lojaIds.length ? admin.from('lojas').select('id, nome').in('id', lojaIds) : Promise.resolve({ data: [] as { id: string; nome: string }[] }),
+    entIds.length ? admin.from('entregadores').select('id, nome').in('id', entIds) : Promise.resolve({ data: [] as { id: string; nome: string }[] }),
   ])
 
   const soma = (xs: typeof comSituacao) => Math.round(xs.reduce((s, a) => s + Number(a.valor), 0) * 100) / 100
@@ -52,8 +52,8 @@ export async function GET(request: NextRequest) {
       contestados: contestados.length,
     },
     nomes: {
-      lojas: Object.fromEntries((lojas || []).map((l: any) => [l.id, l.nome])),
-      entregadores: Object.fromEntries((ents || []).map((e: any) => [e.id, e.nome])),
+      lojas: Object.fromEntries((lojas || []).map(l => [l.id, l.nome])),
+      entregadores: Object.fromEntries((ents || []).map(e => [e.id, e.nome])),
     },
   })
 }

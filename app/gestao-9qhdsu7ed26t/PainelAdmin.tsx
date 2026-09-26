@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ComponentType } from 'react'
 import Link from 'next/link'
 import {
   ShieldCheck, Users, Store, Bike, Package, MapPin, DollarSign, Loader2, Check, X,
@@ -8,14 +8,64 @@ import {
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { FEATURE_FLAGS } from '../lib/crescimento'
 import { ADMIN_API_BASE } from '../lib/adminIdentidade'
+import type { AcertoComConfirmacoes, SituacaoAcerto } from '../lib/acertos'
 
-type Dados = any
+// Formato das respostas de ${ADMIN_API_BASE}/dados, /faturamento e /acertos.
+// Mantenha em sincronia com as rotas em app/api/gestao-…/.
+type Funil = { cadastradas: number; comProduto: number; comPedido: number; assinantes: number }
+type FaturamentoBanco = {
+  estimado: boolean; mrrEstimado: number; assinantes: number; semAssinatura: number
+  comissaoB2B: number; comissaoPct: number; margemDelivery: number
+  taxasEntrega: number; pagoEntregadores: number; receitaCommerly: number
+}
+type Cidade = { nome: string; uf: string; slug: string; pontos: number; meta_pontos: number; status: string }
+type EntregadorPendente = {
+  id: string; nome: string; telefone: string | null; veiculo_tipo: string | null; documento_numero: string | null
+  documento_foto_url: string | null; foto_url: string | null; tem_bolsa: boolean | null
+  bolsa_foto_url: string | null; bolsa_confirmada_em: string | null; created_at: string
+}
+type Feedback = { id: string; tipo: string; mensagem: string; created_at: string; loja: string }
+type Dados = {
+  contadores: Record<'comerciantes' | 'clientes' | 'entregadores' | 'fornecedores' | 'pedidos' | 'fundadores' | 'parceiros' | 'gmv' | 'cidades' | 'embaixadores', number>
+  planos: { ativas: number; teste: number; vencidas: number; testeVencendo7: number }
+  faturamentoBanco: FaturamentoBanco
+  crescimento: { dias: string[]; lojas: number[]; clientes: number[]; entregadores: number[] }
+  serie: { dia: string; pedidos: number; gmv: number }[]
+  funil: Funil
+  listas: {
+    lojas?: { id: string; nome: string; tipo: string; localizacao: string | null; plano: string | null; fundador: boolean | null; created_at: string }[]
+    clientes?: { id: string; nome: string; created_at: string }[]
+    entregadores?: { id: string; nome: string; telefone: string | null; aprovacao_status: string; kit_comprado: boolean | null; created_at: string }[]
+    parceiros?: { id: string; nome: string; email: string | null; codigo: string; nivel: string | null; created_at: string }[]
+    fundadores?: { loja_id: string; ordem: number; cidade: string | null; created_at: string }[]
+    embaixadores?: { codigo: string; usos: number; papel: string | null }[] | null
+    pendentes?: EntregadorPendente[]
+    feedbacks?: Feedback[]
+  }
+  cidades: Cidade[] | null
+  cidadesResumo: { slug: string; cidade: string; lojas: number; pedidos: number; gmv: number }[]
+  flagsGlobais: Record<string, boolean> | null
+}
+type Stripe = {
+  disponivel: boolean; motivo?: string; mrrTotal: number; truncado?: boolean
+  resumo: { mensalidade: { ativas: number; fundador: number; normal: number }; ads: { ativas: number; mrr: number }; inadimplentes: number }
+  saldo: { disponivel: number; pendente: number } | null
+  faturas?: { id: string; numero: string | null; criada_em: number; valor: number; status: string | null }[]
+}
+type AcertoAdmin = AcertoComConfirmacoes & { situacao: SituacaoAcerto }
+type DadosAcertos = {
+  devidos?: AcertoAdmin[]
+  contestados?: AcertoAdmin[]
+  resumo: { commerly_deve_pendente: number; commerly_deve_liquidado: number; contestados: number }
+  nomes?: { lojas?: Record<string, string>; entregadores?: Record<string, string> }
+}
+type Celula = string | number | null | undefined
 const TABS = ['Visão geral', 'Faturamento', 'Acertos', 'Usuários', 'Feedback', 'Aprovações', 'Cidades & Flags'] as const
 
 const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
 export default function Admin() {
-  const [dados, setDados] = useState<Dados>(null)
+  const [dados, setDados] = useState<Dados | null>(null)
   const [erro, setErro] = useState<number | null>(null)
   const [tab, setTab] = useState<(typeof TABS)[number]>('Visão geral')
 
@@ -88,7 +138,7 @@ export default function Admin() {
             <div className="bg-card border border-borda rounded-2xl p-5">
               <p className="text-white text-sm font-semibold mb-3 flex items-center gap-1.5"><Package size={15} className="text-acento" /> Pedidos e GMV por dia (30 dias)</p>
               <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={dados.serie.map((s: any) => ({ ...s, dia: s.dia.slice(5) }))}>
+                <LineChart data={dados.serie.map(s => ({ ...s, dia: s.dia.slice(5) }))}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
                   <XAxis dataKey="dia" stroke="#9ca3af" fontSize={11} />
                   <YAxis yAxisId="l" stroke="#9ca3af" fontSize={11} allowDecimals={false} />
@@ -125,7 +175,7 @@ export default function Admin() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
                     <XAxis type="number" stroke="#9ca3af" fontSize={11} />
                     <YAxis type="category" dataKey="cidade" stroke="#9ca3af" fontSize={11} width={130} />
-                    <Tooltip contentStyle={{ background: '#111418', border: '1px solid #ffffff20', borderRadius: 12 }} formatter={(v: any) => brl(Number(v))} />
+                    <Tooltip contentStyle={{ background: '#111418', border: '1px solid #ffffff20', borderRadius: 12 }} formatter={v => brl(Number(v))} />
                     <Bar dataKey="gmv" fill="#f5c34b" radius={[0, 4, 4, 0]} name="GMV" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -136,7 +186,7 @@ export default function Admin() {
               <Tabela
                 titulo="Por cidade"
                 cols={['Cidade', 'Lojas', 'Pedidos', 'GMV']}
-                linhas={dados.cidadesResumo.map((x: any) => [x.cidade, String(x.lojas), String(x.pedidos), brl(x.gmv)])}
+                linhas={dados.cidadesResumo.map(x => [x.cidade, String(x.lojas), String(x.pedidos), brl(x.gmv)])}
               />
             )}
           </div>
@@ -144,12 +194,12 @@ export default function Admin() {
 
         {tab === 'Usuários' && (
           <div className="space-y-6">
-            <Tabela titulo="Comerciantes" cols={['Nome', 'Nicho', 'Cidade', 'Plano', 'Fundador']} linhas={(dados.listas.lojas || []).map((l: any) => [l.nome, l.tipo, l.localizacao || '—', l.plano || '—', l.fundador ? '⭐' : '—'])} />
-            <Tabela titulo="Entregadores" cols={['Nome', 'Telefone', 'Aprovação', 'Kit']} linhas={(dados.listas.entregadores || []).map((e: any) => [e.nome, e.telefone || '—', e.aprovacao_status, e.kit_comprado ? '✅' : '—'])} />
-            <Tabela titulo="Clientes" cols={['Nome', 'Desde']} linhas={(dados.listas.clientes || []).map((x: any) => [x.nome, String(x.created_at).slice(0, 10)])} />
-            <Tabela titulo="Parceiros" cols={['Nome', 'E-mail', 'Código', 'Nível']} linhas={(dados.listas.parceiros || []).map((p: any) => [p.nome, p.email || '—', p.codigo, p.nivel || '—'])} />
-            <Tabela titulo="Top embaixadores" cols={['Código', 'Papel', 'Indicações']} linhas={(dados.listas.embaixadores || []).map((x: any) => [x.codigo, x.papel || '—', String(x.usos)])} />
-            <Tabela titulo="Fundadores" cols={['Ordem', 'Cidade', 'Desde']} linhas={(dados.listas.fundadores || []).map((f: any) => [`#${f.ordem}`, f.cidade || '—', String(f.created_at).slice(0, 10)])} />
+            <Tabela titulo="Comerciantes" cols={['Nome', 'Nicho', 'Cidade', 'Plano', 'Fundador']} linhas={(dados.listas.lojas || []).map((l) => [l.nome, l.tipo, l.localizacao || '—', l.plano || '—', l.fundador ? '⭐' : '—'])} />
+            <Tabela titulo="Entregadores" cols={['Nome', 'Telefone', 'Aprovação', 'Kit']} linhas={(dados.listas.entregadores || []).map((e) => [e.nome, e.telefone || '—', e.aprovacao_status, e.kit_comprado ? '✅' : '—'])} />
+            <Tabela titulo="Clientes" cols={['Nome', 'Desde']} linhas={(dados.listas.clientes || []).map((x) => [x.nome, String(x.created_at).slice(0, 10)])} />
+            <Tabela titulo="Parceiros" cols={['Nome', 'E-mail', 'Código', 'Nível']} linhas={(dados.listas.parceiros || []).map((p) => [p.nome, p.email || '—', p.codigo, p.nivel || '—'])} />
+            <Tabela titulo="Top embaixadores" cols={['Código', 'Papel', 'Indicações']} linhas={(dados.listas.embaixadores || []).map((x) => [x.codigo, x.papel || '—', String(x.usos)])} />
+            <Tabela titulo="Fundadores" cols={['Ordem', 'Cidade', 'Desde']} linhas={(dados.listas.fundadores || []).map((f) => [`#${f.ordem}`, f.cidade || '—', String(f.created_at).slice(0, 10)])} />
           </div>
         )}
 
@@ -167,7 +217,7 @@ export default function Admin() {
   )
 }
 
-function Kpi({ icon: Icon, label, v, dica }: { icon: any; label: string; v: any; dica?: string }) {
+function Kpi({ icon: Icon, label, v, dica }: { icon: ComponentType<{ size?: number; className?: string }>; label: string; v: Celula; dica?: string }) {
   return (
     <div className="bg-card border border-borda rounded-2xl p-4" title={dica}>
       <Icon size={16} className="text-acento mb-2" />
@@ -178,7 +228,7 @@ function Kpi({ icon: Icon, label, v, dica }: { icon: any; label: string; v: any;
 }
 
 // Funil de ativação: onde a loja empaca entre cadastrar e pagar.
-function Funil({ funil }: { funil: any }) {
+function Funil({ funil }: { funil: Funil }) {
   const etapas = [
     { label: 'Cadastradas', v: funil.cadastradas },
     { label: 'Com produto', v: funil.comProduto },
@@ -210,8 +260,8 @@ function Funil({ funil }: { funil: any }) {
 // Duas origens na mesma tela, sempre rotuladas: o que veio do BANCO (estimado
 // pela tabela de preços) e o que veio da STRIPE (o que foi cobrado de fato).
 // Misturar as duas sem dizer qual é qual foi o defeito do painel antigo.
-function Faturamento({ banco }: { banco: any }) {
-  const [stripe, setStripe] = useState<any>(null)
+function Faturamento({ banco }: { banco: FaturamentoBanco }) {
+  const [stripe, setStripe] = useState<Stripe | null>(null)
   // Nasce carregando: a aba só monta quando é aberta, e o fetch começa junto.
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
@@ -278,7 +328,7 @@ function Faturamento({ banco }: { banco: any }) {
             <Tabela
               titulo="Faturas recentes"
               cols={['Número', 'Data', 'Valor', 'Status']}
-              linhas={(stripe.faturas || []).map((f: any) => [
+              linhas={(stripe.faturas || []).map(f => [
                 f.numero || f.id, new Date(f.criada_em).toLocaleDateString('pt-BR'), brl(f.valor), f.status,
               ])}
             />
@@ -314,7 +364,7 @@ function Faturamento({ banco }: { banco: any }) {
 // referência; quando virar Caminho A, o transfer da Stripe ocupa esse lugar.
 // ============================================================================
 function Acertos() {
-  const [dados, setDados] = useState<any>(null)
+  const [dados, setDados] = useState<DadosAcertos | null>(null)
   const [erro, setErro] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [ref, setRef] = useState<Record<string, string>>({})
@@ -348,8 +398,8 @@ function Acertos() {
   const nomeLoja = (id: string) => dados.nomes?.lojas?.[id] || id.slice(0, 8)
   const nomeEnt = (id: string | null) => (id && dados.nomes?.entregadores?.[id]) || '—'
   const TIPO: Record<string, string> = { cupom_garantia: 'Cupom Garantia → loja', bonus_festa: 'Bônus festa → entregador', repasse_loja: 'Repasse entregador → loja', cobranca: 'Cobrança' }
-  const pendentes = (dados.devidos || []).filter((a: any) => a.situacao !== 'confirmado')
-  const liquidados = (dados.devidos || []).filter((a: any) => a.situacao === 'confirmado')
+  const pendentes = (dados.devidos || []).filter(a => a.situacao !== 'confirmado')
+  const liquidados = (dados.devidos || []).filter(a => a.situacao === 'confirmado')
 
   return (
     <div className="space-y-6">
@@ -363,7 +413,7 @@ function Acertos() {
         <h3 className="text-white font-semibold text-sm mb-3">A liquidar ({pendentes.length})</h3>
         {pendentes.length === 0 ? <p className="text-gray-500 text-xs">Nada pendente.</p> : (
           <div className="flex flex-col gap-2">
-            {pendentes.map((a: any) => (
+            {pendentes.map(a => (
               <div key={a.id} className="flex flex-col md:flex-row md:items-center gap-2 bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs">
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium">{TIPO[a.tipo] || a.tipo} · <span className="text-acento font-bold">{brl(Number(a.valor))}</span></p>
@@ -387,8 +437,8 @@ function Acertos() {
         <h3 className="text-white font-semibold text-sm mb-3">Contestações ({(dados.contestados || []).length})</h3>
         {(dados.contestados || []).length === 0 ? <p className="text-gray-500 text-xs">Nenhuma.</p> : (
           <div className="flex flex-col gap-2">
-            {dados.contestados.map((a: any) => {
-              const c = (a.acertos_confirmacoes || []).find((x: any) => x.resultado === 'contestado')
+            {(dados.contestados || []).map(a => {
+              const c = (a.acertos_confirmacoes || []).find(x => x.resultado === 'contestado')
               return (
                 <div key={a.id} className="bg-gray-950 border border-red-500/30 rounded-xl px-3 py-2 text-xs">
                   <p className="text-white font-medium">{TIPO[a.tipo] || a.tipo} · <span className="text-red-300 font-bold">{brl(Number(a.valor))}</span></p>
@@ -403,7 +453,7 @@ function Acertos() {
 
       {liquidados.length > 0 && (
         <Tabela titulo="Liquidados" cols={['Tipo', 'Valor', 'Para', 'Quando']}
-          linhas={liquidados.slice(0, 50).map((a: any) => [
+          linhas={liquidados.slice(0, 50).map(a => [
             TIPO[a.tipo] || a.tipo, brl(Number(a.valor)),
             a.para_papel === 'loja' ? nomeLoja(a.loja_id) : nomeEnt(a.entregador_id),
             new Date(a.created_at).toLocaleDateString('pt-BR'),
@@ -413,7 +463,7 @@ function Acertos() {
   )
 }
 
-function Feedbacks({ itens }: { itens: any[] }) {
+function Feedbacks({ itens }: { itens: Feedback[] }) {
   const [filtro, setFiltro] = useState<string>('Todos')
   const tipos = ['Todos', 'Bug', 'Ideia', 'Melhoria']
   const lista = filtro === 'Todos' ? itens : itens.filter(i => i.tipo === filtro)
@@ -460,7 +510,7 @@ function Feedbacks({ itens }: { itens: any[] }) {
   )
 }
 
-function Tabela({ titulo, cols, linhas }: { titulo: string; cols: string[]; linhas: any[][] }) {
+function Tabela({ titulo, cols, linhas }: { titulo: string; cols: string[]; linhas: Celula[][] }) {
   return (
     <div className="bg-card border border-borda rounded-2xl p-5">
       <p className="text-white text-sm font-semibold mb-3">{titulo} <span className="text-gray-500">({linhas.length})</span></p>
@@ -502,7 +552,7 @@ function Prova({ titulo, url, vazio = 'não enviado', alerta = false }: {
   )
 }
 
-function Aprovacoes({ pendentes, onChange }: { pendentes: any[]; onChange: () => void }) {
+function Aprovacoes({ pendentes, onChange }: { pendentes: EntregadorPendente[]; onChange: () => void }) {
   const [busy, setBusy] = useState<string | null>(null)
   async function agir(id: string, acao: string) {
     setBusy(id)
@@ -514,7 +564,7 @@ function Aprovacoes({ pendentes, onChange }: { pendentes: any[]; onChange: () =>
       <p className="text-white text-sm font-semibold mb-3">Entregadores aguardando aprovação <span className="text-gray-500">({pendentes.length})</span></p>
       {pendentes.length === 0 ? <p className="text-gray-500 text-sm">Nenhum entregador pendente. 🎉</p> : (
         <ul className="space-y-3">
-          {pendentes.map((e: any) => (
+          {pendentes.map(e => (
             <li key={e.id} className="rounded-xl border border-borda bg-superficie p-3">
               <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
@@ -553,7 +603,7 @@ function Aprovacoes({ pendentes, onChange }: { pendentes: any[]; onChange: () =>
   )
 }
 
-function CidadesFlags({ cidades, flags, onChange }: { cidades: any[]; flags: Record<string, boolean>; onChange: () => void }) {
+function CidadesFlags({ cidades, flags, onChange }: { cidades: Cidade[]; flags: Record<string, boolean>; onChange: () => void }) {
   const [local, setLocal] = useState<Record<string, boolean>>(flags)
   async function toggle(flag: string) {
     const ativo = !local[flag]
@@ -581,7 +631,7 @@ function CidadesFlags({ cidades, flags, onChange }: { cidades: any[]; flags: Rec
       <div className="bg-card border border-borda rounded-2xl p-5">
         <p className="text-white text-sm font-semibold mb-3">Cidades na corrida da expansão <span className="text-gray-500">({cidades.length})</span></p>
         <ul className="space-y-2">
-          {cidades.map((c: any) => (
+          {cidades.map(c => (
             <li key={c.slug} className="rounded-xl border border-borda bg-superficie p-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-white text-sm font-medium">{c.nome}/{c.uf} <span className="text-gray-500 text-xs">· {c.status}</span></span>

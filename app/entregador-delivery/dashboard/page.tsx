@@ -479,7 +479,7 @@ function EntregadorDashboard() {
     let wakeLock: { release?: () => Promise<void>; addEventListener?: (e: string, f: () => void) => void } | null = null
     async function pedirWakeLock() {
       try {
-        const nav = navigator as unknown as { wakeLock?: { request: (t: string) => Promise<any> } }
+        const nav = navigator as unknown as { wakeLock?: { request: (t: string) => Promise<typeof wakeLock> } }
         if (!nav.wakeLock || wakeLock || document.visibilityState !== 'visible') return
         wakeLock = await nav.wakeLock.request('screen')
         wakeLock?.addEventListener?.('release', () => { wakeLock = null })
@@ -541,7 +541,7 @@ function EntregadorDashboard() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'corrida_ofertas', filter: `entregador_id=eq.${entregador.id}` },
-        (payload: any) => { void abrirOferta(payload.new as OfertaCorrida) },
+        (payload: { new: unknown }) => { void abrirOferta(payload.new as OfertaCorrida) },
       )
       .subscribe()
     return () => { supabase.removeChannel(canal) }
