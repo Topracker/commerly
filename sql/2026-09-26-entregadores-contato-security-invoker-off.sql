@@ -1,0 +1,42 @@
+-- ============================================================================
+-- entregadores_contato volta a ser security_invoker = false (desenho original)
+-- ============================================================================
+-- APLICADO em produção em 2026-09-26 (migration
+-- `entregadores_contato_security_invoker_off_2026_09_26`).
+--
+-- Regressão: a view foi criada em 2026-07-22 com `security_invoker = false`
+-- (migrations entregadores_contato_e_teto_entregas_atomico e
+-- entregadores_contato_inclui_parceria), mas em 2026-09-26 estava com
+-- `security_invoker = on` sem nenhuma migração que fizesse isso — provável
+-- aceite do fix sugerido pelo advisor "security_definer_view" no painel.
+--
+-- Com invoker ON, quem consulta cai na RLS de `entregadores`, que é dono-only
+-- (`user_id = auth.uid()`): loja e cliente recebem ZERO linhas, sem erro. O
+-- card da /pedidos mostrava "Entregador: atribuído", o cliente perdia nome,
+-- foto e WhatsApp de quem está entregando e a loja via "Entregador" sem nome
+-- nas solicitações de parceria. Falha fechada — não vazava nada, só quebrava.
+--
+-- Por que DEFINER aqui é o certo: a view existe exatamente para abrir UMA
+-- fatia (id, nome, foto, telefone, veículo) de `entregadores` para quem tem
+-- vínculo, sem abrir a tabela (que tem CPF, documento, Stripe, GPS). O filtro
+-- de acesso é o próprio WHERE:
+--   - cliente ou dono da loja de um pedido que o entregador atendeu;
+--   - dono de loja com parceria (qualquer status) com o entregador;
+--   - o próprio entregador.
+-- `anon` não tem grant (401). Os grants de escrita de `authenticated` são
+-- inertes: o DISTINCT torna a view não-atualizável.
+--
+-- ⚠️ NÃO aceite o fix do advisor para esta view (nem para lojas_publicas,
+-- fornecedores_publicos, fornecedor_produtos_publicos, produtos_publicos): são
+-- DEFINER de propósito. `entregadores_publicos` é invoker ON e só é lida com
+-- service role (dispatch.ts / festaDispatch.ts) — essa pode ficar como está.
+--
+-- Pendência de PRODUTO registrada, fora deste arquivo: o vínculo por pedido
+-- não expira (quem teve um pedido com o entregador vê o telefone dele para
+-- sempre).
+-- ============================================================================
+
+alter view public.entregadores_contato set (security_invoker = false);
+
+-- Conferência (deve devolver security_invoker=false):
+-- select relname, reloptions from pg_class where relname = 'entregadores_contato';
