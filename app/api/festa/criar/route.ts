@@ -3,7 +3,7 @@ import { autenticarCliente, bodyDe } from '../_lib'
 import { rateLimit } from '../../../lib/rate-limit'
 import { distanciaKm } from '../../../lib/geo'
 import { isDelivery } from '../../../lib/pedidosClientes'
-import { gerarCodigoFesta, FESTA_MAX_LOJAS, FESTA_RAIO_LOJAS_KM } from '../../../lib/festas'
+import { gerarCodigoFesta, lojaForaDoRaio, FESTA_MAX_LOJAS, FESTA_RAIO_LOJAS_KM } from '../../../lib/festas'
 
 // Cria uma festa: nome, endereço único de entrega e as lojas participantes
 // (até 3, a até 2 km umas das outras). Quem cria já entra como participante.
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
   // Lojas: existem, são delivery e têm localização.
   const { data: lojas } = await admin
-    .from('lojas').select('id, nome, tipo, latitude, longitude').in('id', lojaIds)
+    .from('lojas').select('id, nome, tipo, latitude, longitude, distancia_maxima_entrega').in('id', lojaIds)
   if (!lojas || lojas.length !== lojaIds.length) {
     return NextResponse.json({ error: 'Alguma loja escolhida não foi encontrada.' }, { status: 404 })
   }
@@ -66,6 +66,11 @@ export async function POST(request: NextRequest) {
       }
     }
   }
+  // Endereço dentro do raio de entrega de CADA loja. O guard do banco só
+  // checa isso no pedido comum — sem esta trava, uma festa nos Açores virou
+  // pedido de uma loja de Goiânia (6528 km) e ficou meses no pool.
+  const fora = lojaForaDoRaio(lojas, { latitude: lat, longitude: lng })
+  if (fora) return NextResponse.json({ error: fora.mensagem }, { status: 400 })
 
   // Cria a festa com código único (tenta alguns códigos em caso de colisão).
   let festa: any = null

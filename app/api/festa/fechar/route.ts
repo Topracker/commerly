@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { autenticarCliente, bodyDe } from '../_lib'
 import { rateLimit } from '../../../lib/rate-limit'
 import { distanciaKm, taxaEntregaPorDistancia } from '../../../lib/geo'
-import { taxaPorPessoa, valorCorridaFesta, FESTA_BONUS_PCT } from '../../../lib/festas'
+import { taxaPorPessoa, valorCorridaFesta, lojaForaDoRaio, FESTA_BONUS_PCT } from '../../../lib/festas'
 import { ofertarFesta } from '../../../lib/festaDispatch'
 import type { CupomAplicado, CupomPrevia } from '../../../lib/cupons'
 
@@ -72,8 +72,13 @@ export async function POST(request: NextRequest) {
     comItens.flatMap((p: any) => (p.itens as any[]).map(i => i.loja_id)).filter(Boolean),
   )] as string[]
   const { data: lojas } = await admin
-    .from('lojas').select('id, latitude, longitude').in('id', lojasComPedido)
+    .from('lojas').select('id, nome, latitude, longitude, distancia_maxima_entrega').in('id', lojasComPedido)
   const lojaCoord = new Map((lojas || []).map((l: any) => [l.id, l]))
+
+  // De novo aqui (já checado em /criar): a loja pode ter diminuído o raio
+  // depois que a festa foi criada. Antes de gerar qualquer pedido.
+  const fora = lojaForaDoRaio(lojas || [], { latitude: festa.entrega_latitude, longitude: festa.entrega_longitude })
+  if (fora) return NextResponse.json({ error: fora.mensagem }, { status: 409 })
 
   // Taxa da viagem = soma das pernas loja→endereço.
   let taxaTotal = 0
@@ -128,6 +133,13 @@ export async function POST(request: NextRequest) {
       // já diz qual loja e o horário — repassa em vez do erro genérico.
       if (error?.message?.includes('fechada agora')) {
         return NextResponse.json({ error: error.message }, { status: 409 })
+      }
+      // Fora do raio (guard do banco, quando passar a valer para festa).
+      if (error?.message?.includes('fora da area de entrega')) {
+        const nomeLoja = (lojaCoord.get(lojaId) as { nome?: string } | undefined)?.nome
+        return NextResponse.json({
+          error: `${nomeLoja ? nomeLoja + ': e' : 'E'}ndereço da festa fora da área de entrega. ${limparErroBanco(error.message).replace(/^Endereco fora da area de entrega\.\s*/, '')}`.trim(),
+        }, { status: 409 })
       }
       return NextResponse.json({ error: 'Não foi possível gerar os pedidos da festa.' }, { status: 500 })
     }

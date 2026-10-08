@@ -7,6 +7,8 @@
 // cliente e recalculadas no servidor ao fechar a festa — nunca confiamos no
 // valor que o cliente manda).
 
+import { distanciaKm } from './geo'
+
 export const FESTA_MAX_LOJAS = 3
 export const FESTA_RAIO_LOJAS_KM = 2
 export const FESTA_BONUS_PCT = 20
@@ -75,6 +77,40 @@ export function normalizarCodigo(v: string): string {
 export function taxaPorPessoa(taxaTotal: number, nParticipantes: number): number {
   if (nParticipantes <= 0) return 0
   return Math.round((taxaTotal / nParticipantes) * 100) / 100
+}
+
+export type LojaRaio = {
+  nome: string
+  latitude: number | null
+  longitude: number | null
+  distancia_maxima_entrega: number | string | null
+}
+
+/**
+ * Primeira loja cujo raio de entrega (`distancia_maxima_entrega`) não alcança o
+ * endereço da festa, com a mensagem pronta para o grupo — ou null se todas
+ * alcançam. Mesma regra do guard do pedido comum (`dist > max_dist`, haversine);
+ * loja sem limite ou sem coordenada não bloqueia, como lá.
+ */
+export function lojaForaDoRaio(
+  lojas: LojaRaio[],
+  entrega: { latitude: number | null; longitude: number | null },
+): { loja: string; maxKm: number; distKm: number; mensagem: string } | null {
+  for (const l of lojas) {
+    if (l.distancia_maxima_entrega == null) continue
+    const maxKm = Number(l.distancia_maxima_entrega)
+    const distKm = distanciaKm(l, entrega)
+    if (distKm == null || !Number.isFinite(maxKm) || distKm <= maxKm) continue
+    const km = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+    return {
+      loja: l.nome,
+      maxKm,
+      distKm,
+      mensagem: `${l.nome} entrega até ${km(maxKm)} km, e o endereço da festa está a ${km(distKm)} km. ` +
+        'Escolha um endereço dentro da área de entrega ou outra loja.',
+    }
+  }
+  return null
 }
 
 /** Valor da corrida de um pedido da festa: taxa rateada + bônus da plataforma. */
