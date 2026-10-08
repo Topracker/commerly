@@ -40,9 +40,11 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   const [observacao, setObservacao] = useState('')
   const [enviando, setEnviando] = useState(false)
   // Forma de pagamento: 'online' (cartão via Stripe) ou 'entrega' (dinheiro/Pix).
-  // Oferece online, exceto quando a loja sinaliza explicitamente que não aceita.
-  // (A prontidão real é validada no servidor ao criar o checkout — 409 amigável.)
-  const aceitaOnline = loja.aceita_pagamento_online !== false
+  // Só oferece online quando a loja confirma que pode receber (Stripe Connect
+  // pronto — `aceita_pagamento_online` da view). Ausente conta como NÃO: o
+  // antigo `!== false` pré-selecionava online em loja sem Connect, e o
+  // servidor recusava com 409 só depois do clique.
+  const aceitaOnline = loja.aceita_pagamento_online === true
   // MUTEX: loja com pagamento online ligado -> "pagar na entrega" deixa de ser
   // o padrão. Continua disponível como escolha, mas o pedido já abre no online
   // (que é o que a loja quer receber, e o único caminho com estorno automático).
@@ -510,7 +512,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                 </div>
               )}
 
-              {aceitaOnline ? (
+              {aceitaOnline && (
                 <button
                   type="button"
                   onClick={() => setPagamento('online')}
@@ -523,14 +525,6 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                   </div>
                   {pagamento === 'online' && <Check size={16} className="text-acento shrink-0" />}
                 </button>
-              ) : (
-                <div className="flex items-center gap-3 rounded-xl border border-borda bg-superficie/50 p-3 opacity-60">
-                  <CreditCard size={20} className="text-gray-500 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-gray-400 text-sm font-medium">Pagamento online</p>
-                    <p className="text-gray-600 text-xs">Esta loja ainda não aceita cartão pelo app</p>
-                  </div>
-                </div>
               )}
             </div>
           </div>
