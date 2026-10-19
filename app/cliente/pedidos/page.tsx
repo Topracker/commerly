@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { reais } from '../../lib/moeda'
 import { useRouter } from 'next/navigation'
 import { useCliente } from '../../hooks/useCliente'
 import { useToast } from '../../hooks/useToast'
@@ -436,7 +437,7 @@ export default function ClientePedidos() {
                     {p.itens.map((it, i) => (
                       <div key={i} className="flex justify-between gap-2">
                         <span className="truncate">{it.quantidade}× {it.nome}</span>
-                        <span className="text-gray-500 shrink-0">R$ {(it.preco * it.quantidade).toFixed(2)}</span>
+                        <span className="text-gray-500 shrink-0">{reais(it.preco * it.quantidade)}</span>
                       </div>
                     ))}
                   </div>
@@ -444,13 +445,13 @@ export default function ClientePedidos() {
                   {Number(p.taxa_entrega) > 0 && (
                     <div className="flex justify-between gap-2 text-xs text-gray-500 mt-1">
                       <span>Taxa de entrega</span>
-                      <span>R$ {Number(p.taxa_entrega).toFixed(2)}</span>
+                      <span>{reais(p.taxa_entrega)}</span>
                     </div>
                   )}
                   {Number(p.desconto_cupom) > 0 && (
                     <div className="flex justify-between gap-2 text-xs text-green-400 mt-1">
                       <span>🎟️ Cupom</span>
-                      <span>− R$ {Number(p.desconto_cupom).toFixed(2)}</span>
+                      <span>− {reais(p.desconto_cupom)}</span>
                     </div>
                   )}
 
@@ -458,7 +459,7 @@ export default function ClientePedidos() {
                     <p className="text-gray-500 text-xs flex items-center gap-1.5 min-w-0">
                       <MapPin size={13} className="shrink-0" /><span className="truncate">{p.endereco_entrega}</span>
                     </p>
-                    <p className="font-display text-white font-bold shrink-0">R$ {Number(p.total).toFixed(2)}</p>
+                    <p className="font-display text-white font-bold shrink-0">{reais(p.total)}</p>
                   </div>
                   <div className="flex justify-end mt-1.5">
                     {p.pagamento_metodo === 'online' ? (
@@ -468,7 +469,7 @@ export default function ClientePedidos() {
                     ) : (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-medium">
                         {p.status === 'entregue' ? '💵 Pago na entrega' : '💵 Pagar na entrega'}
-                        {p.troco_para != null && Number(p.troco_para) > Number(p.total) && ` · troco para R$ ${Number(p.troco_para).toFixed(2).replace('.', ',')}`}
+                        {p.troco_para != null && Number(p.troco_para) > Number(p.total) && ` · troco para ${reais(p.troco_para)}`}
                       </span>
                     )}
                   </div>

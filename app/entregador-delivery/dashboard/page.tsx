@@ -713,41 +713,7 @@ function EntregadorDashboard() {
         </div>
       )}
 
-      {/* Kit oficial — convite, NÃO requisito.
-          O texto antigo dizia "sem o kit, você ainda não recebe corridas", e isso
-          nunca foi verdade: o pool de despacho (app/lib/dispatch.ts) filtra por
-          `disponivel` + posição recente + raio, nunca por kit. Um entregador sem
-          kit recebe e aceita corridas normalmente.
-          NÃO transforme isso num gate de verdade: hoje não existe compra de kit
-          funcional (POST /api/kit só abre um pedido 'aguardando_pagamento' e quem
-          avança é a operação, pelo /admin), então exigir o kit deixaria a
-          plataforma sem entregador nenhum.
-          A condição lê `kit_comprado`, coluna LEGADA que nada escreve — o estado
-          real do kit vive em `kit_pedidos`. Na prática o convite aparece para
-          todos; trocar para o estado real exige carregar o kit aqui. */}
-      {entregador.kit_comprado === false && (
-        <Link href="/kit" className="block mb-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3">
-          <p className="text-amber-200 font-semibold text-sm">🎒 Kit Oficial do entregador</p>
-          <p className="text-amber-200/70 text-xs mt-0.5">Bolsa, adesivo e o QR do seu perfil — sua vitrine ambulante. Toque para ver o kit e o desconto do seu nível.</p>
-        </Link>
-      )}
-
-      {/* Gamificação + indicação */}
-      <div className="grid gap-4 mb-4">
-        <PainelGamificacao papel="entregador" />
-        <CardIndicacao />
-      </div>
-
-      {/* QR do meu perfil público — vira outdoor ambulante */}
-      <div className="mb-4">
-        <p className="text-white text-sm font-semibold flex items-center gap-1.5 mb-2"><QrCode size={15} className="text-acento" /> Meu QR de perfil</p>
-        <QRGerador
-          destinos={[{ chave: 'perfil', label: 'Meu perfil', url: `${(process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : ''))}/entregador/${perfilSlug(entregador.nome, entregador.id)}` }]}
-          nomeArquivo={`entregador-${entregador.id}`}
-        />
-      </div>
-
-      {/* 1. HEADER: foto, nome, avaliação e status Online/Offline */}
+      {/* 2. HEADER: foto, nome, avaliação e status Online/Offline */}
       <section className="bg-card border border-borda rounded-2xl p-4 mb-4">
         <div className="flex items-center gap-3">
           <div className="w-16 h-16 rounded-2xl bg-acento/15 overflow-hidden flex items-center justify-center shrink-0">
@@ -792,145 +758,11 @@ function EntregadorDashboard() {
         </p>
       </section>
 
-      {/* 2. MAPA EM TEMPO REAL — no topo: é a informação que ele olha primeiro */}
-      <section className="mb-4">
-        <div className="relative rounded-2xl overflow-hidden border border-borda">
-          <MapaEntregas pontos={pontosMapa} altura="h-72" />
-          <span className={`absolute top-3 left-3 z-[500] text-[10px] font-semibold px-2.5 py-1 rounded-full backdrop-blur ${
-            online ? 'bg-acento/20 text-acento border border-acento/40' : 'bg-black/40 text-gray-300 border border-white/10'
-          }`}>
-            {online ? '● Online' : 'Offline'}
-          </span>
-        </div>
-        <p className="text-gray-500 text-xs mt-1.5">
-          🛵 você · 🏪 lojas com pedidos disponíveis
-          {!minhaPos && ' — ative a localização do navegador para aparecer no mapa.'}
-        </p>
-      </section>
-
-      {/* 3. MÉTRICAS — gradiente vindo da própria cor do número */}
-      <section className="grid grid-cols-2 gap-2.5 mb-4">
-        {[
-          { rotulo: 'Entregas hoje', valor: String(entregasHoje), Icone: PackageCheck, cor: 'text-white', grad: 'from-azul/12' },
-          { rotulo: 'Ganhos hoje', valor: reais(ganhosHoje), Icone: Wallet, cor: 'text-acento', grad: 'from-acento/12' },
-          { rotulo: 'Avaliação', valor: avaliacoes.length ? mediaNota.toFixed(1) : '—', Icone: Star, cor: 'text-amber-300', grad: 'from-amber-500/12' },
-          { rotulo: 'Total entregas', valor: String(entregasFeitas), Icone: Navigation, cor: 'text-white', grad: 'from-purple-500/12' },
-        ].map(({ rotulo, valor, Icone, cor, grad }, i) => (
-          <div
-            key={rotulo}
-            style={{ '--atraso': `${i * 60}ms` } as React.CSSProperties}
-            className={`anima-subir grupo bg-gradient-to-br ${grad} to-transparent bg-card border border-borda rounded-2xl p-3.5`}
-          >
-            <div className="flex items-center gap-1.5 text-gray-500 text-[11px] mb-1">
-              <Icone size={13} className="grupo-icone" /> {rotulo}
-            </div>
-            <p className={`font-display text-2xl font-bold ${cor}`}>{valor}</p>
-          </div>
-        ))}
-      </section>
-
-      {/* META SEMANAL — bônus por bater a meta de entregas */}
-      <section className={`rounded-2xl p-4 mb-4 border ${metaAtingida ? 'bg-green-500/10 border-green-500/40' : 'bg-card border-borda'}`}>
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <h2 className="text-white font-semibold text-sm flex items-center gap-2">
-            <Target size={16} className={metaAtingida ? 'text-green-400' : 'text-acento'} /> Meta da semana
-          </h2>
-          <span className={`text-xs font-bold ${metaAtingida ? 'text-green-300' : 'text-gray-300'}`}>{entregasSemana}/{META_SEMANAL_ENTREGAS} entregas</span>
-        </div>
-        <div className="h-2.5 w-full rounded-full bg-elevado overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${metaAtingida ? 'bg-green-400' : 'bg-acento'}`} style={{ width: `${progressoMeta}%` }} />
-        </div>
-        <p className={`text-xs mt-2 ${metaAtingida ? 'text-green-300' : 'text-gray-400'}`}>
-          {metaAtingida
-            ? '🎉 Meta batida! Você garantiu o bônus semanal desta semana.'
-            : `Faça ${META_SEMANAL_ENTREGAS - entregasSemana} entrega${META_SEMANAL_ENTREGAS - entregasSemana > 1 ? 's' : ''} nesta semana e ganhe o bônus.`}
-        </p>
-      </section>
-
-      {/* BADGES / CONQUISTAS */}
-      <section className="bg-card border border-borda rounded-2xl p-4 mb-4">
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <h2 className="text-white font-semibold text-sm flex items-center gap-2"><Award size={16} className="text-acento" /> Conquistas</h2>
-          <span className="text-gray-500 text-xs">{badgesConquistadas}/{badges.length}</span>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {badges.map(b => (
-            <div key={b.id} title={b.descricao}
-              className={`rounded-xl p-2.5 text-center border transition ${b.conquistada ? 'bg-elevado border-acento/40' : 'bg-card border-borda opacity-45 grayscale'}`}>
-              <div className="text-2xl leading-none mb-1">{b.emoji}</div>
-              <p className="text-white text-[11px] font-semibold leading-tight">{b.titulo}</p>
-              <p className="text-gray-500 text-[10px] mt-0.5 leading-tight">{b.descricao}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* RANKING SEMANAL DE ENTREGADORES */}
-      {rankingOrdenado.length > 0 && (
-        <section className="bg-card border border-borda rounded-2xl p-4 mb-4">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <h2 className="text-white font-semibold text-sm flex items-center gap-2"><Trophy size={16} className="text-amber-300" /> Ranking da semana</h2>
-            {minhaPosicao >= 0 && <span className="text-amber-300 text-xs font-bold">Você: {minhaPosicao + 1}º</span>}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            {rankingOrdenado.slice(0, 5).map((r, i) => {
-              const eu = r.entregador_id === entregador?.id
-              const medalha = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`
-              return (
-                <div key={r.entregador_id} className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 ${eu ? 'bg-acento/15 border border-acento/40' : 'bg-superficie'}`}>
-                  <span className="w-7 text-center text-sm font-bold shrink-0">{medalha}</span>
-                  <div className="w-8 h-8 rounded-full bg-acento/15 overflow-hidden flex items-center justify-center shrink-0">
-                    {r.foto_url ? <img src={r.foto_url} alt="" className="w-full h-full object-cover" /> : <Bike size={14} className="text-acento" />}
-                  </div>
-                  <p className={`flex-1 min-w-0 truncate text-sm font-medium ${eu ? 'text-white' : 'text-gray-300'}`}>{eu ? 'Você' : r.nome}</p>
-                  <span className="text-acento text-sm font-bold shrink-0">{r.entregas} <span className="text-gray-500 font-normal text-xs">entregas</span></span>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Stripe Connect (recebimento das corridas) */}
-      <section className={`rounded-2xl p-4 mb-4 border ${stripeOnboarded ? 'bg-green-500/10 border-green-500/40' : 'bg-card border-borda'}`}>
-        <div className="flex items-center gap-3">
-          <CircleDollarSign size={20} className={stripeOnboarded ? 'text-green-400' : 'text-acento'} />
-          <div className="flex-1 min-w-0">
-            <p className="text-white font-semibold text-sm">Recebimento das corridas</p>
-            <p className="text-gray-400 text-xs">
-              {stripeOnboarded ? 'Conta pronta para receber as corridas pagas online via Stripe.'
-                : 'Pedidos pagos online: conecte sua conta para receber a corrida via Stripe.'}
-            </p>
-          </div>
-          {!stripeOnboarded && (
-            <button onClick={conectarStripe} className="shrink-0 bg-[#635BFF] hover:bg-[#5249e0] text-white text-xs font-semibold px-3 py-2 rounded-lg transition">
-              {stripeHasAccount ? 'Continuar' : 'Conectar'}
-            </button>
-          )}
-          {stripeOnboarded && <Check size={18} className="text-green-400 shrink-0" />}
-        </div>
-        {/* DINHEIRO (Caminho B, lib/acertos.ts): a taxa da corrida fica com o
-            entregador na hora; o resto do que ele cobrou vai para a loja. */}
-        <div className="mt-3 pt-3 border-t border-borda">
-          <p className="text-gray-400 text-xs flex items-start gap-1.5">
-            <Banknote size={13} className="shrink-0 mt-0.5 text-acento" />
-            <span>Pedidos em <strong className="text-gray-200">dinheiro</strong>: você cobra o total na porta, fica com a taxa de entrega e repassa o valor dos produtos à loja. A loja confirma o repasse aqui no app.</span>
-          </p>
-          {repassesPendentes.length > 0 && (
-            <p className="mt-2 text-amber-200 text-xs font-semibold">
-              {reais(totalARepassar)} em {repassesPendentes.length} repasse(s) aguardando confirmação da loja.
-            </p>
-          )}
-        </div>
-      </section>
-
       {carregando ? (
-        <p className="text-gray-500 text-sm">Carregando...</p>
+        <p className="text-gray-500 text-sm mb-4">Carregando...</p>
       ) : (
-        <div className="flex flex-col gap-6">
-          {/* (o mapa subiu para o topo — ver seção 2) */}
-
-          {/* 5. ENTREGAS ATIVAS (com trajeto loja→cliente) */}
+        <div className="flex flex-col gap-6 mb-4">
+          {/* 3. ENTREGAS ATIVAS (com trajeto loja→cliente) */}
           {ativas.length > 0 && (
             <section>
               <h2 className="text-white font-semibold mb-2 flex items-center gap-2 flex-wrap">
@@ -1149,8 +981,100 @@ function EntregadorDashboard() {
               </div>
             )}
           </section>
+        </div>
+      )}
 
-          {/* 7. GANHOS — gráfico semanal */}
+      {/* 5. MAPA EM TEMPO REAL */}
+      <section className="mb-4">
+        <div className="relative rounded-2xl overflow-hidden border border-borda">
+          <MapaEntregas pontos={pontosMapa} altura="h-72" />
+          <span className={`absolute top-3 left-3 z-[500] text-[10px] font-semibold px-2.5 py-1 rounded-full backdrop-blur ${
+            online ? 'bg-acento/20 text-acento border border-acento/40' : 'bg-black/40 text-gray-300 border border-white/10'
+          }`}>
+            {online ? '● Online' : 'Offline'}
+          </span>
+        </div>
+        <p className="text-gray-500 text-xs mt-1.5">
+          🛵 você · 🏪 lojas com pedidos disponíveis
+          {!minhaPos && ' — ative a localização do navegador para aparecer no mapa.'}
+        </p>
+      </section>
+
+      {/* 6. Repasses em dinheiro + Stripe Connect (recebimento das corridas) */}
+      <section className={`rounded-2xl p-4 mb-4 border ${stripeOnboarded ? 'bg-green-500/10 border-green-500/40' : 'bg-card border-borda'}`}>
+        <div className="flex items-center gap-3">
+          <CircleDollarSign size={20} className={stripeOnboarded ? 'text-green-400' : 'text-acento'} />
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-semibold text-sm">Recebimento das corridas</p>
+            <p className="text-gray-400 text-xs">
+              {stripeOnboarded ? 'Conta pronta para receber as corridas pagas online via Stripe.'
+                : 'Pedidos pagos online: conecte sua conta para receber a corrida via Stripe.'}
+            </p>
+          </div>
+          {!stripeOnboarded && (
+            <button onClick={conectarStripe} className="shrink-0 bg-[#635BFF] hover:bg-[#5249e0] text-white text-xs font-semibold px-3 py-2 rounded-lg transition">
+              {stripeHasAccount ? 'Continuar' : 'Conectar'}
+            </button>
+          )}
+          {stripeOnboarded && <Check size={18} className="text-green-400 shrink-0" />}
+        </div>
+        {/* DINHEIRO (Caminho B, lib/acertos.ts): a taxa da corrida fica com o
+            entregador na hora; o resto do que ele cobrou vai para a loja. */}
+        <div className="mt-3 pt-3 border-t border-borda">
+          <p className="text-gray-400 text-xs flex items-start gap-1.5">
+            <Banknote size={13} className="shrink-0 mt-0.5 text-acento" />
+            <span>Pedidos em <strong className="text-gray-200">dinheiro</strong>: você cobra o total na porta, fica com a taxa de entrega e repassa o valor dos produtos à loja. A loja confirma o repasse aqui no app.</span>
+          </p>
+          {repassesPendentes.length > 0 && (
+            <p className="mt-2 text-amber-200 text-xs font-semibold">
+              {reais(totalARepassar)} em {repassesPendentes.length} repasse(s) aguardando confirmação da loja.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* 7. MÉTRICAS — gradiente vindo da própria cor do número */}
+      <section className="grid grid-cols-2 gap-2.5 mb-4">
+        {[
+          { rotulo: 'Entregas hoje', valor: String(entregasHoje), Icone: PackageCheck, cor: 'text-white', grad: 'from-azul/12' },
+          { rotulo: 'Ganhos hoje', valor: reais(ganhosHoje), Icone: Wallet, cor: 'text-acento', grad: 'from-acento/12' },
+          { rotulo: 'Avaliação', valor: avaliacoes.length ? mediaNota.toFixed(1) : '—', Icone: Star, cor: 'text-amber-300', grad: 'from-amber-500/12' },
+          { rotulo: 'Total entregas', valor: String(entregasFeitas), Icone: Navigation, cor: 'text-white', grad: 'from-purple-500/12' },
+        ].map(({ rotulo, valor, Icone, cor, grad }, i) => (
+          <div
+            key={rotulo}
+            style={{ '--atraso': `${i * 60}ms` } as React.CSSProperties}
+            className={`anima-subir grupo bg-gradient-to-br ${grad} to-transparent bg-card border border-borda rounded-2xl p-3.5`}
+          >
+            <div className="flex items-center gap-1.5 text-gray-500 text-[11px] mb-1">
+              <Icone size={13} className="grupo-icone" /> {rotulo}
+            </div>
+            <p className={`font-display text-2xl font-bold ${cor}`}>{valor}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* META SEMANAL — bônus por bater a meta de entregas */}
+      <section className={`rounded-2xl p-4 mb-4 border ${metaAtingida ? 'bg-green-500/10 border-green-500/40' : 'bg-card border-borda'}`}>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h2 className="text-white font-semibold text-sm flex items-center gap-2">
+            <Target size={16} className={metaAtingida ? 'text-green-400' : 'text-acento'} /> Meta da semana
+          </h2>
+          <span className={`text-xs font-bold ${metaAtingida ? 'text-green-300' : 'text-gray-300'}`}>{entregasSemana}/{META_SEMANAL_ENTREGAS} entregas</span>
+        </div>
+        <div className="h-2.5 w-full rounded-full bg-elevado overflow-hidden">
+          <div className={`h-full rounded-full transition-all ${metaAtingida ? 'bg-green-400' : 'bg-acento'}`} style={{ width: `${progressoMeta}%` }} />
+        </div>
+        <p className={`text-xs mt-2 ${metaAtingida ? 'text-green-300' : 'text-gray-400'}`}>
+          {metaAtingida
+            ? '🎉 Meta batida! Você garantiu o bônus semanal desta semana.'
+            : `Faça ${META_SEMANAL_ENTREGAS - entregasSemana} entrega${META_SEMANAL_ENTREGAS - entregasSemana > 1 ? 's' : ''} nesta semana e ganhe o bônus.`}
+        </p>
+      </section>
+
+      {!carregando && (
+        <div className="flex flex-col gap-6 mb-4">
+          {/* 8. GANHOS — gráfico semanal */}
           <section>
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-white font-semibold flex items-center gap-2"><TrendingUp size={16} className="text-acento" /> Ganhos na semana</h2>
@@ -1174,7 +1098,7 @@ function EntregadorDashboard() {
             </div>
           </section>
 
-          {/* 6. HISTÓRICO com filtro por período */}
+          {/* 8. HISTÓRICO com filtro por período */}
           <section>
             <div className="flex items-center justify-between mb-2 gap-2">
               <h2 className="text-white font-semibold flex items-center gap-2"><History size={16} className="text-acento" /> Histórico</h2>
@@ -1225,8 +1149,90 @@ function EntregadorDashboard() {
               </div>
             )}
           </section>
+        </div>
+      )}
 
-          {/* Minhas parcerias */}
+      {/* 9. BADGES / CONQUISTAS */}
+      <section className="bg-card border border-borda rounded-2xl p-4 mb-4">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <h2 className="text-white font-semibold text-sm flex items-center gap-2"><Award size={16} className="text-acento" /> Conquistas</h2>
+          <span className="text-gray-500 text-xs">{badgesConquistadas}/{badges.length}</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {badges.map(b => (
+            <div key={b.id} title={b.descricao}
+              className={`rounded-xl p-2.5 text-center border transition ${b.conquistada ? 'bg-elevado border-acento/40' : 'bg-card border-borda opacity-45 grayscale'}`}>
+              <div className="text-2xl leading-none mb-1">{b.emoji}</div>
+              <p className="text-white text-[11px] font-semibold leading-tight">{b.titulo}</p>
+              <p className="text-gray-500 text-[10px] mt-0.5 leading-tight">{b.descricao}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* RANKING SEMANAL DE ENTREGADORES */}
+      {rankingOrdenado.length > 0 && (
+        <section className="bg-card border border-borda rounded-2xl p-4 mb-4">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h2 className="text-white font-semibold text-sm flex items-center gap-2"><Trophy size={16} className="text-amber-300" /> Ranking da semana</h2>
+            {minhaPosicao >= 0 && <span className="text-amber-300 text-xs font-bold">Você: {minhaPosicao + 1}º</span>}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {rankingOrdenado.slice(0, 5).map((r, i) => {
+              const eu = r.entregador_id === entregador?.id
+              const medalha = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`
+              return (
+                <div key={r.entregador_id} className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 ${eu ? 'bg-acento/15 border border-acento/40' : 'bg-superficie'}`}>
+                  <span className="w-7 text-center text-sm font-bold shrink-0">{medalha}</span>
+                  <div className="w-8 h-8 rounded-full bg-acento/15 overflow-hidden flex items-center justify-center shrink-0">
+                    {r.foto_url ? <img src={r.foto_url} alt="" className="w-full h-full object-cover" /> : <Bike size={14} className="text-acento" />}
+                  </div>
+                  <p className={`flex-1 min-w-0 truncate text-sm font-medium ${eu ? 'text-white' : 'text-gray-300'}`}>{eu ? 'Você' : r.nome}</p>
+                  <span className="text-acento text-sm font-bold shrink-0">{r.entregas} <span className="text-gray-500 font-normal text-xs">entregas</span></span>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Gamificação + indicação */}
+      <div className="grid gap-4 mb-4">
+        <PainelGamificacao papel="entregador" />
+        <CardIndicacao />
+      </div>
+
+      {/* Kit oficial — convite, NÃO requisito.
+          O texto antigo dizia "sem o kit, você ainda não recebe corridas", e isso
+          nunca foi verdade: o pool de despacho (app/lib/dispatch.ts) filtra por
+          `disponivel` + posição recente + raio, nunca por kit. Um entregador sem
+          kit recebe e aceita corridas normalmente.
+          NÃO transforme isso num gate de verdade: hoje não existe compra de kit
+          funcional (POST /api/kit só abre um pedido 'aguardando_pagamento' e quem
+          avança é a operação, pelo /admin), então exigir o kit deixaria a
+          plataforma sem entregador nenhum.
+          A condição lê `kit_comprado`, coluna LEGADA que nada escreve — o estado
+          real do kit vive em `kit_pedidos`. Na prática o convite aparece para
+          todos; trocar para o estado real exige carregar o kit aqui. */}
+      {entregador.kit_comprado === false && (
+        <Link href="/kit" className="block mb-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+          <p className="text-amber-200 font-semibold text-sm">🎒 Kit Oficial do entregador</p>
+          <p className="text-amber-200/70 text-xs mt-0.5">Bolsa, adesivo e o QR do seu perfil — sua vitrine ambulante. Toque para ver o kit e o desconto do seu nível.</p>
+        </Link>
+      )}
+
+      {/* QR do meu perfil público — vira outdoor ambulante */}
+      <div className="mb-4">
+        <p className="text-white text-sm font-semibold flex items-center gap-1.5 mb-2"><QrCode size={15} className="text-acento" /> Meu QR de perfil</p>
+        <QRGerador
+          destinos={[{ chave: 'perfil', label: 'Meu perfil', url: `${(process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : ''))}/entregador/${perfilSlug(entregador.nome, entregador.id)}` }]}
+          nomeArquivo={`entregador-${entregador.id}`}
+        />
+      </div>
+
+      {!carregando && (
+        <div className="flex flex-col gap-6">
+          {/* 10. Minhas parcerias */}
           <section>
             <h2 className="text-white font-semibold mb-2 flex items-center gap-2"><Handshake size={16} className="text-acento" /> Minhas parcerias</h2>
             {parcerias.length === 0 ? (

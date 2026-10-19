@@ -1,4 +1,5 @@
 import { emojiCategoria, corAcentoNicho } from '../lib/temaLoja'
+import { reais } from '../lib/moeda'
 
 // Card de produto na vitrine. Sem imagem, mostra emoji temático (categoria ou
 // nicho) sobre um glow radial sutil na cor do nicho. Hover: sobe 3px + borda
@@ -41,9 +42,9 @@ export function ProdutoCard({ produto, tipoLoja }: { produto: any; tipoLoja: str
         <p className="text-white font-medium text-sm truncate">{produto.nome}</p>
         {produto.categoria && <p className="text-gray-500 text-xs truncate">{produto.categoria}</p>}
         <p className="font-display font-bold text-acento mt-1 flex items-baseline gap-1.5 flex-wrap">
-          R$ {parseFloat(produto.preco_venda).toFixed(2)}
+          {reais(produto.preco_venda)}
           {emPromocao && (
-            <span className="text-gray-500 text-xs font-normal line-through">R$ {original.toFixed(2)}</span>
+            <span className="text-gray-500 text-xs font-normal line-through">{reais(original)}</span>
           )}
         </p>
       </div>

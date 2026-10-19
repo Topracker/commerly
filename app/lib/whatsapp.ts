@@ -5,6 +5,7 @@
 // Components (/cliente/loja). Não importe nada de server/React aqui.
 
 import { soDigitos, validarTelefone } from './validacoes'
+import { reais } from './moeda'
 
 /** DDI do Brasil. O wa.me exige o número em formato internacional. */
 export const DDI_BR = '55'
@@ -18,7 +19,7 @@ export const MAX_TEXTO = 1200
 
 export type ItemCardapio = { nome: string; preco: number }
 
-const preco = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`
+const preco = reais
 
 /**
  * Número pronto para o wa.me ("5562999999999"), ou `null` quando não dá para

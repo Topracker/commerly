@@ -329,9 +329,9 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                       </div>
                       <p className="font-display font-bold text-sm">
                         {p.preco_original != null && (
-                          <span className="text-gray-500 line-through mr-1.5 font-normal">R$ {p.preco_original.toFixed(2)}</span>
+                          <span className="text-gray-500 line-through mr-1.5 font-normal">{reais(p.preco_original)}</span>
                         )}
-                        <span className="text-acento">R$ {preco.toFixed(2)}</span>
+                        <span className="text-acento">{reais(preco)}</span>
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -450,7 +450,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
               <div className="flex-1 min-w-0">
                 <p className="text-white text-sm font-medium">Usar meus pontos</p>
                 <p className="text-gray-500 text-xs">
-                  {saldoPontos} pontos disponíveis · resgatar {pontosResgataveis} = R$ {descontoDePontos(pontosResgataveis).toFixed(2)} de desconto
+                  {saldoPontos} pontos disponíveis · resgatar {pontosResgataveis} = {reais(descontoDePontos(pontosResgataveis))} de desconto
                 </p>
               </div>
               {usarPontos && <Check size={16} className="text-[#F5C34B] shrink-0" />}
@@ -534,7 +534,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
           <div className="flex flex-col gap-1.5 mb-3 text-sm">
             <div className="flex items-center justify-between text-gray-400">
               <span>Subtotal <span className="text-gray-500">({totalItens} {totalItens === 1 ? 'item' : 'itens'})</span></span>
-              <span className="tabular-nums">R$ {subtotal.toFixed(2)}</span>
+              <span className="tabular-nums">{reais(subtotal)}</span>
             </div>
             <div className="flex items-center justify-between text-gray-400">
               <span>
@@ -544,7 +544,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
               <span className="tabular-nums">
                 {taxaEntrega == null
                   ? <span className="text-gray-500 text-xs">confirme o endereço</span>
-                  : `R$ ${taxaEntrega.toFixed(2)}`}
+                  : reais(taxaEntrega)}
               </span>
             </div>
             {pico && (
@@ -555,13 +555,13 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
             {desconto > 0 && (
               <div className="flex items-center justify-between text-[#F5C34B]">
                 <span className="flex items-center gap-1.5"><Sparkles size={13} /> Desconto ({pontosUsados} pontos)</span>
-                <span className="tabular-nums">− R$ {desconto.toFixed(2)}</span>
+                <span className="tabular-nums">− {reais(desconto)}</span>
               </div>
             )}
             <div className="flex items-center justify-between border-t border-borda pt-1.5 mt-0.5">
               <span className="text-white font-medium">Total</span>
               <span className="font-display text-white font-bold text-lg tabular-nums">
-                {taxaEntrega == null ? `R$ ${Math.max(subtotal - desconto, 0).toFixed(2)} + taxa` : `R$ ${total.toFixed(2)}`}
+                {taxaEntrega == null ? `${reais(Math.max(subtotal - desconto, 0))} + taxa` : reais(total)}
               </span>
             </div>
           </div>

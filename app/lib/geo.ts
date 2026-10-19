@@ -62,16 +62,16 @@ export function formatarDistancia(km: number | null): string {
  *
  * ATENÇÃO: isto é apenas para EXIBIR a prévia ao cliente. O valor gravado é
  * recalculado no servidor (trigger `pedidos_clientes_guard` /
- * `calcular_taxa_entrega` em sql/2026-07-03-taxa-dinamica-km.sql). Mantenha
- * as duas fórmulas em sincronia.
+ * `calcular_taxa_entrega` em sql/2026-07-03-taxa-dinamica-km.sql). O banco tem
+ * uma CÓPIA destes números: mexer em TAXA_ENTREGA exige mexer lá também. O
+ * texto da taxa em /configuracoes é montado a partir de TAXA_ENTREGA.
  */
+export const TAXA_ENTREGA = { base: 3, porKm: 1, min: 3, max: 25 } as const
+
 export function taxaEntregaPorDistancia(km: number | null): number {
-  const BASE = 3
-  const POR_KM = 1
-  const MIN = 3
-  const MAX = 25
-  const taxa = BASE + POR_KM * (km ?? 0)
-  return Math.min(MAX, Math.max(MIN, Math.round(taxa * 100) / 100))
+  const { base, porKm, min, max } = TAXA_ENTREGA
+  const taxa = base + porKm * (km ?? 0)
+  return Math.min(max, Math.max(min, Math.round(taxa * 100) / 100))
 }
 
 /** Multiplicador da taxa em horário de pico (surge). */

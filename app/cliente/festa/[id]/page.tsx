@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { reais } from '../../../lib/moeda'
 import { useParams, useRouter } from 'next/navigation'
 import { useCliente } from '../../../hooks/useCliente'
 import { ClienteLayout } from '../../../components/ClienteLayout'
@@ -41,8 +42,6 @@ type Estado = {
   produtos: Produto[]
   participantes: Participante[]
 }
-
-const reais = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
 
 // Filtros do "Meu pedido" — poucos e óbvios, no padrão da Central de Ajuda.
 type FiltroLojas = 'abertas' | 'aceita_cupom' | 'nao_aceita_cupom'

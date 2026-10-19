@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { reais } from '../lib/moeda'
 import { useRouter } from 'next/navigation'
 import {
   Heart, MessageCircle, Share2, ShoppingBag, Store, Plus, Check,
@@ -38,8 +39,6 @@ type Props = {
   onCompartilhar: () => void
   onPedir: () => void
 }
-
-const reais = (v: number) => `R$ ${Number(v).toFixed(2).replace('.', ',')}`
 
 export function ReelPost({
   post, loja, produto, distancia, curtido, likes, comentarios, compartilhamentos,

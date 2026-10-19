@@ -2,6 +2,7 @@
 // #1 Commerly Vision — o cliente fotografa um prato e vê onde comprar perto.
 
 import { useRef, useState } from 'react'
+import { reais } from '../lib/moeda'
 import Link from 'next/link'
 import { Camera, X, Loader2, MapPin } from 'lucide-react'
 import { formatarDistancia } from '../lib/geo'
@@ -182,7 +183,7 @@ export function VisionPrato({ userPos }: { userPos: { latitude: number; longitud
                             )}
                           </div>
                           <p className="mt-1 truncate text-sm text-gray-400">
-                            {l.produtos.map(p => `${p.nome} · R$ ${Number(p.preco_venda).toFixed(2)}`).join('  |  ')}
+                            {l.produtos.map(p => `${p.nome} · ${reais(p.preco_venda)}`).join('  |  ')}
                           </p>
                         </Link>
                       ))}

@@ -15,6 +15,8 @@ import { uploadFachada, removerFachada } from '../lib/fachada'
 import { isDelivery } from '../lib/pedidosClientes'
 import { normalizarWebsite, erroWebsite, checarDuplicidade, MSG_DOCUMENTO_EM_OUTRA_LOJA, erroDocumentoDuplicado } from '../lib/validacoes'
 import { numeroWhatsApp } from '../lib/whatsapp'
+import { TAXA_ENTREGA, SURGE_PICO } from '../lib/geo'
+import { JANELA_PICO } from '../lib/precoDinamico'
 import { Eye, EyeOff, Store, Copy, ExternalLink, FileText, Download } from 'lucide-react'
 import { ExcluirContaCard } from '../components/ExcluirContaCard'
 
@@ -731,9 +733,12 @@ export default function Configuracoes() {
           <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4">
             <label className="block text-gray-300 text-sm font-medium mb-1">🛵 Taxa de entrega automática</label>
             <p className="text-gray-500 text-xs">
-              A taxa é calculada automaticamente pela distância entre a sua loja e o endereço do cliente
-              (até 2 km R$ 5 · 2–5 km R$ 8 · 5–10 km R$ 12 · acima de 10 km R$ 15) e vai integralmente ao
-              entregador. Certifique-se de que o endereço/pino da sua loja esteja correto no mapa acima.
+              A taxa é calculada pela distância entre a sua loja e o endereço do cliente:{' '}
+              <strong className="text-gray-300">R$ {TAXA_ENTREGA.base} + R$ {TAXA_ENTREGA.porKm} por km</strong>,
+              mínimo R$ {TAXA_ENTREGA.min} e máximo R$ {TAXA_ENTREGA.max}. Sexta, sábado e domingo, das{' '}
+              {JANELA_PICO.inicio}h às {JANELA_PICO.fim}h, ela sobe {Math.round((SURGE_PICO - 1) * 100)}%. O valor
+              vai integralmente ao entregador. Certifique-se de que o endereço/pino da sua loja esteja correto no
+              mapa acima.
             </p>
           </div>
         )}

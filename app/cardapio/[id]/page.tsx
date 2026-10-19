@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { reais } from '../../lib/moeda'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '../../lib/supabase-admin'
@@ -242,10 +243,10 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
                           )}
                           <div className="mt-auto pt-2">
                             {promo && (
-                              <p className="text-gray-600 text-xs line-through leading-none">R$ {cheio.toFixed(2)}</p>
+                              <p className="text-gray-600 text-xs line-through leading-none">{reais(cheio)}</p>
                             )}
                             <p className="font-display text-lg font-bold text-acento leading-tight">
-                              R$ {(promo ? promo.preco_promocional : cheio).toFixed(2)}
+                              {reais(promo ? promo.preco_promocional : cheio)}
                             </p>
                           </div>
                         </div>

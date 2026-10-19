@@ -16,6 +16,8 @@
 // /api/acertos/confirmar (service role) é quem escreve a confirmação. Este
 // arquivo tem tipos, rótulos e a matemática de exibição.
 
+import { reais } from './moeda'
+
 export type PapelAcerto = 'cliente' | 'entregador' | 'loja' | 'commerly'
 export type TipoAcerto = 'cobranca' | 'repasse_loja' | 'bonus_festa' | 'cupom_garantia' | 'estorno'
 export type PapelConfirmacao = 'loja' | 'entregador' | 'commerly'
@@ -76,7 +78,7 @@ export const REGRA_DINHEIRO =
   'só então o pedido aparece como pago. A Commerly não intermedia esse dinheiro, apenas registra o acerto ' +
   'para os dois lados verem a mesma conta.'
 
-export const reais = (v: number) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+export { reais }
 
 /** Troco que o entregador precisa levar (0 quando não há troco). */
 export function trocoDevido(trocoPara: number | null | undefined, total: number): number {

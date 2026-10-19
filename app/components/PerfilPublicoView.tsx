@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { reais } from '../lib/moeda'
 import { ArrowLeft, Star, Store, Package, Lock, ExternalLink, Snowflake } from 'lucide-react'
 import { StreakCalendario } from './StreakCalendario'
 import { medalhaPorSlug } from '../lib/crescimento'
@@ -108,7 +109,7 @@ export function PerfilPublicoView({ p }: { p: PerfilPublico }) {
                       </div>
                       <div className="p-2">
                         <p className="text-white text-xs font-medium truncate">{pr.nome}</p>
-                        {pr.preco != null && <p className="text-acento text-xs">R$ {Number(pr.preco).toFixed(2)}</p>}
+                        {pr.preco != null && <p className="text-acento text-xs">{reais(pr.preco)}</p>}
                       </div>
                     </div>
                   ))}

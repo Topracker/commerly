@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { reais } from '../../lib/moeda'
 import { useCliente } from '../../hooks/useCliente'
 import { ClienteLayout } from '../../components/ClienteLayout'
 import { nivelDoCliente, descontoDePontos, PONTOS_POR_BLOCO, DESCONTO_POR_BLOCO } from '../../lib/fidelidade'
@@ -14,8 +15,6 @@ type Movimento = {
 }
 
 type PontoLoja = { loja_id: string; pontos: number; nome: string }
-
-const reais = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`
 
 export default function ClienteClube() {
   const { cliente, loading, supabase, sair } = useCliente()
