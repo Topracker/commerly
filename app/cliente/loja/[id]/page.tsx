@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { formatarData } from '../../../lib/datas'
 import { useParams, useRouter } from 'next/navigation'
 import { useCliente } from '../../../hooks/useCliente'
 import { ClienteLayout } from '../../../components/ClienteLayout'
@@ -370,7 +371,7 @@ export default function ClienteLoja() {
                         <Estrelas nota={a.nota} tamanho="text-base" />
                         <SeloVerificado hash={a.hash} />
                       </div>
-                      <span className="text-gray-500 text-xs shrink-0">{new Date(a.created_at).toLocaleDateString('pt-BR')}</span>
+                      <span className="text-gray-500 text-xs shrink-0">{formatarData(a.created_at)}</span>
                     </div>
                     {a.comentario && <p className="text-gray-300 text-sm mt-1.5">{a.comentario}</p>}
                     {a.foto_url && (

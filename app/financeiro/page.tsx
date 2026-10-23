@@ -7,6 +7,7 @@ import { Toast } from '../components/Toast'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
 import { Landmark, TrendingUp, TrendingDown, Wallet, AlertTriangle, Receipt, Banknote } from 'lucide-react'
 import { situacaoAcerto, type AcertoComConfirmacoes } from '../lib/acertos'
+import { diaLoja, formatarData, inicioDiaLoja } from '../lib/datas'
 import {
   LIMITE_MEI_ANUAL, SALARIO_MINIMO, cmvDosItens, fluxoDeCaixa, limiteMeiProporcional,
   usoDoLimiteMei, valorDasMei, type AtividadeMei, type Entrada, type MesFinanceiro, type Saida,
@@ -43,9 +44,11 @@ export default function Financeiro() {
 
   async function carregar() {
     setCarregando(true)
-    const agora = new Date()
-    const seisMeses = new Date(agora.getFullYear(), agora.getMonth() - (MESES_GRAFICO - 1), 1)
-    const inicioAno = new Date(agora.getFullYear(), 0, 1)
+    // Meses no fuso da loja (app/lib/datas.ts).
+    const [ano, mes] = diaLoja().split('-').map(Number)
+    const mesAntigo = new Date(Date.UTC(ano, mes - MESES_GRAFICO, 1))
+    const seisMeses = inicioDiaLoja(mesAntigo.toISOString().slice(0, 10))
+    const inicioAno = inicioDiaLoja(`${ano}-01-01`)
     // O gráfico quer 6 meses; o limite do MEI quer o ano todo. Uma query só.
     const desde = new Date(Math.min(seisMeses.getTime(), inicioAno.getTime())).toISOString()
 
@@ -106,9 +109,9 @@ export default function Financeiro() {
   const mesAtual = meses[meses.length - 1]
 
   const faturamentoAno = useMemo(() => {
-    const ano = new Date().getFullYear()
+    const ano = diaLoja().slice(0, 4)
     return entradas
-      .filter(e => new Date(e.data).getFullYear() === ano)
+      .filter(e => diaLoja(e.data).slice(0, 4) === ano)
       .reduce((a, e) => a + e.valor, 0)
   }, [entradas])
 
@@ -293,7 +296,7 @@ export default function Financeiro() {
 
                 <p className="text-gray-600 text-xs mt-3">
                   Abriu o MEI este ano? O teto é proporcional: {reais(limiteMeiProporcional(12 - new Date().getMonth()))} se
-                  abriu em {new Date().toLocaleDateString('pt-BR', { month: 'long' })}.
+                  abriu em {formatarData(new Date(), { month: 'long' })}.
                 </p>
               </>
             ) : (

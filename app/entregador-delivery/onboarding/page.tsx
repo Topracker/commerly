@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { diaLoja } from '../../lib/datas'
 import { createClient } from '../../supabase'
 import { useRouter } from 'next/navigation'
 import {
@@ -97,7 +98,7 @@ export default function EntregadorOnboarding() {
   const precisaCNH = exigeCNH(veiculoTipo)
   const precisaDocsDrone = exigeDocsDrone(veiculoTipo)
   // Limite de data: precisa ter ao menos 18 anos hoje.
-  const maxData = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 18); return d.toISOString().slice(0, 10) })()
+  const maxData = (() => { const hoje = diaLoja(); return `${Number(hoje.slice(0, 4)) - 18}${hoje.slice(4)}` })()
 
   function pegarImagem(setFile: (f: File) => void, setPrev: (s: string) => void) {
     return (e: React.ChangeEvent<HTMLInputElement>) => {

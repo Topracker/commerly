@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { diaLoja, somarDias } from '../../../lib/datas'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { supabaseDaRota, usuarioDaRota } from '../../../lib/rotaSupabase'
 
@@ -19,15 +20,13 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
   const admin = createAdminClient()
-  const desde = new Date()
-  desde.setHours(0, 0, 0, 0)
-  desde.setDate(desde.getDate() - (DIAS - 1))
+  const desde = somarDias(diaLoja(), -(DIAS - 1))
 
   const [{ data: dias }, { data: streak }] = await Promise.all([
     admin.from('atividade_dias')
       .select('dia, eventos')
       .eq('user_id', user.id)
-      .gte('dia', desde.toISOString().slice(0, 10))
+      .gte('dia', desde)
       .order('dia', { ascending: true }),
     admin.from('streaks').select('dias, recorde, ultimo_dia').eq('user_id', user.id).maybeSingle(),
   ])

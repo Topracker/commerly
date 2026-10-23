@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { diaLoja, somarDias } from '../../../lib/datas'
 import { exigirAdminAuditado } from '../../../lib/admin'
 import { getFlags } from '../../../lib/featureFlags'
 import { situacaoPlano } from '../../../lib/plano'
@@ -31,8 +32,6 @@ export const dynamic = 'force-dynamic'
 //    loja -> cidade era montado de uma lista com .limit(30): acima de 30 lojas
 //    o resto dos pedidos caía em '—'. Agora o mapa lê TODAS as lojas.
 // ============================================================================
-
-const DIA_MS = 86_400_000
 
 export async function GET(request: NextRequest) {
   const ctx = await exigirAdminAuditado(request, 'dados')
@@ -156,10 +155,10 @@ export async function GET(request: NextRequest) {
 
   // ── Crescimento diário (14 dias) por papel ────────────────────────────────
   const dias: string[] = []
-  for (let i = 13; i >= 0; i--) dias.push(new Date(Date.now() - i * DIA_MS).toISOString().slice(0, 10))
+  for (let i = 13; i >= 0; i--) dias.push(somarDias(diaLoja(), -i))
   const bucket = (rows: any[]) => {
     const m: Record<string, number> = {}
-    for (const r of rows || []) { const d = String(r.created_at).slice(0, 10); m[d] = (m[d] || 0) + 1 }
+    for (const r of rows || []) { const d = diaLoja(r.created_at); m[d] = (m[d] || 0) + 1 }
     return dias.map(d => m[d] || 0)
   }
   const crescimento = {
@@ -168,10 +167,10 @@ export async function GET(request: NextRequest) {
 
   // ── Pedidos e GMV por dia (30 dias) ───────────────────────────────────────
   const dias30: string[] = []
-  for (let i = 29; i >= 0; i--) dias30.push(new Date(Date.now() - i * DIA_MS).toISOString().slice(0, 10))
+  for (let i = 29; i >= 0; i--) dias30.push(somarDias(diaLoja(), -i))
   const porDia: Record<string, { pedidos: number; gmv: number }> = {}
   for (const p of pedidosSerie || []) {
-    const d = String(p.created_at).slice(0, 10)
+    const d = diaLoja(p.created_at)
     if (!porDia[d]) porDia[d] = { pedidos: 0, gmv: 0 }
     porDia[d].pedidos++
     porDia[d].gmv += Number(p.total) || 0

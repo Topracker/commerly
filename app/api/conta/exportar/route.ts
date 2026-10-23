@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { diaLoja } from '../../../lib/datas'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { supabaseDaRota, usuarioDaRota } from '../../../lib/rotaSupabase'
 import { rateLimit } from '../../../lib/rate-limit'
@@ -99,7 +100,7 @@ export async function GET() {
   ])
   Object.assign(pacote, { gamificacao: { xp, medalhas }, indicacoes_feitas: indicacoes })
 
-  const nome = `commerly-meus-dados-${new Date().toISOString().slice(0, 10)}.json`
+  const nome = `commerly-meus-dados-${diaLoja()}.json`
   return new NextResponse(JSON.stringify(pacote, null, 2), {
     headers: {
       'Content-Type': 'application/json; charset=utf-8',

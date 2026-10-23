@@ -1,5 +1,6 @@
 'use client'
 import { Suspense, useEffect, useState } from 'react'
+import { formatarData as formatarDataLoja } from '../lib/datas'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../supabase'
 import { CheckCircle, Clock, Zap } from 'lucide-react'
@@ -57,7 +58,7 @@ function PlanosConteudo() {
   }, [])
 
   const formatarData = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString('pt-BR') : null
+    iso ? formatarDataLoja(iso) : null
 
   const temAssinatura = !!loja?.stripe_subscription_id
   // Regra única (lib/plano): assinante OU em teste = liberada. Antes só

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { formatarDataHora } from '../lib/datas'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
@@ -352,7 +353,7 @@ export default function PedidosComerciante() {
             <p className="text-white font-semibold truncate">
               {p.anonimo ? '🕵️ Cliente anônimo' : (p.cliente_nome || 'Cliente')}
             </p>
-            <p className="text-gray-500 text-xs">{new Date(p.created_at).toLocaleString('pt-BR')}</p>
+            <p className="text-gray-500 text-xs">{formatarDataHora(p.created_at)}</p>
           </div>
           <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${meta.classes}`}>
             {meta.emoji} {meta.label}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { formatarData } from '../../lib/datas'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { rateLimit } from '../../lib/rate-limit'
@@ -95,10 +96,10 @@ FIADO PENDENTE (${fiado.length} clientes):
 ${fiado.slice(0, 10).map(f => `- ${f.cliente_nome}: R$ ${f.valor.toFixed(2)} — ${f.descricao}`).join('\n')}${fiado.length > 10 ? `\n... e mais ${fiado.length - 10} registros` : ''}
 
 ÚLTIMAS 10 VENDAS:
-${vendas.slice(0, 10).map(v => `- ${v.produtos?.nome || v.descricao || 'Produto'}: ${v.quantidade || 1}x por R$ ${(v.valor_total || 0).toFixed(2)} (${v.forma_pagamento || 'N/A'}) em ${new Date(v.created_at).toLocaleDateString('pt-BR')}`).join('\n')}
+${vendas.slice(0, 10).map(v => `- ${v.produtos?.nome || v.descricao || 'Produto'}: ${v.quantidade || 1}x por R$ ${(v.valor_total || 0).toFixed(2)} (${v.forma_pagamento || 'N/A'}) em ${formatarData(v.created_at)}`).join('\n')}
 
 GASTOS RECENTES:
-${gastos.slice(0, 10).map(g => `- ${g.descricao}: R$ ${(g.valor || 0).toFixed(2)} em ${new Date(g.created_at).toLocaleDateString('pt-BR')}`).join('\n')}
+${gastos.slice(0, 10).map(g => `- ${g.descricao}: R$ ${(g.valor || 0).toFixed(2)} em ${formatarData(g.created_at)}`).join('\n')}
 
 Pergunta do comerciante: ${pergunta}`
 

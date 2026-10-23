@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { diaSemanaLoja, horaLoja, paraDate } from '../../../lib/datas'
 import { supabaseDaRota, usuarioDaRota, lojaDoUsuario } from '../../../lib/rotaSupabase'
 import { rateLimit } from '../../../lib/rate-limit'
 import { chamarGemini, textoDaResposta } from '../../../lib/gemini'
@@ -81,12 +82,11 @@ export async function POST(request: NextRequest) {
     const porDia = new Array(7).fill(0)
     const porHora = new Array(24).fill(0)
     const registrar = (valor: number, quando: string) => {
-      const t = new Date(quando).getTime()
+      const t = paraDate(quando).getTime()
       if (t >= seteDias) atual += valor
       else if (t >= quatorzeDias) anterior += valor
-      const d = new Date(quando)
-      porDia[d.getDay()] += valor
-      porHora[d.getHours()] += valor
+      porDia[diaSemanaLoja(quando)] += valor
+      porHora[horaLoja(quando)] += valor
     }
     for (const v of vendas || []) registrar(Number((v as any).valor_total) || 0, (v as any).created_at)
     for (const p of pedidos || []) registrar(Number((p as any).total) || 0, (p as any).created_at)

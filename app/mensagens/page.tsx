@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { formatarData } from '../lib/datas'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { AppLayout } from '../components/AppLayout'
@@ -164,7 +165,7 @@ export default function MensagensComercianteList() {
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-white font-semibold truncate">{c.cliente.nome}</p>
                     <p className="text-gray-500 text-xs shrink-0">
-                      {new Date(c.ultima_hora).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                      {formatarData(c.ultima_hora, { day: '2-digit', month: '2-digit' })}
                     </p>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
@@ -208,7 +209,7 @@ export default function MensagensComercianteList() {
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-white font-semibold truncate">{c.fornecedor.nome}</p>
                     <p className="text-gray-500 text-xs shrink-0">
-                      {new Date(c.ultima_hora).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                      {formatarData(c.ultima_hora, { day: '2-digit', month: '2-digit' })}
                     </p>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">

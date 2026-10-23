@@ -1,5 +1,6 @@
 'use client'
 import { createClient } from '../supabase'
+import { diaLoja, inicioDiaLoja } from './datas'
 import type { ModuloKey } from './nichos'
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -120,8 +121,10 @@ export async function removerAgendamento(lojaId: string, id: string): Promise<Ag
 
 /** Minutos (arredondados) daqui até o horário do agendamento. Negativo = já passou. */
 export function minutosAteAgendamento(ag: Pick<Agendamento, 'data' | 'hora'>): number {
-  const alvo = new Date(`${ag.data}T${ag.hora}:00`)
-  return Math.round((alvo.getTime() - Date.now()) / 60000)
+  // data + hora são do relógio da LOJA, não do aparelho.
+  const [h, m] = ag.hora.split(':').map(Number)
+  const alvo = inicioDiaLoja(ag.data).getTime() + (h * 60 + m) * 60000
+  return Math.round((alvo - Date.now()) / 60000)
 }
 
 /**
@@ -130,7 +133,7 @@ export function minutosAteAgendamento(ag: Pick<Agendamento, 'data' | 'hora'>): n
  * Usado no card de lembrete do dashboard e no badge do menu Agenda.
  */
 export async function carregarAgendamentosProximos(lojaId: string, janelaMin = 120): Promise<Agendamento[]> {
-  const hojeIso = new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD local
+  const hojeIso = diaLoja() // YYYY-MM-DD no fuso da loja
   const { data, error } = await supabase
     .from('agendamentos')
     .select('*')

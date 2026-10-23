@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { diaLoja, formatarData, somarDias } from '../lib/datas'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
@@ -17,17 +18,14 @@ const HORAS = Array.from({ length: 28 }, (_, i) => {
 })
 
 function hoje() {
-  return new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD local
+  return diaLoja() // YYYY-MM-DD no fuso da loja
 }
 
 function rotuloData(iso: string) {
-  const d = new Date(iso + 'T12:00:00')
   const hojeIso = hoje()
   if (iso === hojeIso) return 'Hoje'
-  const amanha = new Date()
-  amanha.setDate(amanha.getDate() + 1)
-  if (iso === amanha.toLocaleDateString('sv-SE')) return 'Amanhã'
-  return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })
+  if (iso === somarDias(hojeIso, 1)) return 'Amanhã'
+  return formatarData(iso, { weekday: 'short', day: '2-digit', month: '2-digit' })
 }
 
 export default function Agenda() {

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { formatarData } from '../../lib/datas'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '../../lib/supabase-admin'
@@ -253,7 +254,7 @@ export default async function LojaPublica({ params }: { params: Promise<{ id: st
                         <Estrelas nota={a.nota} tamanho="text-base" />
                         <SeloVerificado hash={a.hash} />
                       </div>
-                      <span className="text-gray-500 text-xs shrink-0">{new Date(a.created_at).toLocaleDateString('pt-BR')}</span>
+                      <span className="text-gray-500 text-xs shrink-0">{formatarData(a.created_at)}</span>
                     </div>
                     {a.comentario && <p className="text-gray-300 text-sm mt-1.5">{a.comentario}</p>}
                     {a.foto_url && (

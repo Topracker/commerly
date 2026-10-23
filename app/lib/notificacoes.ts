@@ -2,6 +2,7 @@
 // A tabela `notificacoes` é compartilhada pelos três papéis; o destinatário é
 // sempre um auth.users.id. Os registros nascem de triggers no banco
 // (sql/2026-07-03-notificacoes.sql); o app só lê, marca como lida e assina.
+import { formatarData } from './datas'
 
 export type TipoNotificacao =
   | 'pedido_novo' | 'pedido_status' | 'parceria_aceita' | 'corrida_oferta' | 'cupom' | 'post_novo'
@@ -181,5 +182,5 @@ export function tempoRelativo(iso: string): string {
   if (h < 24) return `${h} h`
   const d = Math.floor(h / 24)
   if (d < 7) return `${d} d`
-  return new Date(iso).toLocaleDateString('pt-BR')
+  return formatarData(iso)
 }

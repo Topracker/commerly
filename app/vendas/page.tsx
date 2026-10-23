@@ -5,6 +5,7 @@ import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { Trash2 } from 'lucide-react'
+import { formatarDataHora } from '../lib/datas'
 
 type ItemCarrinho = {
   produto: any
@@ -219,7 +220,7 @@ export default function Vendas() {
               <div key={v.id} className="flex items-center justify-between border-b border-gray-800 pb-3">
                 <div>
                   <p className="text-white font-medium">{v.produtos?.nome || v.descricao || '—'}</p>
-                  <p className="text-gray-400 text-sm">{v.quantidade}x — {v.forma_pagamento} — {new Date(v.created_at).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-gray-400 text-sm">{v.quantidade}x — {v.forma_pagamento} — {formatarDataHora(v.created_at)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-white font-semibold">R$ {v.valor_total.toFixed(2)}</p>

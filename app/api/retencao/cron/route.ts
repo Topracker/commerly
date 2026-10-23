@@ -6,6 +6,7 @@
 // Push só sai se VAPID estiver configurado; a notificação in-app sempre entra.
 
 import { NextRequest, NextResponse } from 'next/server'
+import { diaLoja, diaSemanaLoja, somarDias } from '../../../lib/datas'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { carregarCooldowns, emCooldown, disparar, brl } from '../../../lib/retencao'
 import { chamarGemini, textoDaResposta } from '../../../lib/gemini'
@@ -26,7 +27,7 @@ async function insightSemanal(nome: string, atual: number, cresc: number, pedido
   } catch { return null }
 }
 
-const hojeStr = () => new Date().toISOString().slice(0, 10)
+const hojeStr = () => diaLoja()
 
 export async function GET(req: NextRequest) {
   // Fail-closed: sem CRON_SECRET configurada, ninguém entra (o endpoint não
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
   const admin = createAdminClient()
   const cooldowns = await carregarCooldowns(admin)
   const hoje = hojeStr()
-  const ehSegunda = new Date().getDay() === 1
+  const ehSegunda = diaSemanaLoja() === 1
   const resultado = { inativos: 0, pendentes: 0, semanais: 0 }
 
   // Mapa de última atividade (streaks.ultimo_dia) por user.
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
   for (const s of streaks || []) ultimoDia.set(s.user_id, s.ultimo_dia)
 
   // ---- 1) Inativos há 7+ dias ----
-  const limite7 = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
+  const limite7 = somarDias(diaLoja(), -7)
   for (const s of (streaks || []).slice(0, 500)) {
     if (!s.ultimo_dia || s.ultimo_dia > limite7) continue
     if (emCooldown(cooldowns, s.user_id, 'inativo', 7)) continue

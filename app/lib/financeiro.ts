@@ -1,6 +1,7 @@
 // Financeiro completo: fluxo de caixa, lucro real (com CMV) e DAS do MEI.
 //
 // Funções puras — a página /financeiro passa os dados já carregados.
+import { diaLoja } from './datas'
 
 // ATENÇÃO: o DAS é 5% do salário mínimo + tributo fixo. Atualize este valor
 // todo ano, quando o salário mínimo mudar — o cálculo abaixo depende dele.
@@ -54,7 +55,8 @@ export type MesFinanceiro = {
 export type Entrada = { valor: number; cmv: number; data: string }
 export type Saida = { valor: number; data: string }
 
-const chaveMes = (iso: string) => iso.slice(0, 7)
+// Mês da LOJA, não o do UTC: venda de 31/10 às 22h é outubro.
+const chaveMes = (iso: string) => diaLoja(iso).slice(0, 7)
 
 function rotuloMes(chave: string): string {
   const [ano, mes] = chave.split('-')
@@ -74,9 +76,10 @@ export function fluxoDeCaixa(
 ): MesFinanceiro[] {
   const mapa = new Map<string, MesFinanceiro>()
 
+  const [anoHoje, mesHoje] = diaLoja(agora).split('-').map(Number)
   for (let i = meses - 1; i >= 0; i--) {
-    const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1)
-    const chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const d = new Date(Date.UTC(anoHoje, mesHoje - 1 - i, 1))
+    const chave = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
     mapa.set(chave, { chave, rotulo: rotuloMes(chave), entradas: 0, saidas: 0, saldo: 0, cmv: 0, lucroReal: 0 })
   }
 

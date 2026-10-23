@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
+import { diaLoja, formatarData, formatarDataHora, inicioPeriodo } from '../lib/datas'
 
 const POR_PAGINA = 20
 
@@ -28,11 +29,7 @@ export default function Historico() {
 
   async function carregarPagina(p: number) {
     setCarregando(true)
-    const agora = new Date()
-    let desde = new Date()
-    if (periodo === 'hoje') desde.setHours(0, 0, 0, 0)
-    else if (periodo === 'semana') desde.setDate(agora.getDate() - 7)
-    else if (periodo === 'mes') desde.setDate(1)
+    const desde = inicioPeriodo(periodo)
 
     let query = supabase
       .from('vendas')
@@ -68,11 +65,7 @@ export default function Historico() {
     setExportando(true)
     // Busca TODAS as vendas filtradas pelo periodo atual, nao apenas a pagina visivel.
     // Pagina em blocos de 1000 (limite default do supabase) ate esgotar.
-    const agora = new Date()
-    let desde = new Date()
-    if (periodo === 'hoje') desde.setHours(0, 0, 0, 0)
-    else if (periodo === 'semana') desde.setDate(agora.getDate() - 7)
-    else if (periodo === 'mes') desde.setDate(1)
+    const desde = inicioPeriodo(periodo)
 
     const BATCH = 1000
     const todas: any[] = []
@@ -113,7 +106,7 @@ export default function Historico() {
         Number(v.valor_total).toFixed(2),
         Number(v.lucro).toFixed(2),
         v.forma_pagamento,
-        new Date(v.created_at).toLocaleDateString('pt-BR')
+        formatarData(v.created_at)
       ])
     })
     const csv = linhas.map(l => l.map(escape).join(',')).join('\r\n')
@@ -121,7 +114,7 @@ export default function Historico() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `vendas-${periodo}-${new Date().toISOString().slice(0, 10)}.csv`
+    a.download = `vendas-${periodo}-${diaLoja()}.csv`
     a.click()
     URL.revokeObjectURL(url)
     mostrarToast(`✓ ${todas.length} vendas exportadas`, 'sucesso')
@@ -172,7 +165,7 @@ export default function Historico() {
                     <p className="text-white font-semibold">{v.produtos?.nome}</p>
                   </div>
                   <p className="text-gray-400 text-sm">
-                    {v.quantidade}x — {v.forma_pagamento} — {new Date(v.created_at).toLocaleDateString('pt-BR')}
+                    {v.quantidade}x — {v.forma_pagamento} — {formatarDataHora(v.created_at)}
                   </p>
                 </div>
                 <div className="text-right">

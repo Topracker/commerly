@@ -5,6 +5,7 @@ import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { formatarData } from '../lib/datas'
 
 export default function Fiado() {
   const { loja, loading, supabase, sair } = useAuth()
@@ -121,7 +122,7 @@ export default function Fiado() {
                 </div>
                 <p className="text-gray-400 text-sm">{f.descricao}</p>
                 <p className="text-red-400 font-semibold mt-1">R$ {f.valor.toFixed(2)}</p>
-                <p className="text-gray-500 text-xs">{new Date(f.created_at).toLocaleDateString('pt-BR')}</p>
+                <p className="text-gray-500 text-xs">{formatarData(f.created_at)}</p>
               </div>
               <div className="flex gap-2 shrink-0">
                 <button onClick={() => marcarPago(f.id, f.pago)}

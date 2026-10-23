@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { diaLoja, horaLoja, somarDias } from './datas'
 import { nivelDe, nivelXp, NIVEIS_POR_PAPEL, NIVEIS_COMERCIANTE, NIVEIS_ENTREGADOR, NIVEIS_CLIENTE, eventoSazonalAtivo, slugify } from './crescimento'
 import { pctIndicacoes } from './precos'
 
@@ -49,14 +50,15 @@ function grantMissoes(admin: SupabaseClient, userId: string, slugs: string[]) {
 }
 
 async function atualizarStreak(admin: SupabaseClient, userId: string) {
-  const hoje = new Date(); hoje.setHours(0, 0, 0, 0)
-  const hojeStr = hoje.toISOString().slice(0, 10)
+  // Dia da LOJA — o mesmo `(now() at time zone 'America/Sao_Paulo')::date` de registrar_atividade().
+  const hojeStr = diaLoja()
   const { data } = await admin.from('streaks').select('dias, recorde, ultimo_dia').eq('user_id', userId).maybeSingle()
   let dias = 1
   let recorde = 1
   if (data) {
-    if (data.ultimo_dia === hojeStr) { return { dias: data.dias, recorde: data.recorde } }
-    const ontem = new Date(hoje.getTime() - 86400000).toISOString().slice(0, 10)
+    // `>=`: linhas gravadas antes do fuso SP (dia UTC) podem estar 1 dia "no futuro" — não zera a streak.
+    if (data.ultimo_dia >= hojeStr) { return { dias: data.dias, recorde: data.recorde } }
+    const ontem = somarDias(hojeStr, -1)
     dias = data.ultimo_dia === ontem ? (data.dias || 0) + 1 : 1
     recorde = Math.max(data.recorde || 0, dias)
   }
@@ -98,7 +100,7 @@ export async function reconciliarUsuario(admin: SupabaseClient, userId: string):
     ])
     pedidosFeitos = pc || 0
     avaliacoesDadas = avc || 0
-    if (prim && prim[0]) primeiroPedidoHora = new Date(prim[0].created_at).getHours()
+    if (prim && prim[0]) primeiroPedidoHora = horaLoja(prim[0].created_at)
     if (pedidosFeitos >= 1) { idealMedalhas.push('primeira-compra'); missoes.push('primeiro-pedido') }
     if (pedidosFeitos >= 10) missoes.push('10-pedidos')
     if (pedidosFeitos >= 100) idealMedalhas.push('maratonista')
@@ -110,7 +112,7 @@ export async function reconciliarUsuario(admin: SupabaseClient, userId: string):
         .select('loja_id, created_at').eq('cliente_id', cli.id).limit(1000)
       const porDia = new Map<string, Set<string>>()
       for (const r of rows || []) {
-        const dia = String(r.created_at).slice(0, 10)
+        const dia = diaLoja(r.created_at)
         if (!porDia.has(dia)) porDia.set(dia, new Set())
         porDia.get(dia)!.add(r.loja_id)
       }

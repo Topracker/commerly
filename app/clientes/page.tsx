@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { formatarData } from '../lib/datas'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
@@ -250,7 +251,7 @@ export default function ClientesCRM() {
                       <div>
                         <p className="text-gray-500 text-[11px]">Última compra</p>
                         <p className={`font-bold text-sm ${inativo ? 'text-red-300' : 'text-white'}`}>
-                          {new Date(c.ultimaCompra).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                          {formatarData(c.ultimaCompra, { day: '2-digit', month: '2-digit' })}
                         </p>
                       </div>
                     </div>

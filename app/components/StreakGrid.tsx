@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { diaLoja, diaSemanaLoja, formatarData, paraDate, somarDias } from '../lib/datas'
 import { Flame, Trophy, Target } from 'lucide-react'
 
 // ============================================================================
@@ -37,8 +38,6 @@ const CORES = [
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
-function iso(d: Date) { return d.toISOString().slice(0, 10) }
-
 export function StreakGrid() {
   const [d, setD] = useState<Dados | null>(null)
 
@@ -55,20 +54,17 @@ export function StreakGrid() {
   // faz as colunas fecharem certinho como no GitHub.
   const semanas = useMemo(() => {
     const porDia = new Map((d?.dias || []).map(x => [x.dia, x.eventos]))
-    const fim = new Date()
-    fim.setHours(0, 0, 0, 0)
-    fim.setDate(fim.getDate() + (6 - fim.getDay()))
-    const inicio = new Date(fim)
-    inicio.setDate(inicio.getDate() - (53 * 7 - 1))
+    // Dias como "YYYY-MM-DD" no fuso da loja — o mesmo de atividade_dias.dia no banco.
+    const hoje = diaLoja()
+    const fim = somarDias(hoje, 6 - diaSemanaLoja())
+    const inicio = somarDias(fim, -(53 * 7 - 1))
 
     const cols: { data: Date; eventos: number; futuro: boolean }[][] = []
-    const hoje = iso(new Date())
     for (let s = 0; s < 53; s++) {
       const col: { data: Date; eventos: number; futuro: boolean }[] = []
       for (let dia = 0; dia < 7; dia++) {
-        const data = new Date(inicio)
-        data.setDate(inicio.getDate() + s * 7 + dia)
-        const chave = iso(data)
+        const chave = somarDias(inicio, s * 7 + dia)
+        const data = paraDate(chave) // meio-dia UTC: getUTC* devolve o próprio dia
         col.push({ data, eventos: porDia.get(chave) || 0, futuro: chave > hoje })
       }
       cols.push(col)
@@ -83,8 +79,8 @@ export function StreakGrid() {
   const ativo = useMemo(() => {
     const u = d?.streak.ultimo_dia
     if (!u) return false
-    const ontem = new Date(); ontem.setDate(ontem.getDate() - 1)
-    return u === iso(new Date()) || u === iso(ontem)
+    const hoje = diaLoja()
+    return u === hoje || u === somarDias(hoje, -1)
   }, [d])
 
   const proximo = MARCOS.find(m => m > streak) ?? null
@@ -135,10 +131,10 @@ export function StreakGrid() {
           <div className="flex gap-[3px] pl-[18px] h-3">
             {semanas.map((col, i) => {
               const primeiro = col[0].data
-              const mostra = primeiro.getDate() <= 7
+              const mostra = primeiro.getUTCDate() <= 7
               return (
                 <span key={i} className="w-[11px] text-[9px] text-gray-600 leading-none">
-                  {mostra ? MESES[primeiro.getMonth()] : ''}
+                  {mostra ? MESES[primeiro.getUTCMonth()] : ''}
                 </span>
               )
             })}
@@ -153,7 +149,7 @@ export function StreakGrid() {
                 {col.map((c, j) => (
                   <span
                     key={j}
-                    title={c.futuro ? '' : `${c.data.toLocaleDateString('pt-BR')} — ${c.eventos} ${c.eventos === 1 ? 'atividade' : 'atividades'}`}
+                    title={c.futuro ? '' : `${formatarData(c.data)} — ${c.eventos} ${c.eventos === 1 ? 'atividade' : 'atividades'}`}
                     className={`w-[11px] h-[11px] rounded-[2px] ${c.futuro ? 'bg-transparent' : CORES[nivel(c.eventos)]}`}
                   />
                 ))}

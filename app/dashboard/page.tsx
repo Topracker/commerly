@@ -17,6 +17,7 @@ import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos, minutosAteAgendamento, type Agendamento } from '../lib/nicheStore'
 import { calcularCommerlyScore, type CommerlyScore } from '../lib/commerlyScore'
 import { VIEW_AVAL_LOJAS } from '../lib/avaliacoes'
+import { diaLoja, formatarData, inicioDiaLoja, inicioMesLoja, inicioPeriodo, paraDate, somarDias } from '../lib/datas'
 import { TendenciasCard } from '../components/TendenciasCard'
 import {
   ShoppingBag, ChevronRight, Clock, Gauge, Package, Lightbulb, ArrowRight, Trophy, Moon, Rss,
@@ -142,29 +143,20 @@ export default function Dashboard() {
 
   async function carregarDados() {
     setCarregando(true)
-    const agora = new Date()
+    // Dias e meias-noites no fuso da loja (app/lib/datas.ts), não no relógio do aparelho.
+    const hoje = diaLoja()
+    const inicioMes = inicioMesLoja()
 
-    let desde = new Date()
-    if (periodo === 'hoje') desde.setHours(0, 0, 0, 0)
-    else if (periodo === 'semana') desde.setDate(agora.getDate() - 7)
-    else desde.setDate(1)
+    const desde = inicioPeriodo(periodo)
 
-    const seteAtras = new Date()
-    seteAtras.setDate(agora.getDate() - 6)
-    seteAtras.setHours(0, 0, 0, 0)
+    const seteAtras = inicioDiaLoja(somarDias(hoje, -6))
 
     // Janela de 14 dias — o Score compara os últimos 7 dias com os 7 anteriores
     // (tendência de crescimento).
-    const quatorzeAtras = new Date()
-    quatorzeAtras.setDate(agora.getDate() - 13)
-    quatorzeAtras.setHours(0, 0, 0, 0)
+    const quatorzeAtras = inicioDiaLoja(somarDias(hoje, -13))
 
     // Janela de 30 dias — clientes/recorrência/novos e taxa de entrega do Score.
-    const trintaAtras = new Date()
-    trintaAtras.setDate(agora.getDate() - 30)
-    trintaAtras.setHours(0, 0, 0, 0)
-
-    const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1)
+    const trintaAtras = inicioDiaLoja(somarDias(hoje, -30))
 
     // Data mais antiga que precisamos dos pedidos online: cobre o período do
     // card, a janela de tendência (14d) e o mês (meta) numa única query;
@@ -245,19 +237,17 @@ export default function Dashboard() {
     // Gráfico 7 dias
     const diasMap: Record<string, GraficoDia> = {}
     for (let i = 6; i >= 0; i--) {
-      const d = new Date()
-      d.setDate(d.getDate() - i)
-      const isoKey = d.toISOString().slice(0, 10)
-      diasMap[isoKey] = { dia: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), faturamento: 0 }
+      const isoKey = somarDias(hoje, -i)
+      diasMap[isoKey] = { dia: formatarData(isoKey, { day: '2-digit', month: '2-digit' }), faturamento: 0 }
     }
     for (const v of (vendasSemanaRes.data || [])) {
-      const isoKey = (v.created_at as string).slice(0, 10)
+      const isoKey = diaLoja(v.created_at)
       if (diasMap[isoKey]) diasMap[isoKey].faturamento += v.valor_total
     }
     // Pedidos online também entram no gráfico de faturamento dos 7 dias.
     for (const p of pedidosOnline) {
       if (new Date(p.created_at) < seteAtras) continue
-      const isoKey = (p.created_at as string).slice(0, 10)
+      const isoKey = diaLoja(p.created_at)
       if (diasMap[isoKey]) diasMap[isoKey].faturamento += Number(p.total || 0)
     }
     setGraficoData(Object.values(diasMap))
@@ -300,7 +290,7 @@ export default function Dashboard() {
     // Tendência: últimos 7 dias vs. os 7 anteriores (vendas + pedidos online).
     const vend14 = vendasSemanaRes.data || []
     const somaVendas = (ini: Date, fim?: Date) => vend14
-      .filter((v: any) => { const t = new Date(v.created_at); return t >= ini && (!fim || t < fim) })
+      .filter((v: any) => { const t = paraDate(v.created_at); return t >= ini && (!fim || t < fim) })
       .reduce((a: number, v: any) => a + Number(v.valor_total || 0), 0)
     const somaPedidos = (ini: Date, fim?: Date) => pedidosOnline
       .filter((p: any) => { const t = new Date(p.created_at); return t >= ini && (!fim || t < fim) })

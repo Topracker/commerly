@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf'
+import { formatarData } from './datas'
 import QRCode from 'qrcode'
 
 // ============================================================================
@@ -90,7 +91,7 @@ export async function baixarCertificadoPdf(c: CertificadoPdf): Promise<void> {
     // Sem QR o certificado ainda vale — não vale abortar o download por isso.
   }
 
-  const emissao = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+  const emissao = formatarData(new Date(), { day: '2-digit', month: 'long', year: 'numeric' })
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
   doc.setTextColor(140, 140, 140)
   doc.text(`Emitido em ${emissao}`, 26, A - 30)

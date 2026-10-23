@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { formatarData } from '../lib/datas'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
@@ -839,7 +840,7 @@ export default function Configuracoes() {
                       </span>
                     </p>
                     <p className="text-gray-500 text-xs">
-                      {new Date(f.criada_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {formatarData(f.criada_em)}
                       {' · '}{f.moeda} {f.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>

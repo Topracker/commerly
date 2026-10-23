@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { formatarHora } from '../../lib/datas'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '../../hooks/useAuth'
 import { Send, ArrowLeft } from 'lucide-react'
@@ -113,7 +114,7 @@ export default function ChatComercianteFornecedor() {
               }`}>
                 <p className="text-sm">{m.conteudo}</p>
                 <p className={`text-xs mt-1 ${m.remetente === 'loja' ? 'text-blue-200' : 'text-gray-400'}`}>
-                  {new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  {formatarHora(m.created_at)}
                 </p>
               </div>
             </div>

@@ -1,5 +1,6 @@
 'use client'
 import { Suspense, useEffect, useState } from 'react'
+import { formatarData } from '../lib/datas'
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
@@ -87,7 +88,7 @@ function AdsConteudo() {
             <Check size={16} className="text-green-400 shrink-0" />
             <p className="text-green-300 text-sm">
               Destaque ativo até{' '}
-              <strong>{new Date(destaqueAte!).toLocaleDateString('pt-BR')}</strong>
+              <strong>{formatarData(destaqueAte!)}</strong>
               {!assinaturaId && ' (sem renovação automática)'}
             </p>
           </div>

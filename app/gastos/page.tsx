@@ -5,6 +5,7 @@ import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { formatarData, inicioPeriodo } from '../lib/datas'
 
 const CATEGORIAS = ['Aluguel', 'Água', 'Energia', 'Internet', 'Funcionários', 'Fornecedores', 'Marketing', 'Manutenção', 'Equipamentos', 'Outros']
 
@@ -23,11 +24,7 @@ export default function Gastos() {
   useEffect(() => { if (loja) carregar() }, [loja, periodo])
 
   async function carregar() {
-    const agora = new Date()
-    let desde = new Date()
-    if (periodo === 'hoje') desde.setHours(0, 0, 0, 0)
-    else if (periodo === 'semana') desde.setDate(agora.getDate() - 7)
-    else if (periodo === 'mes') desde.setDate(1)
+    const desde = inicioPeriodo(periodo)
 
     let query = supabase.from('gastos').select('*').eq('loja_id', loja.id).order('created_at', { ascending: false })
     if (periodo !== 'todos') query = query.gte('created_at', desde.toISOString())
@@ -113,7 +110,7 @@ export default function Gastos() {
             <div key={g.id} className="bg-gray-900 rounded-2xl p-4 flex items-center justify-between">
               <div>
                 <p className="text-white font-semibold">{g.descricao}</p>
-                <p className="text-gray-400 text-sm">{g.tipo} — {new Date(g.created_at).toLocaleDateString('pt-BR')}</p>
+                <p className="text-gray-400 text-sm">{g.tipo} — {formatarData(g.created_at)}</p>
               </div>
               <div className="flex items-center gap-3">
                 <p className="text-red-400 font-semibold">R$ {g.valor.toFixed(2)}</p>

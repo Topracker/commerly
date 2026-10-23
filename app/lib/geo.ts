@@ -1,6 +1,7 @@
 // Utilidades de geolocalização (sem dependências externas).
 
 import { JANELA_PICO } from './precoDinamico'
+import { diaSemanaLoja, horaLoja } from './datas'
 
 export type Coord = { latitude?: number | null; longitude?: number | null }
 
@@ -79,14 +80,13 @@ export const SURGE_PICO = 1.3
 
 /**
  * Horário de pico: sexta, sábado e domingo das 18h às 22h. A taxa de entrega
- * sobe SURGE_PICO (+30%). Usa o horário LOCAL do dispositivo (para o cliente BR
- * bate com o servidor, que calcula em America/Sao_Paulo — ver eh_horario_pico
- * em sql/2026-07-09-melhorias-delivery.sql). Aqui é só a prévia; o servidor é
+ * sobe SURGE_PICO (+30%). Calcula em America/Sao_Paulo (app/lib/datas.ts), como o
+ * servidor (eh_horario_pico em sql/2026-07-09-melhorias-delivery.sql). Aqui é só a prévia; o servidor é
  * a fonte da verdade no INSERT do pedido.
  */
 export function ehHorarioPico(d: Date = new Date()): boolean {
-  const dow = d.getDay() // 0=domingo, 5=sexta, 6=sábado
-  const h = d.getHours()
+  const dow = diaSemanaLoja(d) // 0=domingo, 5=sexta, 6=sábado
+  const h = horaLoja(d)
   return (JANELA_PICO.dias as readonly number[]).includes(dow)
     && h >= JANELA_PICO.inicio && h < JANELA_PICO.fim
 }
