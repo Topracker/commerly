@@ -1,7 +1,8 @@
 /* Commerly service worker — minimal & conservative */
 // v5 (2026-09-19): manifest mudou (start_url /entrar, theme_color, maskable,
 // shortcuts) — o precache antigo servia o manifest velho cache-first.
-const VERSION = 'commerly-v5';
+// v6 (2026-10-22): ícones regerados (sem a borda branca), mesmos nomes.
+const VERSION = 'commerly-v6';
 const STATIC_CACHE = `${VERSION}-static`;
 
 const PRECACHE = [

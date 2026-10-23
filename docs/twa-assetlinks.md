@@ -49,6 +49,7 @@ barra de URL aparece.
   `/login` deslogaria cliente/entregador/fornecedor).
 - Entregador usa GPS → `bubblewrap init` com **location delegation** ligada.
 - Ícones: `any` = `/icon-512.png`, `maskable` = `/icon-maskable-512.png`
-  (regenerar com `node scripts/gerar-icones-maskable.mjs`).
+  (regenerar TODOS os ícones com `node scripts/gerar-icones.mjs`, a partir de
+  `scripts/assets/icone-fonte.png`).
 - Política da Play "Excluir conta": em `/excluir-conta` (pública) e dentro do
   app em Configurações → Excluir minha conta. A URL vai no formulário Data safety.

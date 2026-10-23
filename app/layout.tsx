@@ -60,13 +60,14 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     url: SITE_URL,
     locale: "pt_BR",
-    images: [{ url: "/icon-512.png", width: 512, height: 512, alt: SITE_NAME }],
+    // Opaco de propósito: o icon-512 tem cantos transparentes e o WhatsApp/Facebook pintam de branco.
+    images: [{ url: "/icon-og-512.png", width: 512, height: 512, alt: SITE_NAME }],
   },
   twitter: {
     card: "summary",
     title: `${SITE_NAME} — Gestão completa para o seu comércio`,
     description: SITE_DESCRIPTION,
-    images: ["/icon-512.png"],
+    images: ["/icon-og-512.png"],
   },
 };
 
@@ -89,7 +90,8 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Commerly" />
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        {/* favicon/ícones/apple-touch-icon saem das convenções app/favicon.ico, app/icon{1,2,3}.png e
+            app/apple-icon.png (geradas por scripts/gerar-icones.mjs) — não declare <link rel="icon"> aqui. */}
         {/*
           Aplica o tema salvo ANTES da primeira pintura. Sem isto, quem escolheu
           o tema claro veria um flash do fundo escuro a cada navegação. O default
