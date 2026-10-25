@@ -15,8 +15,10 @@ export async function POST(request: NextRequest) {
   const cidade_slug = String(body?.cidade_slug || '').trim() || '__global__'
   if (!flag) return NextResponse.json({ error: 'flag obrigatória' }, { status: 400 })
 
-  const { error } = await admin.from('feature_flags')
+  // .select(): a tela só vira a chave com o valor que o banco devolveu.
+  const { data, error } = await admin.from('feature_flags')
     .upsert({ cidade_slug, flag, ativo, updated_at: new Date().toISOString() }, { onConflict: 'cidade_slug,flag' })
-  if (error) return NextResponse.json({ error: 'Falha ao salvar.' }, { status: 500 })
-  return NextResponse.json({ ok: true, cidade_slug, flag, ativo })
+    .select('ativo').single()
+  if (error || !data) return NextResponse.json({ error: 'Falha ao salvar.' }, { status: 500 })
+  return NextResponse.json({ ok: true, cidade_slug, flag, ativo: data.ativo })
 }

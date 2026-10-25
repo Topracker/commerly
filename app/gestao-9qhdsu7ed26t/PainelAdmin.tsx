@@ -605,10 +605,28 @@ function Aprovacoes({ pendentes, onChange }: { pendentes: EntregadorPendente[]; 
 
 function CidadesFlags({ cidades, flags, onChange }: { cidades: Cidade[]; flags: Record<string, boolean>; onChange: () => void }) {
   const [local, setLocal] = useState<Record<string, boolean>>(flags)
+  const [salvando, setSalvando] = useState<string | null>(null)
+  const [erro, setErro] = useState('')
   async function toggle(flag: string) {
+    if (salvando) return
     const ativo = !local[flag]
+    // `delivery` em __global__ vale para toda cidade sem override próprio:
+    // desligar corta os pedidos dessas cidades na hora; ligar reabre o Brasil.
+    if (flag === 'delivery') {
+      const aviso = ativo
+        ? 'Ligar o delivery GLOBAL reabre pedidos em TODAS as cidades sem flag própria (o Brasil inteiro). Continuar?'
+        : 'Desligar o delivery GLOBAL bloqueia pedidos novos em TODAS as cidades sem flag própria. Só cidades com override ligado (ex.: Goiânia) continuam. Continuar?'
+      if (!window.confirm(aviso)) return
+    }
+    setErro('')
+    setSalvando(flag)
+    // Só muda a chave depois que o servidor confirmou — mostrar "ligado" sem
+    // ter gravado é pior que não mexer.
+    const r = await fetch(`${ADMIN_API_BASE}/flag`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ flag, ativo }) }).catch(() => null)
+    const j = r && r.ok ? await r.json().catch(() => null) : null
+    setSalvando(null)
+    if (!j || j.ativo !== ativo) { setErro(`Não foi possível ${ativo ? 'ligar' : 'desligar'} "${flag}". Nada foi alterado.`); return }
     setLocal(s => ({ ...s, [flag]: ativo }))
-    await fetch(`${ADMIN_API_BASE}/flag`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ flag, ativo }) }).catch(() => {})
     onChange()
   }
   return (
@@ -616,9 +634,10 @@ function CidadesFlags({ cidades, flags, onChange }: { cidades: Cidade[]; flags: 
       <div className="bg-card border border-borda rounded-2xl p-5">
         <p className="text-white text-sm font-semibold mb-1">Feature flags globais</p>
         <p className="text-gray-500 text-xs mb-4">Ligue ou desligue funcionalidades sem alterar código. (Overrides por cidade via API.)</p>
+        {erro && <p className="text-red-400 text-sm mb-3">{erro}</p>}
         <div className="grid sm:grid-cols-2 gap-2">
           {FEATURE_FLAGS.map(({ flag, rotulo }) => (
-            <button key={flag} onClick={() => toggle(flag)} className="flex items-center justify-between rounded-xl border border-borda bg-superficie px-3 py-2.5">
+            <button key={flag} onClick={() => toggle(flag)} disabled={salvando !== null} className={`flex items-center justify-between rounded-xl border border-borda bg-superficie px-3 py-2.5 ${salvando === flag ? 'opacity-60' : ''}`}>
               <span className="text-gray-200 text-sm">{rotulo}</span>
               <span className={`relative w-11 h-6 rounded-full transition ${local[flag] ? 'bg-acento' : 'bg-elevado'}`}>
                 <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${local[flag] ? 'left-[22px]' : 'left-0.5'}`} />
