@@ -94,7 +94,7 @@ export type Medalha = {
   emBreve?: boolean
 }
 export const MEDALHAS: Medalha[] = [
-  { slug: 'fundador', nome: 'Fundador', emoji: '🏅', descricao: 'Um dos 50 primeiros comerciantes da Commerly.', como: 'Estar entre os 50 primeiros comerciantes cadastrados.' },
+  { slug: 'fundador', nome: 'Fundador', emoji: '🏅', descricao: 'Um dos 3 primeiros comerciantes a assinar a Commerly.', como: 'Estar entre os 3 primeiros comerciantes a pagar a mensalidade.' },
   { slug: 'pioneiro', nome: 'Pioneiro', emoji: '🚀', descricao: 'Entre os primeiros da sua cidade.', como: 'Ser um dos 100 primeiros de uma cidade recém-lançada.' , emBreve: true },
   { slug: 'embaixador', nome: 'Embaixador', emoji: '🎖️', descricao: 'Leva a Commerly para novas pessoas.', como: 'Indicar pessoas com o seu código exclusivo.' },
   { slug: 'cidade-campea', nome: 'Cidade Campeã', emoji: '🏆', descricao: 'Ajudou a cidade a bater a meta.', como: 'Somar pontos numa cidade que foi escolhida.' , emBreve: true },

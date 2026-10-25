@@ -12,6 +12,8 @@ import { CardIndicacao } from '../components/CardIndicacao'
 import { BlocoProgresso } from '../components/BlocoProgresso'
 import { BadgeNivel } from '../components/BadgeNivel'
 import { AvisoCidadeLoja } from '../components/AvisoCidadeLoja'
+import { SeloFundador } from '../components/SeloFundador'
+import { ordemFundadorPagante } from '../lib/fundadorPagante'
 import { useFlags } from '../lib/useFlags'
 import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos, minutosAteAgendamento, type Agendamento } from '../lib/nicheStore'
@@ -98,6 +100,14 @@ export default function Dashboard() {
   const [metaMensal, setMetaMensal] = useState(5000)
   const [conquistas, setConquistas] = useState<string[]>([])
   const [novosBadges, setNovosBadges] = useState<string[]>([])
+
+  // Prêmio Fundador nº 1..3 (tabela `fundadores`). Antes do SQL de
+  // 2026-10-25 não há policy de leitura: volta null e nada aparece.
+  const [ordemFundador, setOrdemFundador] = useState<number | null>(null)
+  useEffect(() => {
+    if (!loja) return
+    ordemFundadorPagante(supabase, loja.id).then(setOrdemFundador).catch(() => setOrdemFundador(null))
+  }, [loja, supabase])
 
   useEffect(() => {
     if (loja) {
@@ -419,7 +429,9 @@ export default function Dashboard() {
               }`}>
                 {loja.plano === 'ativo' ? 'PLANO ATIVO' : loja.plano === 'trial' ? 'TESTE' : 'INATIVO'}
               </span>
-              {loja.fundador && flagAtiva('fundadores') && (
+              {ordemFundador ? (
+                <SeloFundador ordem={ordemFundador} compact />
+              ) : loja.fundador && flagAtiva('fundadores') && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/40">
                   FUNDADOR
                 </span>

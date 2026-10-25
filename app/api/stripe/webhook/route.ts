@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { dispatchPushPedido } from '../../../lib/pushDispatch'
 import { confirmarIndicacaoDaLoja } from '../../../lib/indicacaoDesconto'
+import { concederFundadorPagante } from '../../../lib/fundadorPagante'
 
 // Um ciclo de destaque do Commerly Ads. 31 dias (e não 30) dá folga para o
 // webhook de renovação chegar sem que o destaque pisque.
@@ -223,6 +224,9 @@ export async function POST(request: NextRequest) {
     // de quem indicou sobe uma faixa. Idempotente (ver lib/indicacaoDesconto).
     await confirmarIndicacaoDaLoja(supabase, stripe, { lojaId })
 
+    // Prêmio Fundador nº 1..3 (só valor pago > 0). Nunca lança.
+    await concederFundadorPagante(supabase, { lojaId, subscriptionId, valorCentavos: session.amount_total })
+
     return NextResponse.json({ ok: true })
   }
 
@@ -255,6 +259,10 @@ export async function POST(request: NextRequest) {
     // Rede de segurança: se o `checkout.session.completed` se perdeu, a 1ª
     // fatura paga também confirma a indicação.
     await confirmarIndicacaoDaLoja(supabase, stripe, { subscriptionId })
+
+    // Mesma rede de segurança para o prêmio Fundador. Fatura zerada (cupom
+    // 100%) não conta; a função é idempotente se o `completed` já concedeu.
+    await concederFundadorPagante(supabase, { subscriptionId, valorCentavos: invoice.amount_paid })
 
     return NextResponse.json({ ok: true })
   }

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { reais } from '../lib/moeda'
 import { ArrowLeft, Star, Store, Package, Lock, ExternalLink, Snowflake } from 'lucide-react'
 import { StreakCalendario } from './StreakCalendario'
+import { SeloFundador } from './SeloFundador'
 import { medalhaPorSlug } from '../lib/crescimento'
 import { tempoNaPlataforma, type PerfilPublico } from '../lib/perfilPublico'
 
@@ -29,6 +30,7 @@ export function PerfilPublicoView({ p }: { p: PerfilPublico }) {
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border" style={{ color: p.nivel.cor, borderColor: `${p.nivel.cor}66`, backgroundColor: `${p.nivel.cor}18` }}>
                 {p.nivel.emoji} {p.nivel.nome}
               </span>
+              {p.fundadorOrdem ? <SeloFundador ordem={p.fundadorOrdem} /> : null}
               {/* Só sai quando ele declarou a bolsa E a operação aprovou o
                   cadastro olhando a foto — ver `bolsaConfirmada`. */}
               {p.bolsaConfirmada && (

@@ -128,7 +128,8 @@ export async function reconciliarUsuario(admin: SupabaseClient, userId: string):
     const [{ count: pr }, { data: aval }, { data: fund }] = await Promise.all([
       admin.from('pedidos_clientes').select('id', { count: 'exact', head: true }).eq('loja_id', loja.id),
       admin.from('avaliacoes_lojas_atuais').select('nota').eq('loja_id', loja.id),
-      admin.from('fundadores').select('loja_id').eq('loja_id', loja.id).maybeSingle(),
+      // Medalha "fundador" = prêmio dos 3 primeiros que pagaram (ordem 1..3).
+      admin.from('fundadores').select('loja_id').eq('loja_id', loja.id).gte('ordem', 1).lte('ordem', 3).maybeSingle(),
     ])
     pedidosRecebidos = pr || 0
     const notas = (aval || []).map((a: any) => Number(a.nota)).filter((n: number) => n > 0)
