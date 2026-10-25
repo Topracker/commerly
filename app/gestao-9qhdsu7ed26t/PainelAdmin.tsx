@@ -45,7 +45,10 @@ type Dados = {
   cidades: Cidade[] | null
   cidadesResumo: { slug: string; cidade: string; lojas: number; pedidos: number; gmv: number }[]
   flagsGlobais: Record<string, boolean> | null
+  flagsEscopos?: EscopoFlags[]
 }
+// Overrides crus de um escopo (__global__ ou slug da cidade); o efetivo é calculado na tela.
+type EscopoFlags = { escopo: string; nome: string; lojas: number; overrides: Record<string, boolean> }
 type Stripe = {
   disponivel: boolean; motivo?: string; mrrTotal: number; truncado?: boolean
   resumo: { mensalidade: { ativas: number; fundador: number; normal: number }; ads: { ativas: number; mrr: number }; inadimplentes: number }
@@ -211,7 +214,7 @@ export default function Admin() {
 
         {tab === 'Aprovações' && <Aprovacoes pendentes={dados.listas.pendentes || []} onChange={carregar} />}
 
-        {tab === 'Cidades & Flags' && <CidadesFlags cidades={dados.cidades || []} flags={dados.flagsGlobais || {}} onChange={carregar} />}
+        {tab === 'Cidades & Flags' && <CidadesFlags cidades={dados.cidades || []} escopos={dados.flagsEscopos || [{ escopo: '__global__', nome: 'Global (todas as cidades)', lojas: 0, overrides: dados.flagsGlobais || {} }]} onChange={carregar} />}
       </div>
     </main>
   )
@@ -603,48 +606,114 @@ function Aprovacoes({ pendentes, onChange }: { pendentes: EntregadorPendente[]; 
   )
 }
 
-function CidadesFlags({ cidades, flags, onChange }: { cidades: Cidade[]; flags: Record<string, boolean>; onChange: () => void }) {
-  const [local, setLocal] = useState<Record<string, boolean>>(flags)
+// null = sem override (a cidade herda o global; o global cai no padrão ligado).
+type EstadoFlag = boolean | null
+
+function CidadesFlags({ cidades, escopos, onChange }: { cidades: Cidade[]; escopos: EscopoFlags[]; onChange: () => void }) {
+  const [local, setLocal] = useState<EscopoFlags[]>(escopos)
+  const [flag, setFlag] = useState('delivery')
   const [salvando, setSalvando] = useState<string | null>(null)
   const [erro, setErro] = useState('')
-  async function toggle(flag: string) {
-    if (salvando) return
-    const ativo = !local[flag]
+
+  // Mesma regra de lib/featureFlags.ts: cidade ?? global ?? true.
+  const doGlobal = local.find(e => e.escopo === '__global__')?.overrides[flag] ?? true
+  const estado = (e: EscopoFlags): EstadoFlag => e.overrides[flag] ?? null
+  const efetivo = (e: EscopoFlags) => e.escopo === '__global__' ? doGlobal : (e.overrides[flag] ?? doGlobal)
+  const rotulo = FEATURE_FLAGS.find(f => f.flag === flag)?.rotulo || flag
+
+  async function mudar(e: EscopoFlags, novo: EstadoFlag) {
+    if (salvando || estado(e) === novo) return
+    const global = e.escopo === '__global__'
     // `delivery` em __global__ vale para toda cidade sem override próprio:
     // desligar corta os pedidos dessas cidades na hora; ligar reabre o Brasil.
     if (flag === 'delivery') {
-      const aviso = ativo
-        ? 'Ligar o delivery GLOBAL reabre pedidos em TODAS as cidades sem flag própria (o Brasil inteiro). Continuar?'
-        : 'Desligar o delivery GLOBAL bloqueia pedidos novos em TODAS as cidades sem flag própria. Só cidades com override ligado (ex.: Goiânia) continuam. Continuar?'
+      const efetivoDepois = novo ?? doGlobal
+      const aviso = global
+        ? (novo
+          ? 'Ligar o delivery GLOBAL reabre pedidos em TODAS as cidades sem flag própria (o Brasil inteiro). Continuar?'
+          : 'Desligar o delivery GLOBAL bloqueia pedidos novos em TODAS as cidades sem flag própria. Só cidades com override ligado (ex.: Goiânia) continuam. Continuar?')
+        : `${novo === null ? 'Fazer' : novo ? 'Ligar o delivery em' : 'Desligar o delivery em'} ${e.nome}${novo === null ? ' herdar o global' : ''}? ` +
+          `Resultado: pedidos ${efetivoDepois ? 'LIBERADOS' : 'BLOQUEADOS'} nas ${e.lojas} loja(s) da cidade.`
       if (!window.confirm(aviso)) return
     }
     setErro('')
-    setSalvando(flag)
+    setSalvando(e.escopo)
     // Só muda a chave depois que o servidor confirmou — mostrar "ligado" sem
     // ter gravado é pior que não mexer.
-    const r = await fetch(`${ADMIN_API_BASE}/flag`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ flag, ativo }) }).catch(() => null)
+    const r = await fetch(`${ADMIN_API_BASE}/flag`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ flag, ativo: novo, cidade_slug: global ? '' : e.escopo }),
+    }).catch(() => null)
     const j = r && r.ok ? await r.json().catch(() => null) : null
     setSalvando(null)
-    if (!j || j.ativo !== ativo) { setErro(`Não foi possível ${ativo ? 'ligar' : 'desligar'} "${flag}". Nada foi alterado.`); return }
-    setLocal(s => ({ ...s, [flag]: ativo }))
+    if (!j || j.ativo !== novo) { setErro(`Não foi possível alterar "${rotulo}" em ${e.nome}. Nada foi alterado.`); return }
+    setLocal(ls => ls.map(x => {
+      if (x.escopo !== e.escopo) return x
+      const overrides = { ...x.overrides }
+      if (novo === null) delete overrides[flag]; else overrides[flag] = novo
+      return { ...x, overrides }
+    }))
     onChange()
   }
+
+  const opcoes: { valor: EstadoFlag; texto: string }[] = [
+    { valor: null, texto: 'Herda' }, { valor: true, texto: 'Ligado' }, { valor: false, texto: 'Desligado' },
+  ]
   return (
     <div className="space-y-6">
       <div className="bg-card border border-borda rounded-2xl p-5">
-        <p className="text-white text-sm font-semibold mb-1">Feature flags globais</p>
-        <p className="text-gray-500 text-xs mb-4">Ligue ou desligue funcionalidades sem alterar código. (Overrides por cidade via API.)</p>
-        {erro && <p className="text-red-400 text-sm mb-3">{erro}</p>}
-        <div className="grid sm:grid-cols-2 gap-2">
-          {FEATURE_FLAGS.map(({ flag, rotulo }) => (
-            <button key={flag} onClick={() => toggle(flag)} disabled={salvando !== null} className={`flex items-center justify-between rounded-xl border border-borda bg-superficie px-3 py-2.5 ${salvando === flag ? 'opacity-60' : ''}`}>
-              <span className="text-gray-200 text-sm">{rotulo}</span>
-              <span className={`relative w-11 h-6 rounded-full transition ${local[flag] ? 'bg-acento' : 'bg-elevado'}`}>
-                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${local[flag] ? 'left-[22px]' : 'left-0.5'}`} />
-              </span>
+        <p className="text-white text-sm font-semibold mb-1">Feature flags por cidade</p>
+        <p className="text-gray-500 text-xs mb-4">
+          A cidade usa o próprio valor quando tem um; senão herda o global. Sem linha no global, a flag vale <strong>ligada</strong>.
+        </p>
+        <div className="flex flex-wrap gap-1.5 mb-4" role="tablist" aria-label="Flag">
+          {FEATURE_FLAGS.map(f => (
+            <button key={f.flag} role="tab" aria-selected={flag === f.flag} onClick={() => setFlag(f.flag)}
+              className={`text-xs font-medium px-3 py-1.5 rounded-full border transition ${flag === f.flag ? 'border-acento bg-acento/15 text-acento' : 'border-borda text-gray-400 hover:text-white'}`}>
+              {f.rotulo}
             </button>
           ))}
         </div>
+        {erro && <p className="text-red-400 text-sm mb-3">{erro}</p>}
+        <ul className="space-y-2">
+          {local.map(e => {
+            const global = e.escopo === '__global__'
+            const ef = efetivo(e)
+            return (
+              <li key={e.escopo} data-escopo={e.escopo}
+                className={`rounded-xl border bg-superficie p-3 ${global ? 'border-acento/40' : 'border-borda'} ${salvando === e.escopo ? 'opacity-60' : ''}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-white text-sm font-medium">{e.nome}</p>
+                    <p className="text-gray-500 text-xs">{e.lojas} loja(s){!global && estado(e) === null ? ' · herdando o global' : ''}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex rounded-lg border border-borda overflow-hidden" role="group" aria-label={`${rotulo} em ${e.nome}`}>
+                      {opcoes.filter(o => !(global && o.valor === null)).map(o => (
+                        <button key={String(o.valor)} onClick={() => mudar(e, o.valor)} disabled={salvando !== null}
+                          aria-pressed={estado(e) === o.valor}
+                          className={`text-xs px-2.5 py-1.5 transition disabled:cursor-not-allowed ${estado(e) === o.valor
+                            ? (o.valor === false ? 'bg-red-500/20 text-red-300' : o.valor ? 'bg-green-500/20 text-green-300' : 'bg-elevado text-white')
+                            : 'text-gray-400 hover:text-white'}`}>
+                          {o.texto}
+                        </button>
+                      ))}
+                    </div>
+                    <span data-efetivo={ef ? 'ligado' : 'desligado'}
+                      className={`text-[11px] font-semibold px-2 py-1 rounded-full ${ef ? 'bg-green-500/15 text-green-300' : 'bg-red-500/15 text-red-300'}`}>
+                      Efetivo: {ef ? 'ligado' : 'desligado'}
+                    </span>
+                  </div>
+                </div>
+                {global && flag === 'delivery' && (
+                  <p className="mt-2 text-red-400 text-xs font-semibold flex items-center gap-1.5">
+                    <AlertTriangle size={13} className="shrink-0" /> Ligar o delivery global abre o Brasil inteiro.
+                  </p>
+                )}
+              </li>
+            )
+          })}
+        </ul>
       </div>
 
       <div className="bg-card border border-borda rounded-2xl p-5">

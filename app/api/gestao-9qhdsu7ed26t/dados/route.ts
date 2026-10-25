@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     { data: pedidosCidade }, flagsGlobais,
     { data: lojasTodas }, { data: pedidosSerie }, { data: indicacoes },
     { data: b2bPagos }, { data: entregasPagas }, { data: produtosLojas },
-    { data: feedbacks },
+    { data: feedbacks }, { data: flagsLinhas },
   ] = await Promise.all([
     h('lojas'), h('clientes'), h('entregadores'), h('fornecedores'),
     h('pedidos_clientes', q => q.neq('status', 'cancelado')),
@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
     admin.from('pedidos_clientes').select('taxa_entrega, valor_corrida').eq('status', 'entregue'),
     admin.from('produtos').select('loja_id'),
     admin.from('feedbacks').select('id, loja_id, tipo, mensagem, created_at').order('created_at', { ascending: false }).limit(200),
+    admin.from('feature_flags').select('cidade_slug, flag, ativo'),
   ])
 
   const lojas = lojasTodas || []
@@ -212,6 +213,19 @@ export async function GET(request: NextRequest) {
     .sort((a, b) => b.gmv - a.gmv || b.lojas - a.lojas)
     .slice(0, 20)
 
+  // ── Flags por escopo: __global__ + cidades com override ou com loja ────────
+  // Só as linhas CRUAS (override ou ausência); o valor efetivo é calculado na
+  // tela com a mesma regra de lib/featureFlags.ts: cidade ?? global ?? true.
+  const overrides: Record<string, Record<string, boolean>> = { __global__: {} }
+  for (const f of flagsLinhas || []) (overrides[f.cidade_slug] ||= {})[f.flag] = !!f.ativo
+  const slugsComLoja = Object.keys(lojasPorCidade).filter(s => s !== 'sem-cidade')
+  const flagsEscopos = [
+    { escopo: '__global__', nome: 'Global (todas as cidades)', lojas: lojas.length, overrides: overrides.__global__ },
+    ...[...new Set([...Object.keys(overrides).filter(s => s !== '__global__'), ...slugsComLoja])]
+      .map(slug => ({ escopo: slug, nome: nomeDaCidade[slug] || slug, lojas: lojasPorCidade[slug] || 0, overrides: overrides[slug] || {} }))
+      .sort((a, b) => b.lojas - a.lojas || a.nome.localeCompare(b.nome)),
+  ]
+
   // ── Funil de ativação ─────────────────────────────────────────────────────
   const lojasComProduto = new Set((produtosLojas || []).map((p: any) => p.loja_id))
   const lojasComPedido = new Set((pedidosCidade || []).map((p: any) => p.loja_id))
@@ -269,6 +283,6 @@ export async function GET(request: NextRequest) {
       pendentes,
       feedbacks: feedbacksLista,
     },
-    cidades, cidadesResumo, flagsGlobais,
+    cidades, cidadesResumo, flagsGlobais, flagsEscopos,
   })
 }
