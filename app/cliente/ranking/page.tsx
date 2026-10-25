@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useCliente } from '../../hooks/useCliente'
 import { ClienteLayout } from '../../components/ClienteLayout'
 import { getRatingsPorLoja } from '../../lib/avaliacoes'
+import { idsLojasOcultas } from '../../lib/lojasOcultas'
 import { Trophy, Star, MapPin } from 'lucide-react'
 
 type LojaRank = {
@@ -29,8 +30,9 @@ export default function ClienteRanking() {
     setCarregando(true)
 
     // Agrega todas as avaliações e fica com as 10 lojas de maior média.
-    const ratings = await getRatingsPorLoja(supabase)
+    const [ratings, ocultas] = await Promise.all([getRatingsPorLoja(supabase), idsLojasOcultas(supabase)])
     const top = Object.entries(ratings)
+      .filter(([id]) => !ocultas.has(id))
       .map(([id, r]) => ({ id, media: r.media, totalAval: r.total }))
       .sort((a, b) => b.media - a.media || b.totalAval - a.totalAval)
       .slice(0, 10)

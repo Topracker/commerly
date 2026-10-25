@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
+import { idsLojasOcultas, semOcultas } from '../../../lib/lojasOcultas'
 
 // Lista/detalha as lojas públicas para o cliente (marketplace).
 //
@@ -95,14 +96,16 @@ export async function GET(request: NextRequest) {
   if (tipo && tipo !== 'Todos') query = query.eq('tipo', tipo)
   if (busca && busca.trim()) query = query.ilike('nome', `%${busca.trim()}%`)
 
-  const { data, error } = await query
+  const [{ data: bruto, error }, ocultas] = await Promise.all([query, idsLojasOcultas(admin)])
   if (error) {
     console.error('[cliente/lojas] erro ao listar lojas:', error.message)
     return NextResponse.json({ error: 'Erro ao carregar as lojas.' }, { status: 500 })
   }
-  console.log(`[cliente/lojas] ${data?.length ?? 0} lojas (tipo=${tipo || 'Todos'}, busca=${busca || ''})`)
-  const liberado = await deliveryLiberado(admin, (data || []).map((l: any) => l.id))
+  // Lojas de teste ficam fora da LISTA; o ramo `?id=` acima continua abrindo.
+  const data = semOcultas(bruto || [], ocultas, l => (l as { id: string }).id)
+  console.log(`[cliente/lojas] ${data.length} lojas (tipo=${tipo || 'Todos'}, busca=${busca || ''})`)
+  const liberado = await deliveryLiberado(admin, data.map((l: any) => l.id))
   return NextResponse.json({
-    lojas: (data || []).map((l: any) => ({ ...l, delivery_liberado: liberado.get(l.id) !== false })),
+    lojas: data.map((l: any) => ({ ...l, delivery_liberado: liberado.get(l.id) !== false })),
   })
 }

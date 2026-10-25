@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { isDelivery } from '../../../lib/pedidosClientes'
+import { idsLojasOcultas, semOcultas } from '../../../lib/lojasOcultas'
 
 // Lista as lojas de delivery para o entregador solicitar parceria.
 //
@@ -27,8 +28,11 @@ export async function GET(request: NextRequest) {
     .from('entregadores').select('id').eq('user_id', user.id).maybeSingle()
   if (!entregador) return NextResponse.json({ error: 'Perfil de entregador não encontrado' }, { status: 403 })
 
-  const { data: lojas, error } = await admin
-    .from('lojas_publicas').select('id, nome, tipo, localizacao, latitude, longitude')
+  const [{ data: todas, error }, ocultas] = await Promise.all([
+    admin.from('lojas_publicas').select('id, nome, tipo, localizacao, latitude, longitude'),
+    idsLojasOcultas(admin),
+  ])
+  const lojas = semOcultas(todas || [], ocultas, l => l.id)
   if (error) {
     console.error('[entregador/lojas-delivery] erro ao ler lojas:', error.message)
     return NextResponse.json({ error: 'Erro ao carregar lojas.' }, { status: 500 })

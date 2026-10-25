@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '../../lib/supabase-admin'
 import { perfilSlug } from '../../lib/crescimento'
+import { idsLojasOcultas } from '../../lib/lojasOcultas'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -91,7 +92,9 @@ export async function GET(request: NextRequest) {
     const k = (p as any)[campo]
     if (k) cont[k] = (cont[k] || 0) + 1
   }
-  const ids = Object.keys(cont).sort((a, b) => cont[b] - cont[a]).slice(0, 50)
+  // Lojas de teste fora do ranking público de comerciantes (lib/lojasOcultas.ts).
+  const ocultas = papel === 'comerciantes' ? await idsLojasOcultas(admin) : new Set<string>()
+  const ids = Object.keys(cont).filter(id => !ocultas.has(id)).sort((a, b) => cont[b] - cont[a]).slice(0, 50)
 
   const tabela = papel === 'entregadores' ? 'entregadores' : papel === 'clientes' ? 'clientes' : 'lojas'
   const sel = papel === 'comerciantes' ? 'id, nome, localizacao' : 'id, nome'

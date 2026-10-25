@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { createAdminClient } from './lib/supabase-admin'
+import { idsLojasOcultas, semOcultas } from './lib/lojasOcultas'
 import { SITE_URL } from './lib/site'
 import { ARTIGOS } from './lib/blog'
 
@@ -43,12 +44,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let lojas: MetadataRoute.Sitemap = []
   try {
     const admin = createAdminClient()
-    const { data } = await admin
-      .from('lojas_publicas')
-      .select('id, created_at')
-      .order('created_at', { ascending: false })
-      .limit(5000)
-    lojas = (data || []).map((l: { id: string; created_at: string | null }) => ({
+    const [{ data }, ocultas] = await Promise.all([
+      admin
+        .from('lojas_publicas')
+        .select('id, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5000),
+      idsLojasOcultas(admin),
+    ])
+    lojas = semOcultas(data || [], ocultas, l => l.id).map((l: { id: string; created_at: string | null }) => ({
       url: `${SITE_URL}/loja/${l.id}`,
       lastModified: l.created_at ? new Date(l.created_at) : undefined,
       changeFrequency: 'weekly' as const,

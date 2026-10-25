@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { MarketingShell, MCard } from '../components/MarketingShell'
 import { createAdminClient } from '../lib/supabase-admin'
 import { flagAtiva } from '../lib/featureFlags'
+import { idsLojasOcultas } from '../lib/lojasOcultas'
 import { Check, Store } from 'lucide-react'
 import { VAGAS_FUNDADOR, PRECO_FUNDADOR, PRECO_NORMAL, brl } from '../lib/precos'
 
@@ -48,7 +49,9 @@ export default async function Fundadores() {
   const { data: fund } = await admin
     .from('fundadores').select('loja_id, ordem, cidade, created_at').order('ordem', { ascending: true }).limit(VAGAS_FUNDADOR)
 
-  const lojaIds = (fund || []).map(f => f.loja_id)
+  // Vaga ocupada por loja de teste continua contando (preenchidas), só não é exibida.
+  const ocultas = await idsLojasOcultas(admin)
+  const lojaIds = (fund || []).map(f => f.loja_id).filter(id => !ocultas.has(id))
   let lojas: Record<string, { nome: string; tipo: string; fotos_fachada?: string[] | null }> = {}
   if (lojaIds.length > 0) {
     const { data } = await admin.from('lojas_publicas').select('id, nome, tipo, fotos_fachada').in('id', lojaIds)
@@ -87,7 +90,7 @@ export default async function Fundadores() {
         </MCard>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {(fund || []).map(f => {
+          {(fund || []).filter(f => !ocultas.has(f.loja_id)).map(f => {
             const l = lojas[f.loja_id]
             return (
               <div key={f.loja_id} className="bg-card border border-borda rounded-2xl overflow-hidden">

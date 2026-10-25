@@ -9,6 +9,7 @@ import { StoriesBar } from '../../components/StoriesBar'
 import { ReelPost, type Comentario } from '../../components/ReelPost'
 import { ComentariosPainel } from '../../components/ComentariosPainel'
 import { distanciaKm } from '../../lib/geo'
+import { idsLojasOcultas, semOcultas } from '../../lib/lojasOcultas'
 import {
   agruparStories, ordenarFeed,
   type LojaDoFeed, type Post, type ProdutoMarcado, type Story,
@@ -58,20 +59,22 @@ export default function ClienteFeed() {
 
   async function carregar() {
     const agora = new Date().toISOString()
-    const [postsRes, storiesRes, lojasRes, seguindoRes, likesRes] = await Promise.all([
+    const [postsRes, storiesRes, lojasRes, seguindoRes, likesRes, ocultas] = await Promise.all([
       supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(60),
       supabase.from('stories').select('*').gt('expira_em', agora).order('created_at', { ascending: false }),
       supabase.from('lojas_publicas').select('id, nome, tipo, latitude, longitude, fotos_fachada'),
       supabase.from('loja_seguidores').select('loja_id').eq('cliente_id', cliente.id),
       supabase.from('post_likes').select('post_id, cliente_id'),
+      idsLojasOcultas(supabase),
     ])
 
-    const listaPosts = (postsRes.data || []) as Post[]
-    const listaStories = (storiesRes.data || []) as Story[]
+    // Lojas de teste (lib/lojasOcultas.ts) saem do feed junto com posts e stories.
+    const listaPosts = semOcultas((postsRes.data || []) as Post[], ocultas, p => p.loja_id)
+    const listaStories = semOcultas((storiesRes.data || []) as Story[], ocultas, s => s.loja_id)
 
     setPosts(listaPosts)
     setStories(listaStories)
-    setLojas(new Map(((lojasRes.data || []) as LojaDoFeed[]).map(l => [l.id, l])))
+    setLojas(new Map(semOcultas((lojasRes.data || []) as LojaDoFeed[], ocultas, l => l.id).map(l => [l.id, l])))
     setSeguindo(new Set(((seguindoRes.data || []) as { loja_id: string }[]).map(s => s.loja_id)))
     setCompartilhamentos(Object.fromEntries(listaPosts.map(p => [p.id, p.compartilhamentos || 0])))
 

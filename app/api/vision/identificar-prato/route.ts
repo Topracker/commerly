@@ -13,6 +13,7 @@ import { chamarGemini, parteImagem, extrairJSON, textoDaResposta, MODELO_VISAO }
 import { validarImagem } from '../../../lib/imagemEntrada'
 import { supabaseDaRota, usuarioDaRota, ipDaRequisicao } from '../../../lib/rotaSupabase'
 import { distanciaKm } from '../../../lib/geo'
+import { idsLojasOcultas, semOcultas } from '../../../lib/lojasOcultas'
 
 export const runtime = 'nodejs'
 
@@ -122,11 +123,15 @@ export async function POST(request: NextRequest) {
   // view, mas a loja está fora do ar para o cliente e `/cliente/loja/[id]`
   // responde 404. Sem este filtro o Vision mostrava um card que não abre.
   // Filtrar aqui e não na view é a regra 4 do CLAUDE.md.
-  const { data: lojas } = await supabase
-    .from('lojas_publicas')
-    .select('id, nome, localizacao, latitude, longitude, fotos_fachada, taxa_entrega')
-    .in('id', lojaIds)
-    .eq('disponivel', true)
+  const [{ data: todas }, ocultas] = await Promise.all([
+    supabase
+      .from('lojas_publicas')
+      .select('id, nome, localizacao, latitude, longitude, fotos_fachada, taxa_entrega')
+      .in('id', lojaIds)
+      .eq('disponivel', true),
+    idsLojasOcultas(supabase),
+  ])
+  const lojas = semOcultas(todas || [], ocultas, l => l.id)
 
   // O aviso é decidido DEPOIS do filtro: casar produtos só de lojas vencidas
   // deixa `lojaIds` cheio e `lojas` vazio, e sem isto a tela mostraria o prato
