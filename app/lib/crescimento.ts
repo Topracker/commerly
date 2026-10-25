@@ -200,7 +200,16 @@ export function idDoSlug(slug: string): string | null {
 }
 
 // Feature flags conhecidas (rótulos para o admin).
-export const FEATURE_FLAGS: { flag: string; rotulo: string }[] = [
+//
+// `global: true` = chave de MÓDULO, só existe no escopo __global__: cliente,
+// entregador e fornecedor não têm `cidade_slug` (só a loja tem), então um
+// override por cidade não teria em quem valer. getFlags ignora linha de cidade
+// dessas flags, o admin só mostra o global e a rota /flag recusa cidade. Mesma
+// lista na função SQL `modulo_ativo()` (sql/2026-10-25-modulos-globais.sql).
+export const FEATURE_FLAGS: { flag: string; rotulo: string; global?: boolean }[] = [
+  { flag: 'cliente', rotulo: 'Área do Cliente', global: true },
+  { flag: 'entregador', rotulo: 'Entregadores', global: true },
+  { flag: 'fornecedor', rotulo: 'Fornecedores (B2B)', global: true },
   { flag: 'delivery', rotulo: 'Delivery' },
   { flag: 'ia', rotulo: 'IA (Commerly AI)' },
   { flag: 'cashback', rotulo: 'Cashback' },

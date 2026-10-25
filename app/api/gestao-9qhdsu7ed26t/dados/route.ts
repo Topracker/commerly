@@ -55,6 +55,8 @@ export async function GET(request: NextRequest) {
     { data: lojasTodas }, { data: pedidosSerie }, { data: indicacoes },
     { data: b2bPagos }, { data: entregasPagas }, { data: produtosLojas },
     { data: feedbacks }, { data: flagsLinhas },
+    { count: pedidosAbertos }, { count: corridasEmCurso }, { count: ofertasPendentes },
+    { count: festasAbertas }, { count: b2bAbertos },
   ] = await Promise.all([
     h('lojas'), h('clientes'), h('entregadores'), h('fornecedores'),
     h('pedidos_clientes', q => q.neq('status', 'cancelado')),
@@ -88,6 +90,15 @@ export async function GET(request: NextRequest) {
     admin.from('produtos').select('loja_id'),
     admin.from('feedbacks').select('id, loja_id, tipo, mensagem, created_at').order('created_at', { ascending: false }).limit(200),
     admin.from('feature_flags').select('cidade_slug, flag, ativo'),
+    // ── Em andamento (confirmação das chaves de módulo, 2026-10-25) ──────────
+    // O admin vê o que está no meio do caminho ANTES de desligar cliente/
+    // entregador/fornecedor. Desligar só impede começar; isto mostra o que
+    // precisa continuar terminando.
+    h('pedidos_clientes', q => q.in('status', ['recebido', 'preparando', 'saiu'])),
+    h('pedidos_clientes', q => q.in('status', ['recebido', 'preparando', 'saiu']).not('entregador_id', 'is', null)),
+    h('corrida_ofertas', q => q.eq('status', 'pendente')),
+    h('festas', q => q.eq('status', 'aberta')),
+    h('pedidos', q => q.in('status', ['pendente', 'aceito'])),
   ])
 
   const lojas = lojasTodas || []
@@ -284,5 +295,10 @@ export async function GET(request: NextRequest) {
       feedbacks: feedbacksLista,
     },
     cidades, cidadesResumo, flagsGlobais, flagsEscopos,
+    emAndamento: {
+      pedidosAbertos: pedidosAbertos || 0, corridasEmCurso: corridasEmCurso || 0,
+      ofertasPendentes: ofertasPendentes || 0, festasAbertas: festasAbertas || 0,
+      b2bAbertos: b2bAbertos || 0,
+    },
   })
 }

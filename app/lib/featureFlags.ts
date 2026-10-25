@@ -1,10 +1,20 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { NextResponse } from 'next/server'
 import { createAdminClient } from './supabase-admin'
 import { FEATURE_FLAGS } from './crescimento'
 
 export type Flags = Record<string, boolean>
 
 const GLOBAL = '__global__'
+
+/** Chaves de módulo: só valem no escopo global (ver FEATURE_FLAGS). */
+export type ModuloGlobal = 'cliente' | 'entregador' | 'fornecedor'
+const FLAGS_GLOBAIS = new Set(FEATURE_FLAGS.filter(f => f.global).map(f => f.flag))
+
+/** A flag só existe no escopo global? (linha de cidade é ignorada) */
+export function flagSoGlobal(flag: string): boolean {
+  return FLAGS_GLOBAIS.has(flag)
+}
 
 /** Todas as flags padrão (tudo ligado) quando não há linhas no banco. */
 function padrao(): Flags {
@@ -25,10 +35,55 @@ export async function getFlags(cidadeSlug?: string | null, client?: SupabaseClie
   // Aplica global primeiro, depois cidade (ordem importa).
   for (const scope of alvos) {
     for (const row of data || []) {
-      if (row.cidade_slug === scope) flags[row.flag] = !!row.ativo
+      if (row.cidade_slug !== scope) continue
+      // Chave de módulo não tem override por cidade — mesma regra do SQL.
+      if (scope !== GLOBAL && FLAGS_GLOBAIS.has(row.flag)) continue
+      flags[row.flag] = !!row.ativo
     }
   }
   return flags
+}
+
+/**
+ * Chave de módulo ligada? Só o escopo global; sem linha = ligado. Espelho de
+ * `modulo_ativo()` no SQL — mexeu em um, mexa no outro.
+ */
+export async function moduloAtivo(modulo: ModuloGlobal, client?: SupabaseClient): Promise<boolean> {
+  const admin = client ?? createAdminClient()
+  const { data } = await admin.from('feature_flags').select('ativo')
+    .eq('cidade_slug', GLOBAL).eq('flag', modulo).maybeSingle()
+  return data ? !!data.ativo : true
+}
+
+/**
+ * Pode nascer oferta de corrida para a frota Commerly nesta cidade? Demanda
+ * (`delivery`, por cidade) E oferta (`entregador`, global). Ponto ÚNICO da
+ * combinação: despacho, Modo Festa e "Buscar entregador" chamam só isto, nunca
+ * as duas flags soltas. Com `entregador` desligado o pedido continua entrando
+ * (a loja entrega por conta própria) — quem barra pedido é só `delivery`.
+ */
+export async function despachoLiberado(cidadeSlug: string | null | undefined, client?: SupabaseClient): Promise<boolean> {
+  const admin = client ?? createAdminClient()
+  const [delivery, entregador] = await Promise.all([
+    flagAtiva('delivery', cidadeSlug, admin),
+    moduloAtivo('entregador', admin),
+  ])
+  return delivery && entregador
+}
+
+const MSG_PAUSA: Record<ModuloGlobal, string> = {
+  cliente: 'A área do cliente está pausada no momento. Pedidos em andamento continuam normalmente.',
+  entregador: 'A rede de entregadores está pausada no momento. Corridas em andamento continuam normalmente.',
+  fornecedor: 'As compras de fornecedores estão pausadas no momento. Pedidos já feitos continuam normalmente.',
+}
+
+/**
+ * Resposta padrão de rota que INICIA algo num módulo desligado. 503 (pausa
+ * temporária, não falta de permissão) com `modulo_pausado` para a tela tratar.
+ * Rota que TERMINA algo (confirmar, cancelar, estornar, webhook) nunca usa isto.
+ */
+export function respostaModuloPausado(modulo: ModuloGlobal) {
+  return NextResponse.json({ error: MSG_PAUSA[modulo], modulo_pausado: modulo }, { status: 503 })
 }
 
 /** Uma flag específica (padrão true se desconhecida). */

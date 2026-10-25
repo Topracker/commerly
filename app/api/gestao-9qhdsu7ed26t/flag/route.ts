@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { exigirAdminAuditado } from '../../../lib/admin'
+import { flagSoGlobal } from '../../../lib/featureFlags'
 
 export const runtime = 'nodejs'
 
@@ -18,6 +19,11 @@ export async function POST(request: NextRequest) {
   const ativo = !!body?.ativo
   const cidade_slug = String(body?.cidade_slug || '').trim() || '__global__'
   if (!flag) return NextResponse.json({ error: 'flag obrigatória' }, { status: 400 })
+  // Chave de módulo (cliente/entregador/fornecedor) só existe no global: uma
+  // linha de cidade seria ignorada por getFlags e por modulo_ativo() no SQL.
+  if (flagSoGlobal(flag) && cidade_slug !== '__global__') {
+    return NextResponse.json({ error: 'Esta chave só existe no escopo global.' }, { status: 400 })
+  }
 
   if (herdar) {
     if (cidade_slug === '__global__') {

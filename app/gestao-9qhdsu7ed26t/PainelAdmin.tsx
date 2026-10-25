@@ -46,9 +46,12 @@ type Dados = {
   cidadesResumo: { slug: string; cidade: string; lojas: number; pedidos: number; gmv: number }[]
   flagsGlobais: Record<string, boolean> | null
   flagsEscopos?: EscopoFlags[]
+  emAndamento?: EmAndamento
 }
 // Overrides crus de um escopo (__global__ ou slug da cidade); o efetivo é calculado na tela.
 type EscopoFlags = { escopo: string; nome: string; lojas: number; overrides: Record<string, boolean> }
+// O que está no meio do caminho — mostrado antes de desligar uma chave de módulo.
+type EmAndamento = { pedidosAbertos: number; corridasEmCurso: number; ofertasPendentes: number; festasAbertas: number; b2bAbertos: number }
 type Stripe = {
   disponivel: boolean; motivo?: string; mrrTotal: number; truncado?: boolean
   resumo: { mensalidade: { ativas: number; fundador: number; normal: number }; ads: { ativas: number; mrr: number }; inadimplentes: number }
@@ -214,7 +217,7 @@ export default function Admin() {
 
         {tab === 'Aprovações' && <Aprovacoes pendentes={dados.listas.pendentes || []} onChange={carregar} />}
 
-        {tab === 'Cidades & Flags' && <CidadesFlags cidades={dados.cidades || []} escopos={dados.flagsEscopos || [{ escopo: '__global__', nome: 'Global (todas as cidades)', lojas: 0, overrides: dados.flagsGlobais || {} }]} onChange={carregar} />}
+        {tab === 'Cidades & Flags' && <CidadesFlags cidades={dados.cidades || []} emAndamento={dados.emAndamento} escopos={dados.flagsEscopos || [{ escopo: '__global__', nome: 'Global (todas as cidades)', lojas: 0, overrides: dados.flagsGlobais || {} }]} onChange={carregar} />}
       </div>
     </main>
   )
@@ -609,7 +612,21 @@ function Aprovacoes({ pendentes, onChange }: { pendentes: EntregadorPendente[]; 
 // null = sem override (a cidade herda o global; o global cai no padrão ligado).
 type EstadoFlag = boolean | null
 
-function CidadesFlags({ cidades, escopos, onChange }: { cidades: Cidade[]; escopos: EscopoFlags[]; onChange: () => void }) {
+// Desligar uma chave de módulo só impede COMEÇAR; o que já está em andamento
+// continua. O aviso diz o que vai continuar e o que deixa de nascer.
+function avisoModulo(flag: string, ligar: boolean, a?: EmAndamento): string {
+  if (ligar) return `Ligar "${FEATURE_FLAGS.find(f => f.flag === flag)?.rotulo || flag}" para todo o Brasil?`
+  const n = (v?: number) => v ?? '?'
+  if (flag === 'cliente') return `Desligar a área do cliente? A vitrine, novos pedidos, Modo Festa e cadastros novos param. ` +
+    `Continuam: ${n(a?.pedidosAbertos)} pedido(s) em andamento e ${n(a?.festasAbertas)} festa(s) aberta(s) — o cliente segue vendo /cliente/pedidos e notificações. Continuar?`
+  if (flag === 'entregador') return `Desligar a rede de entregadores? Novas ofertas de corrida, "Buscar entregador" e cadastros novos param; as lojas passam a entregar por conta própria. ` +
+    `Continuam: ${n(a?.corridasEmCurso)} corrida(s) em curso. Há ${n(a?.ofertasPendentes)} oferta(s) de corrida pendente(s) agora. Continuar?`
+  if (flag === 'fornecedor') return `Desligar as compras de fornecedores? Novos pedidos B2B e cadastros novos param. ` +
+    `Continuam: ${n(a?.b2bAbertos)} pedido(s) B2B em aberto. Continuar?`
+  return `Desligar "${flag}"? Continuar?`
+}
+
+function CidadesFlags({ cidades, escopos, emAndamento, onChange }: { cidades: Cidade[]; escopos: EscopoFlags[]; emAndamento?: EmAndamento; onChange: () => void }) {
   const [local, setLocal] = useState<EscopoFlags[]>(escopos)
   const [flag, setFlag] = useState('delivery')
   const [salvando, setSalvando] = useState<string | null>(null)
@@ -620,6 +637,9 @@ function CidadesFlags({ cidades, escopos, onChange }: { cidades: Cidade[]; escop
   const estado = (e: EscopoFlags): EstadoFlag => e.overrides[flag] ?? null
   const efetivo = (e: EscopoFlags) => e.escopo === '__global__' ? doGlobal : (e.overrides[flag] ?? doGlobal)
   const rotulo = FEATURE_FLAGS.find(f => f.flag === flag)?.rotulo || flag
+  // Chave de módulo: só o escopo global existe (a rota /flag recusa cidade).
+  const soGlobal = !!FEATURE_FLAGS.find(f => f.flag === flag)?.global
+  const visiveis = soGlobal ? local.filter(e => e.escopo === '__global__') : local
 
   async function mudar(e: EscopoFlags, novo: EstadoFlag) {
     if (salvando || estado(e) === novo) return
@@ -635,6 +655,8 @@ function CidadesFlags({ cidades, escopos, onChange }: { cidades: Cidade[]; escop
         : `${novo === null ? 'Fazer' : novo ? 'Ligar o delivery em' : 'Desligar o delivery em'} ${e.nome}${novo === null ? ' herdar o global' : ''}? ` +
           `Resultado: pedidos ${efetivoDepois ? 'LIBERADOS' : 'BLOQUEADOS'} nas ${e.lojas} loja(s) da cidade.`
       if (!window.confirm(aviso)) return
+    } else if (soGlobal) {
+      if (!window.confirm(avisoModulo(flag, novo !== false, emAndamento))) return
     }
     setErro('')
     setSalvando(e.escopo)
@@ -675,8 +697,13 @@ function CidadesFlags({ cidades, escopos, onChange }: { cidades: Cidade[]; escop
           ))}
         </div>
         {erro && <p className="text-red-400 text-sm mb-3">{erro}</p>}
+        {soGlobal && (
+          <p className="text-gray-500 text-xs mb-3">
+            Chave de módulo: vale para o Brasil inteiro, sem ajuste por cidade. Desligar só impede começar — o que já está em andamento termina normalmente.
+          </p>
+        )}
         <ul className="space-y-2">
-          {local.map(e => {
+          {visiveis.map(e => {
             const global = e.escopo === '__global__'
             const ef = efetivo(e)
             return (
