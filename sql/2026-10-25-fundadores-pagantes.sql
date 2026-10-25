@@ -1,7 +1,10 @@
 -- =============================================================================
 -- Prêmio dos 3 primeiros comerciantes que PAGAM a mensalidade (Fundador nº 1..3)
 -- =============================================================================
--- STATUS: NÃO APLICADO em produção.
+-- STATUS: APLICADO em produção em 2026-10-25 (via MCP), md5 da função
+--   bab33bd589da23e00cd4fc73253e4e09 (pg_get_functiondef). Testado em rollback
+--   (19/19) e via REST com JWT (anon/authenticated sem execute nem escrita; dono
+--   lê só a própria linha). fundadores segue com 0 linhas.
 -- PRÉ-REQUISITO: sql/2026-10-25-lojas-oculta-vitrine.sql (coluna lojas.oculta).
 --
 -- Regras (ver conceder_fundador_pagante):

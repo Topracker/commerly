@@ -18,7 +18,10 @@
 -- O SQL sozinho NÃO esconde nada: as telas precisam filtrar `oculta = false`
 -- (ver o commit que acompanha). A coluna nasce false para todas as lojas.
 --
--- STATUS: NÃO APLICADO — aguardando aprovação.
+-- STATUS: APLICADO em produção em 2026-10-25 (passos 1-3, via MCP). Conferido:
+--   lojas_publicas com 22 colunas (`oculta` por último), trigger ativo, 0 lojas
+--   ocultas; dono via REST não consegue ligar `oculta`. Passo 4 (marcar Burger
+--   House/testeEDI) NÃO aplicado.
 
 begin;
 
