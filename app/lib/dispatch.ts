@@ -26,6 +26,9 @@ export async function ofertarProximoEntregador(
   admin: SupabaseClient,
   pedidoId: string,
   loja: LojaCoord,
+  // Fora da escolha mesmo sem oferta registrada — ex.: quem acabou de desistir
+  // depois de pegar a corrida por /aceitar-pedido (parceria, sem oferta).
+  excluir: string[] = [],
 ): Promise<ResultadoDespacho> {
   if (loja.latitude == null || loja.longitude == null) return { tipo: 'sem_localizacao' }
 
@@ -74,7 +77,7 @@ export async function ofertarProximoEntregador(
     .gte('localizacao_at', desde)
 
   const candidatos = (pool || [])
-    .filter(e => !jaOfertados.has(e.id) && !ocupados.has(e.id))
+    .filter(e => !jaOfertados.has(e.id) && !ocupados.has(e.id) && !excluir.includes(e.id))
     .map(e => ({
       ...e,
       dist: distanciaKm(

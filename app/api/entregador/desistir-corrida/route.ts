@@ -3,6 +3,9 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
+import { ofertarProximoEntregador } from '../../../lib/dispatch'
+import { RAIO_BUSCA_KM } from '../../../lib/entregadores'
+import { dispatchPushPedido } from '../../../lib/pushDispatch'
 
 // Entregador desiste de uma corrida ACEITA, devolvendo o pedido ao pool.
 // So e permitido ANTES de pegar o pedido: status 'recebido'. A partir de
@@ -30,7 +33,7 @@ export async function POST(request: NextRequest) {
   if (!entregador) return NextResponse.json({ error: 'Perfil de entregador não encontrado' }, { status: 403 })
 
   const { data: pedido } = await admin
-    .from('pedidos_clientes').select('id, entregador_id, status, lote_entrega_id').eq('id', pedido_id).single()
+    .from('pedidos_clientes').select('id, loja_id, entregador_id, status, lote_entrega_id').eq('id', pedido_id).single()
   if (!pedido) return NextResponse.json({ error: 'Pedido não encontrado' }, { status: 404 })
   if (pedido.entregador_id !== entregador.id) return NextResponse.json({ error: 'Este pedido não é seu.' }, { status: 403 })
   if (pedido.status !== 'recebido') {
@@ -56,6 +59,33 @@ export async function POST(request: NextRequest) {
   // Encerra a oferta aceita deste entregador (nao sera re-ofertado o mesmo).
   await admin.from('corrida_ofertas').update({ status: 'expirada' })
     .eq('pedido_id', pedido_id).eq('entregador_id', entregador.id).eq('status', 'aceita')
+
+  // Redespacho imediato + aviso a loja (best-effort: a desistencia ja valeu).
+  // Sem isto o pedido so voltava a andar quando o watchdog rodasse — e ele so
+  // roda com a aba /pedidos da loja ou a tela do cliente abertas.
+  try {
+    const { data: loja } = await admin
+      .from('lojas').select('id, user_id, latitude, longitude, delivery_ativo').eq('id', pedido.loja_id).single()
+    if (loja) {
+      let texto = 'Procurando outro entregador.'
+      if (loja.delivery_ativo !== false) {
+        const r = await ofertarProximoEntregador(admin, pedido_id, loja, [entregador.id])
+        if (r.tipo === 'ofertado' || r.tipo === 'esperando') texto = `Corrida oferecida a ${r.entregador.nome}.`
+        else if (r.tipo === 'esgotado') texto = `Nenhum outro entregador disponível num raio de ${RAIO_BUSCA_KM} km agora — continuamos tentando.`
+      }
+      await admin.from('notificacoes').insert({
+        user_id: loja.user_id,
+        tipo: 'despacho',
+        titulo: 'Entregador desistiu da corrida',
+        mensagem: texto,
+        link: '/pedidos',
+        dados: { pedido_id, motivo: 'desistencia' },
+      })
+      await dispatchPushPedido(admin, pedido_id)
+    }
+  } catch (e) {
+    console.error('[desistir-corrida] redespacho/aviso falhou:', e)
+  }
 
   return NextResponse.json({ ok: true })
 }
