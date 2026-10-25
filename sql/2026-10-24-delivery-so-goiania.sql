@@ -21,7 +21,8 @@
 -- antes — senão um Pix pago de outra cidade que chegue depois daqui fica
 -- cobrado e sem pedido.
 --
--- STATUS: NÃO APLICADO — aguardando aprovação.
+-- STATUS: APLICADO em produção em 2026-10-25 04:53 UTC (via MCP). Conferido: __global__=false, goiania=true;
+-- vitrine em prod: Burger House delivery_liberado=true, as 4 lojas de outras cidades false.
 
 begin;
 
