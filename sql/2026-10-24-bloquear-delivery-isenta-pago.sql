@@ -17,7 +17,7 @@
 --   antes:  07d5a8536471bb28d38758fea9d3ba67
 --   depois: 82a6b2d00b4388f320728c0ca31c0092 (calculado sem aplicar)
 --
--- STATUS: NÃO APLICADO — aguardando aprovação.
+-- STATUS: APLICADO em produção em 2026-10-25 (via MCP); md5 depois conferido = 82a6b2d00b4388f320728c0ca31c0092.
 
 do $$
 declare

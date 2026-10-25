@@ -13,9 +13,9 @@
 -- Aplicado sobre o CORPO VIVO com replace() (regra 5 do CLAUDE.md), travado
 -- pelo md5 de pg_get_functiondef conferido em 2026-10-22:
 --   antes:  5e0c0747ec3af7195cedd8ff52beefc4
---   depois: (preencher após aplicar)
+--   depois: 4a24f2aff4499e2b3ed5a379a392127f
 --
--- STATUS: NÃO APLICADO — aguardando aprovação.
+-- STATUS: APLICADO em produção em 2026-10-25 (via MCP), md5 antes e depois conferidos.
 
 do $$
 declare
