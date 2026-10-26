@@ -10,7 +10,7 @@
 // quebra links já enviados a clientes; título e texto são livres.
 // ============================================================================
 
-import { PRECO_NORMAL, PRECO_FUNDADOR, VAGAS_FUNDADOR, DESCONTO_MAX, brl } from './precos'
+import { PRECO_NORMAL, PRECO_FUNDADOR, MESES_FUNDADOR, VAGAS_FUNDADOR, DESCONTO_MAX, brl } from './precos'
 import { RAIO_BUSCA_KM, TEMPO_RESPOSTA_CORRIDA_S } from './entregadores'
 import { PONTOS_POR_REAL, PONTOS_POR_BLOCO, DESCONTO_POR_BLOCO } from './fidelidade'
 import { TOLERANCIA_MIN, DESCONTO_PCT, VALIDADE_DIAS } from './garantia'
@@ -131,7 +131,7 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
         id: 'quanto-custa',
         pergunta: 'Quanto custa a Commerly?',
         resposta:
-          `A assinatura do comerciante custa ${brl(PRECO_NORMAL)} por mês, sem fidelidade. Os ${VAGAS_FUNDADOR} primeiros comerciantes (programa Fundadores) pagam ${brl(PRECO_FUNDADOR)} por mês, preço travado para sempre.\n\nPara clientes e entregadores o uso é gratuito. Fornecedores também não pagam mensalidade.`,
+          `A assinatura do comerciante custa ${brl(PRECO_NORMAL)} por mês, sem fidelidade. Os ${VAGAS_FUNDADOR} primeiros comerciantes (programa Fundadores) pagam ${brl(PRECO_FUNDADOR)} por mês nos ${MESES_FUNDADOR} primeiros meses de assinatura; depois, ${brl(PRECO_NORMAL)} por mês.\n\nPara clientes e entregadores o uso é gratuito. Fornecedores também não pagam mensalidade.`,
         tags: ['preco', 'valor', 'mensalidade', 'assinatura', 'plano'],
         publico: ['comerciante'],
         link: { label: 'Ver planos', href: '/planos' },

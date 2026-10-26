@@ -35,9 +35,11 @@ function constante(nome) {
   if (!m) throw new Error(`Não achei ${nome} em app/lib/precos.ts`)
   return Number(m[1])
 }
+// Só o Price normal: o preço fundador virou cupom de 2 meses sobre ele
+// (app/lib/stripeMensalidade.ts → garantirCupomFundador), criado no checkout.
+// O Price `commerly_mensal_fundador` (R$29,90 para sempre) não é mais usado.
 const TIERS = [
   { tier: 'normal', lookup: 'commerly_mensal_normal', nome: 'Commerly — Mensalidade', valor: constante('PRECO_NORMAL'), env: 'STRIPE_PRICE_NORMAL' },
-  { tier: 'fundador', lookup: 'commerly_mensal_fundador', nome: 'Commerly — Mensalidade (Fundador)', valor: constante('PRECO_FUNDADOR'), env: 'STRIPE_PRICE_FUNDADOR' },
 ]
 
 const stripe = new Stripe(chave)

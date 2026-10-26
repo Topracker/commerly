@@ -220,6 +220,23 @@ export async function POST(request: NextRequest) {
       .update({ plano: 'ativo', stripe_subscription_id: subscriptionId })
       .eq('id', lojaId)
 
+    // Assinou com o preço fundador: marca, para sempre, que os 2 meses foram
+    // usados (cancelar e assinar de novo já não leva o cupom). Só a 1ª marca
+    // conta — reentrega da Stripe não mexe na data.
+    if (session.metadata?.fundador_promo === '1') {
+      const { data: marcada, error: promoErr } = await supabase
+        .from('lojas')
+        .update({ fundador_promo_em: new Date().toISOString() })
+        .eq('id', lojaId)
+        .is('fundador_promo_em', null)
+        .select('id')
+      if (promoErr) {
+        console.error('[stripe/webhook] falha ao marcar o preço fundador:', promoErr.message)
+        return NextResponse.json({ ok: false }, { status: 500 }) // Stripe re-tenta
+      }
+      if (marcada?.length) console.log(`[stripe/webhook] loja ${lojaId} usou o preço fundador`)
+    }
+
     // Assinou = a indicação que trouxe esta loja vira confirmada e o desconto
     // de quem indicou sobe uma faixa. Idempotente (ver lib/indicacaoDesconto).
     await confirmarIndicacaoDaLoja(supabase, stripe, { lojaId })

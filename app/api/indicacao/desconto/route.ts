@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { supabaseDaRota, usuarioDaRota } from '../../../lib/rotaSupabase'
 import { descontoDoIndicador } from '../../../lib/indicacaoDesconto'
-import { precoBase, precoComDesconto, pctIndicacoes } from '../../../lib/precos'
+import { PRECO_NORMAL, precoComDesconto, pctIndicacoes } from '../../../lib/precos'
 
 export const runtime = 'nodejs'
 
@@ -21,7 +21,9 @@ export async function GET() {
 
   // Quantas indicações faltam para a próxima faixa (null quando está no teto).
   const proximaPct = pctIndicacoes(confirmadas + 1)
-  const base = precoBase(loja?.fundador)
+  // Indicação incide sobre o preço normal; o preço fundador (2 meses) é à
+  // parte e não acumula — a /planos mostra os dois.
+  const base = PRECO_NORMAL
 
   return NextResponse.json({
     confirmadas,

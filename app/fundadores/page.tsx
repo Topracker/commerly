@@ -5,11 +5,11 @@ import { createAdminClient } from '../lib/supabase-admin'
 import { flagAtiva } from '../lib/featureFlags'
 import { idsLojasOcultas } from '../lib/lojasOcultas'
 import { Check, Store } from 'lucide-react'
-import { VAGAS_FUNDADOR, PRECO_FUNDADOR, PRECO_NORMAL, brl } from '../lib/precos'
+import { VAGAS_FUNDADOR, PRECO_FUNDADOR, PRECO_NORMAL, MESES_FUNDADOR, brl } from '../lib/precos'
 
 export const metadata: Metadata = {
-  title: 'Programa Fundadores — os 100 primeiros comerciantes',
-  description: 'Os 100 primeiros comerciantes da Commerly ganham selo Fundador, R$ 29,90/mês para sempre, prioridade no suporte e reconhecimento permanente.',
+  title: `Programa Fundadores — os ${VAGAS_FUNDADOR} primeiros comerciantes`,
+  description: `Os ${VAGAS_FUNDADOR} primeiros comerciantes da Commerly ganham selo Fundador, ${brl(PRECO_FUNDADOR)}/mês nos ${MESES_FUNDADOR} primeiros meses de assinatura (depois ${brl(PRECO_NORMAL)}/mês), prioridade no suporte e reconhecimento permanente.`,
   alternates: { canonical: '/fundadores' },
 }
 
@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic'
 const TOTAL_VAGAS = VAGAS_FUNDADOR
 const BENEFICIOS = [
   'Selo “Fundador” permanente no perfil',
-  `${brl(PRECO_FUNDADOR)}/mês para sempre (preço travado) — o normal é ${brl(PRECO_NORMAL)}`,
+  `${brl(PRECO_FUNDADOR)}/mês nos ${MESES_FUNDADOR} primeiros meses de assinatura — depois, ${brl(PRECO_NORMAL)}/mês`,
   'Destaque especial na busca e no app',
   'Prioridade no suporte',
   'Acesso antecipado a novas features',
@@ -46,8 +46,11 @@ export default async function Fundadores() {
     )
   }
 
-  const { data: fund } = await admin
-    .from('fundadores').select('loja_id, ordem, cidade, created_at').order('ordem', { ascending: true }).limit(VAGAS_FUNDADOR)
+  const [{ data: fund }, { count: vagasOcupadas }] = await Promise.all([
+    admin.from('fundadores').select('loja_id, ordem, cidade, created_at').order('ordem', { ascending: true }).limit(VAGAS_FUNDADOR),
+    // Registro permanente das vagas: loja apagada continua ocupando a sua.
+    admin.from('fundador_vagas').select('ordem', { count: 'exact', head: true }),
+  ])
 
   // Vaga ocupada por loja de teste continua contando (preenchidas), só não é exibida.
   const ocultas = await idsLojasOcultas(admin)
@@ -57,12 +60,15 @@ export default async function Fundadores() {
     const { data } = await admin.from('lojas_publicas').select('id, nome, tipo, fotos_fachada').in('id', lojaIds)
     for (const l of data || []) lojas[l.id] = l as any
   }
-  const preenchidas = fund?.length || 0
+  // A barra conta as vagas (100 primeiros cadastros); a vitrine abaixo mostra
+  // os premiados nº 1..3 (tabela `fundadores`) — são coisas diferentes.
+  const preenchidas = Math.min(vagasOcupadas ?? 0, TOTAL_VAGAS)
+  const vitrine = (fund || []).filter(f => !ocultas.has(f.loja_id))
 
   return (
     <MarketingShell
       eyebrow="Programa Fundadores"
-      titulo="Os 100 primeiros. Para sempre."
+      titulo={`Os ${TOTAL_VAGAS} primeiros comerciantes.`}
       subtitulo="Quem chega primeiro constrói a Commerly com a gente — e nunca é esquecido."
       cta={{ href: '/login', label: 'Quero ser fundador' }}
     >
@@ -81,7 +87,7 @@ export default async function Fundadores() {
         </ul>
       </MCard>
 
-      {preenchidas === 0 ? (
+      {vitrine.length === 0 ? (
         <MCard className="text-center py-10">
           <p className="text-4xl mb-2">🏅</p>
           <p className="text-white font-semibold">As vagas de fundador estão abertas</p>
@@ -90,7 +96,7 @@ export default async function Fundadores() {
         </MCard>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {(fund || []).filter(f => !ocultas.has(f.loja_id)).map(f => {
+          {vitrine.map(f => {
             const l = lojas[f.loja_id]
             return (
               <div key={f.loja_id} className="bg-card border border-borda rounded-2xl overflow-hidden">

@@ -3,7 +3,7 @@ import { diaLoja, somarDias } from '../../../lib/datas'
 import { exigirAdminAuditado } from '../../../lib/admin'
 import { getFlags } from '../../../lib/featureFlags'
 import { situacaoPlano } from '../../../lib/plano'
-import { precoBase, precoComDesconto, pctIndicacoes } from '../../../lib/precos'
+import { PRECO_FUNDADOR, PRECO_NORMAL, emPromoFundador, precoComDesconto, pctIndicacoes } from '../../../lib/precos'
 import { COMISSAO_PCT } from '../../../lib/b2b'
 
 export const runtime = 'nodejs'
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     // ── Novas consultas (auditoria 2026-09-18) ──────────────────────────────
     // TODAS as lojas: é o mapa loja -> cidade/plano. Sem .limit() de propósito
     // (era o bug nº 2 lá de cima).
-    admin.from('lojas').select('id, user_id, nome, plano, fundador, trial_expira_em, cidade_slug, created_at'),
+    admin.from('lojas').select('id, user_id, nome, plano, fundador, fundador_promo_em, trial_expira_em, cidade_slug, created_at'),
     admin.from('pedidos_clientes').select('total, created_at, status').neq('status', 'cancelado').limit(10000),
     admin.from('indicacoes').select('indicador_user_id, assinou_em'),
     admin.from('pedidos').select('comissao, total').eq('pagamento_status', 'pago'),
@@ -150,9 +150,10 @@ export async function GET(request: NextRequest) {
   let semAssinatura = 0
   const ativas = lojas.filter(l => situacaoPlano(l as any).assinante)
   for (const l of ativas) {
-    const base = precoBase(l.fundador)
+    // Nos 2 meses de fundador cobra-se o promocional (não acumula com indicação).
+    if (emPromoFundador(l)) { mrrEstimado += PRECO_FUNDADOR; continue }
     const pct = pctIndicacoes(indicacoesPorUser[l.user_id] || 0)
-    mrrEstimado += precoComDesconto(base, pct)
+    mrrEstimado += precoComDesconto(PRECO_NORMAL, pct)
   }
   mrrEstimado = Math.round(mrrEstimado * 100) / 100
 

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'crypto'
 import { createAdminClient } from '../../../lib/supabase-admin'
-import { PRECO_NORMAL } from '../../../lib/precos'
+import { MESES_FUNDADOR, PRECO_NORMAL } from '../../../lib/precos'
 
-const CICLOS_PROMO = 2
+const CICLOS_PROMO = MESES_FUNDADOR
 
 export async function POST(request: NextRequest) {
   const rawBody = await request.text()
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
   const { data: loja } = await supabase
     .from('lojas')
-    .select('fundador, assinatura_ciclos')
+    .select('fundador, fundador_promo_em, assinatura_ciclos')
     .eq('id', lojaId)
     .single()
 
@@ -80,6 +80,9 @@ export async function POST(request: NextRequest) {
       plano: 'ativo',
       mp_assinatura_id: pagamento.subscription_id,
       assinatura_ciclos: novosCiclos,
+      // 1º pagamento de um fundador que ainda não usou o preço promocional
+      // (o /assinar só cobra 29,90 nesse caso): marca o uso, para sempre.
+      ...(loja.fundador && !loja.fundador_promo_em ? { fundador_promo_em: new Date().toISOString() } : {}),
     })
     .eq('id', lojaId)
 

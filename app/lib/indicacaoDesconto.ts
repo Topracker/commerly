@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type Stripe from 'stripe'
-import { pctIndicacoes, precoBase, precoComDesconto, brl } from './precos'
+import { PRECO_NORMAL, emPromoFundador, fimPromoFundador, pctIndicacoes, precoComDesconto, brl } from './precos'
+import { formatarData } from './datas'
 import { aplicarDescontoAssinatura } from './stripeMensalidade'
 
 // ============================================================================
@@ -85,7 +86,7 @@ export async function confirmarIndicacaoAssinatura(
 
   // Loja do indicador (para aplicar o cupom) e nome de quem assinou.
   const [{ data: lojaIndicador }, { data: lojaIndicado }] = await Promise.all([
-    admin.from('lojas').select('id, fundador, stripe_subscription_id').eq('user_id', ind.indicador_user_id).maybeSingle(),
+    admin.from('lojas').select('id, fundador, fundador_promo_em, stripe_subscription_id').eq('user_id', ind.indicador_user_id).maybeSingle(),
     admin.from('lojas').select('nome').eq('user_id', indicadoUserId).maybeSingle(),
   ])
 
@@ -100,13 +101,20 @@ export async function confirmarIndicacaoAssinatura(
   }
 
   const nome = lojaIndicado?.nome || 'Sua indicação'
-  const novoPreco = precoComDesconto(precoBase(lojaIndicador?.fundador), pct)
+  // O desconto incide sobre o preço normal. Fundador ainda nos meses de preço
+  // fundador já paga menos que isso — os dois não acumulam, então o desconto
+  // da indicação passa a valer quando a promoção acabar.
+  const novoPreco = precoComDesconto(PRECO_NORMAL, pct)
+  const fimPromo = emPromoFundador(lojaIndicador) ? fimPromoFundador(lojaIndicador) : null
+  const quando = fimPromo
+    ? `quando o preço de fundador acabar (${formatarData(fimPromo.toISOString())}), sua mensalidade fica em ${brl(novoPreco)}`
+    : `sua mensalidade cai para ${brl(novoPreco)}`
 
   await admin.from('notificacoes').insert({
     user_id: ind.indicador_user_id,
     tipo: 'convite',
     titulo: '🎉 Sua indicação assinou!',
-    mensagem: `Sua indicação ${nome} assinou! Você agora tem ${pct}% de desconto — sua mensalidade cai para ${brl(novoPreco)}.`,
+    mensagem: `Sua indicação ${nome} assinou! Você agora tem ${pct}% de desconto — ${quando}.`,
     link: '/embaixador',
     dados: { codigo: ind.codigo, confirmadas, pct },
   })

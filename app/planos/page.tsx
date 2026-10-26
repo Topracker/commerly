@@ -5,7 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../supabase'
 import { CheckCircle, Clock, Zap } from 'lucide-react'
 
-import { PRECO_FUNDADOR, PRECO_NORMAL, brl, tabelaDescontos } from '../lib/precos'
+import {
+  MESES_FUNDADOR, PRECO_FUNDADOR, PRECO_NORMAL, brl, emPromoFundador, fimPromoFundador,
+  promoFundadorDisponivel, tabelaDescontos,
+} from '../lib/precos'
 import { situacaoPlano } from '../lib/plano'
 
 function PlanosConteudo() {
@@ -28,7 +31,7 @@ function PlanosConteudo() {
       if (!user) { setLoading(false); return }
       const { data } = await supabase
         .from('lojas')
-        .select('id, nome, plano, fundador, stripe_subscription_id, trial_expira_em')
+        .select('id, nome, plano, fundador, fundador_promo_em, stripe_subscription_id, trial_expira_em')
         .eq('user_id', user.id)
         .maybeSingle()
       setLoja(data)
@@ -67,14 +70,17 @@ function PlanosConteudo() {
   const situacao = situacaoPlano(loja)
   const planoAtivo = situacao.assinante
   const emTeste = situacao.emTeste
-  const ehFundador = !!loja?.fundador
-  // Base = preço do plano (fundador tem o preço travado). Sobre ela ainda pode
-  // incidir o desconto por indicação, que vem do servidor.
-  const base = ehFundador ? PRECO_FUNDADOR : PRECO_NORMAL
+  // Preço fundador: PRECO_FUNDADOR só nos MESES_FUNDADOR primeiros meses da
+  // 1ª assinatura. "Disponível" = ainda vai usar; "vigente" = já está usando.
+  // Não acumula com indicação: nesses meses vale o fundador; depois, o normal
+  // com o desconto por indicação (que vem do servidor).
+  const promoDisponivel = promoFundadorDisponivel(loja)
+  const fimPromo = emPromoFundador(loja) ? fimPromoFundador(loja) : null
+  const precoFundadorAgora = promoDisponivel || !!fimPromo
   const pctIndic = desconto?.pct ?? 0
-  const precoFinal = desconto?.preco ?? base
+  const precoPosPromo = desconto?.preco ?? PRECO_NORMAL
+  const precoFinal = precoFundadorAgora ? PRECO_FUNDADOR : precoPosPromo
   const precoAtual = brl(precoFinal)
-  const offFundador = Math.round((1 - PRECO_FUNDADOR / PRECO_NORMAL) * 100)
 
   const FEATURES = [
     'Dashboard completo com gráficos',
@@ -144,17 +150,21 @@ function PlanosConteudo() {
               <h2 className="text-white font-bold">Acesso completo</h2>
             </div>
             <div className="text-right">
-              {!loading && (ehFundador || pctIndic > 0) && (
+              {!loading && precoFinal < PRECO_NORMAL && (
                 <div className="flex items-center gap-2 justify-end">
-                  <span className="text-gray-500 text-sm line-through">{brl(ehFundador ? PRECO_NORMAL : base)}</span>
+                  <span className="text-gray-500 text-sm line-through">{brl(PRECO_NORMAL)}</span>
                   <span className="bg-green-600 text-white text-xs font-bold px-1.5 py-0.5 rounded">
-                    -{ehFundador && pctIndic === 0 ? offFundador : Math.round((1 - precoFinal / PRECO_NORMAL) * 100)}%
+                    -{Math.round((1 - precoFinal / PRECO_NORMAL) * 100)}%
                   </span>
                 </div>
               )}
               <p className="text-2xl font-bold text-white">{loading ? '—' : precoAtual}</p>
               <p className="text-gray-400 text-xs">
-                /mês{ehFundador ? ' — preço fundador' : ''}{pctIndic > 0 ? ` · ${pctIndic}% off por indicação` : ''}
+                {promoDisponivel
+                  ? `/mês nos ${MESES_FUNDADOR} primeiros meses — preço fundador; depois ${brl(precoPosPromo)}/mês`
+                  : fimPromo
+                    ? `/mês — preço fundador até ${formatarData(fimPromo.toISOString())}; depois ${brl(precoPosPromo)}/mês`
+                    : `/mês${pctIndic > 0 ? ` · ${pctIndic}% off por indicação` : ''}`}
               </p>
             </div>
           </div>
@@ -215,7 +225,9 @@ function PlanosConteudo() {
                 disabled={assinando}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl transition text-sm"
               >
-                {assinando ? 'Redirecionando...' : `Assinar por ${precoAtual}/mês via Stripe`}
+                {assinando
+                  ? 'Redirecionando...'
+                  : `Assinar por ${precoAtual}/mês${promoDisponivel ? ` (${MESES_FUNDADOR} primeiros meses)` : ''} via Stripe`}
               </button>
             )
           )}
@@ -233,7 +245,7 @@ function PlanosConteudo() {
               mensalidade — até 40%. Quem entra pelo seu convite ganha o mesmo desconto na primeira assinatura.
             </p>
             <ul className="flex flex-col gap-1">
-              {tabelaDescontos(base).map(f => {
+              {tabelaDescontos(PRECO_NORMAL).map(f => {
                 const atual = (desconto?.confirmadas ?? 0) === f.indicacoes
                   || (f.ultimo && (desconto?.confirmadas ?? 0) > f.indicacoes)
                 return (

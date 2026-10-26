@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { exigirAdminAuditado } from '../../../lib/admin'
+import { idCupomDoDesconto } from '../../../lib/stripeMensalidade'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
     const lista = await stripe.subscriptions.list({
       status: 'all',
       limit: 100,
-      expand: ['data.items.data.price'],
+      expand: ['data.items.data.price', 'data.discounts'],
     })
 
     const resumo = {
@@ -100,8 +101,13 @@ export async function GET(request: NextRequest) {
         else {
           resumo.mensalidade.ativas++
           resumo.mensalidade.mrr += mensal
+          // Fundador = assinatura ainda com o cupom de 2 meses (o Price é o
+          // normal). O lookup `..._fundador` é do Price antigo, que cobrava
+          // R$29,90 para sempre — continua contando se alguém ainda estiver nele.
           const lookup = (sub.items?.data?.[0]?.price as any)?.lookup_key || ''
-          if (lookup.includes('fundador')) resumo.mensalidade.fundador++
+          const cupomFundador = (sub.discounts || [])
+            .some(d => idCupomDoDesconto(d)?.startsWith('commerly_fundador_'))
+          if (cupomFundador || lookup.includes('fundador')) resumo.mensalidade.fundador++
           else resumo.mensalidade.normal++
         }
       }

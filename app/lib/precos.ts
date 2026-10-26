@@ -6,6 +6,12 @@
 // `lib/stripeMensalidade.ts` — não existe "preço do painel da Stripe" que
 // divirja do preço do código.
 //
+// Programa Fundadores: as 100 primeiras lojas cadastradas pagam PRECO_FUNDADOR
+// só nas MESES_FUNDADOR primeiras cobranças da 1ª assinatura; depois, o preço
+// normal. Na Stripe isso é um cupom `repeating` sobre o Price normal — não
+// existe Price de fundador. O uso fica marcado em `lojas.fundador_promo_em`
+// (permanente: cancelar e assinar de novo não repete o benefício).
+//
 // Desconto por indicação: quem indica ganha 10% por indicação CONFIRMADA
 // (= o indicado assinou), até 40%. Quem entrou pelo convite ganha, na primeira
 // assinatura, o mesmo percentual que o indicador tinha na hora de assinar.
@@ -13,8 +19,10 @@
 
 /** Mensalidade cheia. */
 export const PRECO_NORMAL = 54.90
-/** Preço travado dos primeiros comerciantes (para sempre). */
+/** Preço promocional do programa Fundadores (só nos primeiros meses). */
 export const PRECO_FUNDADOR = 29.90
+/** Quantas cobranças mensais o preço fundador cobre; depois, PRECO_NORMAL. */
+export const MESES_FUNDADOR = 2
 /** Quantas vagas o programa Fundadores tem. */
 export const VAGAS_FUNDADOR = 100
 
@@ -39,9 +47,25 @@ export function precoComDesconto(base: number, pct: number): number {
   return Math.round(centavos(base) * (100 - pct) / 100) / 100
 }
 
-/** Mensalidade da loja conforme o programa Fundadores. */
-export function precoBase(fundador: boolean | null | undefined): number {
-  return fundador ? PRECO_FUNDADOR : PRECO_NORMAL
+type LojaFundador = { fundador?: boolean | null; fundador_promo_em?: string | null }
+
+/** Fundador que ainda não usou os meses de preço fundador (vale na próxima assinatura). */
+export function promoFundadorDisponivel(loja: LojaFundador | null | undefined): boolean {
+  return !!loja?.fundador && !loja.fundador_promo_em
+}
+
+/** Até quando vai o preço fundador de quem já assinou com ele (null se nunca usou). */
+export function fimPromoFundador(loja: LojaFundador | null | undefined): Date | null {
+  if (!loja?.fundador || !loja.fundador_promo_em) return null
+  const fim = new Date(loja.fundador_promo_em)
+  fim.setMonth(fim.getMonth() + MESES_FUNDADOR)
+  return fim
+}
+
+/** A loja está, agora, dentro dos meses de preço fundador. */
+export function emPromoFundador(loja: LojaFundador | null | undefined, agora: Date = new Date()): boolean {
+  const fim = fimPromoFundador(loja)
+  return !!fim && agora < fim
 }
 
 /** "R$ 54,90" */

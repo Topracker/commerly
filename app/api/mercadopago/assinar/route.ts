@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { precoBase } from '../../../lib/precos'
+import { PRECO_FUNDADOR, PRECO_NORMAL, promoFundadorDisponivel } from '../../../lib/precos'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { rateLimit } from '../../../lib/rate-limit'
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
   const { data: loja } = await supabase
     .from('lojas')
-    .select('id, fundador, plano')
+    .select('id, fundador, fundador_promo_em, plano')
     .eq('user_id', user.id)
     .single()
 
@@ -37,7 +37,9 @@ export async function GET(request: NextRequest) {
   // Já tem plano ativo — não cria nova assinatura
   if (loja.plano === 'ativo') return NextResponse.redirect(new URL('/planos', request.url))
 
-  const preco = precoBase(loja.fundador)
+  // Fundador que ainda não usou os 2 meses começa no promocional; o webhook
+  // marca o uso no 1º pagamento e sobe para PRECO_NORMAL no 2º ciclo.
+  const preco = promoFundadorDisponivel(loja) ? PRECO_FUNDADOR : PRECO_NORMAL
 
   // Em ambiente de teste (token TEST-...), o MP recusa pagamento quando o
   // payer_email é o mesmo da conta dona do token ("pagar para si mesmo").
