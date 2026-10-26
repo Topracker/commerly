@@ -7,6 +7,7 @@ import { NotificacaoToast } from './NotificacaoToast'
 import { TemaControle } from './TemaControle'
 import { Search, Heart, MessageCircle, User, Menu, X, Trophy, ShoppingBag, Bell, Sparkles, Rss, PartyPopper } from 'lucide-react'
 import BotaoSair from './BotaoSair'
+import { useFlags } from '../lib/useFlags'
 
 const MENU = [
   { label: 'Feed', path: '/cliente/feed', icon: Rss },
@@ -45,6 +46,11 @@ export function ClienteLayout({
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
+  // Modo Festa some do menu com a chave `modo_festa` ou `cliente` desligada
+  // (as rotas de festa respondem 503 — ver api/festa/_lib.ts).
+  const { ativa } = useFlags()
+  const festaLigada = ativa('modo_festa') && ativa('cliente')
+  const menu = festaLigada ? MENU : MENU.filter(i => i.path !== '/cliente/festa')
 
   useEffect(() => {
     if (!cliente?.id) return
@@ -74,7 +80,7 @@ export function ClienteLayout({
         </div>
         <TemaControle alinhamento="esquerda" />
       </div>
-      {MENU.map(item => {
+      {menu.map(item => {
         const ativo = pathname === item.path ||
           (item.path === '/cliente/mensagens' && pathname.startsWith('/cliente/mensagens')) ||
           (item.path === '/cliente/festa' && pathname.startsWith('/cliente/festa'))

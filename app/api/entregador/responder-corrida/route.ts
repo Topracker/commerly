@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
+import { moduloAtivo, respostaModuloPausado } from '../../../lib/featureFlags'
 
 // Entregador aceita ou recusa uma oferta de corrida (modelo Uber). Roda com
 // service role para atribuir o pedido de forma atomica (so se ainda estiver
@@ -47,6 +48,10 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Aceite ──────────────────────────────────────────────────────────────
+  // Chave `entregador` desligada: não pega corrida nova (a recusa acima fica
+  // livre). A oferta segue pendente e expira sozinha nos 30 s.
+  if (!(await moduloAtivo('entregador', admin))) return respostaModuloPausado('entregador')
+
   if (new Date(oferta.expira_em).getTime() <= Date.now()) {
     await admin.from('corrida_ofertas').update({ status: 'expirada' }).eq('id', oferta_id).eq('status', 'pendente')
     return NextResponse.json({ error: 'A oferta expirou.' }, { status: 409 })

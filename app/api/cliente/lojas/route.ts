@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { idsLojasOcultas, semOcultas } from '../../../lib/lojasOcultas'
+import { MSG_PAUSA, moduloAtivo } from '../../../lib/featureFlags'
 
 // Lista/detalha as lojas públicas para o cliente (marketplace).
 //
@@ -66,6 +67,16 @@ export async function GET(request: NextRequest) {
   const admin = createAdminClient()
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
+
+  // Chave `cliente` desligada: a vitrine some (lista vazia / loja indisponível
+  // + aviso), sem 503 — as telas já tratam lista vazia. Pedidos em andamento
+  // continuam em /cliente/pedidos, que não passa por aqui.
+  if (!(await moduloAtivo('cliente', admin))) {
+    const pausa = { aviso: MSG_PAUSA.cliente, modulo_pausado: 'cliente' }
+    return id
+      ? NextResponse.json({ loja: null, indisponivel: true, ...pausa }, { status: 404 })
+      : NextResponse.json({ lojas: [], ...pausa })
+  }
 
   // Detalhe de uma loja.
   if (id) {

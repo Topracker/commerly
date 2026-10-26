@@ -71,7 +71,8 @@ export async function despachoLiberado(cidadeSlug: string | null | undefined, cl
   return delivery && entregador
 }
 
-const MSG_PAUSA: Record<ModuloGlobal, string> = {
+/** Texto do aviso de módulo pausado (503 das rotas e faixa das listas vazias). */
+export const MSG_PAUSA: Record<ModuloGlobal, string> = {
   cliente: 'A área do cliente está pausada no momento. Pedidos em andamento continuam normalmente.',
   entregador: 'A rede de entregadores está pausada no momento. Corridas em andamento continuam normalmente.',
   fornecedor: 'As compras de fornecedores estão pausadas no momento. Pedidos já feitos continuam normalmente.',

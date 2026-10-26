@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
 import { enviarEmail, templateResetSenha } from '../../../lib/email'
+import { formatarHora } from '../../../lib/datas'
 
 // Fluxo PRÓPRIO de reset de senha — não usa o e-mail nem o template do Supabase.
 //
@@ -90,7 +91,9 @@ export async function POST(req: NextRequest) {
   const { html, texto } = templateResetSenha(link)
   const envio = await enviarEmail({
     para: emailBruto,
-    assunto: 'Redefinir sua senha — Commerly',
+    // Hora no assunto: dois pedidos seguidos com o mesmo assunto viravam uma
+    // conversa só no Gmail, e o clique ia no link antigo (já consumido).
+    assunto: `Redefinir sua senha — Commerly (${formatarHora(new Date())})`,
     html,
     texto,
   })

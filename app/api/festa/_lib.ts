@@ -1,8 +1,9 @@
 import 'server-only'
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../lib/supabase-admin'
+import { flagAtiva, moduloAtivo, respostaModuloPausado } from '../../lib/featureFlags'
 
 // Autenticação compartilhada das rotas de festa: resolve o cliente dono da
 // sessão. Todas as rotas de festa rodam com service role (as tabelas têm RLS
@@ -31,6 +32,25 @@ export async function autenticarCliente(): Promise<
   if (!cliente) return { ok: false, status: 403, error: 'Perfil de cliente não encontrado.' }
 
   return { ok: true, ctx: { admin, cliente } }
+}
+
+/**
+ * Rotas que COMEÇAM ou montam uma festa (criar, entrar, carrinho, cupons)
+ * respondem 503 se a chave `cliente` ou a `modo_festa` estiver desligada.
+ * `modo_festa` é lida no escopo global (cliente não tem cidade). Ficam de fora
+ * de propósito: estado/minhas (leitura de festa em curso), fechar/despachar
+ * (pendente de decisão: festa já aberta) e o webhook.
+ */
+export async function festaPausada(admin: FestaCtx['admin']): Promise<NextResponse | null> {
+  const [cliente, festa] = await Promise.all([moduloAtivo('cliente', admin), flagAtiva('modo_festa', null, admin)])
+  if (!cliente) return respostaModuloPausado('cliente')
+  if (!festa) {
+    return NextResponse.json(
+      { error: 'O Modo Festa está pausado no momento. Pedidos já feitos continuam normalmente.', modulo_pausado: 'modo_festa' },
+      { status: 503 },
+    )
+  }
+  return null
 }
 
 export function bodyDe(request: NextRequest): Promise<any> {

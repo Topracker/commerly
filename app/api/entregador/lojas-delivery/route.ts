@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { isDelivery } from '../../../lib/pedidosClientes'
 import { idsLojasOcultas, semOcultas } from '../../../lib/lojasOcultas'
+import { MSG_PAUSA, moduloAtivo } from '../../../lib/featureFlags'
 
 // Lista as lojas de delivery para o entregador solicitar parceria.
 //
@@ -27,6 +28,24 @@ export async function GET(request: NextRequest) {
   const { data: entregador } = await admin
     .from('entregadores').select('id').eq('user_id', user.id).maybeSingle()
   if (!entregador) return NextResponse.json({ error: 'Perfil de entregador não encontrado' }, { status: 403 })
+
+  // Chave `entregador` desligada: nenhuma loja NOVA para pedir parceria (+
+  // aviso). Não pode ser lista vazia: o painel tira desta lista o nome, o
+  // endereço e as coordenadas das lojas das corridas em andamento — esvaziar
+  // quebraria quem está no meio de uma entrega. Ficam só as lojas com que ele
+  // já tem corrida ativa ou parceria.
+  if (!(await moduloAtivo('entregador', admin))) {
+    const [{ data: ativos }, { data: parc }] = await Promise.all([
+      admin.from('pedidos_clientes').select('loja_id')
+        .eq('entregador_id', entregador.id).in('status', ['recebido', 'preparando', 'saiu']),
+      admin.from('entregador_parcerias').select('loja_id').eq('entregador_id', entregador.id),
+    ])
+    const ids = [...new Set([...(ativos || []), ...(parc || [])].map(r => r.loja_id as string))]
+    const { data: suas } = ids.length
+      ? await admin.from('lojas_publicas').select('id, nome, tipo, localizacao, latitude, longitude').in('id', ids)
+      : { data: [] }
+    return NextResponse.json({ lojas: suas || [], aviso: MSG_PAUSA.entregador, modulo_pausado: 'entregador' })
+  }
 
   const [{ data: todas, error }, ocultas] = await Promise.all([
     admin.from('lojas_publicas').select('id, nome, tipo, localizacao, latitude, longitude'),

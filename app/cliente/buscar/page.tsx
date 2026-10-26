@@ -28,6 +28,8 @@ export default function ClienteBuscar() {
   const [busca, setBusca] = useState('')
   const [tipoFiltro, setTipoFiltro] = useState('Todos')
   const [buscando, setBuscando] = useState(false)
+  // Chave `cliente` desligada no admin: a API devolve lista vazia + este aviso.
+  const [avisoPausa, setAvisoPausa] = useState('')
   const [aba, setAba] = useState<'lista' | 'mapa'>('lista')
   const [userPos, setUserPos] = useState<{ latitude: number; longitude: number } | null>(null)
   const [geoStatus, setGeoStatus] = useState<'idle' | 'pedindo' | 'ok' | 'negado'>('idle')
@@ -145,7 +147,7 @@ export default function ClienteBuscar() {
     if (busca.trim()) params.set('busca', busca.trim())
     const base: any[] = await fetch(`/api/cliente/lojas?${params.toString()}`)
       .then(r => (r.ok ? r.json() : { lojas: [] }))
-      .then(d => d.lojas || [])
+      .then(d => { setAvisoPausa(d.aviso || ''); return d.lojas || [] })
       .catch(() => [])
     const ratings = await getRatingsPorLoja(supabase, base.map(l => l.id))
     const comNota = base.map((l: any) => ({
@@ -272,6 +274,12 @@ export default function ClienteBuscar() {
           inteiro continua acessível — inclusive as lojas, por "Ver mesmo
           assim". Quem está fora da área navega; quem tenta pedir é barrado no
           checkout, que relê a mesma flag no servidor. */}
+      {avisoPausa && (
+        <p className="max-w-2xl mx-auto mb-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          {avisoPausa}
+        </p>
+      )}
+
       {cidadeInfo && !cidadeInfo.liberado && !verMesmoAssim ? (
         <div className="max-w-2xl mx-auto flex flex-col gap-3">
           <CidadeIndisponivel info={cidadeInfo} />

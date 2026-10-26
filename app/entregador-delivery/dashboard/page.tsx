@@ -60,6 +60,9 @@ function EntregadorDashboard() {
   const params = useSearchParams()
 
   const [lojas, setLojas] = useState<LojaDelivery[]>([])
+  // Chave `entregador` desligada: a API manda só as lojas que ele já atende +
+  // este aviso, e a seção "Solicitar nova parceria" some.
+  const [avisoModulo, setAvisoModulo] = useState('')
   const [parcerias, setParcerias] = useState<ParceriaEntregador[]>([])
   const [pedidos, setPedidos] = useState<PedidoCliente[]>([])
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([])
@@ -196,6 +199,7 @@ function EntregadorDashboard() {
       .eq('entregador_id', entregador!.id).is('estorna_id', null).order('created_at', { ascending: false }).limit(200)
     setAcertos((acertosRes.data || []) as AcertoComConfirmacoes[])
     setLojas((lojasRes.lojas || []) as LojaDelivery[])
+    setAvisoModulo(lojasRes.aviso || '')
     setParcerias((parceriasRes.data || []) as ParceriaEntregador[])
     setPedidos((pedidosRes.data || []) as PedidoCliente[])
     setAvaliacoes((avalRes.data || []) as Avaliacao[])
@@ -1258,7 +1262,10 @@ function EntregadorDashboard() {
                 })}
               </div>
             )}
-            {lojasSemParceria.length > 0 && (
+            {avisoModulo && (
+              <p className="text-amber-200 text-xs rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 mb-2 mt-1">{avisoModulo}</p>
+            )}
+            {!avisoModulo && lojasSemParceria.length > 0 && (
               <>
                 <p className="text-gray-400 text-xs font-semibold mb-2 mt-1">Solicitar nova parceria</p>
                 <div className="flex flex-col gap-2">

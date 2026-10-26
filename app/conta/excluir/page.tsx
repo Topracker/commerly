@@ -54,6 +54,10 @@ export default function ExcluirContaPage() {
       // Link da página pública: troca o token por sessão UMA vez (verifyOtp consome).
       if (tokenHash && !verificouRef.current) {
         verificouRef.current = true
+        // Tira o token da URL ANTES de consumi-lo: um F5 (ou reload do PWA)
+        // durante a verificação recarregava com o token e falhava como
+        // otp_expired. Já está em `tokenHash`; a URL não precisa mais dele.
+        window.history.replaceState(null, '', '/conta/excluir')
         try {
           const res = await fetch('/api/auth/verificar-recovery', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -62,8 +66,6 @@ export default function ExcluirContaPage() {
           const j = await res.json().catch(() => null)
           if (j?.ok && j?.session) await supabase.auth.setSession(j.session)
         } catch { /* cai na checagem de sessão abaixo */ }
-        // Tira o token da URL: recarregar não pode tentar consumir de novo.
-        window.history.replaceState(null, '', '/conta/excluir')
       }
 
       const { data: { session } } = await supabase.auth.getSession()

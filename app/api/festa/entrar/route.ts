@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { autenticarCliente, bodyDe } from '../_lib'
+import { autenticarCliente, bodyDe, festaPausada } from '../_lib'
 import { rateLimit } from '../../../lib/rate-limit'
 import { normalizarCodigo } from '../../../lib/festas'
 
@@ -9,6 +9,8 @@ export async function POST(request: NextRequest) {
   const auth = await autenticarCliente()
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
   const { admin, cliente } = auth.ctx
+  const pausa = await festaPausada(admin)
+  if (pausa) return pausa
 
   if (!rateLimit(`festa-entrar:${cliente.id}`, 20, 60_000)) {
     return NextResponse.json({ error: 'Muitas tentativas. Aguarde um instante.' }, { status: 429 })

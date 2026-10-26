@@ -6,7 +6,7 @@ import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
 import { distanciaKm, taxaEntregaPorDistancia, taxaComPico } from '../../../lib/geo'
 import { isDelivery } from '../../../lib/pedidosClientes'
-import { flagAtiva } from '../../../lib/featureFlags'
+import { flagAtiva, moduloAtivo, respostaModuloPausado } from '../../../lib/featureFlags'
 import { descontoDePontos, maxPontosResgataveis } from '../../../lib/fidelidade'
 import { calcularFator, aplicarFator, emJanelaDePico } from '../../../lib/precoDinamico'
 import { lojaAberta, msgLojaFechada } from '../../../lib/horario'
@@ -74,6 +74,9 @@ export async function POST(request: NextRequest) {
   if (!(await flagAtiva('delivery', loja.cidade_slug, admin))) {
     return NextResponse.json({ error: 'Delivery indisponível nesta cidade no momento.' }, { status: 409 })
   }
+  // Chave `cliente` desligada: não abre cobrança nova. Sessão da Stripe aberta
+  // antes de desligar ainda vira pedido pelo webhook (que não checa a chave).
+  if (!(await moduloAtivo('cliente', admin))) return respostaModuloPausado('cliente')
   if (!loja.stripe_account_id || !loja.stripe_onboarded) {
     return NextResponse.json({ error: 'Esta loja ainda não aceita pagamento online. Escolha pagar na entrega.' }, { status: 409 })
   }

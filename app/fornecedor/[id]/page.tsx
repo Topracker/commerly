@@ -198,7 +198,8 @@ export default function FornecedorPerfil() {
       })
       const data = await res.json()
       if (!res.ok || !data.url) {
-        mostrarToast(data.erro || 'Falha ao iniciar o pagamento', 'erro')
+        // `error` é o formato do 503 de módulo pausado (featureFlags).
+        mostrarToast(data.erro || data.error || 'Falha ao iniciar o pagamento', 'erro')
         setPagando(null)
         return
       }

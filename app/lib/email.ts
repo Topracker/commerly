@@ -92,6 +92,7 @@ export function templateResetSenha(link: string): { html: string; texto: string 
           <p style="margin:0 0 24px;color:#4b5563;font-size:15px;line-height:1.6;">
             Recebemos um pedido para redefinir a senha da sua conta. Clique no botão
             abaixo para criar uma nova senha. O link é válido por 1 hora.
+            Se você pediu mais de um link, use só o mais recente.
           </p>
           <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
             <tr><td style="background:#2563eb;border-radius:12px;">
@@ -118,6 +119,7 @@ export function templateResetSenha(link: string): { html: string; texto: string 
     '',
     'Recebemos um pedido para redefinir a senha da sua conta.',
     'Abra o endereço abaixo para criar uma nova senha (válido por 1 hora):',
+    'Se você pediu mais de um link, use só o mais recente.',
     '',
     link,
     '',

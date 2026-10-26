@@ -96,6 +96,10 @@ export default function NovaSenha() {
       if (tokenHash) {
         if (!verificouRef.current) {
           verificouRef.current = true
+          // Tira o token da URL ANTES de consumi-lo. Ele continuava lá depois
+          // do sucesso, e qualquer F5, reabertura ou reload do PWA verificava
+          // de novo um token já gasto → otp_expired (log do Auth, 2026-10-26).
+          window.history.replaceState(null, '', '/nova-senha')
           try {
             const res = await fetch('/api/auth/verificar-recovery', {
               method: 'POST',

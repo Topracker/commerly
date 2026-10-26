@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { autenticarCliente } from '../_lib'
+import { autenticarCliente, festaPausada } from '../_lib'
 import type { CupomDoCliente, CupomPrevia } from '../../../lib/cupons'
 
 // Cupons do cliente logado que ainda valem, com a PRÉVIA do rateio numa festa.
@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
   const auth = await autenticarCliente()
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
   const { admin, cliente } = auth.ctx
+  const pausa = await festaPausada(admin)
+  if (pausa) return pausa
 
   const festaId = new URL(request.url).searchParams.get('festa_id')
 

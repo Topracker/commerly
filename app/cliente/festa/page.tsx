@@ -6,6 +6,7 @@ import { ClienteLayout } from '../../components/ClienteLayout'
 import { useToast } from '../../hooks/useToast'
 import { Toast } from '../../components/Toast'
 import { CriarFestaModal } from '../../components/CriarFestaModal'
+import { useFlags } from '../../lib/useFlags'
 import { FESTA_STATUS_META, normalizarCodigo, type FestaStatus } from '../../lib/festas'
 import { PartyPopper, Plus, Users, Ticket, ArrowRight, Crown } from 'lucide-react'
 
@@ -19,6 +20,11 @@ export default function FestasHub() {
   const { cliente, loading, sair } = useCliente()
   const { toast, mostrarToast } = useToast()
   const router = useRouter()
+  // Chave `modo_festa` ou `cliente` desligada: não cria nem entra em festa nova
+  // (as rotas respondem 503). "Minhas festas" continua — festa em andamento
+  // precisa poder ser aberta e fechada.
+  const { ativa } = useFlags()
+  const festaLigada = ativa('modo_festa') && ativa('cliente')
   const [festas, setFestas] = useState<FestaCard[]>([])
   const [carregando, setCarregando] = useState(true)
   const [criar, setCriar] = useState(false)
@@ -69,8 +75,14 @@ export default function FestasHub() {
           a taxa de entrega é dividida entre todos.
         </p>
 
+        {!festaLigada && (
+          <p className="mb-6 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            O Modo Festa está pausado no momento. Festas e pedidos já feitos continuam normalmente.
+          </p>
+        )}
+
         {/* Ações */}
-        <div className="grid gap-3 sm:grid-cols-2 mb-6">
+        {festaLigada && <div className="grid gap-3 sm:grid-cols-2 mb-6">
           <button
             onClick={() => setCriar(true)}
             className="flex items-center gap-3 rounded-2xl border border-acento/50 bg-acento/10 hover:bg-acento/15 p-4 text-left transition"
@@ -105,7 +117,7 @@ export default function FestasHub() {
               </button>
             </div>
           </form>
-        </div>
+        </div>}
 
         {/* Minhas festas */}
         <h2 className="font-display text-white font-semibold text-lg mb-3">Minhas festas</h2>

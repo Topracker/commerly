@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
+import { moduloAtivo, respostaModuloPausado } from '../../../lib/featureFlags'
 import { MAX_ENTREGAS_SIMULTANEAS } from '../../../lib/rota'
 
 const ATIVOS = ['recebido', 'preparando', 'saiu']
@@ -29,6 +30,9 @@ export async function POST(request: NextRequest) {
   const admin = createAdminClient()
   const { data: entregador } = await admin.from('entregadores').select('id').eq('user_id', user.id).single()
   if (!entregador) return NextResponse.json({ error: 'Perfil de entregador não encontrado' }, { status: 403 })
+  // Chave `entregador` desligada: não pega corrida nova. Quem já está numa
+  // corrida termina normalmente (confirmar-entrega/desistir não checam).
+  if (!(await moduloAtivo('entregador', admin))) return respostaModuloPausado('entregador')
 
   // Teto de entregas simultâneas — o mesmo que /aceitar-junto respeita. Sem isto
   // o entregador acumularia corridas indefinidamente por esta rota.

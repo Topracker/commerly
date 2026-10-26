@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import Stripe from 'stripe'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
+import { moduloAtivo, respostaModuloPausado } from '../../../lib/featureFlags'
 import { COMISSAO_PCT, calcularComissao, comissaoEmCentavos, totalDosItens, type ItemPedidoB2B } from '../../../lib/b2b'
 
 /**
@@ -34,6 +35,9 @@ export async function POST(request: NextRequest) {
   if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json({ erro: 'Pagamento online indisponível' }, { status: 503 })
   }
+  // Chave `fornecedor` desligada: não abre pagamento novo. Checkout já aberto
+  // antes de desligar ainda é confirmado pelo webhook, que não checa a chave.
+  if (!(await moduloAtivo('fornecedor'))) return respostaModuloPausado('fornecedor')
 
   const body = await request.json().catch(() => null)
   const pedidoId: string = body?.pedido_id ?? ''

@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
+import { moduloAtivo, respostaModuloPausado } from '../../../lib/featureFlags'
 import {
   MAX_ENTREGAS_SIMULTANEAS, melhorRota, ordensDaRota, podemSerAgrupados, type PedidoRota,
 } from '../../../lib/rota'
@@ -40,6 +41,9 @@ export async function POST(request: NextRequest) {
   const { data: entregador } = await admin
     .from('entregadores').select('id, latitude, longitude').eq('user_id', user.id).single()
   if (!entregador) return NextResponse.json({ error: 'Perfil de entregador não encontrado' }, { status: 403 })
+  // Chave `entregador` desligada: não pega corrida nova. Quem já está numa
+  // corrida termina normalmente (confirmar-entrega/desistir não checam).
+  if (!(await moduloAtivo('entregador', admin))) return respostaModuloPausado('entregador')
 
   // Pedido em andamento que ele já carrega. Precisa ser exatamente 1: com 0
   // usa-se /aceitar-pedido; com 2 já bateu o limite.

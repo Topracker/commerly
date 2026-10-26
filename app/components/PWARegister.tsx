@@ -11,10 +11,15 @@ export default function PWARegister() {
     // controle de uma página que já era controlada, recarregamos uma vez para
     // carregar o bundle atualizado. Só anexamos se já houver controlador — no
     // primeiríssimo acesso não há, e reagir ali causaria reload loop.
+    // Exceção: páginas que acabaram de consumir um token de uso único (link do
+    // e-mail). Recarregar ali refaz a verificação com o token gasto
+    // (otp_expired) — o bundle novo entra na próxima navegação.
+    const SEM_RELOAD = ['/nova-senha', '/conta/excluir']
     let recarregando = false
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (recarregando) return
+        if (SEM_RELOAD.some(p => window.location.pathname.startsWith(p))) return
         recarregando = true
         window.location.reload()
       })
