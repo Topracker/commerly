@@ -4,6 +4,7 @@ import { createAdminClient } from '../../../lib/supabase-admin'
 import { dispatchPushPedido } from '../../../lib/pushDispatch'
 import { confirmarIndicacaoDaLoja } from '../../../lib/indicacaoDesconto'
 import { concederFundadorPagante } from '../../../lib/fundadorPagante'
+import { idAssinaturaDaFatura } from '../../../lib/stripeFatura'
 
 // Um ciclo de destaque do Commerly Ads. 31 dias (e não 30) dá folga para o
 // webhook de renovação chegar sem que o destaque pisque.
@@ -249,9 +250,7 @@ export async function POST(request: NextRequest) {
 
   if (event.type === 'invoice.paid') {
     const invoice = event.data.object as Stripe.Invoice
-    const subscriptionId = typeof (invoice as any).subscription === 'string'
-      ? (invoice as any).subscription
-      : (invoice as any).subscription?.id
+    const subscriptionId = idAssinaturaDaFatura(invoice)
     if (!subscriptionId) return NextResponse.json({ ok: true })
 
     // Renovação do Ads: estende o destaque a partir do fim do período atual
@@ -290,9 +289,7 @@ export async function POST(request: NextRequest) {
   // que parou de ser paga continuava marcada como 'ativo' para sempre.
   if (event.type === 'invoice.payment_failed') {
     const invoice = event.data.object as Stripe.Invoice
-    const subscriptionId = typeof (invoice as any).subscription === 'string'
-      ? (invoice as any).subscription
-      : (invoice as any).subscription?.id
+    const subscriptionId = idAssinaturaDaFatura(invoice)
     if (!subscriptionId) return NextResponse.json({ ok: true })
 
     // Ads não mexe no plano: o destaque já foi pago e expira sozinho.
