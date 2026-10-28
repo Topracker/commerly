@@ -420,7 +420,7 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
         id: 'cardapio-digital',
         pergunta: 'Como divulgo meu cardápio digital?',
         resposta:
-          'Todo produto cadastrado entra automaticamente no seu cardápio público. Em Configurações você encontra o link e o QR code para imprimir e colocar na mesa, no balcão ou na embalagem. O cliente abre sem instalar nada e pode pedir direto.',
+          'Todo produto cadastrado entra automaticamente no seu cardápio público. Se a sua loja faz delivery, o link e o QR code ficam em Configurações; nas lojas sem delivery, ficam no Dashboard → "Kit de marketing". Imprima o QR code e coloque na mesa, no balcão ou na embalagem. O cliente abre sem instalar nada e pode pedir direto.',
         tags: ['qr code', 'link do cardapio', 'menu digital', 'imprimir'],
         publico: ['comerciante'],
         link: { label: 'Pegar meu QR code', href: '/configuracoes' },
