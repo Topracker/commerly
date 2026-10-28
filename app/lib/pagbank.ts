@@ -35,8 +35,14 @@ export function urlApi(ambiente: Ambiente): string {
     : 'https://api.pagseguro.com'
 }
 
+// As três credenciais são obrigatórias: sem o token da plataforma o PagBank
+// recusa a troca do code, e o botão de conectar levaria a um erro.
 export function oauthConfigurado(): boolean {
-  return !!(process.env.PAGBANK_CLIENT_ID && process.env.PAGBANK_CLIENT_SECRET)
+  return !!(
+    process.env.PAGBANK_CLIENT_ID &&
+    process.env.PAGBANK_CLIENT_SECRET &&
+    process.env.PAGBANK_PLATAFORMA_TOKEN
+  )
 }
 
 type RespostaToken = {
@@ -46,8 +52,13 @@ type RespostaToken = {
   account_id?: string
 }
 
+// /oauth2/token e /oauth2/refresh pedem, além das credenciais da aplicação,
+// `Authorization: Bearer <token>` — o token da conta da Commerly (dona da
+// aplicação), não o da loja. Docs: developer.pagbank.com.br, "Obter access
+// token" e "Renovar access token".
 function headersOAuth(): Record<string, string> {
   return {
+    Authorization: `Bearer ${process.env.PAGBANK_PLATAFORMA_TOKEN!}`,
     'Content-Type': 'application/json',
     Accept: 'application/json',
     X_CLIENT_ID: process.env.PAGBANK_CLIENT_ID!,

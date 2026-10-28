@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '../../../../lib/supabase-admin'
 import { rateLimit } from '../../../../lib/rate-limit'
 import { integracoesAtivas } from '../../../../lib/plano'
+import { tokenDaLoja } from '../../../../lib/pagbank'
 import {
   decodificarResposta,
   formaPagamentoPagBank,
@@ -89,15 +90,11 @@ export async function POST(
     return NextResponse.json({ ok: true, pausado: true })
   }
 
-  const { data: conexao } = await supabase
-    .from('pagbank_conexoes')
-    .select('token, ambiente')
-    .eq('loja_id', loja_id)
-    .single()
+  // OAuth (renovando se preciso) ou token manual — o que a loja tiver.
+  const credencial = await tokenDaLoja(supabase, loja_id)
+  if (!credencial) return NextResponse.json({ ok: true })
 
-  if (!conexao) return NextResponse.json({ ok: true })
-
-  const baseUrl = getPagBankBaseUrl(conexao.ambiente ?? 'producao')
+  const baseUrl = getPagBankBaseUrl(credencial.ambiente)
   let registradas = 0
 
   for (const charge of pagas) {
@@ -107,7 +104,7 @@ export async function POST(
     // Verifica a cobrança direto na API do PagBank — impede injeção de webhook falso
     const pbVerify = await fetch(
       `${baseUrl}/charges/${encodeURIComponent(chargeId)}`,
-      { headers: { Authorization: `Bearer ${conexao.token}` } }
+      { headers: { Authorization: `Bearer ${credencial.token}` } }
     )
 
     if (!pbVerify.ok) {
@@ -174,12 +171,17 @@ async function processarAvisoFormulario(loja_id: string, notificationCode: strin
 
   const { data: conexao } = await supabase
     .from('pagbank_conexoes')
-    .select('email, token, ambiente')
+    .select('email, token, access_token, ambiente')
     .eq('loja_id', loja_id)
     .maybeSingle()
 
   // A consulta v3 exige e-mail + token da conta — só a conexão por token
   // manual tem os dois (a do Connect guarda access_token, que a v3 não aceita).
+  // Por isso aqui não serve o tokenDaLoja(): ele prioriza o access_token.
+  if (conexao?.access_token && (!conexao.email || !conexao.token)) {
+    console.warn('[PagBank webhook] aviso de formulário em loja conectada só por OAuth — a consulta v3 exige e-mail + token manual; ignorado', loja_id)
+    return NextResponse.json({ ok: true, sem_credencial: true })
+  }
   if (!conexao?.email || !conexao?.token) {
     console.warn('[PagBank webhook] aviso recebido sem e-mail/token na conexão da loja', loja_id)
     return NextResponse.json({ ok: true, sem_credencial: true })
