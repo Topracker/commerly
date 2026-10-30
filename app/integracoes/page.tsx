@@ -5,65 +5,65 @@ import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 
+// Endereço antigo e estável: leva ao login e, depois, a
+// minhaconta.pagbank.com.br/venda-online/integracoes/configuracoes.
+const PAGBANK_INTEGRACOES_URL = 'https://pagbank.com.br/preferencias/integracoes.jhtml'
+
+function ListaPassos({ passos }: { passos: { emoji: string; texto: string }[] }) {
+  return (
+    <>
+      {passos.map((passo, i) => (
+        <div key={i} className="flex gap-3 bg-gray-800 rounded-xl p-3">
+          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-green-700 flex items-center justify-center text-xs font-bold text-white">{i + 1}</div>
+          <div className="flex gap-2">
+            <span className="text-lg leading-snug">{passo.emoji}</span>
+            <p className="text-gray-300 text-sm leading-snug">{passo.texto}</p>
+          </div>
+        </div>
+      ))}
+    </>
+  )
+}
+
+function BotaoAbrirPagBank() {
+  return (
+    <a
+      href={PAGBANK_INTEGRACOES_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block text-center bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-xl transition text-sm"
+    >
+      Abrir Integrações do PagBank ↗
+    </a>
+  )
+}
+
 function ModalTokenPagBank({ onClose }: { onClose: () => void }) {
-  const [aba, setAba] = useState<'pc' | 'celular'>('pc')
-
-  const passosPc = [
-    { emoji: '🌐', texto: 'Acesse o site do PagBank em pagseguro.uol.com.br e faça login na sua conta.' },
-    { emoji: '👤', texto: 'Clique no seu nome ou foto de perfil no canto superior direito.' },
-    { emoji: '⚙️', texto: 'Selecione "Minha Conta" no menu suspenso.' },
-    { emoji: '🔑', texto: 'No menu lateral, clique em "Preferências" e depois em "Integrações".' },
-    { emoji: '📋', texto: 'Na seção "Token de segurança", clique em "Gerar Token".' },
-    { emoji: '✅', texto: 'Confirme a ação e copie o token gerado. Cole aqui no campo acima.' },
+  // Passos genéricos de propósito: as telas do PagBank mudam com frequência,
+  // então apontamos para a área de Integrações em vez de descrever cada menu.
+  const passos = [
+    { emoji: '🌐', texto: 'Entre na sua conta PagBank pelo navegador (no computador é mais fácil). O botão abaixo abre a página certa depois do login.' },
+    { emoji: '🔑', texto: 'Na área de Integrações (Venda online → Integrações), procure a parte do Token e clique para gerar.' },
+    { emoji: '📧', texto: 'O PagBank pode mostrar o token na tela ou mandar para o seu e-mail. Se for por e-mail, procure uma mensagem do PagBank na caixa de entrada — e no spam também.' },
+    { emoji: '📋', texto: 'Copie o token inteiro e cole no campo "Token" da Commerly.' },
+    { emoji: '✉️', texto: 'No campo "E-mail", use o mesmo e-mail com que você entra no PagBank.' },
   ]
-
-  const passosCelular = [
-    { emoji: '📱', texto: 'Abra o aplicativo do PagBank no seu celular e faça login.' },
-    { emoji: '☰', texto: 'Toque no ícone de menu (três linhas) no canto superior esquerdo.' },
-    { emoji: '👤', texto: 'Toque em "Meu Perfil" ou no seu nome no topo do menu.' },
-    { emoji: '⚙️', texto: 'Role para baixo e toque em "Configurações da Conta".' },
-    { emoji: '🔑', texto: 'Toque em "Integrações" e depois em "Token de segurança".' },
-    { emoji: '✅', texto: 'Toque em "Gerar Token", confirme e copie o código. Cole aqui no campo acima.' },
-  ]
-
-  const passos = aba === 'pc' ? passosPc : passosCelular
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={onClose}>
       <div className="bg-gray-900 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-gray-800">
-          <h3 className="text-white font-semibold text-lg">Como gerar o token do PagBank</h3>
+          <h3 className="text-white font-semibold text-lg">Como pegar o token do PagBank</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl leading-none">×</button>
         </div>
 
-        <div className="flex gap-2 p-4 pb-0">
-          <button
-            onClick={() => setAba('pc')}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition ${aba === 'pc' ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
-          >
-            💻 PC
-          </button>
-          <button
-            onClick={() => setAba('celular')}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition ${aba === 'celular' ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
-          >
-            📱 Celular
-          </button>
-        </div>
-
         <div className="p-4 flex flex-col gap-3">
-          {passos.map((passo, i) => (
-            <div key={i} className="flex gap-3 bg-gray-800 rounded-xl p-3">
-              <div className="flex-shrink-0 w-7 h-7 rounded-full bg-green-700 flex items-center justify-center text-xs font-bold text-white">{i + 1}</div>
-              <div className="flex gap-2">
-                <span className="text-lg leading-snug">{passo.emoji}</span>
-                <p className="text-gray-300 text-sm leading-snug">{passo.texto}</p>
-              </div>
-            </div>
-          ))}
+          <ListaPassos passos={passos} />
+          <BotaoAbrirPagBank />
 
-          <div className="bg-yellow-950 border border-yellow-800 rounded-xl p-3 mt-1">
-            <p className="text-yellow-300 text-xs">⚠️ O token é gerado uma única vez. Salve-o em local seguro antes de colar aqui.</p>
+          <div className="bg-yellow-950 border border-yellow-800 rounded-xl p-3 mt-1 flex flex-col gap-1">
+            <p className="text-yellow-300 text-xs">⚠️ Gerar um token novo pode desativar o anterior. Se outro sistema usa o token antigo, ele vai precisar do novo também.</p>
+            <p className="text-yellow-300 text-xs">🔒 O token é como uma senha: não mande para ninguém por mensagem.</p>
           </div>
         </div>
       </div>
@@ -72,7 +72,6 @@ function ModalTokenPagBank({ onClose }: { onClose: () => void }) {
 }
 
 function ModalWebhookPagBank({ url, onClose }: { url: string; onClose: () => void }) {
-  const [aba, setAba] = useState<'pc' | 'celular'>('pc')
   const [copiado, setCopiado] = useState(false)
 
   async function copiar() {
@@ -85,34 +84,24 @@ function ModalWebhookPagBank({ url, onClose }: { url: string; onClose: () => voi
     }
   }
 
-  const passosPc = [
-    { emoji: '🌐', texto: 'Acesse pagseguro.uol.com.br e faça login na sua conta.' },
-    { emoji: '👤', texto: 'Clique no seu nome ou foto de perfil no canto superior direito e abra "Minha Conta".' },
-    { emoji: '⚙️', texto: 'No menu lateral, clique em "Preferências" e depois em "Notificações" (ou "Integrações").' },
-    { emoji: '📋', texto: 'No campo de URL de notificação / webhook, cole a URL copiada acima.' },
-    { emoji: '✅', texto: 'Salve. Pronto — as vendas aprovadas no PagBank passam a entrar sozinhas no painel.' },
+  const passos = [
+    { emoji: '📋', texto: 'Copie a URL acima no botão "Copiar".' },
+    { emoji: '🌐', texto: 'Abra a área de Integrações do PagBank (botão abaixo) e entre na sua conta.' },
+    { emoji: '🔔', texto: 'Procure a opção de notificação de transação (Preferências → Integrações → Notificação de transação).' },
+    { emoji: '📥', texto: 'Cole a URL no campo de notificação e salve.' },
+    { emoji: '✅', texto: 'Pronto! As vendas aprovadas no PagBank, inclusive as da maquininha, passam a entrar sozinhas no painel.' },
   ]
-
-  const passosCelular = [
-    { emoji: '📱', texto: 'Abra o aplicativo do PagBank no seu celular e faça login.' },
-    { emoji: '☰', texto: 'Toque no ícone de menu e abra "Meu Perfil" ou "Configurações da Conta".' },
-    { emoji: '🔔', texto: 'Toque em "Notificações" ou "Integrações".' },
-    { emoji: '📋', texto: 'No campo de URL de notificação / webhook, cole a URL copiada acima.' },
-    { emoji: '✅', texto: 'Salve. Pronto — as vendas aprovadas no PagBank passam a entrar sozinhas no painel.' },
-  ]
-
-  const passos = aba === 'pc' ? passosPc : passosCelular
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={onClose}>
       <div className="bg-gray-900 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-gray-800">
-          <h3 className="text-white font-semibold text-lg">Como configurar o webhook</h3>
+          <h3 className="text-white font-semibold text-lg">Como colar a URL no PagBank</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl leading-none">×</button>
         </div>
 
         <div className="p-4 pb-0">
-          <p className="text-gray-400 text-xs mb-2">Sua URL de webhook:</p>
+          <p className="text-gray-400 text-xs mb-2">Sua URL de notificação:</p>
           <div className="flex items-center gap-2 bg-gray-800 rounded-xl p-2">
             <span className="text-gray-300 font-mono text-xs break-all flex-1 px-1">{url}</span>
             <button
@@ -124,31 +113,10 @@ function ModalWebhookPagBank({ url, onClose }: { url: string; onClose: () => voi
           </div>
         </div>
 
-        <div className="flex gap-2 p-4 pb-0">
-          <button
-            onClick={() => setAba('pc')}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition ${aba === 'pc' ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
-          >
-            💻 PC
-          </button>
-          <button
-            onClick={() => setAba('celular')}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition ${aba === 'celular' ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
-          >
-            📱 Celular
-          </button>
-        </div>
-
         <div className="p-4 flex flex-col gap-3">
-          {passos.map((passo, i) => (
-            <div key={i} className="flex gap-3 bg-gray-800 rounded-xl p-3">
-              <div className="flex-shrink-0 w-7 h-7 rounded-full bg-green-700 flex items-center justify-center text-xs font-bold text-white">{i + 1}</div>
-              <div className="flex gap-2">
-                <span className="text-lg leading-snug">{passo.emoji}</span>
-                <p className="text-gray-300 text-sm leading-snug">{passo.texto}</p>
-              </div>
-            </div>
-          ))}
+          <ListaPassos passos={passos} />
+          <BotaoAbrirPagBank />
+          <p className="text-gray-500 text-xs">Se o nome da opção estiver um pouco diferente, procure por &quot;notificação&quot; dentro de Integrações.</p>
         </div>
       </div>
     </div>
@@ -172,6 +140,7 @@ export default function Integracoes() {
   const [pbTokenInput, setPbTokenInput] = useState('')
   const [pbAmbienteInput, setPbAmbienteInput] = useState<'producao' | 'sandbox'>('producao')
   const [pbSalvando, setPbSalvando] = useState(false)
+  const [pbErro, setPbErro] = useState('')
   const [pbDesconectando, setPbDesconectando] = useState(false)
   const [modalTokenAberto, setModalTokenAberto] = useState(false)
   const [modalWebhookAberto, setModalWebhookAberto] = useState(false)
@@ -255,7 +224,8 @@ export default function Integracoes() {
   }
 
   async function conectarPB() {
-    if (!pbEmailInput || !pbTokenInput) { mostrarToast('Preencha email e token', 'erro'); return }
+    if (!pbEmailInput.trim() || !pbTokenInput.trim()) { setPbErro('Preencha o e-mail e o token do PagBank.'); return }
+    setPbErro('')
     setPbSalvando(true)
     const res = await fetch('/api/pagbank/connect', {
       method: 'POST',
@@ -265,10 +235,12 @@ export default function Integracoes() {
     if (res.ok) {
       setPbConectado(true); setPbEmail(pbEmailInput); setPbAmbiente(pbAmbienteInput)
       setPbEmailInput(''); setPbTokenInput('')
-      mostrarToast('PagBank conectado com sucesso!', 'sucesso')
+      mostrarToast('PagBank conectado! Falta só o último passo.', 'sucesso')
+    } else if (res.status === 429) {
+      setPbErro('Muitas tentativas seguidas. Espere um minuto e tente de novo.')
     } else {
-      const { error } = await res.json().catch(() => ({ error: 'Erro desconhecido' }))
-      mostrarToast(error || 'Erro ao conectar PagBank', 'erro')
+      const { error } = await res.json().catch(() => ({ error: '' }))
+      setPbErro(error || 'Não foi possível conectar ao PagBank agora. Tente de novo em instantes.')
     }
     setPbSalvando(false)
   }
@@ -360,25 +332,35 @@ export default function Integracoes() {
                 <p className="text-green-500 text-xs">{pbEmail}</p>
               </div>
             </div>
-            <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-3">
-              <p className="text-gray-300 text-sm font-medium mb-1">✅ Pagamentos registrados automaticamente</p>
-              <p className="text-gray-400 text-xs">
-                Suas vendas no PagBank entram sozinhas no painel assim que o pagamento é aprovado, via webhook — não é preciso sincronizar manualmente. Falta só uma etapa: configurar esta URL nas notificações da sua conta PagBank.
+            <div className="bg-yellow-950/60 border-2 border-yellow-600 rounded-xl p-4">
+              <p className="text-yellow-200 text-sm font-semibold mb-1">👉 Último passo: avise o PagBank para mandar suas vendas</p>
+              <p className="text-gray-300 text-xs">
+                Sem isso, as vendas da maquininha não aparecem aqui. Copie a URL abaixo e cole no PagBank em
+                <strong className="text-white"> Preferências → Integrações → Notificação de transação</strong>. Leva 1 minuto e só precisa fazer uma vez.
               </p>
-              <div className="flex items-center gap-2 bg-gray-900 rounded-lg p-2 mt-2">
-                <span className="text-gray-300 font-mono text-xs break-all flex-1 px-1">
-                  {typeof window !== 'undefined' ? window.location.origin : ''}/api/pagbank/webhook/{loja.id}
-                </span>
+              <div className="flex items-center gap-2 bg-gray-900 rounded-lg p-2 mt-3">
+                <span className="text-gray-300 font-mono text-xs break-all flex-1 px-1">{webhookUrlPB()}</span>
                 <button
                   onClick={copiarWebhookPB}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${webhookCopiado ? 'bg-green-700 text-white' : 'bg-green-600 hover:bg-green-500 text-white'}`}
+                  className={`flex-shrink-0 px-3 py-2 rounded-lg text-xs font-semibold transition ${webhookCopiado ? 'bg-green-700 text-white' : 'bg-green-600 hover:bg-green-500 text-white'}`}
                 >
                   {webhookCopiado ? '✓ Copiado' : 'Copiar'}
                 </button>
               </div>
-              <button onClick={() => setModalWebhookAberto(true)} className="text-green-400 hover:text-green-300 text-xs underline mt-2">
-                Como configurar o webhook no PagBank?
-              </button>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3">
+                <a
+                  href={PAGBANK_INTEGRACOES_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-green-600 hover:bg-green-500 text-white font-semibold px-4 py-2 rounded-lg transition text-xs"
+                >
+                  Abrir Integrações do PagBank ↗
+                </a>
+                <button onClick={() => setModalWebhookAberto(true)} className="text-green-400 hover:text-green-300 text-xs underline">
+                  Ver passo a passo
+                </button>
+              </div>
+              <p className="text-gray-500 text-xs mt-3">Depois disso, as vendas aprovadas entram sozinhas no painel — não precisa sincronizar.</p>
             </div>
             <button onClick={desconectarPB} disabled={pbDesconectando} className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 font-semibold py-3 rounded-xl transition text-sm">
               {pbDesconectando ? 'Desconectando...' : 'Desconectar PagBank'}
@@ -404,13 +386,21 @@ export default function Integracoes() {
                 </div>
               </>
             )}
-            <p className="text-gray-400 text-sm">Informe as credenciais da sua conta PagBank para registrar pagamentos automaticamente.</p>
-            <input placeholder="E-mail da conta PagBank" type="email" value={pbEmailInput} onChange={e => setPbEmailInput(e.target.value)} className={inputClass} />
-            <input placeholder="Token Bearer do PagBank" type="password" value={pbTokenInput} onChange={e => setPbTokenInput(e.target.value)} className={inputClass} />
-            <div className="flex items-center justify-between">
-              <p className="text-gray-500 text-xs">Encontre o token em: PagBank → Sua conta → Perfil → Credenciais</p>
-              <button onClick={() => setModalTokenAberto(true)} className="text-green-400 hover:text-green-300 text-xs underline whitespace-nowrap ml-3">Como pegar o token?</button>
-            </div>
+            <p className="text-gray-400 text-sm">Conecte sua conta PagBank para as vendas da maquininha entrarem sozinhas no painel. Você só precisa de duas coisas:</p>
+            <ol className="text-gray-400 text-xs list-decimal list-inside flex flex-col gap-1 bg-gray-800/60 rounded-xl p-3">
+              <li>O <strong className="text-gray-200">e-mail</strong> com que você entra no PagBank.</li>
+              <li>O <strong className="text-gray-200">token</strong>, gerado na área de Integrações da sua conta PagBank (pode chegar por e-mail).</li>
+            </ol>
+            <input placeholder="E-mail da conta PagBank" type="email" autoComplete="email" value={pbEmailInput} onChange={e => { setPbEmailInput(e.target.value); setPbErro('') }} className={inputClass} />
+            <input placeholder="Token do PagBank" type="password" autoComplete="off" value={pbTokenInput} onChange={e => { setPbTokenInput(e.target.value); setPbErro('') }} className={inputClass} />
+            <button onClick={() => setModalTokenAberto(true)} className="self-start text-green-400 hover:text-green-300 text-xs underline">
+              Como pegar o token?
+            </button>
+            {pbErro && (
+              <div className="bg-red-950 border border-red-800 rounded-xl p-3">
+                <p className="text-red-300 text-sm">{pbErro}</p>
+              </div>
+            )}
             <button onClick={conectarPB} disabled={pbSalvando} className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
               {pbSalvando ? 'Conectando...' : 'Conectar PagBank'}
             </button>
