@@ -100,7 +100,14 @@ export async function POST(request: NextRequest) {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      payment_method_types: ['card'],
+      // Cartão + Pix. Pix é assíncrono: o pedido só vira pago no webhook, ao
+      // receber `checkout.session.async_payment_succeeded`; se o QR expirar,
+      // `async_payment_failed` marca o pagamento como falhou (ver o webhook).
+      payment_method_types: ['card', 'pix'],
+      payment_method_options: {
+        // Prazo do QR do Pix (30 min), igual ao pedido do cliente.
+        pix: { expires_after_seconds: 1800 },
+      },
       line_items: itens.map(i => ({
         quantity: i.quantidade,
         price_data: {

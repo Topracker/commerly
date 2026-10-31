@@ -185,6 +185,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
+  // Pix do pedido B2B expirou ou falhou -> o pedido continua existindo, mas o
+  // pagamento volta a ficar em aberto ('falhou', sem sessão), e a loja pode
+  // pagar de novo. Só mexe se a sessão gravada for ESTA: se a loja já abriu
+  // outro checkout, a falha do Pix antigo não pode apagar o novo.
+  if (event.type === 'checkout.session.async_payment_failed' && (event.data.object as any).metadata?.tipo === 'pedido_b2b') {
+    const session = event.data.object as Stripe.Checkout.Session
+    const pedidoId = session.metadata?.pedido_id
+    if (!pedidoId) return NextResponse.json({ ok: true })
+
+    const { error } = await supabase.from('pedidos').update({
+      pagamento_status: 'falhou',
+      stripe_session_id: null,
+    }).eq('id', pedidoId).eq('stripe_session_id', session.id).neq('pagamento_status', 'pago').select('id')
+
+    if (error) {
+      console.error('[stripe/webhook] erro ao marcar Pix B2B como falhou:', error.message)
+      return NextResponse.json({ ok: false }, { status: 500 }) // Stripe re-tenta
+    }
+    return NextResponse.json({ ok: true })
+  }
+
   // --- Commerly Ads: assinatura de destaque na busca. ----------------------
   // Precisa vir ANTES do handler genérico de `checkout.session.completed`,
   // senão o destaque seria confundido com a mensalidade e ativaria `plano`.
