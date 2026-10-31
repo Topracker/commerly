@@ -128,7 +128,13 @@ function EntregadorDashboard() {
       patch.localizacao_at = new Date().toISOString()
       ultimoPing.current = Date.now()
     }
-    const { error } = await supabase.from('entregadores').update(patch).eq('id', entregador.id)
+    // Ficar OFFLINE passa pela rota: o trigger solta as corridas ainda não
+    // coletadas e a rota as reoferta na hora para outro entregador.
+    const { error } = novo
+      ? await supabase.from('entregadores').update(patch).eq('id', entregador.id)
+      : await fetch('/api/entregador/ficar-offline', { method: 'POST' })
+        .then(r => ({ error: r.ok ? null : new Error(String(r.status)) }))
+        .catch((e: unknown) => ({ error: e as Error }))
     if (error) {
       setOnline(!novo) // reverte
       mostrarToast('Não foi possível mudar seu status. Tente de novo.', 'erro')

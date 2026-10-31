@@ -3,9 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
-import { ofertarProximoEntregador } from '../../../lib/dispatch'
-import { RAIO_BUSCA_KM } from '../../../lib/entregadores'
-import { dispatchPushPedido } from '../../../lib/pushDispatch'
+import { dissolverLote, redespacharPedido } from '../../../lib/redespacho'
 
 // Entregador desiste de uma corrida ACEITA, devolvendo o pedido ao pool.
 // So e permitido ANTES de pegar o pedido: status 'recebido'. A partir de
@@ -44,49 +42,19 @@ export async function POST(request: NextRequest) {
     .from('pedidos_clientes').update({ entregador_id: null }).eq('id', pedido_id).eq('entregador_id', entregador.id)
   if (error) return NextResponse.json({ error: 'Erro ao desistir da corrida.' }, { status: 500 })
 
-  // Multi-entrega: sair do lote dissolve o lote inteiro. A rota otimizada foi
-  // calculada para os dois pedidos juntos; com um deles de volta ao pool ela não
-  // vale mais. Sem isto o pedido voltaria ao pool carregando `lote_entrega_id` —
-  // e tanto ele quanto o irmão seriam recusados por /aceitar-junto para sempre.
-  if (pedido.lote_entrega_id) {
-    const { error: loteErr } = await admin
-      .from('pedidos_clientes')
-      .update({ lote_entrega_id: null, ordem_coleta: null, ordem_entrega: null })
-      .eq('lote_entrega_id', pedido.lote_entrega_id)
-    if (loteErr) console.error('[desistir-corrida] falha ao dissolver o lote:', loteErr)
-  }
+  // Multi-entrega: sair do lote dissolve o lote inteiro (ver lib/redespacho).
+  await dissolverLote(admin, pedido.lote_entrega_id, 'desistir-corrida')
 
   // Encerra a oferta aceita deste entregador (nao sera re-ofertado o mesmo).
   await admin.from('corrida_ofertas').update({ status: 'expirada' })
     .eq('pedido_id', pedido_id).eq('entregador_id', entregador.id).eq('status', 'aceita')
 
-  // Redespacho imediato + aviso a loja (best-effort: a desistencia ja valeu).
-  // Sem isto o pedido so voltava a andar quando o watchdog rodasse — e ele so
-  // roda com a aba /pedidos da loja ou a tela do cliente abertas.
-  try {
-    const { data: loja } = await admin
-      .from('lojas').select('id, user_id, latitude, longitude, delivery_ativo').eq('id', pedido.loja_id).single()
-    if (loja) {
-      let texto = 'Procurando outro entregador.'
-      if (loja.delivery_ativo !== false) {
-        const r = await ofertarProximoEntregador(admin, pedido_id, loja, [entregador.id])
-        if (r.tipo === 'ofertado' || r.tipo === 'esperando') texto = `Corrida oferecida a ${r.entregador.nome}.`
-        else if (r.tipo === 'esgotado') texto = `Nenhum outro entregador disponível num raio de ${RAIO_BUSCA_KM} km agora — continuamos tentando.`
-        else if (r.tipo === 'pausado') texto = 'A rede de entregadores está pausada. Entregue este pedido por conta própria.'
-      }
-      await admin.from('notificacoes').insert({
-        user_id: loja.user_id,
-        tipo: 'despacho',
-        titulo: 'Entregador desistiu da corrida',
-        mensagem: texto,
-        link: '/pedidos',
-        dados: { pedido_id, motivo: 'desistencia' },
-      })
-      await dispatchPushPedido(admin, pedido_id)
-    }
-  } catch (e) {
-    console.error('[desistir-corrida] redespacho/aviso falhou:', e)
-  }
+  // Redespacho imediato + aviso à loja (best-effort: a desistência já valeu).
+  await redespacharPedido(
+    admin, pedido_id, pedido.loja_id, [entregador.id],
+    { titulo: 'Entregador desistiu da corrida', motivo: 'desistencia' },
+    'desistir-corrida',
+  )
 
   return NextResponse.json({ ok: true })
 }
