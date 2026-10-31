@@ -72,7 +72,7 @@ const CRESCIMENTO: ItemMenu[] = [
 ]
 
 const CONFIGURACOES: ItemMenu[] = [
-  { label: 'Integrações', sub: 'MP e PagBank', path: '/integracoes', icon: Plug },
+  { label: 'Integrações', sub: 'Mercado Pago', path: '/integracoes', icon: Plug },
   { label: 'Configurações', sub: 'Editar dados da loja', path: '/configuracoes', icon: Settings },
   { label: 'Meu Plano', sub: 'Assinatura', path: '/planos', icon: Crown },
   { label: 'Feedback', sub: 'Enviar sugestão', path: '/feedback', icon: MessageSquare },
