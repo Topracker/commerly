@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { situacaoPlano } from './app/lib/plano'
 import { ehAdmin, ehRotaAdmin } from './app/lib/adminIdentidade'
+import { modulosQueIniciam } from './app/lib/pausa'
 
 // ============================================================================
 // PAYWALL DO LADO DO SERVIDOR (auditoria 2026-07-22)
@@ -160,9 +161,13 @@ export async function proxy(request: NextRequest) {
   }
   const ehAreaPapel = loginPapel !== null
 
+  // Página que INICIA algo num módulo pausável (onboarding, buscar, festa,
+  // /fornecedores — lista em app/lib/pausa.ts)?
+  const modulosIniciados = modulosQueIniciam(pathname)
+
   // Nada a proteger nesta rota (ex.: perfil público, home): segue direto e evita
   // um getUser() de rede à toa.
-  if (!ehAdminRota && !ehApi && !ehPagina && !ehAutenticada && !ehOnboarding && !ehAreaPapel) return response
+  if (!ehAdminRota && !ehApi && !ehPagina && !ehAutenticada && !ehOnboarding && !ehAreaPapel && modulosIniciados.length === 0) return response
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -180,6 +185,22 @@ export async function proxy(request: NextRequest) {
       },
     }
   )
+
+  // ── CHAVES DE MÓDULO (passo 4) ──────────────────────────────────────────
+  // Chave desligada -> /pausado, para qualquer um (logado ou não), antes até do
+  // login: não adianta mandar entrar para começar algo que está pausado. Só
+  // páginas que INICIAM algo; login, pedidos em andamento, notificações e
+  // confirmação de entrega nunca passam por aqui. A resposta vem da RPC
+  // `modulo_ativo()` (SECURITY DEFINER — a sessão não lê feature_flags).
+  // FALHA ABERTA: erro de rede ou resposta nula deixa a página abrir; a trava
+  // de verdade continua nas rotas de API e no banco.
+  if (modulosIniciados.length > 0) {
+    const respostas = await Promise.all(
+      modulosIniciados.map(m => supabase.rpc('modulo_ativo', { p_flag: m }).then(r => ({ m, ativo: r.data }))),
+    )
+    const pausado = respostas.find(r => r.ativo === false)
+    if (pausado) return NextResponse.redirect(new URL(`/pausado?modulo=${pausado.m}`, request.url))
+  }
 
   const { data: { user } } = await supabase.auth.getUser()
 

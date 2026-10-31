@@ -46,7 +46,8 @@ export async function getFlags(cidadeSlug?: string | null, client?: SupabaseClie
 
 /**
  * Chave de módulo ligada? Só o escopo global; sem linha = ligado. Espelho de
- * `modulo_ativo()` no SQL — mexeu em um, mexa no outro.
+ * `modulo_ativo()` no SQL — mexeu em um, mexa no outro. (O SQL responde também
+ * por 'modo_festa', no escopo global, para o proxy; aqui a festa usa flagAtiva.)
  */
 export async function moduloAtivo(modulo: ModuloGlobal, client?: SupabaseClient): Promise<boolean> {
   const admin = client ?? createAdminClient()
