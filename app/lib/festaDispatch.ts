@@ -4,6 +4,7 @@ import { distanciaKm } from './geo'
 import { RAIO_BUSCA_KM, TEMPO_RESPOSTA_CORRIDA_S, FRESCOR_LOCALIZACAO_MS } from './entregadores'
 import { FESTA_BONUS_PCT } from './festas'
 import { dispatchPushOferta } from './pushDispatch'
+import { despachoLiberado } from './featureFlags'
 
 // Despacho da FESTA. Diferente de lib/dispatch.ts (um pedido = uma corrida),
 // aqui uma oferta cobre a festa inteira: o entregador passa nas lojas e entrega
@@ -20,6 +21,9 @@ export type ResultadoDespachoFesta =
   | { tipo: 'esgotado'; tentativas: number }
   | { tipo: 'sem_pedidos' }
   | { tipo: 'sem_localizacao' }
+  // Despacho pausado (ver lib/dispatch.ts): os pedidos da festa seguem com
+  // entrega própria das lojas.
+  | { tipo: 'pausado' }
 
 export async function ofertarFesta(
   admin: SupabaseClient,
@@ -44,7 +48,7 @@ export async function ofertarFesta(
   const lojaIds = (fl || []).map(r => r.loja_id as string)
   if (lojaIds.length === 0) return { tipo: 'sem_localizacao' }
   const { data: lojas } = await admin
-    .from('lojas').select('id, nome, latitude, longitude').in('id', lojaIds)
+    .from('lojas').select('id, nome, latitude, longitude, cidade_slug').in('id', lojaIds)
   const comCoord = (lojas || []).filter(l => l.latitude != null && l.longitude != null)
   if (comCoord.length === 0) return { tipo: 'sem_localizacao' }
 
@@ -56,6 +60,10 @@ export async function ofertarFesta(
   const lojaAncora = comCoord
     .map(l => ({ l, d: distanciaKm(centro, { latitude: Number(l.latitude), longitude: Number(l.longitude) }) ?? 0 }))
     .sort((a, b) => a.d - b.d)[0].l
+
+  // As lojas da festa estão a até 2 km umas das outras: a cidade da âncora vale
+  // para todas. Pausado -> nenhuma oferta nova.
+  if (!(await despachoLiberado(lojaAncora.cidade_slug ?? null, admin))) return { tipo: 'pausado' }
 
   // Expira ofertas pendentes vencidas desta festa.
   await admin.from('corrida_ofertas').update({ status: 'expirada' })

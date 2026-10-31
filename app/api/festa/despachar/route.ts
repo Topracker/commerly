@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { autenticarCliente, bodyDe } from '../_lib'
 import { rateLimit } from '../../../lib/rate-limit'
 import { ofertarFesta } from '../../../lib/festaDispatch'
+import { respostaModuloPausado } from '../../../lib/featureFlags'
 
 // O criador toca "Buscar entregador" numa festa já fechada e ainda sem
 // entregador (ninguém estava online no fechamento, ou o anterior recusou).
@@ -37,6 +38,8 @@ export async function POST(request: NextRequest) {
     const r = await ofertarFesta(admin, festaId)
     if (r.tipo === 'sem_localizacao') return NextResponse.json({ error: 'As lojas da festa não têm localização.' }, { status: 400 })
     if (r.tipo === 'sem_pedidos') return NextResponse.json({ error: 'Esta festa não tem pedidos.' }, { status: 400 })
+    // Rede pausada: as lojas entregam a festa por conta própria.
+    if (r.tipo === 'pausado') return respostaModuloPausado('entregador')
     if (r.tipo === 'esgotado') return NextResponse.json({ esgotado: true, tentativas: r.tentativas })
     if (r.tipo === 'esperando') return NextResponse.json({ esperando: true, entregador: r.entregador })
     return NextResponse.json({ oferta: r.oferta, entregador: r.entregador })

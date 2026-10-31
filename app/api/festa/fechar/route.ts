@@ -173,7 +173,9 @@ export async function POST(request: NextRequest) {
   }).eq('id', festaId)
 
   // Oferta a corrida ao entregador mais próximo (best-effort — se ninguém
-  // online, o criador pode tocar "Buscar entregador" de novo).
+  // online, o criador pode tocar "Buscar entregador" de novo). Com o despacho
+  // pausado (`despacho: 'pausado'`) a festa fecha do mesmo jeito: os pedidos já
+  // estão nas lojas e cada uma entrega por conta própria.
   let despacho: string = 'sem_entregador'
   try {
     const r = await ofertarFesta(admin, festaId)

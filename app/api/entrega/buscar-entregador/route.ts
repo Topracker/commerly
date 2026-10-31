@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
 import { ofertarProximoEntregador } from '../../../lib/dispatch'
+import { respostaModuloPausado } from '../../../lib/featureFlags'
 
 // Despacho estilo Uber: o comerciante toca "Buscar entregador proximo" num
 // pedido sem entregador. A oferta vai ao entregador Online mais proximo (raio de
@@ -49,6 +50,8 @@ export async function POST(request: NextRequest) {
     if (r.tipo === 'sem_localizacao') {
       return NextResponse.json({ error: 'Cadastre a localização da loja para buscar entregadores.' }, { status: 400 })
     }
+    // Rede pausada: 503 com `modulo_pausado` — a loja entrega por conta própria.
+    if (r.tipo === 'pausado') return respostaModuloPausado('entregador')
     if (r.tipo === 'esgotado') return NextResponse.json({ esgotado: true, tentativas: r.tentativas })
     if (r.tipo === 'esperando') return NextResponse.json({ esperando: true, oferta: r.oferta, entregador: r.entregador })
     return NextResponse.json({ oferta: r.oferta, entregador: r.entregador })

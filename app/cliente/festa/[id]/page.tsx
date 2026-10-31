@@ -236,7 +236,9 @@ export default function FestaSala() {
       const cupomMsg = d.cupom?.desconto_total ? ` Cupom aplicado: −${reais(Number(d.cupom.desconto_total))}.` : ''
       const msg = (d.despacho === 'ofertado' || d.despacho === 'esperando'
         ? 'Festa fechada! Já chamamos um entregador.'
-        : 'Festa fechada! Toque em "Buscar entregador" para chamar alguém.') + cupomMsg
+        : d.despacho === 'pausado'
+          ? 'Festa fechada! As lojas vão entregar por conta própria.'
+          : 'Festa fechada! Toque em "Buscar entregador" para chamar alguém.') + cupomMsg
       mostrarToast(msg, 'sucesso')
       await carregar()
     } catch { mostrarToast('Erro de rede.', 'erro') } finally { setAcaoFesta(false) }

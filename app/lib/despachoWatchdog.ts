@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { ofertarProximoEntregador } from './dispatch'
 import { RAIO_BUSCA_KM } from './entregadores'
 import { dispatchPushPedido } from './pushDispatch'
+import { despachoLiberado } from './featureFlags'
 import {
   avaliarEntregaEmRota, CAMPOS_PEDIDO_EM_ROTA,
   type LojaEntrega, type PedidoEmRota,
@@ -54,6 +55,8 @@ const PRECISA_ENTREGADOR = ['recebido', 'preparando', 'saiu']
 export type AcaoWatchdog =
   | 'ofertado' | 'esperando' | 'esgotado' | 'pool_liberado'
   | 'alerta_amarelo' | 'alerta_vermelho' | 'sem_localizacao' | 'nada'
+  // Despacho pausado (chave `entregador` ou delivery da cidade): nada anda.
+  | 'despacho_pausado'
   // Entrega JÁ em rota (lib/entregaConfirmacao.ts).
   | 'confirmacao_pedida' | 'entrega_liberada' | 'aguardando_festa'
 
@@ -76,6 +79,7 @@ type LojaWatchdog = {
   latitude: number | null
   longitude: number | null
   delivery_ativo?: boolean | null
+  cidade_slug?: string | null
 }
 
 /** Notificação de despacho para o dono da loja (silenciosa se algo falhar). */
@@ -117,6 +121,11 @@ async function processarPedido(
 
   // Loja fechada para delivery: não faz sentido caçar entregador.
   if (loja.delivery_ativo === false) return ['nada']
+
+  // Despacho pausado: nem cadeia de ofertas, nem pool aberto, nem alertas de
+  // demora — sem isto o watchdog avisaria "nenhum entregador aceitou" a cada
+  // passada de um pedido que a loja vai entregar por conta própria.
+  if (!(await despachoLiberado(loja.cidade_slug ?? null, admin))) return ['despacho_pausado']
 
   // ── 3. Esgotado há 5+ min -> devolve ao pool aberto ─────────────────────
   // Zerar o histórico de ofertas é o que "libera para o pool": todo mundo do
@@ -315,7 +324,7 @@ export async function rodarWatchdog(
 
   const lojaIds = [...new Set(alvos.map(p => p.loja_id))]
   const { data: lojas } = await admin
-    .from('lojas').select('id, user_id, nome, latitude, longitude, delivery_ativo').in('id', lojaIds)
+    .from('lojas').select('id, user_id, nome, latitude, longitude, delivery_ativo, cidade_slug').in('id', lojaIds)
   const mapaLojas = new Map((lojas || []).map((l: any) => [l.id, l as LojaWatchdog]))
 
   for (const pedido of alvos) {

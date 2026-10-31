@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
         const r = await ofertarProximoEntregador(admin, pedido_id, loja, [entregador.id])
         if (r.tipo === 'ofertado' || r.tipo === 'esperando') texto = `Corrida oferecida a ${r.entregador.nome}.`
         else if (r.tipo === 'esgotado') texto = `Nenhum outro entregador disponível num raio de ${RAIO_BUSCA_KM} km agora — continuamos tentando.`
+        else if (r.tipo === 'pausado') texto = 'A rede de entregadores está pausada. Entregue este pedido por conta própria.'
       }
       await admin.from('notificacoes').insert({
         user_id: loja.user_id,

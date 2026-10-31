@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { distanciaKm } from './geo'
 import { RAIO_BUSCA_KM, TEMPO_RESPOSTA_CORRIDA_S, FRESCOR_LOCALIZACAO_MS } from './entregadores'
 import { dispatchPushOferta } from './pushDispatch'
+import { despachoLiberado } from './featureFlags'
 
 // Núcleo do despacho de corridas (pool de entregadores estilo Uber). Reusado
 // pela busca manual do comerciante (/api/entrega/buscar-entregador) e pela
@@ -16,6 +17,9 @@ export type ResultadoDespacho =
   | { tipo: 'esperando'; oferta: any; entregador: { nome: string } }
   | { tipo: 'esgotado'; tentativas: number }
   | { tipo: 'sem_localizacao' }
+  // Rede de entregadores pausada (chave `entregador`) ou delivery desligado na
+  // cidade: nenhuma oferta nova nasce e a loja entrega por conta própria.
+  | { tipo: 'pausado' }
 
 /**
  * Oferta o pedido ao próximo entregador disponível mais próximo da loja (raio de
@@ -31,6 +35,12 @@ export async function ofertarProximoEntregador(
   excluir: string[] = [],
 ): Promise<ResultadoDespacho> {
   if (loja.latitude == null || loja.longitude == null) return { tipo: 'sem_localizacao' }
+
+  // Antes de qualquer oferta: despacho liberado nesta cidade? Checado aqui (e
+  // não só nas rotas) para valer em TODOS os caminhos — botão da loja,
+  // watchdog, reoferta de desistência e liberação em rota.
+  const { data: lojaCidade } = await admin.from('lojas').select('cidade_slug').eq('id', loja.id).maybeSingle()
+  if (!(await despachoLiberado(lojaCidade?.cidade_slug ?? null, admin))) return { tipo: 'pausado' }
 
   const agora = Date.now()
 
