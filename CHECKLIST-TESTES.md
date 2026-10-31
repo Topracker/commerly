@@ -632,6 +632,68 @@ no Modo Festa"** (desligado por padrão).
       e conferir que confirmar a primeira **não** fecha a segunda por engano.
 - [ ] Conferir que o ganho do entregador soma as **duas** corridas.
 
+### 7.3 Chaves de módulo (pausar cliente / entregador / fornecedor / festa)
+
+No painel master → **Cidades & Flags** há 4 chaves globais: `cliente`,
+`entregador`, `fornecedor` e `modo_festa`. Regra de ouro: **desligar impede
+COMEÇAR, nunca TERMINAR.** Peça para alguém da equipe desligar UMA chave por
+vez e religar no fim. **Sempre deixe todas LIGADAS ao terminar.**
+
+**`cliente` desligada**
+- [ ] Cliente: "Buscar lojas" some do menu; abrir `/cliente/buscar` leva para a
+      tela **"Pedidos novos estão pausados"** (`/pausado`).
+- [ ] Cliente: o botão **"Fazer Pedido"** some da loja e do cardápio digital (o
+      "Pedir pelo WhatsApp" continua — é da loja).
+- [ ] Cliente: **"Meus pedidos"**, notificações e o login continuam abrindo.
+- [ ] Comerciante: um pedido que já estava aberto avança normalmente até
+      **"Entregue"**.
+- [ ] `/para-clientes`: o botão vira o aviso de pausa (pode levar até 1 min).
+
+**`fornecedor` desligada**
+- [ ] Comerciante: o item **Fornecedores** some do menu e do atalho do dashboard;
+      abrir `/fornecedores` leva para `/pausado`.
+- [ ] Comerciante: não consegue fazer pedido novo a fornecedor nem pagar online.
+- [ ] Fornecedor: um pedido que já existia ainda pode ser **aceito e entregue**.
+
+**`modo_festa` desligada**
+- [ ] Cliente: **Festa** some do menu; `/cliente/festa` e o link de convite levam
+      para `/pausado`.
+- [ ] Cliente: numa festa **já criada**, a sala abre e o criador consegue
+      **fechar** a festa (os pedidos vão para as lojas).
+
+**`entregador` desligada**
+- [ ] Entregador offline: o botão **"Ficar online"** some e aparece "A rede de
+      entregadores está pausada". Quem já estava online consegue ficar offline.
+- [ ] Comerciante: **"Buscar entregador próximo"** some do pedido e aparece o aviso
+      de entrega própria; dá para levar o pedido até **"Entregue"** sozinho.
+- [ ] Entregador: uma corrida **já aceita** continua — a loja libera, ele confirma
+      com o código e o pedido fecha.
+- [ ] Deixar `/pedidos` aberto por 2 minutos e conferir que **não chegam avisos
+      repetidos** de "nenhum entregador" (sem loop de ofertas).
+- [ ] Festa fechada com a rede pausada: mensagem "as lojas vão entregar por conta
+      própria", sem botão "Buscar entregador".
+- [ ] `/para-entregadores` e `/kit`: o botão de cadastro vira aviso de pausa.
+
+**Ficar offline com corrida aceita (chave ligada)**
+- [ ] Entregador aceita uma corrida e, antes de coletar, toca em **ficar
+      offline**: a loja recebe "Entregador ficou offline" com o resultado da nova
+      busca, e o pedido é oferecido a **outro** entregador na hora.
+
+> **Registro do teste automatizado — 2026-10-30 (produção, contas de teste):**
+> 69/69 checagens de API/banco + 8 de tela (Playwright), tudo revertido no fim.
+> Cobriu: travas do banco (insert direto bloqueado; pedido pago do webhook
+> isento; "ficar online" barrado e GPS livre), 503 das rotas, redirecionamento
+> do proxy só nas páginas que iniciam algo, pedidos/corridas em andamento
+> terminando com a chave OFF, festa fechando com `modo_festa` e com `entregador`
+> OFF (despacho "pausado"), ofertas pendentes expirando ao desligar
+> `entregador`, watchdog 3× sem oferta nova nem aviso (sem loop), e reoferta no
+> offline. **Limitações:** só há um entregador de teste, então a reoferta do
+> offline foi comprovada pela tentativa (resultado "esgotado", aviso à loja), não
+> por um segundo entregador recebendo a corrida. O Pix do B2B (expirar → pagamento
+> "falhou") foi testado direto no banco, sem Stripe real. Com `cliente` OFF o
+> fechamento de festa é barrado pela trava do banco (pedidos da festa não são
+> pagos) — sem pedido órfão, a festa continua aberta.
+
 ---
 
 ## 8. PAINEL DO COMERCIANTE
