@@ -661,6 +661,10 @@ vez e religar no fim. **Sempre deixe todas LIGADAS ao terminar.**
 - [ ] Cliente: numa festa **já criada**, a sala abre e o criador consegue
       **fechar** a festa (os pedidos vão para as lojas).
 
+**`cliente` desligada + festa aberta**
+- [ ] Cliente: numa festa **já aberta**, o criador ainda consegue **fechar** e os
+      pedidos chegam às lojas; um pedido avulso novo continua bloqueado.
+
 **`entregador` desligada**
 - [ ] Entregador offline: o botão **"Ficar online"** some e aparece "A rede de
       entregadores está pausada". Quem já estava online consegue ficar offline.
@@ -690,9 +694,12 @@ vez e religar no fim. **Sempre deixe todas LIGADAS ao terminar.**
 > offline. **Limitações:** só há um entregador de teste, então a reoferta do
 > offline foi comprovada pela tentativa (resultado "esgotado", aviso à loja), não
 > por um segundo entregador recebendo a corrida. O Pix do B2B (expirar → pagamento
-> "falhou") foi testado direto no banco, sem Stripe real. Com `cliente` OFF o
-> fechamento de festa é barrado pela trava do banco (pedidos da festa não são
-> pagos) — sem pedido órfão, a festa continua aberta.
+> "falhou") foi testado direto no banco, sem Stripe real.
+>
+> **2026-10-31:** com `cliente` OFF, festa **já aberta** passa a fechar e gerar os
+> pedidos (isenção só para o fechamento pela rota, service role + festa ainda
+> `aberta`); pedido avulso continua bloqueado, e o cliente não fura a trava
+> preenchendo `festa_id` via REST. 11/11 em produção, revertido.
 
 ---
 
