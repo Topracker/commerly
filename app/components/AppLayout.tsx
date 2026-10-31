@@ -12,6 +12,7 @@ import { carregarAgendamentosProximos } from '../lib/nicheStore'
 import { montarMenu, secaoDaRota, type BadgeKey } from '../lib/menu'
 import { Menu, X, ChevronDown } from 'lucide-react'
 import BotaoSair from './BotaoSair'
+import { useFlags } from '../lib/useFlags'
 
 type Props = {
   loja: any
@@ -40,7 +41,9 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
   const delivery = isDelivery(loja?.tipo)
   const temAgenda = modulos.some(m => m.key === 'agenda')
 
-  const secoes = montarMenu({ delivery, modulos })
+  // Chave `fornecedor` desligada: some o item Fornecedores (a página vai para /pausado).
+  const { ativa } = useFlags()
+  const secoes = montarMenu({ delivery, modulos, ocultarRotas: ativa('fornecedor') ? [] : ['/fornecedores'] })
   const secaoAtiva = secaoDaRota(secoes, pathname)
 
   const contadores: Record<BadgeKey, number> = {

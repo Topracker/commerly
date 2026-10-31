@@ -2,6 +2,10 @@ import type { Metadata } from 'next'
 import { MarketingShell, MCard } from '../components/MarketingShell'
 import { Zap, Tag, Store, Check } from 'lucide-react'
 import { NIVEIS_CLIENTE } from '../lib/crescimento'
+import { moduloAtivo } from '../lib/featureFlags'
+
+// Relê a chave `cliente` a cada 60s: desligada, o CTA vira aviso de pausa.
+export const revalidate = 60
 
 export const metadata: Metadata = {
   title: 'Para Clientes — peça do comércio local com desconto',
@@ -9,13 +13,15 @@ export const metadata: Metadata = {
   alternates: { canonical: '/para-clientes' },
 }
 
-export default function ParaClientes() {
+export default async function ParaClientes() {
+  const ativo = await moduloAtivo('cliente')
   return (
     <MarketingShell
       eyebrow="Para clientes"
       titulo="O melhor do seu bairro, na palma da mão"
       subtitulo="Peça dos comércios locais, ganhe cashback e desbloqueie benefícios conforme você pede."
-      cta={{ href: '/cliente/login', label: 'Descobrir comércios' }}
+      cta={ativo ? { href: '/cliente/login', label: 'Descobrir comércios' } : undefined}
+      aviso="Pedidos novos estão pausados no momento. Volte em breve."
     >
       <div className="grid sm:grid-cols-3 gap-3 mb-8">
         <MCard><Zap size={20} className="text-acento mb-2" /><p className="text-white font-semibold">Praticidade</p><p className="text-gray-400 text-sm mt-1">Peça em segundos e acompanhe a entrega ao vivo no mapa.</p></MCard>

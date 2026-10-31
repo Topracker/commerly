@@ -7,6 +7,7 @@ import { Toast } from '../../components/Toast'
 import { ClienteLayout } from '../../components/ClienteLayout'
 import { getFavoritos, removeFavorito, type LojaFavorita } from '../../lib/favoritos'
 import { Heart, Store, X } from 'lucide-react'
+import { SoComModulo } from '../../components/SoComModulo'
 
 export default function ClienteFavoritas() {
   const { cliente, loading, sair } = useCliente()
@@ -41,12 +42,14 @@ export default function ClienteFavoritas() {
           <Heart size={32} className="mx-auto mb-3 text-gray-600" />
           <p className="text-gray-500">Nenhuma loja favorita ainda.</p>
           <p className="text-gray-600 text-sm mt-1">Toque no coração de uma loja para salvá-la aqui.</p>
-          <button
-            onClick={() => router.push('/cliente/buscar')}
-            className="mt-4 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition"
-          >
-            Descobrir comércios
-          </button>
+          <SoComModulo modulo="cliente">
+            <button
+              onClick={() => router.push('/cliente/buscar')}
+              className="mt-4 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition"
+            >
+              Descobrir comércios
+            </button>
+          </SoComModulo>
         </div>
       ) : (
         <div className="flex flex-col gap-3 max-w-2xl mx-auto">

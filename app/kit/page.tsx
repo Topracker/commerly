@@ -3,6 +3,10 @@ import { MarketingShell, MCard } from '../components/MarketingShell'
 import { KitTracking } from '../components/KitTracking'
 import { KitInteresse } from '../components/KitInteresse'
 import { Check, Snowflake } from 'lucide-react'
+import { moduloAtivo } from '../lib/featureFlags'
+
+// Relê a chave `entregador` a cada 60s: desligada, o CTA vira aviso de pausa.
+export const revalidate = 60
 
 export const metadata: Metadata = {
   title: 'Kit Oficial do Entregador',
@@ -25,13 +29,15 @@ const CONTEUDO = [
   { n: 'Manual', d: 'Como aceitar corridas, subir de nível e ganhar mais.' },
 ]
 
-export default function Kit() {
+export default async function Kit() {
+  const ativo = await moduloAtivo('entregador')
   return (
     <MarketingShell
       eyebrow="Kit oficial do entregador"
       titulo="Sua vitrine ambulante"
       subtitulo="Bolsa, adesivo e QR Code da rede oficial. É item opcional de identidade visual — você já pode aceitar corridas sem ele. A venda abre em breve."
-      cta={{ href: '/entregador-delivery/login', label: 'Começar cadastro' }}
+      cta={ativo ? { href: '/entregador-delivery/login', label: 'Começar cadastro' } : undefined}
+      aviso="Novos cadastros de entregador estão pausados no momento."
     >
       {/* Rastreio real do kit. Só aparece para entregador logado — para o
           visitante a página continua sendo só a apresentação do kit. */}

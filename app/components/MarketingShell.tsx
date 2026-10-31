@@ -5,13 +5,15 @@ import { ArrowLeft } from 'lucide-react'
 // Mantém o tema escuro (independe da preferência do usuário logado) e um layout
 // consistente com hero + conteúdo.
 export function MarketingShell({
-  eyebrow, titulo, subtitulo, children, cta,
+  eyebrow, titulo, subtitulo, children, cta, aviso,
 }: {
   eyebrow?: string
   titulo: string
   subtitulo?: string
   children: React.ReactNode
   cta?: { href: string; label: string }
+  // Aparece no lugar do CTA quando o módulo está pausado (chave desligada).
+  aviso?: string
 }) {
   return (
     <main data-theme="dark" className="min-h-screen bg-fundo font-body">
@@ -35,6 +37,11 @@ export function MarketingShell({
             >
               {cta.label}
             </Link>
+          )}
+          {!cta && aviso && (
+            <p className="inline-flex items-center gap-2 mt-6 border border-amber-500/40 bg-amber-500/10 text-amber-300 text-sm font-medium px-5 py-3 rounded-2xl">
+              ⏸️ {aviso}
+            </p>
           )}
         </div>
       </section>

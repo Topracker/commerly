@@ -708,7 +708,8 @@ export default function Dashboard() {
       <div className="mb-6">
         <p className="text-gray-400 text-xs uppercase font-semibold mb-2">{nicho.emoji} Atalhos do seu negócio</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {modulos.map(m => (
+          {/* Chave `fornecedor` desligada: some o atalho de Fornecedores. */}
+          {modulos.filter(m => flagAtiva('fornecedor') || m.path !== '/fornecedores').map(m => (
             <button
               key={m.path}
               onClick={() => window.location.href = m.path}

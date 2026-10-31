@@ -14,6 +14,7 @@ import type { LocalizacaoEntrega } from '../../lib/entregadores'
 import { distanciaKm, etaMinutos, formatarEta, formatarDistancia } from '../../lib/geo'
 import { uploadFotoAvaliacao, enviarAvaliacao, VIEW_AVAL_LOJAS, VIEW_AVAL_ENTREGADORES } from '../../lib/avaliacoes'
 import { ShoppingBag, MapPin, ChevronRight, Bike, KeyRound, XCircle, Clock, Camera, Loader2, CalendarClock, Check } from 'lucide-react'
+import { SoComModulo } from '../../components/SoComModulo'
 
 type EntregadorPublico = { id: string; nome: string; foto_url: string | null; telefone: string | null }
 
@@ -276,9 +277,11 @@ export default function ClientePedidos() {
           <div className="bg-card border border-borda rounded-2xl p-8 text-center">
             <ShoppingBag size={40} className="text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400 text-sm">Você ainda não fez nenhum pedido.</p>
-            <button onClick={() => router.push('/cliente/buscar')} className="mt-4 inline-flex items-center gap-1.5 text-green-400 text-sm font-medium hover:text-green-300">
-              Buscar lojas <ChevronRight size={16} />
-            </button>
+            <SoComModulo modulo="cliente">
+              <button onClick={() => router.push('/cliente/buscar')} className="mt-4 inline-flex items-center gap-1.5 text-green-400 text-sm font-medium hover:text-green-300">
+                Buscar lojas <ChevronRight size={16} />
+              </button>
+            </SoComModulo>
           </div>
         ) : (
           <div className="flex flex-col gap-3">

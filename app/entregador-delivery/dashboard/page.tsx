@@ -5,6 +5,7 @@ import { useEntregador } from '../../hooks/useEntregador'
 import { useToast } from '../../hooks/useToast'
 import { Toast } from '../../components/Toast'
 import { EntregadorLayout } from '../../components/EntregadorLayout'
+import { useFlags } from '../../lib/useFlags'
 import { MapaEntregas, type PontoMapa } from '../../components/MapaEntregas'
 import { OfertaCorridaModal } from '../../components/OfertaCorridaModal'
 import { STATUS_META, type PedidoCliente } from '../../lib/pedidosClientes'
@@ -84,6 +85,10 @@ function EntregadorDashboard() {
   // Online/Offline: agora persistido no banco (entregadores.disponivel) — é o que
   // coloca o entregador no POOL de despacho. Offline = não recebe corridas.
   const [online, setOnline] = useState(false)
+  // Chave `entregador` desligada: some o "Ficar online". Quem JÁ está online
+  // continua podendo ficar offline (nunca forçamos ninguém a sair).
+  const { ativa } = useFlags()
+  const redePausada = !ativa('entregador')
   // Posição atual do entregador (browser) — centraliza o mapa e mede distâncias.
   const [minhaPos, setMinhaPos] = useState<{ lat: number; lng: number } | null>(null)
 
@@ -740,6 +745,12 @@ function EntregadorDashboard() {
         </div>
 
         {/* Botão principal do app do entregador: grande, com o estado óbvio. */}
+        {redePausada && !online ? (
+          <div className="mt-4 w-full rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-4 text-center">
+            <p className="text-amber-300 font-semibold text-sm">⏸️ A rede de entregadores está pausada</p>
+            <p className="text-gray-400 text-xs mt-1">Novas corridas estão suspensas. Corridas que você já aceitou continuam normalmente.</p>
+          </div>
+        ) : (
         <button
           onClick={toggleOnline}
           className={`mt-4 w-full flex items-center justify-center gap-3 font-bold text-base py-4 rounded-2xl transition border ${
@@ -755,11 +766,12 @@ function EntregadorDashboard() {
           <Power size={19} />
           {online ? 'ONLINE — recebendo corridas' : 'OFFLINE — toque para ficar disponível'}
         </button>
-        <p className="text-gray-500 text-[11px] text-center mt-2">
+        )}
+        {!(redePausada && !online) && <p className="text-gray-500 text-[11px] text-center mt-2">
           {online
             ? 'As lojas próximas podem te chamar. Mantenha a localização ativa.'
             : 'Fique online para receber corridas das lojas próximas (não precisa de parceria).'}
-        </p>
+        </p>}
       </section>
 
       {carregando ? (

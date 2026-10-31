@@ -14,6 +14,7 @@ import {
   agruparStories, ordenarFeed,
   type LojaDoFeed, type Post, type ProdutoMarcado, type Story,
 } from '../../lib/feed'
+import { SoComModulo } from '../../components/SoComModulo'
 
 export default function ClienteFeed() {
   const { cliente, loading, supabase, sair } = useCliente()
@@ -316,12 +317,14 @@ export default function ClienteFeed() {
               <p className="mt-1 text-sm text-white/55">
                 Siga as lojas que você gosta para ver as novidades delas primeiro.
               </p>
-              <button
-                onClick={() => router.push('/cliente/buscar')}
-                className="mt-4 rounded-xl bg-azul px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
-              >
-                Descobrir lojas
-              </button>
+              <SoComModulo modulo="cliente">
+                <button
+                  onClick={() => router.push('/cliente/buscar')}
+                  className="mt-4 rounded-xl bg-azul px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+                >
+                  Descobrir lojas
+                </button>
+              </SoComModulo>
             </div>
           </div>
         ) : (

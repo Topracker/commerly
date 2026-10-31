@@ -4,6 +4,7 @@ import { reais } from '../../../lib/moeda'
 import { useParams, useRouter } from 'next/navigation'
 import { useCliente } from '../../../hooks/useCliente'
 import { ClienteLayout } from '../../../components/ClienteLayout'
+import { useFlags } from '../../../lib/useFlags'
 import { useToast } from '../../../hooks/useToast'
 import { Toast } from '../../../components/Toast'
 import { FESTA_STATUS_META, FESTA_BONUS_PCT, type FestaStatus } from '../../../lib/festas'
@@ -55,6 +56,8 @@ const TODAS = '__todas__'
 const iniciais = (nome: string) => nome.trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase() || '?'
 
 export default function FestaSala() {
+  // Chave `entregador` desligada: sem "Buscar entregador"; as lojas entregam.
+  const { ativa } = useFlags()
   const { id } = useParams<{ id: string }>()
   const { cliente, loading, sair } = useCliente()
   const { toast, mostrarToast } = useToast()
@@ -441,7 +444,12 @@ export default function FestaSala() {
                 })}
               </div>
 
-              {estado.sou_criador && festa.status === 'fechada' && (
+              {estado.sou_criador && festa.status === 'fechada' && !ativa('entregador') && (
+                <p className="mt-3 text-gray-400 text-xs bg-elevado border border-borda rounded-xl px-3 py-2.5 text-center">
+                  A rede de entregadores está pausada: cada loja entrega o seu pedido por conta própria.
+                </p>
+              )}
+              {estado.sou_criador && festa.status === 'fechada' && ativa('entregador') && (
                 <button
                   onClick={buscarEntregador}
                   disabled={acaoFesta}

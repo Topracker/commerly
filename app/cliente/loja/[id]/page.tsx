@@ -16,6 +16,7 @@ import { LojaIndisponivel } from '../../../components/LojaIndisponivel'
 import { RatingBadge } from '../../../components/RatingBadge'
 import { ProdutoCard } from '../../../components/ProdutoCard'
 import { PedidoModal } from '../../../components/PedidoModal'
+import { useFlags } from '../../../lib/useFlags'
 import { isDelivery } from '../../../lib/pedidosClientes'
 import { linkWhatsApp, textoPedido, whatsappDaLoja } from '../../../lib/whatsapp'
 import { AtSign, MapPin, Clock, MessageCircle, ArrowLeft, Heart, ShoppingBag, Globe, UserPlus, UserCheck } from 'lucide-react'
@@ -36,6 +37,8 @@ export default function ClienteLoja() {
   const [enviandoAval, setEnviandoAval] = useState(false)
   const [favorito, setFavorito] = useState(false)
   const [pedidoAberto, setPedidoAberto] = useState(false)
+  // Chave `cliente` desligada: some o "Fazer Pedido" (a rota e o banco também barram).
+  const { ativa } = useFlags()
   // Seguir é diferente de favoritar: favorito é uma lista privada (localStorage);
   // seguir prioriza a loja no feed e faz o cliente ser notificado dos posts dela.
   const [seguindo, setSeguindo] = useState(false)
@@ -292,7 +295,7 @@ export default function ClienteLoja() {
                 dela. O trigger do banco recusaria o pedido de qualquer jeito —
                 aqui o cliente descobre antes de montar o carrinho. */}
             {isDelivery(loja.tipo) && produtos.length > 0 && (
-              loja.delivery_liberado === false ? (
+              loja.delivery_liberado === false || !ativa('cliente') ? (
                 <p className="mt-2.5 w-full rounded-xl border border-borda bg-elevado py-3 text-center text-sm text-gray-400">
                   Pedidos indisponíveis nesta loja no momento.
                 </p>

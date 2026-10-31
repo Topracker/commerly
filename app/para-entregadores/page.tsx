@@ -3,6 +3,10 @@ import Link from 'next/link'
 import { MarketingShell, MCard } from '../components/MarketingShell'
 import { DollarSign, Clock, Package, Check } from 'lucide-react'
 import { NIVEIS_ENTREGADOR } from '../lib/crescimento'
+import { moduloAtivo } from '../lib/featureFlags'
+
+// Relê a chave `entregador` a cada 60s: desligada, o CTA vira aviso de pausa.
+export const revalidate = 60
 
 export const metadata: Metadata = {
   title: 'Para Entregadores — ganhe por corrida com liberdade',
@@ -10,13 +14,15 @@ export const metadata: Metadata = {
   alternates: { canonical: '/para-entregadores' },
 }
 
-export default function ParaEntregadores() {
+export default async function ParaEntregadores() {
+  const ativo = await moduloAtivo('entregador')
   return (
     <MarketingShell
       eyebrow="Para entregadores"
       titulo="Ganhe por corrida, com liberdade"
       subtitulo="Você escolhe quando trabalhar. Suba de nível, ganhe bônus e recompensas físicas — jaqueta, kit e mais."
-      cta={{ href: '/entregador-delivery/login', label: 'Quero ser entregador' }}
+      cta={ativo ? { href: '/entregador-delivery/login', label: 'Quero ser entregador' } : undefined}
+      aviso="Novos cadastros de entregador estão pausados no momento. Volte em breve."
     >
       <div className="grid sm:grid-cols-3 gap-3 mb-8">
         <MCard><DollarSign size={20} className="text-acento mb-2" /><p className="text-white font-semibold">Ganhos por corrida</p><p className="text-gray-400 text-sm mt-1">Taxa por distância + bônus em corridas especiais (Modo Festa paga +20%).</p></MCard>

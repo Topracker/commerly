@@ -9,6 +9,7 @@ import { emojiCategoria, corAcentoNicho } from '../../lib/temaLoja'
 import { linkWhatsApp, textoPedidoCardapio, whatsappDaLoja } from '../../lib/whatsapp'
 import { MapPin, Clock, Phone, ShoppingBag, UtensilsCrossed, MessageCircle } from 'lucide-react'
 import { SeloAberto } from '../../components/SeloAberto'
+import { moduloAtivo } from '../../lib/featureFlags'
 
 // Cardápio digital público — acessível sem login (ideal para QR code na mesa/
 // balcão). Mostra a loja e todos os produtos disponíveis agrupados por
@@ -126,7 +127,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function CardapioPublico({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const dados = await carregar(id)
+  const [dados, clienteAtivo] = await Promise.all([carregar(id), moduloAtivo('cliente')])
   if (!dados) notFound()
 
   if ('indisponivel' in dados) return (
@@ -267,13 +268,17 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
       {/* CTA fixo: pedido pelo app e, quando a loja tem número, pelo WhatsApp */}
       <div className="fixed bottom-0 inset-x-0 z-40 bg-gradient-to-t from-gray-950 via-gray-950/95 to-transparent px-4 pt-6 pb-4">
         <div className="max-w-2xl mx-auto flex flex-col gap-2">
-          <Link
-            href={`/cliente/loja/${loja.id}`}
-            className="w-full bg-azul hover:brightness-110 text-white font-semibold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-black/40"
-          >
-            <ShoppingBag size={19} />
-            Fazer pedido
-          </Link>
+          {/* Chave `cliente` desligada: some o pedido pelo app (o WhatsApp é da
+              loja, não passa pela Commerly, e continua). */}
+          {clienteAtivo && (
+            <Link
+              href={`/cliente/loja/${loja.id}`}
+              className="w-full bg-azul hover:brightness-110 text-white font-semibold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-black/40"
+            >
+              <ShoppingBag size={19} />
+              Fazer pedido
+            </Link>
+          )}
           {whatsapp && (
             <a
               href={whatsapp}

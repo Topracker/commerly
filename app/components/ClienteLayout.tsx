@@ -50,7 +50,11 @@ export function ClienteLayout({
   // (as rotas de festa respondem 503 — ver api/festa/_lib.ts).
   const { ativa } = useFlags()
   const festaLigada = ativa('modo_festa') && ativa('cliente')
-  const menu = festaLigada ? MENU : MENU.filter(i => i.path !== '/cliente/festa')
+  // Chave `cliente` desligada: some também "Buscar lojas" (pedidos em
+  // andamento, notificações e mensagens continuam no menu).
+  const clienteLigado = ativa('cliente')
+  const menu = MENU.filter(i =>
+    (festaLigada || i.path !== '/cliente/festa') && (clienteLigado || i.path !== '/cliente/buscar'))
 
   useEffect(() => {
     if (!cliente?.id) return

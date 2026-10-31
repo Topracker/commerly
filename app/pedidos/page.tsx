@@ -4,6 +4,7 @@ import { formatarDataHora } from '../lib/datas'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
+import { useFlags } from '../lib/useFlags'
 import { Toast } from '../components/Toast'
 import { isDelivery, STATUS_META, FLUXO_STATUS, proximoStatus, pedidoEmAndamento, type PedidoCliente, type StatusPedidoCliente } from '../lib/pedidosClientes'
 import { RAIO_BUSCA_KM, type ParceriaEntregador } from '../lib/entregadores'
@@ -22,6 +23,10 @@ type Despacho =
 
 export default function PedidosComerciante() {
   const { user, loja, loading, supabase, sair } = useAuth()
+  // Chave `entregador` desligada: some o "Buscar entregador" — a loja entrega
+  // por conta própria (o despacho também devolve 503 / 'pausado').
+  const { ativa } = useFlags()
+  const redeEntregadores = ativa('entregador')
   const { toast, mostrarToast } = useToast()
   const [pedidos, setPedidos] = useState<PedidoCliente[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -498,7 +503,13 @@ export default function PedidosComerciante() {
                   <span>Liberado para a fila aberta — qualquer entregador parceiro pode pegar.</span>
                 </p>
               )}
-              {(!dsp || dsp.status === 'esgotado' || dsp.status === 'erro') && (
+              {!redeEntregadores && (!dsp || dsp.status === 'esgotado' || dsp.status === 'erro') && (
+                <p className="text-gray-400 text-xs bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 flex items-start gap-1.5">
+                  <Bike size={13} className="shrink-0 mt-0.5" />
+                  <span>A rede de entregadores está pausada. Entregue este pedido por conta própria e avance o status até &quot;Entregue&quot;.</span>
+                </p>
+              )}
+              {redeEntregadores && (!dsp || dsp.status === 'esgotado' || dsp.status === 'erro') && (
                 <>
                   {dsp?.status === 'esgotado' && (
                     <p className="text-amber-300 text-xs mb-2 flex items-center gap-1.5">

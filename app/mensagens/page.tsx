@@ -4,11 +4,14 @@ import { formatarData } from '../lib/datas'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../hooks/useAuth'
 import { AppLayout } from '../components/AppLayout'
+import { useFlags } from '../lib/useFlags'
 import { MessageCircle, Users } from 'lucide-react'
 
 type Aba = 'clientes' | 'fornecedores'
 
 export default function MensagensComercianteList() {
+  // Chave `fornecedor` desligada: some o "Buscar fornecedores" (conversas antigas continuam).
+  const { ativa } = useFlags()
   const { loja, loading, supabase, sair } = useAuth()
   const [aba, setAba] = useState<Aba>('clientes')
   const [conversasClientes, setConversasClientes] = useState<any[]>([])
@@ -186,13 +189,17 @@ export default function MensagensComercianteList() {
           <div className="text-center py-20 text-gray-500 flex flex-col items-center gap-3">
             <MessageCircle size={40} className="opacity-30" />
             <p>Nenhuma conversa ainda.</p>
-            <p className="text-sm">Encontre fornecedores e envie uma mensagem.</p>
-            <button
-              onClick={() => router.push('/fornecedores')}
-              className="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition"
-            >
-              Buscar fornecedores
-            </button>
+            {ativa('fornecedor') && (
+              <>
+                <p className="text-sm">Encontre fornecedores e envie uma mensagem.</p>
+                <button
+                  onClick={() => router.push('/fornecedores')}
+                  className="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition"
+                >
+                  Buscar fornecedores
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-2">

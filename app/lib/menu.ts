@@ -106,7 +106,12 @@ const BADGE_DA_ROTA: Record<string, BadgeKey> = {
  * Módulos cujo `path` já aparece num item fixo são descartados: para uma
  * hamburgueria, o módulo `produtos` é o mesmo /produtos da seção fixa.
  */
-export function montarMenu({ delivery, modulos }: { delivery: boolean; modulos: Modulo[] }): SecaoMenu[] {
+export function montarMenu({ delivery, modulos, ocultarRotas = [] }: {
+  delivery: boolean
+  modulos: Modulo[]
+  // Rotas que somem do menu (ex.: '/fornecedores' com a chave `fornecedor` OFF).
+  ocultarRotas?: string[]
+}): SecaoMenu[] {
   const secoes: SecaoMenu[] = [
     { chave: 'principal', titulo: 'Principal', itens: [...PRINCIPAL] },
     { chave: 'produtos-vendas', titulo: 'Produtos e Vendas', itens: [...PRODUTOS_VENDAS] },
@@ -135,6 +140,10 @@ export function montarMenu({ delivery, modulos }: { delivery: boolean; modulos: 
       label: m.label, sub: m.sub, path: m.path, icon: m.icon as LucideIcon, badge: BADGE_DA_ROTA[m.path],
     })
     rotasFixas.add(m.path)
+  }
+
+  if (ocultarRotas.length > 0) {
+    for (const s of secoes) s.itens = s.itens.filter(i => !ocultarRotas.includes(i.path))
   }
 
   return secoes.filter(s => s.itens.length > 0)
