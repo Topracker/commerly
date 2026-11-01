@@ -5,9 +5,10 @@ import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
-import { Landmark, TrendingUp, TrendingDown, Wallet, AlertTriangle, Receipt, Banknote } from 'lucide-react'
+import { Landmark, TrendingUp, TrendingDown, Wallet, AlertTriangle, Receipt, Banknote, WalletCards } from 'lucide-react'
 import { situacaoAcerto, type AcertoComConfirmacoes } from '../lib/acertos'
 import { diaLoja, formatarData, inicioDiaLoja } from '../lib/datas'
+import { FORMA_VALE_CAIXA, ORDEM_FORMAS, formaDaVenda, formaDoPedido, type FormaResumo } from '../lib/vale'
 import {
   LIMITE_MEI_ANUAL, SALARIO_MINIMO, cmvDosItens, fluxoDeCaixa, limiteMeiProporcional,
   usoDoLimiteMei, valorDasMei, type AtividadeMei, type Entrada, type MesFinanceiro, type Saida,
@@ -34,6 +35,8 @@ export default function Financeiro() {
   // Acertos em dinheiro (lib/acertos.ts): repasses de entregadores ainda não
   // confirmados e créditos que a Commerly deve à loja (cupom da Garantia).
   const [acertos, setAcertos] = useState<AcertoComConfirmacoes[]>([])
+  // Entradas do mês atual por forma de pagamento (vale separado — lib/vale.ts).
+  const [porForma, setPorForma] = useState<{ forma: FormaResumo; valor: number }[]>([])
 
   useEffect(() => {
     if (!loja) return
@@ -53,8 +56,10 @@ export default function Financeiro() {
     const desde = new Date(Math.min(seisMeses.getTime(), inicioAno.getTime())).toISOString()
 
     const [vendasRes, pedidosRes, gastosRes, produtosRes] = await Promise.all([
-      supabase.from('vendas').select('valor_total, lucro, created_at').eq('loja_id', loja.id).gte('created_at', desde),
-      supabase.from('pedidos_clientes').select('total, taxa_entrega, itens, created_at')
+      supabase.from('vendas').select('valor_total, lucro, forma_pagamento, created_at').eq('loja_id', loja.id).gte('created_at', desde),
+      // `*` e não lista: forma_pagamento só existe depois da migração do vale,
+      // e uma coluna inexistente na lista derrubaria o financeiro inteiro.
+      supabase.from('pedidos_clientes').select('*')
         .eq('loja_id', loja.id).neq('status', 'cancelado').gte('created_at', desde),
       supabase.from('gastos').select('valor, created_at').eq('loja_id', loja.id).gte('created_at', desde),
       supabase.from('produtos').select('id, custo').eq('loja_id', loja.id),
@@ -82,6 +87,21 @@ export default function Financeiro() {
     }
 
     setEntradas(ents)
+
+    // Mesma régua das Entradas (pedido = total − taxa), só que por forma e
+    // só no mês corrente — a soma bate com o card "Entradas".
+    const mesCorrente = diaLoja().slice(0, 7)
+    const soma = new Map<FormaResumo, number>()
+    const somar = (f: FormaResumo, v: number) => soma.set(f, (soma.get(f) || 0) + v)
+    for (const v of vendasRes.data || []) {
+      if (diaLoja(v.created_at as string).slice(0, 7) === mesCorrente) somar(formaDaVenda(v.forma_pagamento), Number(v.valor_total) || 0)
+    }
+    for (const p of pedidosRes.data || []) {
+      if (diaLoja(p.created_at as string).slice(0, 7) === mesCorrente) {
+        somar(formaDoPedido(p), Math.max(0, (Number(p.total) || 0) - (Number(p.taxa_entrega) || 0)))
+      }
+    }
+    setPorForma(ORDEM_FORMAS.filter(f => (soma.get(f) || 0) > 0).map(f => ({ forma: f, valor: soma.get(f) || 0 })))
     setSaidas((gastosRes.data || []).map(g => ({ valor: Number(g.valor) || 0, data: g.created_at as string })))
 
     const { data: acs } = await supabase.from('acertos_dinheiro').select('*, acertos_confirmacoes(*)')
@@ -99,6 +119,9 @@ export default function Financeiro() {
       nEntregadores: pend.filter(a => a.de_papel === 'entregador').length,
       commerly: soma(pend.filter(a => a.de_papel === 'commerly')),
       nCommerly: pend.filter(a => a.de_papel === 'commerly').length,
+      // Vale com entregador: passou na maquininha da loja, falta ela confirmar.
+      vale: soma(pend.filter(a => a.de_papel === 'cliente')),
+      nVale: pend.filter(a => a.de_papel === 'cliente').length,
     }
   }, [acertos])
 
@@ -163,7 +186,27 @@ export default function Financeiro() {
           </div>
 
           {/* A receber em dinheiro (Caminho B): entregadores e Commerly */}
-          {(aReceber.nEntregadores > 0 || aReceber.nCommerly > 0) && (
+          {/* Entradas do mês por forma de pagamento */}
+          {porForma.length > 0 && (
+            <div className="bg-gray-900 rounded-2xl p-5 mb-4">
+              <p className="text-white font-semibold text-sm mb-3">Entradas do mês por forma de pagamento</p>
+              <div className="flex flex-col gap-2 text-sm">
+                {porForma.map(({ forma, valor }) => (
+                  <div key={forma} className={`flex justify-between gap-2 ${forma === FORMA_VALE_CAIXA ? 'rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-1 -mx-2' : ''}`}>
+                    <span className={`flex items-center gap-1.5 ${forma === FORMA_VALE_CAIXA ? 'text-emerald-300 font-semibold' : 'text-gray-400'}`}>
+                      {forma === FORMA_VALE_CAIXA && <WalletCards size={13} />} {forma}
+                    </span>
+                    <span className="text-white font-semibold shrink-0">{reais(valor)}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-gray-500 text-xs mt-3">
+                Caixa e delivery somados. No delivery conta o valor dos produtos (a taxa de entrega é do entregador).
+              </p>
+            </div>
+          )}
+
+          {(aReceber.nEntregadores > 0 || aReceber.nCommerly > 0 || aReceber.nVale > 0) && (
             <div className="bg-gray-900 rounded-2xl p-5 mb-4">
               <p className="text-white font-semibold text-sm mb-3 flex items-center gap-2"><Banknote size={15} className="text-acento" /> A receber</p>
               <div className="flex flex-col gap-2 text-sm">
@@ -171,6 +214,12 @@ export default function Financeiro() {
                   <div className="flex justify-between gap-2">
                     <span className="text-gray-400">Repasses de entregadores ({aReceber.nEntregadores} pedido{aReceber.nEntregadores > 1 ? 's' : ''} em dinheiro)</span>
                     <span className="text-amber-300 font-semibold shrink-0">{reais(aReceber.entregadores)}</span>
+                  </div>
+                )}
+                {aReceber.nVale > 0 && (
+                  <div className="flex justify-between gap-2">
+                    <span className="text-gray-400">Vale (VA/VR) a confirmar na maquininha ({aReceber.nVale} pedido{aReceber.nVale > 1 ? 's' : ''})</span>
+                    <span className="text-amber-300 font-semibold shrink-0">{reais(aReceber.vale)}</span>
                   </div>
                 )}
                 {aReceber.nCommerly > 0 && (

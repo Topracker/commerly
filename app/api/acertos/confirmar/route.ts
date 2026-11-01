@@ -14,7 +14,10 @@ import { reais, type Acerto, type PapelConfirmacao } from '../../../lib/acertos'
 // chama é DERIVADO da sessão — o body não diz "sou a loja":
 //   • dono da loja do acerto      → papel 'loja'       (para_papel deve ser 'loja')
 //   • entregador do acerto        → papel 'entregador' (para_papel deve ser 'entregador')
-// Loja confirmando um `repasse_loja` é o que vira o pedido em 'pago'.
+// Loja confirmando um `repasse_loja` (dinheiro) ou a `cobranca` na própria
+// maquininha (vale, lib/vale.ts) é o que vira o pedido em 'pago'. Entregador
+// confirmando o `repasse_entregador` (vale: a loja pagou a corrida) vira
+// `pagamento_corrida` em 'pago'.
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -81,6 +84,14 @@ export async function POST(request: NextRequest) {
       const { data: p } = await admin.from('pedidos_clientes').select('pagamento_status').eq('id', a.pedido_id).maybeSingle()
       pedidoPago = p?.pagamento_status === 'pago'
     }
+  }
+
+  // Vale: a loja pagou a corrida ao entregador. Mesmo cuidado do bloco acima.
+  if (papel === 'entregador' && resultado === 'confirmado' && a.tipo === 'repasse_entregador') {
+    const { error: corrErr } = await admin
+      .from('pedidos_clientes').update({ pagamento_corrida: 'pago' })
+      .eq('id', a.pedido_id).eq('pagamento_corrida', 'pendente').select('id')
+    if (corrErr) console.error('[acertos/confirmar] pagamento_corrida:', corrErr.message)
   }
 
   // Avisa a contraparte (best-effort). Contestação também avisa a equipe pelo

@@ -11,7 +11,7 @@ import { FlashSaleBanner } from '../../components/FlashSale'
 import { TAGS_NUTRI, ROTULO_TAG, AVISO_NUTRI, type TagNutri } from '../../lib/nutri'
 import AvisoCobertura from '../../components/AvisoCobertura'
 import CidadeIndisponivel, { type CidadeInfo } from '../../components/CidadeIndisponivel'
-import { Search, MapPin, Star, List, Map as MapIcon, Navigation, Store, Sparkles } from 'lucide-react'
+import { Search, MapPin, Star, List, Map as MapIcon, Navigation, Store, Sparkles, WalletCards } from 'lucide-react'
 
 // Nichos oferecidos como filtro. Os valores precisam bater EXATAMENTE com
 // `lojas.tipo` (o filtro faz .eq('tipo', ...)) — ver a fonte em lib/nichos.ts.
@@ -27,6 +27,8 @@ export default function ClienteBuscar() {
   const [lojas, setLojas] = useState<any[]>([])
   const [busca, setBusca] = useState('')
   const [tipoFiltro, setTipoFiltro] = useState('Todos')
+  // Filtro "Aceita vale" (VA/VR na maquininha da loja — lib/vale.ts).
+  const [soVale, setSoVale] = useState(false)
   const [buscando, setBuscando] = useState(false)
   // Chave `cliente` desligada no admin: a API devolve lista vazia + este aviso.
   const [avisoPausa, setAvisoPausa] = useState('')
@@ -66,7 +68,7 @@ export default function ClienteBuscar() {
 
   useEffect(() => {
     if (cliente) buscarLojas()
-  }, [cliente, tipoFiltro])
+  }, [cliente, tipoFiltro, soVale])
 
   useEffect(() => {
     if (cliente) pedirLocalizacao()
@@ -145,6 +147,7 @@ export default function ClienteBuscar() {
     const params = new URLSearchParams()
     if (tipoFiltro !== 'Todos') params.set('tipo', tipoFiltro)
     if (busca.trim()) params.set('busca', busca.trim())
+    if (soVale) params.set('vale', '1')
     const base: any[] = await fetch(`/api/cliente/lojas?${params.toString()}`)
       .then(r => (r.ok ? r.json() : { lojas: [] }))
       .then(d => { setAvisoPausa(d.aviso || ''); return d.lojas || [] })
@@ -241,6 +244,12 @@ export default function ClienteBuscar() {
             {t}
           </button>
         ))}
+        <button
+          onClick={() => setSoVale(v => !v)}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition ${soVale ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+        >
+          <WalletCards size={14} /> Aceita vale
+        </button>
       </div>
 
       <div className="flex gap-2 mb-3 max-w-2xl mx-auto">
@@ -344,9 +353,16 @@ export default function ClienteBuscar() {
 
               <div className="p-4 pt-3">
                 <p className="font-display text-white font-semibold truncate">{loja.nome}</p>
-                <span className="inline-block text-[11px] bg-elevado border border-borda text-gray-300 px-2 py-0.5 rounded-full mt-1.5">
-                  {loja.tipo}
-                </span>
+                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                  <span className="inline-block text-[11px] bg-elevado border border-borda text-gray-300 px-2 py-0.5 rounded-full">
+                    {loja.tipo}
+                  </span>
+                  {loja.aceita_vale && (
+                    <span className="inline-flex items-center gap-1 text-[11px] bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 px-2 py-0.5 rounded-full font-semibold">
+                      <WalletCards size={11} /> Aceita VA/VR
+                    </span>
+                  )}
+                </div>
                 {loja.localizacao && (
                   <p className="text-gray-500 text-xs flex items-center gap-1 mt-2 truncate">
                     <MapPin size={12} className="shrink-0" />

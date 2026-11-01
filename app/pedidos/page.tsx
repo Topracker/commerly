@@ -9,8 +9,9 @@ import { Toast } from '../components/Toast'
 import { isDelivery, STATUS_META, FLUXO_STATUS, proximoStatus, pedidoEmAndamento, type PedidoCliente, type StatusPedidoCliente } from '../lib/pedidosClientes'
 import { RAIO_BUSCA_KM, type ParceriaEntregador } from '../lib/entregadores'
 import { formatarDistancia } from '../lib/geo'
-import { MapPin, Phone, ShoppingBag, ChevronRight, Ban, Bike, Check, X, Search, SearchX, Loader2, AlertTriangle, Users, RefreshCw, Banknote } from 'lucide-react'
+import { MapPin, Phone, ShoppingBag, ChevronRight, Ban, Bike, Check, X, Search, SearchX, Loader2, AlertTriangle, Users, RefreshCw, Banknote, WalletCards } from 'lucide-react'
 import { situacaoAcerto, trocoDevido, reais, type AcertoComConfirmacoes } from '../lib/acertos'
+import { pedidoNoVale, destaqueVale, rotuloBandeira } from '../lib/vale'
 
 type EntregadorPublico = { id: string; nome: string; foto_url: string | null; telefone: string | null }
 
@@ -192,9 +193,10 @@ export default function PedidosComerciante() {
     setPedidos(lista)
     setParcerias(pars)
 
-    // Repasses em dinheiro por pedido (só o que a loja recebe do entregador).
+    // O que a loja recebe por pedido: repasse do entregador (dinheiro) ou a
+    // cobrança na própria maquininha (vale, lib/vale.ts). Um por pedido.
     const { data: acs } = await supabase.from('acertos_dinheiro').select('*, acertos_confirmacoes(*)')
-      .eq('loja_id', loja.id).eq('para_papel', 'loja').eq('tipo', 'repasse_loja').is('estorna_id', null)
+      .eq('loja_id', loja.id).eq('para_papel', 'loja').in('tipo', ['repasse_loja', 'cobranca']).is('estorna_id', null)
     const amap: Record<string, AcertoComConfirmacoes> = {}
     for (const a of (acs || []) as AcertoComConfirmacoes[]) amap[a.pedido_id] = a
     setAcertos(amap)
@@ -402,6 +404,12 @@ export default function PedidosComerciante() {
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-500/15 text-gray-300 font-medium">↩︎ Estornado ao cliente</span>
             ) : p.pagamento_metodo === 'online' ? (
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-300 font-medium">💳 Pago online</span>
+            ) : pedidoNoVale(p) ? (
+              p.pagamento_status === 'pago' ? (
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-300 font-medium">💳 Vale recebido ({rotuloBandeira(p.vale_bandeira)})</span>
+              ) : (
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-bold uppercase tracking-wide">💳 {destaqueVale(p.vale_bandeira)} · a receber na entrega</span>
+              )
             ) : p.pagamento_status === 'pago' ? (
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-300 font-medium">💵 Recebido em dinheiro</span>
             ) : (
@@ -413,6 +421,16 @@ export default function PedidosComerciante() {
               </span>
             )}
           </p>
+          {/* Vale: o cliente paga na maquininha DA LOJA — sem ela, não há como cobrar. */}
+          {pedidoNoVale(p) && pedidoEmAndamento(p.status) && (
+            <p className="mt-1 flex items-start gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-amber-200 font-semibold">
+              <WalletCards size={13} className="shrink-0 mt-0.5" />
+              <span>
+                Levar maquininha: cobrar {reais(Number(p.total))} no vale {rotuloBandeira(p.vale_bandeira)}.
+                {p.entregador_id ? ' Entregue a maquininha ao entregador junto com o pedido.' : ''}
+              </span>
+            </p>
+          )}
         </div>
 
         {/* Entrega por entregador parceiro */}
@@ -434,14 +452,23 @@ export default function PedidosComerciante() {
               {p.status === 'entregue' && p.pagamento_metodo !== 'online' && acertos[p.id] && (() => {
                 const a = acertos[p.id]
                 const sit = situacaoAcerto(a)
+                // Vale: o valor caiu na maquininha da loja; ela confirma que passou.
+                const vale = a.tipo === 'cobranca' && pedidoNoVale(p)
+                const nomeEnt = entregadores[p.entregador_id!]?.nome || 'o entregador'
                 return (
                   <div className={`rounded-xl p-3 border ${sit === 'confirmado' ? 'bg-green-500/10 border-green-500/30' : sit === 'contestado' ? 'bg-red-500/10 border-red-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
                     <p className={`text-xs font-semibold flex items-start gap-1.5 ${sit === 'confirmado' ? 'text-green-200' : sit === 'contestado' ? 'text-red-300' : 'text-amber-200'}`}>
                       <Banknote size={13} className="shrink-0 mt-0.5" />
                       <span>
-                        {sit === 'confirmado' && `Você confirmou o recebimento de ${reais(Number(a.valor))}.`}
-                        {sit === 'contestado' && `Você contestou o repasse de ${reais(Number(a.valor))}. Combine com o entregador.`}
-                        {sit === 'pendente' && `${reais(Number(a.valor))} a receber de ${entregadores[p.entregador_id!]?.nome || 'o entregador'} (total ${reais(Number(p.total))} − taxa ${reais(Number(p.taxa_entrega))}).`}
+                        {sit === 'confirmado' && (vale
+                          ? `Você confirmou o vale de ${reais(Number(a.valor))} (${rotuloBandeira(p.vale_bandeira)}).`
+                          : `Você confirmou o recebimento de ${reais(Number(a.valor))}.`)}
+                        {sit === 'contestado' && (vale
+                          ? `Você disse que o vale de ${reais(Number(a.valor))} não passou. Combine com o cliente e o entregador.`
+                          : `Você contestou o repasse de ${reais(Number(a.valor))}. Combine com o entregador.`)}
+                        {sit === 'pendente' && (vale
+                          ? `Confira na maquininha: ${reais(Number(a.valor))} no vale ${rotuloBandeira(p.vale_bandeira)}. A corrida (${reais(Number(p.taxa_entrega))}) você paga a ${nomeEnt}.`
+                          : `${reais(Number(a.valor))} a receber de ${nomeEnt} (total ${reais(Number(p.total))} − taxa ${reais(Number(p.taxa_entrega))}).`)}
                       </span>
                     </p>
                     {sit === 'pendente' && (
@@ -452,7 +479,7 @@ export default function PedidosComerciante() {
                         </button>
                         <button onClick={() => { setContestando(a); setMotivoContestacao('') }} disabled={salvando === p.id}
                           className="shrink-0 px-3 bg-gray-800 border border-gray-700 hover:border-red-500/50 hover:text-red-400 text-gray-300 text-xs font-semibold py-2 rounded-xl transition disabled:opacity-50">
-                          Não recebi
+                          {vale ? 'Não passou' : 'Não recebi'}
                         </button>
                       </div>
                     )}
@@ -559,7 +586,7 @@ export default function PedidosComerciante() {
           <p className="text-xs text-gray-500">
             Corrida do entregador: <strong className="text-gray-300">R$ {Number(p.valor_corrida).toFixed(2)}</strong>
             {p.distancia_km != null && <span> · {Number(p.distancia_km).toFixed(1).replace('.', ',')} km</span>}
-            <span className="text-gray-600">{p.pagamento_metodo === 'online' ? ' (taxa de entrega, paga via Stripe)' : ' (taxa de entrega; o entregador fica com ela do que cobra do cliente)'}</span>
+            <span className="text-gray-600">{p.pagamento_metodo === 'online' ? ' (taxa de entrega, paga via Stripe)' : pedidoNoVale(p) ? ' (taxa de entrega; no vale o valor cai na sua maquininha e você paga a corrida ao entregador)' : ' (taxa de entrega; o entregador fica com ela do que cobra do cliente)'}</span>
           </p>
         </div>
 

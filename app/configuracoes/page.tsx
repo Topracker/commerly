@@ -12,6 +12,7 @@ import { FachadaUpload, type FachadaItem } from '../components/FachadaUpload'
 import { CardapioQR } from '../components/CardapioQR'
 import { CardapioIA } from '../components/CardapioIA'
 import { ConfigDelivery } from '../components/ConfigDelivery'
+import { ConfigVale } from '../components/ConfigVale'
 import { uploadFachada, removerFachada } from '../lib/fachada'
 import { isDelivery } from '../lib/pedidosClientes'
 import { normalizarWebsite, erroWebsite, checarDuplicidade, MSG_DOCUMENTO_EM_OUTRA_LOJA, erroDocumentoDuplicado } from '../lib/validacoes'
@@ -750,6 +751,11 @@ export default function Configuracoes() {
         {/* Preço dinâmico (#5), drone (#14) e classificação nutricional (#9) */}
         {isDelivery(tipo) && loja?.id && (
           <ConfigDelivery supabase={supabase} lojaId={loja.id} onToast={mostrarToast} />
+        )}
+
+        {/* Vale-alimentação/refeição na maquininha da loja (lib/vale.ts) */}
+        {isDelivery(tipo) && loja?.id && (
+          <ConfigVale supabase={supabase} lojaId={loja.id} onToast={mostrarToast} />
         )}
 
         <button

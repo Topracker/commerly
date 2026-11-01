@@ -29,9 +29,10 @@ import Link from 'next/link'
 import {
   Store, MapPin, Navigation, CircleDollarSign, Check, Handshake, PackageCheck,
   Star, History, Power, Wallet, Bike, TrendingUp,
-  Award, Trophy, Target, Camera, WifiOff, RefreshCw, X, Layers, AlertTriangle, Banknote,
+  Award, Trophy, Target, Camera, WifiOff, RefreshCw, X, Layers, AlertTriangle, Banknote, WalletCards,
 } from 'lucide-react'
 import { resumoCobranca, repasseLoja, situacaoAcerto, SITUACAO_META, type AcertoComConfirmacoes } from '../../lib/acertos'
+import { pedidoNoVale, destaqueVale, resumoCobrancaVale } from '../../lib/vale'
 
 type Avaliacao = { nota: number; comentario: string | null; created_at: string }
 type LojaDelivery = { id: string; nome: string; tipo?: string; localizacao?: string | null; latitude?: number | null; longitude?: number | null }
@@ -219,6 +220,22 @@ function EntregadorDashboard() {
     setCarregando(false)
   }
 
+  // Vale (lib/vale.ts): a loja paga a corrida por fora; o entregador confirma
+  // aqui que recebeu. A rota deriva o papel da sessão e marca a corrida paga.
+  async function confirmarCorridaVale(a: AcertoComConfirmacoes) {
+    setAcao(a.pedido_id)
+    try {
+      const res = await fetch('/api/acertos/confirmar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acerto_id: a.id, resultado: 'confirmado' }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) { mostrarToast(d.error || 'Não foi possível confirmar.', 'erro'); return }
+      mostrarToast(`Corrida de ${reais(Number(a.valor))} confirmada.`, 'sucesso')
+      carregar()
+    } catch { mostrarToast('Erro de rede.', 'erro') } finally { setAcao(null) }
+  }
+
   // "Ainda estou com o pedido": responde ao aviso de GPS parado. Manda a posição
   // junto quando o navegador deixa — é o GPS novo que de fato reinicia o relógio.
   async function confirmarRota(pedidoId: string) {
@@ -313,6 +330,8 @@ function EntregadorDashboard() {
   const repassesPendentes = repasses.filter(a => situacaoAcerto(a) === 'pendente')
   const totalARepassar = repassesPendentes.reduce((s, a) => s + Number(a.valor), 0)
   const acertoDoPedido = (pedidoId: string) => repasses.find(a => a.pedido_id === pedidoId) || null
+  // Vale: corridas que a loja deve a este entregador.
+  const corridaValeDoPedido = (pedidoId: string) => acertos.find(a => a.tipo === 'repasse_entregador' && a.pedido_id === pedidoId) || null
 
   // Métricas de hoje.
   const hoje = hojeLocal()
@@ -855,7 +874,12 @@ function EntregadorDashboard() {
                         <span className="text-gray-500 text-xs">Corrida</span>
                         <span className="text-acento font-bold text-sm">{Number(p.valor_corrida) > 0 ? reais(Number(p.valor_corrida)) : 'A definir'}</span>
                       </div>
-                      {p.pagamento_metodo !== 'online' && (
+                      {pedidoNoVale(p) ? (
+                        <div className="mt-2 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/40 rounded-lg px-2.5 py-1.5">
+                          <p className="font-bold uppercase tracking-wide flex items-center gap-1.5"><WalletCards size={13} className="shrink-0" /> {destaqueVale(p.vale_bandeira)}</p>
+                          <p className="mt-0.5">Leve a maquininha da loja e cobre no vale. {resumoCobrancaVale({ total: Number(p.total), taxa_entrega: Number(p.taxa_entrega), vale_bandeira: p.vale_bandeira })}.</p>
+                        </div>
+                      ) : p.pagamento_metodo !== 'online' && (
                         <p className="mt-2 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5 flex items-start gap-1.5">
                           <Banknote size={13} className="shrink-0 mt-0.5" />
                           <span>{resumoCobranca({ total: Number(p.total), taxa_entrega: Number(p.taxa_entrega), troco_para: p.troco_para })}</span>
@@ -1047,6 +1071,10 @@ function EntregadorDashboard() {
             <Banknote size={13} className="shrink-0 mt-0.5 text-acento" />
             <span>Pedidos em <strong className="text-gray-200">dinheiro</strong>: você cobra o total na porta, fica com a taxa de entrega e repassa o valor dos produtos à loja. A loja confirma o repasse aqui no app.</span>
           </p>
+          <p className="mt-1.5 text-gray-400 text-xs flex items-start gap-1.5">
+            <WalletCards size={13} className="shrink-0 mt-0.5 text-acento" />
+            <span>Pedidos no <strong className="text-gray-200">vale (VA/VR)</strong>: pegue a maquininha na loja e cobre o total no vale. O valor cai para a loja, que te paga a corrida — confirme aqui quando receber.</span>
+          </p>
           {repassesPendentes.length > 0 && (
             <p className="mt-2 text-amber-200 text-xs font-semibold">
               {reais(totalARepassar)} em {repassesPendentes.length} repasse(s) aguardando confirmação da loja.
@@ -1147,10 +1175,25 @@ function EntregadorDashboard() {
                     <div className="text-right shrink-0">
                       <p className="text-acento font-bold text-sm">{Number(p.valor_corrida) > 0 ? reais(Number(p.valor_corrida)) : '—'}</p>
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${p.pagamento_corrida === 'pago' ? 'bg-green-500/15 text-green-300 border-green-500/40' : 'bg-amber-500/15 text-amber-300 border-amber-500/40'}`}>
-                        {p.pagamento_corrida === 'pago' ? (p.pagamento_metodo === 'online' ? 'Pago' : 'Recebido na porta') : 'Pendente'}
+                        {p.pagamento_corrida === 'pago' ? (p.pagamento_metodo === 'online' ? 'Pago' : pedidoNoVale(p) ? 'Paga pela loja' : 'Recebido na porta') : 'Pendente'}
                       </span>
                       {/* Repasse em dinheiro à loja e se ela já confirmou. */}
                       {(() => {
+                        if (pedidoNoVale(p)) {
+                          const cv = corridaValeDoPedido(p.id)
+                          if (!cv) return <p className="mt-1 text-[10px] text-gray-500">Vale: cobrado na maquininha da loja</p>
+                          const sitCv = situacaoAcerto(cv)
+                          return sitCv === 'pendente' ? (
+                            <button onClick={() => confirmarCorridaVale(cv)} disabled={acao === p.id}
+                              className="mt-1 text-[10px] font-semibold px-2 py-1 rounded-lg bg-green-600 hover:bg-green-700 text-white transition disabled:opacity-50">
+                              Recebi a corrida da loja
+                            </button>
+                          ) : (
+                            <p className="mt-1 text-[10px] text-gray-400">
+                              Vale · corrida <span className={`px-1.5 py-0.5 rounded-full border ${SITUACAO_META[sitCv].classes}`}>{SITUACAO_META[sitCv].label}</span>
+                            </p>
+                          )
+                        }
                         const a = acertoDoPedido(p.id)
                         if (a) {
                           const sit = SITUACAO_META[situacaoAcerto(a)]

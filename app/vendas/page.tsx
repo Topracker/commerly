@@ -6,6 +6,7 @@ import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { Trash2 } from 'lucide-react'
 import { formatarDataHora } from '../lib/datas'
+import { FORMAS_CAIXA } from '../lib/vale'
 
 type ItemCarrinho = {
   produto: any
@@ -191,10 +192,11 @@ export default function Vendas() {
             </div>
           </div>
 
-          <div className="flex gap-3 mb-4">
-            {['Dinheiro', 'Pix', 'Cartão'].map(f => (
+          {/* Vale (VA/VR) é cobrado na maquininha da loja — a Commerly só registra. */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            {FORMAS_CAIXA.map(f => (
               <button key={f} onClick={() => setPagamento(f)}
-                className={`flex-1 py-3 rounded-xl font-semibold transition text-sm ${pagamento === f ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                className={`py-3 rounded-xl font-semibold transition text-sm ${pagamento === f ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
                 {f}
               </button>
             ))}

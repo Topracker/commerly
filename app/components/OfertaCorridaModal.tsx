@@ -1,10 +1,11 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { Bike, MapPin, Store, Check, X, PartyPopper, Banknote } from 'lucide-react'
+import { Bike, MapPin, Store, Check, X, PartyPopper, Banknote, WalletCards } from 'lucide-react'
 import { TEMPO_RESPOSTA_CORRIDA_S, type OfertaCorrida, type FestaOfertaResumo } from '../lib/entregadores'
 import type { PedidoCliente } from '../lib/pedidosClientes'
 import { formatarDistancia } from '../lib/geo'
 import { trocoDevido, repasseLoja } from '../lib/acertos'
+import { pedidoNoVale, destaqueVale } from '../lib/vale'
 
 type Props = {
   oferta: OfertaCorrida
@@ -52,7 +53,10 @@ export function OfertaCorridaModal({ oferta, pedido, nomeLoja, festa, respondend
   // DINHEIRO (Caminho B, lib/acertos.ts): o entregador decide com a conta na
   // mão — quanto cobrar, quanto troco levar e quanto repassar à loja. Festa é
   // sempre na entrega; o total a cobrar vem somado pela rota festa-oferta.
-  const emDinheiro = ehFesta ? true : pedido?.pagamento_metodo === 'entrega'
+  // VALE (lib/vale.ts): também é na porta, mas na maquininha da LOJA — o
+  // entregador precisa saber antes de aceitar que tem de pegar a maquininha.
+  const noVale = !ehFesta && !!pedido && pedidoNoVale(pedido)
+  const emDinheiro = !noVale && (ehFesta ? true : pedido?.pagamento_metodo === 'entrega')
   const totalCobrar = ehFesta ? (festa?.total_cobrar ?? null) : (pedido ? Number(pedido.total) : null)
   const troco = !ehFesta && pedido ? trocoDevido(pedido.troco_para, Number(pedido.total)) : 0
   const repasse = !ehFesta && pedido ? repasseLoja(Number(pedido.total), Number(pedido.taxa_entrega)) : null
@@ -100,6 +104,16 @@ export function OfertaCorridaModal({ oferta, pedido, nomeLoja, festa, respondend
             <div className="flex items-start gap-2 text-xs text-gray-400">
               <MapPin size={13} className="shrink-0 mt-0.5" />
               <span className="line-clamp-2">{ehFesta ? festa?.festa.endereco_entrega : pedido?.endereco_entrega}</span>
+            </div>
+          )}
+          {noVale && pedido && (
+            <div className="rounded-xl bg-amber-500/10 border border-amber-500/40 px-3 py-2 text-xs">
+              <p className="text-amber-200 font-bold flex items-center gap-1.5 uppercase tracking-wide">
+                <WalletCards size={14} className="shrink-0" /> {destaqueVale(pedido.vale_bandeira)}
+              </p>
+              <p className="text-amber-200/80 mt-0.5">
+                Pegue a maquininha na loja e cobre {reais(Number(pedido.total))} no vale. O valor vai para a loja, que te paga a corrida.
+              </p>
             </div>
           )}
           {emDinheiro && totalCobrar != null && (

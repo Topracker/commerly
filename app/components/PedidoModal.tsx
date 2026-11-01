@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { X, Plus, Minus, ShoppingBag, MapPin, Check, CreditCard, Banknote, Sparkles } from 'lucide-react'
+import { X, Plus, Minus, ShoppingBag, MapPin, Check, CreditCard, Banknote, Sparkles, WalletCards } from 'lucide-react'
 import type { ItemPedidoCliente } from '../lib/pedidosClientes'
 import { distanciaKm, taxaEntregaPorDistancia, taxaComPico, ehHorarioPico, formatarDistancia } from '../lib/geo'
 import { descontoDePontos, maxPontosResgataveis } from '../lib/fidelidade'
@@ -8,6 +8,7 @@ import { aplicarFator } from '../lib/precoDinamico'
 import { MapaConfirmar } from './MapaConfirmar'
 import { lojaAberta, msgLojaFechada } from '../lib/horario'
 import { TEXTO_PAGAR_NA_ENTREGA, sugestoesTroco, validarTroco, trocoDevido, reais } from '../lib/acertos'
+import { AVISO_MAQUININHA, ROTULO_BANDEIRA, bandeirasValidas, type BandeiraVale } from '../lib/vale'
 
 // `preco_venda` já vem com o desconto aplicado quando há promoção ativa;
 // `preco_original`/`desconto_pct` existem só para exibir o "de/por".
@@ -23,7 +24,7 @@ type Produto = {
 type Sugestao = { lat: number; lng: number; display_name: string }
 
 type Props = {
-  loja: { id: string; nome: string; horario?: string | null; latitude?: number | null; longitude?: number | null; aceita_pagamento_online?: boolean; distancia_maxima_entrega?: number | null }
+  loja: { id: string; nome: string; horario?: string | null; latitude?: number | null; longitude?: number | null; aceita_pagamento_online?: boolean; distancia_maxima_entrega?: number | null; aceita_vale?: boolean; vale_bandeiras?: string[] | null }
   cliente: { id: string; nome?: string | null; telefone?: string | null }
   produtos: Produto[]
   supabase: any
@@ -48,7 +49,13 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   // MUTEX: loja com pagamento online ligado -> "pagar na entrega" deixa de ser
   // o padrão. Continua disponível como escolha, mas o pedido já abre no online
   // (que é o que a loja quer receber, e o único caminho com estorno automático).
-  const [pagamento, setPagamento] = useState<'online' | 'entrega'>(aceitaOnline ? 'online' : 'entrega')
+  const [pagamento, setPagamento] = useState<'online' | 'entrega' | 'vale'>(aceitaOnline ? 'online' : 'entrega')
+  // Vale (VA/VR, lib/vale.ts): só aparece se a loja aceita. É "na entrega" na
+  // maquininha da loja — sem troco, sem taxa extra. O banco (pedidos_vale_guard)
+  // recusa bandeira que a loja não marcou.
+  const bandeirasLoja = loja.aceita_vale === true ? bandeirasValidas(loja.vale_bandeiras) : []
+  const aceitaVale = bandeirasLoja.length > 0
+  const [valeBandeira, setValeBandeira] = useState<BandeiraVale | null>(null)
   // Troco (só "na entrega"): a nota com que o cliente vai pagar. Vai em
   // `troco_para` — campo próprio, não na observação — para o entregador ver
   // quanto levar já na oferta da corrida. O guard revalida (≥ total).
@@ -197,6 +204,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
       const erroTroco = validarTroco(trocoNum, total)
       if (erroTroco) { onErro(erroTroco); return }
     }
+    if (pagamento === 'vale' && !valeBandeira) { onErro('Escolha a bandeira do seu vale.'); return }
     setEnviando(true)
 
     // Pagamento ONLINE: cria a sessão de checkout no servidor e vai pro Stripe.
@@ -259,6 +267,9 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
       // 'pendente' em todo insert que não venha do webhook da Stripe.
       // Troco: nulo = sem troco / Pix / valor exato.
       troco_para: trocoNum,
+      // Vale na maquininha da loja: só manda a chave quando é vale (o guard
+      // grava 'dinheiro' nos demais).
+      ...(pagamento === 'vale' ? { forma_pagamento: 'vale', vale_bandeira: valeBandeira } : {}),
     }).select('id').single()
     if (error) {
       onErro(error.message?.includes('Delivery indisponível')
@@ -267,7 +278,9 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
           ? msgLojaFechada(loja.horario)
           : error.message?.includes('troco')
             ? 'Confira o valor para troco: precisa ser pelo menos o total do pedido.'
-            : 'Não foi possível enviar o pedido. Tente novamente.')
+            : error.message?.includes('vale')
+              ? 'Esta loja não aceita esse vale agora. Escolha outra forma de pagamento.'
+              : 'Não foi possível enviar o pedido. Tente novamente.')
       setEnviando(false); return
     }
 
@@ -509,6 +522,36 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                       })()}
                     </div>
                   )}
+                </div>
+              )}
+
+              {aceitaVale && (
+                <button
+                  type="button"
+                  onClick={() => setPagamento('vale')}
+                  className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${pagamento === 'vale' ? 'border-acento/60 bg-acento/10' : 'border-borda bg-superficie hover:border-[#2b3440]'}`}
+                >
+                  <WalletCards size={20} className="text-acento shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium">Vale (VA/VR) na entrega</p>
+                    <p className="text-gray-500 text-xs">Aceita: {bandeirasLoja.map(b => ROTULO_BANDEIRA[b]).join(', ')}</p>
+                  </div>
+                  {pagamento === 'vale' && <Check size={16} className="text-acento shrink-0" />}
+                </button>
+              )}
+
+              {pagamento === 'vale' && (
+                <div className="rounded-xl border border-borda bg-superficie p-3">
+                  <p className="text-gray-400 text-xs mb-1.5">Qual é o seu vale?</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {bandeirasLoja.map(b => (
+                      <button key={b} type="button" onClick={() => setValeBandeira(b)}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded-full border transition ${valeBandeira === b ? 'border-acento bg-acento/15 text-acento' : 'border-borda text-gray-300 hover:border-acento/50'}`}>
+                        {ROTULO_BANDEIRA[b]}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-amber-200/90 text-xs mt-2.5">💳 {AVISO_MAQUININHA} Sem taxa extra.</p>
                 </div>
               )}
 

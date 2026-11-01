@@ -958,6 +958,26 @@ Logado como **comerciante**, em `/dashboard`:
 
 ---
 
+## 10.5 Vale-alimentação/refeição (VA/VR) — 2026-10-31
+
+Pré-requisito: `sql/2026-10-31-vale-alimentacao.sql` aplicado. Antes dele nada
+de vale aparece (e nada quebra). Lógica do banco: `scripts/testar-vale-guard.sql`.
+
+- [ ] Configurações (loja de delivery): ligar "Aceito vale…" → já vem com
+      Alelo/VR/Ticket/Pluxee; desmarcar todas com o vale ligado é recusado.
+- [ ] Vitrine: card da loja mostra "Aceita VA/VR"; chip "Aceita vale" filtra.
+- [ ] Checkout: aparece "Vale (VA/VR) na entrega" só nessa loja, com as
+      bandeiras dela e o aviso da maquininha; sem bandeira escolhida não envia.
+- [ ] /pedidos (loja): "PAGAMENTO: VALE (ALELO) · a receber na entrega" +
+      "Levar maquininha".
+- [ ] Com entregador: oferta e card dizem "VALE (Alelo)" e "pegue a maquininha";
+      no entregue a loja vê "Confira na maquininha… Confirmar recebimento";
+      confirmar → "Vale recebido". O entregador vê "Recebi a corrida da loja"
+      → corrida paga.
+- [ ] Sem entregador: marcar entregue já deixa "Vale recebido".
+- [ ] Caixa: "Vale (VA/VR)" entre as formas; Financeiro mostra "Entradas do mês
+      por forma de pagamento" com a linha do vale destacada.
+
 ## 11. VISUAL (modo claro e escuro)
 
 O app tem um **controle de aparência** no cabeçalho de **todas as 4 áreas** — um

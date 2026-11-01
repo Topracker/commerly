@@ -295,8 +295,8 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
         id: 'formas-de-pagamento',
         pergunta: 'Quais formas de pagamento posso usar no pedido?',
         resposta:
-          'Online, com cartão de crédito ou Pix, na hora de fechar o pedido; ou na entrega, em dinheiro ou Pix direto com o entregador. Se for pagar em dinheiro, marque "Preciso de troco" e diga com que nota vai pagar — o entregador já sai com o troco certo. A forma escolhida aparece para a loja e para o entregador.',
-        tags: ['pix', 'cartao', 'dinheiro', 'troco', 'pagar na entrega'],
+          'Online, com cartão de crédito ou Pix, na hora de fechar o pedido; ou na entrega, em dinheiro ou Pix direto com o entregador. Se for pagar em dinheiro, marque "Preciso de troco" e diga com que nota vai pagar — o entregador já sai com o troco certo. Se a loja aceitar vale-alimentação/refeição (selo "Aceita VA/VR"), dá para escolher "Vale (VA/VR) na entrega" e pagar na maquininha da loja, sem taxa extra. A forma escolhida aparece para a loja e para o entregador.',
+        tags: ['pix', 'cartao', 'dinheiro', 'troco', 'pagar na entrega', 'vale', 'vale-refeicao', 'vale-alimentacao'],
         publico: ['cliente'],
       },
       {

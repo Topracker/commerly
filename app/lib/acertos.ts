@@ -19,7 +19,9 @@
 import { reais } from './moeda'
 
 export type PapelAcerto = 'cliente' | 'entregador' | 'loja' | 'commerly'
-export type TipoAcerto = 'cobranca' | 'repasse_loja' | 'bonus_festa' | 'cupom_garantia' | 'estorno'
+// repasse_entregador: no VALE (lib/vale.ts) o dinheiro cai na maquininha da
+// loja, então é ela quem deve a corrida ao entregador.
+export type TipoAcerto = 'cobranca' | 'repasse_loja' | 'repasse_entregador' | 'bonus_festa' | 'cupom_garantia' | 'estorno'
 export type PapelConfirmacao = 'loja' | 'entregador' | 'commerly'
 
 export type Acerto = {
@@ -63,6 +65,7 @@ export const PAPEL_LABEL: Record<PapelAcerto, string> = {
 export const TIPO_LABEL: Record<TipoAcerto, string> = {
   cobranca: 'Cobrado em dinheiro',
   repasse_loja: 'Repasse à loja',
+  repasse_entregador: 'Corrida paga pela loja (vale)',
   bonus_festa: 'Bônus do Modo Festa',
   cupom_garantia: 'Cupom da Commerly Garantia',
   estorno: 'Estorno',

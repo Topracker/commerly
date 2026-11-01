@@ -53,6 +53,17 @@ async function deliveryLiberado(admin: any, lojaIds: string[]): Promise<Map<stri
   return mapa
 }
 
+/**
+ * Lojas que aceitam vale (VA/VR) na maquininha — lib/vale.ts. Query à parte e
+ * tolerante: antes da migração 2026-10-31-vale-alimentacao a coluna não existe
+ * e a vitrine segue igual (sem selo, filtro vazio), em vez de cair inteira.
+ */
+async function lojasComVale(admin: ReturnType<typeof createAdminClient>): Promise<Set<string>> {
+  const { data, error } = await admin.from('lojas').select('id').eq('aceita_vale', true)
+  if (error) return new Set()
+  return new Set((data || []).map((l: { id: string }) => l.id))
+}
+
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -106,6 +117,13 @@ export async function GET(request: NextRequest) {
   const busca = searchParams.get('busca')
   if (tipo && tipo !== 'Todos') query = query.eq('tipo', tipo)
   if (busca && busca.trim()) query = query.ilike('nome', `%${busca.trim()}%`)
+  // Filtro "Aceita vale": aplicado ANTES do limit(50), senão lojas com vale
+  // fora das 50 primeiras sumiriam do filtro.
+  const comVale = await lojasComVale(admin)
+  if (searchParams.get('vale') === '1') {
+    if (comVale.size === 0) return NextResponse.json({ lojas: [] })
+    query = query.in('id', [...comVale])
+  }
 
   const [{ data: bruto, error }, ocultas] = await Promise.all([query, idsLojasOcultas(admin)])
   if (error) {
@@ -117,6 +135,6 @@ export async function GET(request: NextRequest) {
   console.log(`[cliente/lojas] ${data.length} lojas (tipo=${tipo || 'Todos'}, busca=${busca || ''})`)
   const liberado = await deliveryLiberado(admin, data.map((l: any) => l.id))
   return NextResponse.json({
-    lojas: data.map((l: any) => ({ ...l, delivery_liberado: liberado.get(l.id) !== false })),
+    lojas: data.map((l: any) => ({ ...l, delivery_liberado: liberado.get(l.id) !== false, aceita_vale: comVale.has(l.id) })),
   })
 }

@@ -36,6 +36,11 @@ export type PedidoCliente = {
   // Nota com que o cliente vai pagar em dinheiro (troco = troco_para − total).
   // Nulo = sem troco / Pix / valor exato. Validado no guard (≥ total).
   troco_para?: number | null
+  // Só na entrega: 'dinheiro' (dinheiro/Pix ao entregador) ou 'vale' (VA/VR na
+  // maquininha da loja, lib/vale.ts). Nulo = online ou pedido anterior ao vale.
+  // Congelados no UPDATE pelo trigger pedidos_vale_guard.
+  forma_pagamento?: 'dinheiro' | 'vale' | null
+  vale_bandeira?: string | null
   /** Preenchidos pela rota de estorno (loja ou cliente) quando pago online. */
   estornado_em?: string | null
   stripe_refund_id?: string | null

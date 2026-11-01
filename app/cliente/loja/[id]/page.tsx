@@ -140,6 +140,15 @@ export default function ClienteLoja() {
         }
       })
 
+    // Vale (VA/VR) no mesmo padrão tolerante: antes da migração
+    // 2026-10-31-vale-alimentacao a coluna não existe e a opção só não aparece.
+    supabase.from('lojas_publicas').select('aceita_vale, vale_bandeiras').eq('id', id).maybeSingle()
+      .then(({ data }: { data: { aceita_vale?: boolean; vale_bandeiras?: string[] | null } | null }) => {
+        if (data?.aceita_vale) {
+          setLoja((prev: typeof loja) => (prev ? { ...prev, aceita_vale: true, vale_bandeiras: data.vale_bandeiras || [] } : prev))
+        }
+      })
+
     const avals = avalRes.data || []
     setAvaliacoes(avals)
     if (avals.length > 0) setMediaAval(avals.reduce((s: number, a: any) => s + a.nota, 0) / avals.length)

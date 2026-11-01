@@ -15,6 +15,7 @@ import { distanciaKm, etaMinutos, formatarEta, formatarDistancia } from '../../l
 import { uploadFotoAvaliacao, enviarAvaliacao, VIEW_AVAL_LOJAS, VIEW_AVAL_ENTREGADORES } from '../../lib/avaliacoes'
 import { ShoppingBag, MapPin, ChevronRight, Bike, KeyRound, XCircle, Clock, Camera, Loader2, CalendarClock, Check } from 'lucide-react'
 import { SoComModulo } from '../../components/SoComModulo'
+import { rotuloBandeira } from '../../lib/vale'
 
 type EntregadorPublico = { id: string; nome: string; foto_url: string | null; telefone: string | null }
 
@@ -468,6 +469,10 @@ export default function ClientePedidos() {
                     {p.pagamento_metodo === 'online' ? (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-300 font-medium">
                         💳 Pago online
+                      </span>
+                    ) : p.forma_pagamento === 'vale' ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-medium">
+                        {p.status === 'entregue' ? '💳 Pago no vale' : '💳 Vale na entrega'} ({rotuloBandeira(p.vale_bandeira)}) · na maquininha da loja
                       </span>
                     ) : (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-medium">
