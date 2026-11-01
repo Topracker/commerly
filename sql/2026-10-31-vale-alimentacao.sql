@@ -1,8 +1,11 @@
 -- ============================================================================
 -- Vale-alimentação / vale-refeição (VA/VR) na maquininha da loja   2026-10-31
 -- ----------------------------------------------------------------------------
--- STATUS: NÃO APLICADO em produção (o dono roda no SQL Editor do Supabase).
--- Testado em DO/ROLLBACK contra o banco de produção em 2026-10-31 (ver rodapé).
+-- STATUS: APLICADO em produção em 2026-10-31 via MCP (migration
+-- vale_alimentacao_2026_10_31). Conferência 8/8 colunas + trigger; guard
+-- 228429ef… intocado; acertos_gerar_na_entrega → 50c19781…, notif_corrida_oferta
+-- → eead995e…, pedidos_vale_guard 39859b22…. E2E pela UI em prod: 37/38 (a 38ª
+-- era premissa do teste: vitrine sem nenhuma loja visível hoje).
 --
 -- A Commerly NÃO processa o vale: o cliente paga na MAQUININHA DA LOJA, na
 -- porta (o entregador leva a maquininha) ou quando a própria loja entrega. É
