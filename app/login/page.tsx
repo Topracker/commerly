@@ -9,6 +9,7 @@ import CampoConvite from '../components/CampoConvite'
 import { situacaoPlano, type PlanoLoja } from '../lib/plano'
 import { outroPapel, msgLoginOutroPapel, msgCadastroOutroPapel } from '../lib/papeis'
 import BotaoSair from '../components/BotaoSair'
+import { enviarCodigoEmail } from '../lib/codigoEmail'
 
 type Tela =
   | 'escolha'
@@ -143,8 +144,8 @@ export default function Login() {
       return
     }
 
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
-    if (error) { console.error('[OTP] signInWithOtp error:', error); setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
+    const { error } = await enviarCodigoEmail(email)
+    if (error) { console.error('[OTP] envio do código falhou:', error); setErro(error.message || 'Erro ao enviar código. Tente novamente.'); setLoading(false); return }
     setTela('cadastro-otp-codigo')
     setLoading(false)
   }
@@ -171,8 +172,8 @@ export default function Login() {
       body: JSON.stringify({ email }),
     })
     if (!preRes.ok) { setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
-    if (error) { console.error('[OTP] signInWithOtp error:', error); setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
+    const { error } = await enviarCodigoEmail(email)
+    if (error) { console.error('[OTP] envio do código falhou:', error); setErro(error.message || 'Erro ao enviar código. Tente novamente.'); setLoading(false); return }
     setTela('cadastro-otp-codigo')
     setLoading(false)
   }
@@ -218,8 +219,8 @@ export default function Login() {
     if (!email) { setErro('Informe seu email'); return }
     setLoading(true)
     setErro('')
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
-    if (error) { console.error('[OTP] signInWithOtp error:', error); setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
+    const { error } = await enviarCodigoEmail(email)
+    if (error) { console.error('[OTP] envio do código falhou:', error); setErro(error.message || 'Erro ao enviar código. Tente novamente.'); setLoading(false); return }
     setTela('login-otp-codigo')
     setLoading(false)
   }
