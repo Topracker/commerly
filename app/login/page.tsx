@@ -283,7 +283,7 @@ export default function Login() {
 
         {tela === 'cadastro-senha' && (
           <div className="flex flex-col gap-4">
-            <p className="text-gray-400 text-sm -mt-2 mb-1">Crie sua conta com email e senha</p>
+            <p className="text-gray-400 text-sm -mt-2 mb-1">Crie sua conta com e-mail e senha</p>
             <input type="email" autoComplete="email" placeholder="Seu email *" value={email}
               onChange={e => setEmail(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && (usarOtp ? avancarCadastroOtp() : cadastrarComSenha())}
@@ -298,10 +298,7 @@ export default function Login() {
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition mt-1">
               {loading ? (usarOtp ? 'Enviando código...' : 'Criando conta...') : (usarOtp ? 'Continuar' : 'Criar conta')}
             </button>
-            <button onClick={() => { setUsarOtp(!usarOtp); setErro('') }}
-              className="text-blue-400 text-sm hover:text-blue-300 transition">
-              {usarOtp ? 'Cadastrar com senha' : 'Prefiro receber um código por e-mail'}
-            </button>
+            <p className="text-gray-500 text-xs text-center -mt-1">Vamos enviar um código para o seu e-mail para confirmar a conta.</p>
             <button onClick={() => { setTela('escolha'); setErro(''); setEmail(''); setSenha('') }}
               className="text-gray-500 text-sm hover:text-gray-400 transition">
               ← Voltar
