@@ -287,10 +287,7 @@ export default function ClienteLogin() {
               className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition">
               {loading ? 'Criando conta...' : 'Criar conta'}
             </button>
-            <button onClick={() => { setTela('cadastro-otp-dados'); setErro('') }}
-              className="text-green-400 text-sm hover:text-green-300 transition">
-              Prefiro receber um código por e-mail
-            </button>
+            <p className="text-gray-500 text-xs text-center -mt-1">Vamos enviar um código para o seu e-mail para confirmar a conta.</p>
             <button onClick={() => { setTela('escolha'); setErro('') }} className="text-gray-500 text-sm hover:text-gray-400 transition">
               ← Voltar
             </button>
