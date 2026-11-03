@@ -1,5 +1,5 @@
 'use client'
-// #13 Commerly B2C Flash — criação (fornecedor) e banner com countdown (cliente).
+// #13 Commerly B2C Flash — criação (fornecedor ou comerciante) e banner com countdown (cliente).
 
 import { useEffect, useState } from 'react'
 import { Zap, Loader2 } from 'lucide-react'
@@ -11,6 +11,8 @@ type PromocaoAtiva = {
   desconto_percentual: number
   termina_em: string
   fornecedores?: { nome: string } | null
+  /** Promoção de loja (comerciante): nome e id vêm de lojas_publicas. */
+  lojas?: { id: string; nome: string } | null
 }
 
 /** Countdown que respeita o relógio real (não acumula drift de setInterval). */
@@ -47,8 +49,9 @@ export function FlashSaleBanner() {
   return (
     <div className="space-y-2">
       {vivas.map(p => (
-        <div
+        <a
           key={p.id}
+          href={p.lojas ? `/cliente/loja/${p.lojas.id}` : undefined}
           className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/15 to-transparent px-4 py-3"
         >
           <div className="min-w-0">
@@ -57,7 +60,7 @@ export function FlashSaleBanner() {
               <span className="truncate">{p.titulo}</span>
             </p>
             <p className="mt-0.5 text-xs text-gray-400">
-              {p.fornecedores?.nome ? `${p.fornecedores.nome} · ` : ''}
+              {(p.lojas?.nome || p.fornecedores?.nome) ? `${p.lojas?.nome || p.fornecedores?.nome} · ` : ''}
               {p.desconto_percentual}% de desconto
             </p>
           </div>
@@ -67,13 +70,13 @@ export function FlashSaleBanner() {
               <Countdown terminaEm={p.termina_em} />
             </p>
           </div>
-        </div>
+        </a>
       ))}
     </div>
   )
 }
 
-/** Formulário do fornecedor. */
+/** Formulário de criação — fornecedor (configurações) e comerciante (promoções). */
 export function FlashSaleForm({ onCriada }: { onCriada?: () => void }) {
   const [titulo, setTitulo] = useState('')
   const [desconto, setDesconto] = useState(20)
@@ -91,7 +94,7 @@ export function FlashSaleForm({ onCriada }: { onCriada?: () => void }) {
       })
       const d = await r.json()
       if (!r.ok) { setErro(d.erro || 'Não foi possível criar a promoção.'); return }
-      setOk(`Promoção no ar! ${d.notificados} clientes notificados.`)
+      setOk(d.notificados > 0 ? `Promoção no ar! ${d.notificados} clientes notificados.` : 'Promoção no ar!')
       setTitulo('')
       onCriada?.()
     } catch {

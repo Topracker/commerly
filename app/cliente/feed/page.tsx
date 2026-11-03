@@ -6,6 +6,7 @@ import { useToast } from '../../hooks/useToast'
 import { Toast } from '../../components/Toast'
 import { ClienteLayout } from '../../components/ClienteLayout'
 import { StoriesBar } from '../../components/StoriesBar'
+import { FlashSaleBanner } from '../../components/FlashSale'
 import { ReelPost, type Comentario } from '../../components/ReelPost'
 import { ComentariosPainel } from '../../components/ComentariosPainel'
 import { distanciaKm } from '../../lib/geo'
@@ -366,20 +367,26 @@ export default function ClienteFeed() {
 
             {/* Stories só enquanto o primeiro post está na tela — depois disso
                 a faixa competiria com o conteúdo em tela cheia. */}
-            {gruposStories.length > 0 && (
-              <div
-                className={`absolute inset-x-0 top-11 z-20 px-3 transition-opacity duration-300 md:top-3 ${
-                  noPrimeiro ? 'opacity-100' : 'pointer-events-none opacity-0'
-                }`}
-              >
+            {/* Flash sales vigentes (lojas e fornecedores) logo abaixo, com a
+                mesma regra: só no primeiro post. O banner some sozinho quando
+                não há promoção. */}
+            <div
+              className={`absolute inset-x-0 top-11 z-20 px-3 transition-opacity duration-300 md:top-3 ${
+                noPrimeiro ? 'opacity-100' : 'pointer-events-none opacity-0'
+              }`}
+            >
+              {gruposStories.length > 0 && (
                 <StoriesBar
                   grupos={gruposStories}
                   lojas={lojas}
                   produtos={produtos}
                   onPedir={lojaId => router.push(`/cliente/loja/${lojaId}`)}
                 />
+              )}
+              <div className="mt-2">
+                <FlashSaleBanner />
               </div>
-            )}
+            </div>
           </>
         )}
       </div>
