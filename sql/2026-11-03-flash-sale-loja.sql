@@ -20,9 +20,8 @@
 -- GET lista as vigentes com o nome da loja via lojas_publicas).
 -- A rota já tem paywall pelo proxy (/api/flash-sale está em APIS_COMERCIANTE).
 --
--- STATUS: NÃO APLICADO. Aplicar no SQL Editor do Supabase e rodar a
--- conferência do fim. Ordem: aplicar ANTES do deploy (o GET tem fallback se a
--- coluna não existir, mas o POST do comerciante precisa dela).
+-- STATUS: APLICADO em produção em 2026-11-03 (SQL Editor do Supabase, pelo dono).
+-- Aplicado antes do deploy do código que usa loja_id.
 
 begin;
 

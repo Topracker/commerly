@@ -26,8 +26,8 @@
 --
 -- Quem usa: app/vendas/page.tsx (campo "Cupom"; vazio = registrar_venda).
 --
--- STATUS: NÃO APLICADO. Aplicar no SQL Editor do Supabase e rodar a
--- conferência do fim.
+-- STATUS: APLICADO em produção em 2026-11-03 (SQL Editor do Supabase, pelo dono).
+-- Conferido: vendas.created_at tem default now().
 
 create or replace function public.registrar_venda_cupom(
   p_loja_id uuid,
