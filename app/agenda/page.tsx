@@ -8,8 +8,10 @@ import { Toast } from '../components/Toast'
 import { ConfirmModal } from '../components/ConfirmModal'
 import {
   carregarAgendamentos, salvarAgendamento, removerAgendamento, carregarServicos,
-  type Agendamento, type Servico, type StatusAgendamento,
+  lancarAtendimentoNoCaixa,
+  type Agendamento, type Servico,
 } from '../lib/nicheStore'
+import { FORMAS_CAIXA } from '../lib/vale'
 
 const HORAS = Array.from({ length: 28 }, (_, i) => {
   const h = (7 + Math.floor(i / 2)).toString().padStart(2, '0')
@@ -37,6 +39,12 @@ export default function Agenda() {
   const [modal, setModal] = useState(false)
   const [editando, setEditando] = useState<Agendamento | null>(null)
   const [confirmarId, setConfirmarId] = useState<string | null>(null)
+
+  // Concluir atendimento: lança o valor no caixa (agenda → vendas).
+  const [concluindo, setConcluindo] = useState<Agendamento | null>(null)
+  const [valorConcluir, setValorConcluir] = useState('')
+  const [formaConcluir, setFormaConcluir] = useState<string>(FORMAS_CAIXA[0])
+  const [salvandoConcluir, setSalvandoConcluir] = useState(false)
 
   const [cliente, setCliente] = useState('')
   const [servico, setServico] = useState('')
@@ -88,12 +96,36 @@ export default function Agenda() {
     }
   }
 
-  async function mudarStatus(ag: Agendamento, status: StatusAgendamento) {
+  function abrirConcluir(ag: Agendamento) {
+    const preco = servicos.find(s => s.nome === ag.servico)?.preco
+    setConcluindo(ag)
+    setValorConcluir(preco && preco > 0 ? preco.toFixed(2).replace('.', ',') : '')
+    setFormaConcluir(FORMAS_CAIXA[0])
+  }
+
+  // lancar = true: registra a venda e conclui. false: só marca como concluído.
+  async function confirmarConcluir(lancar: boolean) {
+    if (!concluindo || salvandoConcluir) return
+    const valor = parseFloat(valorConcluir.replace(/\./g, '').replace(',', '.'))
+    if (lancar && !(valor > 0)) { mostrarToast('Informe o valor do atendimento', 'erro'); return }
+    setSalvandoConcluir(true)
     try {
-      setAgendamentos(await salvarAgendamento(loja.id, { ...ag, status }))
-    } catch {
-      mostrarToast('Erro ao atualizar o status', 'erro')
+      if (lancar) await lancarAtendimentoNoCaixa(loja.id, concluindo, valor, formaConcluir)
+    } catch (e) {
+      mostrarToast(e instanceof Error && e.message ? e.message : 'Erro ao lançar no caixa', 'erro')
+      setSalvandoConcluir(false)
+      return
     }
+    try {
+      setAgendamentos(await salvarAgendamento(loja.id, { ...concluindo, status: 'concluido' }))
+      mostrarToast(lancar ? `R$ ${valor.toFixed(2).replace('.', ',')} lançado no caixa` : 'Atendimento concluído', 'sucesso')
+      setConcluindo(null)
+    } catch {
+      // A venda já entrou; só o status não mudou. Avisa para não lançar de novo.
+      mostrarToast(lancar ? 'Venda lançada, mas não deu para marcar como concluído. Atualize a página.' : 'Erro ao atualizar o status', 'erro')
+      if (lancar) setConcluindo(null)
+    }
+    setSalvandoConcluir(false)
   }
 
   async function remover() {
@@ -167,7 +199,7 @@ export default function Agenda() {
                     </div>
                     <div className="flex flex-col gap-1.5 shrink-0">
                       {a.status === 'agendado' && (
-                        <button onClick={() => mudarStatus(a, 'concluido')} className="bg-green-900 hover:bg-green-800 text-green-300 px-3 py-1 rounded-lg text-xs transition">Concluir</button>
+                        <button onClick={() => abrirConcluir(a)} className="bg-green-900 hover:bg-green-800 text-green-300 px-3 py-1 rounded-lg text-xs transition">Concluir</button>
                       )}
                       <button onClick={() => abrirModal(a)} className="bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 rounded-lg text-xs transition">Editar</button>
                       <button onClick={() => setConfirmarId(a.id)} className="bg-red-900 hover:bg-red-800 text-red-300 px-3 py-1 rounded-lg text-xs transition">Remover</button>
@@ -211,6 +243,36 @@ export default function Agenda() {
               <div className="flex gap-3 mt-2">
                 <button onClick={() => setModal(false)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl transition">Cancelar</button>
                 <button onClick={salvar} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition">Salvar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {concluindo && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-900 rounded-3xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold text-white mb-1">Concluir atendimento</h2>
+            <p className="text-gray-400 text-sm mb-5">{concluindo.servico} — {concluindo.cliente}</p>
+            <div className="flex flex-col gap-4">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-gray-400 text-sm">Valor recebido</span>
+                <input inputMode="decimal" placeholder="0,00" value={valorConcluir} onChange={e => setValorConcluir(e.target.value)} className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {FORMAS_CAIXA.map(f => (
+                  <button key={f} onClick={() => setFormaConcluir(f)}
+                    className={`py-2.5 rounded-xl font-semibold transition text-sm ${formaConcluir === f ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                    {f}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => confirmarConcluir(true)} disabled={salvandoConcluir} className="bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition">
+                {salvandoConcluir ? 'Salvando...' : 'Lançar no caixa e concluir'}
+              </button>
+              <div className="flex gap-3">
+                <button onClick={() => setConcluindo(null)} disabled={salvandoConcluir} className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl transition">Cancelar</button>
+                <button onClick={() => confirmarConcluir(false)} disabled={salvandoConcluir} className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 py-3 rounded-xl transition text-sm">Só concluir</button>
               </div>
             </div>
           </div>

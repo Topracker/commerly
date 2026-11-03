@@ -111,6 +111,43 @@ export async function salvarAgendamento(lojaId: string, ag: AgendamentoInput): P
   return carregarAgendamentos(lojaId)
 }
 
+/**
+ * Lança no caixa o valor de um atendimento concluído (agenda → vendas).
+ *
+ * Mesmo formato das vendas sem produto que já entram pelas integrações
+ * (produto_id nulo + descrição): aparece no histórico, no Financeiro e no Score.
+ * Serviço não tem custo cadastrado, então o lucro é o próprio valor.
+ * `origem: 'manual'` — é o comerciante registrando, igual ao caixa.
+ *
+ * Confere as linhas gravadas: com o plano vencido a RLS (paywall_plano) recusa
+ * o insert SEM devolver erro (204, zero linhas) — regra 9 do CLAUDE.md.
+ */
+export async function lancarAtendimentoNoCaixa(
+  lojaId: string,
+  ag: Pick<Agendamento, 'cliente' | 'servico'>,
+  valor: number,
+  formaPagamento: string,
+): Promise<void> {
+  if (!(valor > 0)) throw new Error('Informe o valor do atendimento.')
+  const { data, error } = await supabase
+    .from('vendas')
+    .insert({
+      loja_id: lojaId,
+      produto_id: null,
+      descricao: `Agenda: ${ag.servico} — ${ag.cliente}`.slice(0, 200),
+      quantidade: 1,
+      valor_total: Math.round(valor * 100) / 100,
+      lucro: Math.round(valor * 100) / 100,
+      forma_pagamento: formaPagamento,
+      origem: 'manual',
+    })
+    .select('id')
+  if (error) throw error
+  if (!data || data.length === 0) {
+    throw new Error('A venda não foi registrada. Confira se o seu plano está ativo.')
+  }
+}
+
 export async function removerAgendamento(lojaId: string, id: string): Promise<Agendamento[]> {
   const { error } = await supabase.from('agendamentos').delete().eq('id', id).eq('loja_id', lojaId)
   if (error) throw error
