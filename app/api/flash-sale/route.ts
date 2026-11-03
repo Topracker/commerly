@@ -1,8 +1,9 @@
-// #13 Flash Sale — criação (fornecedor) e listagem das ativas (público).
+// #13 Flash Sale — criação (fornecedor OU comerciante) e listagem das ativas.
 //
-// Ao criar, notificamos os clientes que já demonstraram interesse na categoria
-// do fornecedor. "Interesse" aqui = já pediu de uma loja do mesmo nicho; não
-// temos sinal melhor hoje, e é melhor do que notificar a base inteira.
+// Fornecedor: ao criar, notificamos os clientes da base (até MAX_NOTIFICADOS).
+// Comerciante (desde 2026-11-03, sql/2026-11-03-flash-sale-loja.sql): a
+// promoção grava `loja_id` e avisa só quem SEGUE a loja no feed.
+// A flash sale é um aviso com countdown — não altera o preço do pedido.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '../../lib/supabase-admin'
@@ -17,24 +18,46 @@ export const dynamic = 'force-dynamic'
 /** Teto de push por promoção, para não virar spam nem estourar o tempo da rota. */
 const MAX_NOTIFICADOS = 200
 
+const CAMPOS_BASE = 'id, fornecedor_id, produto_id, titulo, desconto_percentual, inicia_em, termina_em, fornecedores(nome)'
+
+type LinhaFlash = Record<string, unknown> & { loja_id?: string | null }
+
 export async function GET() {
   const admin = createAdminClient()
   const agora = new Date().toISOString()
 
-  const { data, error } = await admin
+  const listar = (campos: string) => admin
     .from('flash_sales')
-    .select('id, fornecedor_id, produto_id, titulo, desconto_percentual, inicia_em, termina_em, fornecedores(nome)')
+    .select(campos)
     .lte('inicia_em', agora)
     .gt('termina_em', agora)
     .order('termina_em', { ascending: true })
     .limit(20)
+
+  // Com a coluna loja_id; se a migração ainda não foi aplicada, cai na
+  // listagem antiga (só fornecedor) em vez de derrubar o banner.
+  let { data, error } = await listar(`${CAMPOS_BASE}, loja_id`)
+  if (error) ({ data, error } = await listar(CAMPOS_BASE))
 
   if (error) {
     console.error('[flash-sale] listagem falhou:', error.message)
     return NextResponse.json({ erro: 'Falha ao listar promoções.' }, { status: 500 })
   }
 
-  return NextResponse.json({ promocoes: data ?? [] })
+  let promocoes = (data ?? []) as unknown as LinhaFlash[]
+
+  // Nome da loja pela view pública: loja oculta da vitrine (ou sem cidade)
+  // não aparece em lojas_publicas, e a promoção dela também não aparece.
+  const lojaIds = [...new Set(promocoes.map(p => p.loja_id).filter((x): x is string => !!x))]
+  if (lojaIds.length > 0) {
+    const { data: lojas } = await admin.from('lojas_publicas').select('id, nome').in('id', lojaIds)
+    const porId = new Map((lojas ?? []).map(l => [l.id as string, l as { id: string; nome: string }]))
+    promocoes = promocoes
+      .filter(p => !p.loja_id || porId.has(p.loja_id))
+      .map(p => (p.loja_id ? { ...p, lojas: porId.get(p.loja_id) } : p))
+  }
+
+  return NextResponse.json({ promocoes })
 }
 
 export async function POST(request: NextRequest) {
@@ -57,9 +80,18 @@ export async function POST(request: NextRequest) {
   const user = await usuarioDaRota(supabase)
   if (!user) return NextResponse.json({ erro: 'Faça login.' }, { status: 401 })
 
+  // Dono da promoção: fornecedor (como antes) ou loja do comerciante.
   const { data: fornecedor } = await supabase
-    .from('fornecedores').select('id, nome, categoria').eq('user_id', user.id).maybeSingle()
-  if (!fornecedor) return NextResponse.json({ erro: 'Fornecedor não encontrado.' }, { status: 403 })
+    .from('fornecedores').select('id, nome').eq('user_id', user.id).maybeSingle()
+  let dono: { coluna: 'fornecedor_id' | 'loja_id'; id: string; nome: string }
+  if (fornecedor) {
+    dono = { coluna: 'fornecedor_id', id: fornecedor.id, nome: fornecedor.nome }
+  } else {
+    const { data: loja } = await supabase
+      .from('lojas').select('id, nome').eq('user_id', user.id).maybeSingle()
+    if (!loja) return NextResponse.json({ erro: 'Perfil não encontrado.' }, { status: 403 })
+    dono = { coluna: 'loja_id', id: loja.id, nome: loja.nome }
+  }
 
   if (!rateLimit(`flash-sale:${user.id}`, 5, 60 * 60_000)) {
     return NextResponse.json({ erro: 'Muitas promoções seguidas. Aguarde uma hora.' }, { status: 429 })
@@ -70,7 +102,7 @@ export async function POST(request: NextRequest) {
   const { data: ativas } = await supabase
     .from('flash_sales')
     .select('id, inicia_em, termina_em')
-    .eq('fornecedor_id', fornecedor.id)
+    .eq(dono.coluna, dono.id)
     .gt('termina_em', agora.toISOString())
 
   if ((ativas ?? []).some(f => estaAtiva(f as FlashSale, agora))) {
@@ -82,8 +114,9 @@ export async function POST(request: NextRequest) {
   const { data: criada, error } = await supabase
     .from('flash_sales')
     .insert({
-      fornecedor_id: fornecedor.id,
-      produto_id: produtoId,
+      [dono.coluna]: dono.id,
+      // produto_id aponta para fornecedor_produtos: só faz sentido no fornecedor.
+      produto_id: dono.coluna === 'fornecedor_id' ? produtoId : null,
       titulo,
       desconto_percentual: desconto,
       inicia_em: agora.toISOString(),
@@ -97,7 +130,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ erro: 'Não foi possível criar a promoção.' }, { status: 500 })
   }
 
-  const notificados = await notificarInteressados(fornecedor.nome, criada.titulo, criada.desconto_percentual)
+  const notificados = dono.coluna === 'loja_id'
+    ? await notificarSeguidores(dono.id, dono.nome, criada.titulo, criada.desconto_percentual)
+    : await notificarInteressados(dono.nome, criada.titulo, criada.desconto_percentual)
 
   return NextResponse.json({ promocao: criada, notificados })
 }
@@ -114,17 +149,42 @@ async function notificarInteressados(fornecedorNome: string, titulo: string, des
       .from('clientes').select('user_id').not('user_id', 'is', null).limit(MAX_NOTIFICADOS)
 
     const alvos = (clientes ?? []).map(c => c.user_id as string)
-    if (alvos.length === 0) return 0
+    return await notificar(alvos, `${fornecedorNome}: ${desconto}% off por tempo limitado!`, titulo, desconto, '/cliente/feed')
+  } catch (e) {
+    console.error('[flash-sale] falha ao notificar interessados:', e)
+    return 0
+  }
+}
 
-    const mensagem = `${fornecedorNome}: ${desconto}% off por tempo limitado!`
+/** Flash sale da loja: avisa quem segue a loja no feed. */
+async function notificarSeguidores(lojaId: string, lojaNome: string, titulo: string, desconto: number): Promise<number> {
+  try {
+    const admin = createAdminClient()
+    const { data: seguidores } = await admin
+      .from('loja_seguidores').select('clientes(user_id)').eq('loja_id', lojaId).limit(MAX_NOTIFICADOS)
 
+    const alvos = [...new Set((seguidores ?? [])
+      .map(s => (s.clientes as unknown as { user_id: string | null } | null)?.user_id)
+      .filter((x): x is string => !!x))]
+    return await notificar(alvos, `${lojaNome}: ${desconto}% off por tempo limitado!`, titulo, desconto, `/cliente/loja/${lojaId}`)
+  } catch (e) {
+    console.error('[flash-sale] falha ao notificar seguidores:', e)
+    return 0
+  }
+}
+
+/** Notificação no app + push. Falha aqui não derruba a promoção. */
+async function notificar(alvos: string[], mensagem: string, titulo: string, desconto: number, link: string): Promise<number> {
+  if (alvos.length === 0) return 0
+  const admin = createAdminClient()
+  try {
     await admin.from('notificacoes').insert(
       alvos.map(user_id => ({
         user_id,
         tipo: 'flash_sale',
         titulo: `⚡ ${titulo}`,
         mensagem,
-        link: '/cliente/feed',
+        link,
         dados: { desconto },
       })),
     )
@@ -132,14 +192,14 @@ async function notificarInteressados(fornecedorNome: string, titulo: string, des
     if (pushConfigurado()) {
       await Promise.all(alvos.map(uid =>
         enviarPushParaUsuario(admin, uid, {
-          titulo: `⚡ ${titulo}`, mensagem, link: '/cliente/feed', tipo: 'flash_sale', tag: 'flash_sale',
+          titulo: `⚡ ${titulo}`, mensagem, link, tipo: 'flash_sale', tag: 'flash_sale',
         }),
       ))
     }
 
     return alvos.length
   } catch (e) {
-    console.error('[flash-sale] falha ao notificar interessados:', e)
+    console.error('[flash-sale] falha ao notificar:', e)
     return 0
   }
 }

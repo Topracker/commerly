@@ -128,3 +128,48 @@ export function templateResetSenha(link: string): { html: string; texto: string 
 
   return { html, texto }
 }
+
+// Template do e-mail com o CÓDIGO de acesso (cadastro e login sem senha).
+// O código sai do nosso Resend, não do SMTP do Supabase — ver
+// app/api/auth/enviar-codigo/route.ts.
+export function templateCodigoAcesso(codigo: string): { html: string; texto: string } {
+  const html = `<!doctype html>
+<html lang="pt-BR">
+<body style="margin:0;padding:0;background:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:16px;padding:32px;">
+        <tr><td>
+          <p style="margin:0 0 4px;color:#2563eb;font-size:13px;font-weight:600;">Commerly</p>
+          <h1 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:700;">Seu código de acesso</h1>
+          <p style="margin:0 0 20px;color:#4b5563;font-size:15px;line-height:1.6;">
+            Digite este código na tela da Commerly para continuar. Ele expira em breve.
+            Se você pediu mais de um, use só o mais recente.
+          </p>
+          <p style="margin:0 0 24px;padding:18px 0;background:#eff6ff;border-radius:12px;text-align:center;color:#1d4ed8;font-size:34px;font-weight:700;letter-spacing:8px;font-family:'SFMono-Regular',Menlo,Consolas,monospace;">
+            ${escaparHtml(codigo)}
+          </p>
+          <p style="margin:0;padding-top:20px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:12px;line-height:1.6;">
+            Se você não pediu este código, ignore este e-mail. Nunca compartilhe o
+            código com ninguém — a equipe da Commerly não pede códigos por mensagem.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+  const texto = [
+    'Seu código de acesso — Commerly',
+    '',
+    `Código: ${codigo}`,
+    '',
+    'Digite este código na tela da Commerly para continuar. Ele expira em breve.',
+    'Se você pediu mais de um, use só o mais recente.',
+    '',
+    'Se você não pediu este código, ignore este e-mail.',
+  ].join('\n')
+
+  return { html, texto }
+}

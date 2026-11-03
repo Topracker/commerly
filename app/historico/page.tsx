@@ -73,7 +73,7 @@ export default function Historico() {
     while (true) {
       let q = supabase
         .from('vendas')
-        .select('valor_total, lucro, quantidade, forma_pagamento, created_at, produtos(nome)')
+        .select('valor_total, lucro, quantidade, forma_pagamento, created_at, descricao, produtos(nome)')
         .eq('loja_id', loja.id)
         .order('created_at', { ascending: false })
         .range(offset, offset + BATCH - 1)
@@ -101,7 +101,7 @@ export default function Historico() {
     todas.forEach((v: any, i: number) => {
       linhas.push([
         `#${String(i + 1).padStart(4, '0')}`,
-        v.produtos?.nome ?? '',
+        v.produtos?.nome || v.descricao || '',
         v.quantidade,
         Number(v.valor_total).toFixed(2),
         Number(v.lucro).toFixed(2),
@@ -162,7 +162,7 @@ export default function Historico() {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-gray-500 text-sm">#{String(i + 1).padStart(4, '0')}</span>
-                    <p className="text-white font-semibold">{v.produtos?.nome}</p>
+                    <p className="text-white font-semibold">{v.produtos?.nome || v.descricao || '—'}</p>
                   </div>
                   <p className="text-gray-400 text-sm">
                     {v.quantidade}x — {v.forma_pagamento} — {formatarDataHora(v.created_at)}

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       email_confirm: true,
     })
 
-    // Usuário já existe: tudo bem, o signInWithOtp vai enviar OTP normalmente.
+    // Usuário já existe: tudo bem, /api/auth/enviar-codigo manda o código normalmente.
     // Outros erros são logados mas a resposta é genérica — evita enumeração
     // de contas e vazamento de detalhes internos do Supabase Auth.
     if (error && !error.message.toLowerCase().includes('already')) {

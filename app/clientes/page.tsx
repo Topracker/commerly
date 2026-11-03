@@ -40,6 +40,9 @@ export default function ClientesCRM() {
   const [busca, setBusca] = useState('')
   const [soInativos, setSoInativos] = useState(false)
   const [enviando, setEnviando] = useState<string | null>(null)
+  // Clientes sumidos + seguidores que não compram, já sem o cooldown (o card
+  // não pode depender só de pedido online — sem delivery quase não há).
+  const [elegiveis, setElegiveis] = useState<number | null>(null)
 
   /**
    * Campanha de retorno: gera cupom e manda pelo chat + push.
@@ -65,6 +68,7 @@ export default function ClientesCRM() {
         )
       } else {
         mostrarToast(`🎁 Cupom enviado para ${data.enviados} cliente(s)!`, 'sucesso')
+        setElegiveis(n => (n === null ? n : Math.max(0, n - data.enviados)))
       }
     } catch {
       mostrarToast('Falha ao enviar', 'erro')
@@ -73,6 +77,14 @@ export default function ClientesCRM() {
   }
 
   useEffect(() => { if (loja) carregar() }, [loja])
+
+  useEffect(() => {
+    if (!loja) return
+    fetch('/api/campanha-retorno')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d && typeof d.elegiveis === 'number') setElegiveis(d.elegiveis) })
+      .catch(() => {})
+  }, [loja])
 
   async function carregar() {
     setCarregando(true)
@@ -132,6 +144,7 @@ export default function ClientesCRM() {
     receita: clientes.reduce((s, c) => s + c.totalGasto, 0),
     inativos: clientes.filter(c => c.diasSemComprar >= DIAS_INATIVO).length,
   }), [clientes])
+  const aptosCampanha = elegiveis ?? totais.inativos
 
   if (loading) return (
     <main className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-400">Carregando...</p></main>
@@ -163,7 +176,7 @@ export default function ClientesCRM() {
       <div id="campanha-retorno" className="scroll-mt-6" />
 
       {/* Campanha de retorno */}
-      {totais.inativos > 0 && (
+      {aptosCampanha > 0 && (
         <div className="bg-purple-950/40 border border-purple-900/60 rounded-2xl p-4 mb-5 flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center shrink-0">
             <Gift size={18} className="text-purple-300" />
@@ -171,7 +184,7 @@ export default function ClientesCRM() {
           <div className="flex-1 min-w-0">
             <p className="text-purple-200 font-semibold text-sm">Campanha de retorno</p>
             <p className="text-purple-100/60 text-xs mt-0.5">
-              {totais.inativos} cliente(s) sem comprar há {DIAS_INATIVO}+ dias. Mande um cupom de 15% pelo chat.
+              {aptosCampanha} cliente(s) ou seguidor(es) sem comprar há {DIAS_INATIVO}+ dias. Mande um cupom de 15% pelo chat — vale no caixa da loja.
             </p>
           </div>
           <button

@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
+import { FlashSaleForm } from '../components/FlashSale'
 import { Tag, Zap, Trash2, Package } from 'lucide-react'
 import {
   DIA_MS, REGRA_PADRAO, precoComDesconto, produtosElegiveis, produtoIdsDosItens,
@@ -102,6 +103,11 @@ export default function Promocoes() {
   return (
     <AppLayout loja={loja} sair={sair} titulo="Promoções automáticas" maxWidth="max-w-3xl">
       <Toast toast={toast} />
+
+      {/* Flash sale: promoção-relâmpago com countdown no feed e na busca do cliente. */}
+      <div className="mb-4">
+        <FlashSaleForm onCriada={() => mostrarToast('Promoção relâmpago no ar!', 'sucesso')} />
+      </div>
 
       {/* Regra */}
       <div className="bg-gray-900 rounded-2xl p-5 mb-4">

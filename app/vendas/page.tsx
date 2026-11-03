@@ -23,6 +23,8 @@ export default function Vendas() {
   const [quantidade, setQuantidade] = useState('1')
   const [pagamento, setPagamento] = useState('Dinheiro')
   const [confirmando, setConfirmando] = useState(false)
+  // Cupom da campanha de retorno, aplicado no balcão (registrar_venda_cupom).
+  const [cupom, setCupom] = useState('')
 
   useEffect(() => { if (loja) carregar() }, [loja])
 
@@ -78,11 +80,19 @@ export default function Vendas() {
     //   * valor_total/lucro saem do preço/custo VIVOS do banco, não do cache;
     //   * qualquer item sem estoque desfaz tudo — sem os "reverts" manuais que
     //     gravavam o cache por cima do banco.
-    const { data, error } = await supabase.rpc('registrar_venda', {
-      p_loja_id: loja.id,
-      p_itens: carrinho.map(item => ({ produto_id: item.produto.id, quantidade: item.quantidade })),
-      p_forma_pagamento: pagamento,
-    })
+    //
+    // Com cupom, a registrar_venda_cupom (sql/2026-11-03-cupom-balcao.sql)
+    // valida o cupom, chama a registrar_venda acima e aplica o desconto — tudo
+    // na mesma transação. Sem cupom, o caminho é exatamente o de sempre.
+    const itens = carrinho.map(item => ({ produto_id: item.produto.id, quantidade: item.quantidade }))
+    const codigoCupom = cupom.trim()
+    const { data, error } = codigoCupom
+      ? await supabase.rpc('registrar_venda_cupom', {
+          p_loja_id: loja.id, p_itens: itens, p_forma_pagamento: pagamento, p_cupom: codigoCupom,
+        })
+      : await supabase.rpc('registrar_venda', {
+          p_loja_id: loja.id, p_itens: itens, p_forma_pagamento: pagamento,
+        })
     if (error) {
       // A mensagem do RAISE já vem pronta ("Estoque insuficiente para X
       // (disponível: N)", "Plano vencido...", ...).
@@ -93,8 +103,15 @@ export default function Vendas() {
     }
 
     const total = Number(data?.valor_total ?? totalCarrinho)
-    mostrarToast(`✓ Venda registrada! ${carrinho.length} produto(s) — R$ ${total.toFixed(2)}`, 'sucesso')
+    const desconto = Number(data?.desconto ?? 0)
+    mostrarToast(
+      desconto > 0
+        ? `✓ Venda registrada com cupom! R$ ${total.toFixed(2)} (desconto de R$ ${desconto.toFixed(2)})`
+        : `✓ Venda registrada! ${carrinho.length} produto(s) — R$ ${total.toFixed(2)}`,
+      'sucesso',
+    )
     setCarrinho([])
+    setCupom('')
     setProdutoId('')
     setQuantidade('1')
     setConfirmando(false)
@@ -192,6 +209,16 @@ export default function Vendas() {
             </div>
           </div>
 
+          {/* Cupom da campanha de retorno: o cliente mostra o código no balcão.
+              O desconto é calculado e validado no banco ao confirmar. */}
+          <input
+            value={cupom}
+            onChange={e => setCupom(e.target.value.toUpperCase())}
+            placeholder="Cupom do cliente (opcional)"
+            maxLength={40}
+            className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 mb-4 outline-none focus:ring-2 focus:ring-blue-500 uppercase placeholder:normal-case"
+          />
+
           {/* Vale (VA/VR) é cobrado na maquininha da loja — a Commerly só registra. */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
             {FORMAS_CAIXA.map(f => (
@@ -207,7 +234,7 @@ export default function Vendas() {
             disabled={confirmando}
             className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50"
           >
-            {confirmando ? 'Registrando...' : `Confirmar venda — R$ ${totalCarrinho.toFixed(2)}`}
+            {confirmando ? 'Registrando...' : `Confirmar venda — R$ ${totalCarrinho.toFixed(2)}${cupom.trim() ? ' (com cupom)' : ''}`}
           </button>
         </div>
       )}

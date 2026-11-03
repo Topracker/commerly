@@ -7,6 +7,7 @@ import { outroPapel, msgLoginOutroPapel } from '../../lib/papeis'
 import BotaoGoogle from '../../components/BotaoGoogle'
 import CampoSenha, { senhaValida } from '../../components/CampoSenha'
 import CampoConvite from '../../components/CampoConvite'
+import { enviarCodigoEmail } from '../../lib/codigoEmail'
 
 type Tela = 'escolha' | 'cadastro-senha' | 'login-senha' | 'cadastro-otp-codigo' | 'login-otp-email' | 'login-otp-codigo'
 
@@ -77,8 +78,8 @@ export default function EntregadorLogin() {
       const { erro } = await preRes.json().catch(() => ({ erro: '' }))
       setErro(erro || 'Não foi possível enviar o código. Tente novamente.'); setLoading(false); return
     }
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
-    if (error) { setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
+    const { error } = await enviarCodigoEmail(email)
+    if (error) { console.error('[OTP] envio do código falhou:', error); setErro(error.message || 'Erro ao enviar código. Tente novamente.'); setLoading(false); return }
     setTela('cadastro-otp-codigo'); setLoading(false)
   }
 
@@ -128,8 +129,8 @@ export default function EntregadorLogin() {
   async function enviarCodigoLoginOtp() {
     if (!email) { setErro('Informe seu email'); return }
     setLoading(true); setErro('')
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
-    if (error) { setErro('Erro ao enviar código. Tente novamente.'); setLoading(false); return }
+    const { error } = await enviarCodigoEmail(email)
+    if (error) { console.error('[OTP] envio do código falhou:', error); setErro(error.message || 'Erro ao enviar código. Tente novamente.'); setLoading(false); return }
     setTela('login-otp-codigo'); setLoading(false)
   }
 
