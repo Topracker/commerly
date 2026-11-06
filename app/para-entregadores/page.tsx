@@ -3,10 +3,10 @@ import Link from 'next/link'
 import { MarketingShell, MCard } from '../components/MarketingShell'
 import { DollarSign, Clock, Package, Check } from 'lucide-react'
 import { NIVEIS_ENTREGADOR } from '../lib/crescimento'
-import { moduloAtivo } from '../lib/featureFlags'
+import { flagsPublicas } from '../lib/featureFlags'
 
-// Relê a chave `entregador` a cada 60s: desligada, o CTA vira aviso de pausa.
-export const revalidate = 60
+// Relê as chaves a cada 30s. Com `entregador` desligada o proxy nem abre esta página.
+export const revalidate = 30
 
 export const metadata: Metadata = {
   title: 'Para Entregadores — ganhe por corrida com liberdade',
@@ -15,7 +15,8 @@ export const metadata: Metadata = {
 }
 
 export default async function ParaEntregadores() {
-  const ativo = await moduloAtivo('entregador')
+  const flags = await flagsPublicas()
+  const ativo = flags.entregador
   return (
     <MarketingShell
       eyebrow="Para entregadores"
@@ -24,13 +25,13 @@ export default async function ParaEntregadores() {
       cta={ativo ? { href: '/entregador-delivery/login', label: 'Quero ser entregador' } : undefined}
       aviso="Novos cadastros de entregador estão pausados no momento. Volte em breve."
     >
-      <div className="grid sm:grid-cols-3 gap-3 mb-8">
-        <MCard><DollarSign size={20} className="text-acento mb-2" /><p className="text-white font-semibold">Ganhos por corrida</p><p className="text-gray-400 text-sm mt-1">Taxa por distância + bônus em corridas especiais (Modo Festa paga +20%).</p></MCard>
+      <div className={`grid gap-3 mb-8 ${flags.kit ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+        <MCard><DollarSign size={20} className="text-acento mb-2" /><p className="text-white font-semibold">Ganhos por corrida</p><p className="text-gray-400 text-sm mt-1">{flags.modo_festa ? 'Taxa por distância + bônus em corridas especiais (Modo Festa paga +20%).' : 'Taxa por distância.'}</p></MCard>
         <MCard><Clock size={20} className="text-acento mb-2" /><p className="text-white font-semibold">Liberdade total</p><p className="text-gray-400 text-sm mt-1">Fique online quando quiser. Sem meta obrigatória, sem patrão.</p></MCard>
-        <MCard><Package size={20} className="text-acento mb-2" /><p className="text-white font-semibold">Kit oficial</p><p className="text-gray-400 text-sm mt-1">Bolsa com QR Code, adesivo e manual. <Link href="/kit" className="text-acento">Ver o kit →</Link></p></MCard>
+        {flags.kit && <MCard><Package size={20} className="text-acento mb-2" /><p className="text-white font-semibold">Kit oficial</p><p className="text-gray-400 text-sm mt-1">Bolsa com QR Code, adesivo e manual. <Link href="/kit" className="text-acento">Ver o kit →</Link></p></MCard>}
       </div>
 
-      <MCard>
+      {flags.gamificacao && <MCard>
         <p className="text-white font-semibold mb-3">Níveis e recompensas</p>
         <div className="grid sm:grid-cols-2 gap-2">
           {NIVEIS_ENTREGADOR.map(n => (
@@ -44,7 +45,7 @@ export default async function ParaEntregadores() {
             </div>
           ))}
         </div>
-      </MCard>
+      </MCard>}
     </MarketingShell>
   )
 }

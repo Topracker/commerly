@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Store, User, Bike, ShoppingBag, MapPin, Trophy, ArrowRight, Sparkles } from 'lucide-react'
 import { MARCOS } from '../lib/crescimento'
+import { listaPapeis, type ModuloPausavel } from '../lib/pausa'
 
 type Contadores = { comerciantes: number; clientes: number; entregadores: number; pedidos: number; pedidos_hoje: number; cidades: number }
 type FeedItem = { id: string; tipo: string; texto: string; cidade: string | null; created_at: string }
@@ -35,7 +36,7 @@ function Tile({ icone: Icone, valor, rotulo }: { icone: any; valor: number; rotu
   )
 }
 
-export function HomeCrescimento() {
+export function HomeCrescimento({ flags }: { flags: Record<ModuloPausavel, boolean> }) {
   const [c, setC] = useState<Contadores | null>(null)
   const [feed, setFeed] = useState<FeedItem[]>([])
   const [cidades, setCidades] = useState<Cidade[]>([])
@@ -53,14 +54,14 @@ export function HomeCrescimento() {
   // pontos ficam de fora — nada de "0 pedidos hoje" nem barra de 4% enganosa.
   const tiles = [
     { icone: Store, valor: cont.comerciantes, rotulo: 'comerciantes' },
-    { icone: Bike, valor: cont.entregadores, rotulo: 'entregadores' },
-    { icone: User, valor: cont.clientes, rotulo: 'clientes' },
-    { icone: ShoppingBag, valor: cont.pedidos, rotulo: 'pedidos' },
-    { icone: Sparkles, valor: cont.pedidos_hoje, rotulo: 'pedidos hoje' },
-    { icone: MapPin, valor: cont.cidades, rotulo: 'cidades' },
+    { icone: Bike, valor: flags.entregador ? cont.entregadores : 0, rotulo: 'entregadores' },
+    { icone: User, valor: flags.cliente ? cont.clientes : 0, rotulo: 'clientes' },
+    { icone: ShoppingBag, valor: flags.delivery ? cont.pedidos : 0, rotulo: 'pedidos' },
+    { icone: Sparkles, valor: flags.delivery ? cont.pedidos_hoje : 0, rotulo: 'pedidos hoje' },
+    { icone: MapPin, valor: flags.delivery ? cont.cidades : 0, rotulo: 'cidades' },
   ].filter(t => t.valor > 0)
-  const marcosBatidos = MARCOS.filter(m => ((cont as Record<string, number>)[m.metrica] || 0) >= m.valor)
-  const cidadesReais = cidades.filter(cid => cid.pontos > 0)
+  const marcosBatidos = flags.gamificacao ? MARCOS.filter(m => ((cont as Record<string, number>)[m.metrica] || 0) >= m.valor) : []
+  const cidadesReais = flags.delivery ? cidades.filter(cid => cid.pontos > 0) : []
 
   return (
     <section className="relative z-10 px-6 pb-16">
@@ -70,7 +71,7 @@ export function HomeCrescimento() {
           A maior comunidade de pequenos comércios do Brasil
         </h2>
         <p className="text-center text-gray-500 text-sm mb-6">
-          Comerciantes, clientes e entregadores em um único ecossistema.
+          {listaPapeis(flags).replace(/^c/, 'C')} em um único ecossistema.
         </p>
 
         {/* Contadores ao vivo — só os que têm número real */}
@@ -87,7 +88,7 @@ export function HomeCrescimento() {
         )}
 
         {/* Feed de conquistas — só eventos reais; vazio vira convite */}
-        <div className="mt-4 bg-card border border-borda rounded-2xl p-4 overflow-hidden">
+        {flags.gamificacao && <div className="mt-4 bg-card border border-borda rounded-2xl p-4 overflow-hidden">
           <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5">
             <Trophy size={13} className="text-acento" /> Conquistas da comunidade
           </p>
@@ -107,7 +108,7 @@ export function HomeCrescimento() {
           ) : (
             <p className="text-sm text-gray-400">Seja o primeiro a conquistar algo! 🚀</p>
           )}
-        </div>
+        </div>}
 
         {/* Marcos — só os que realmente aconteceram (sem barra de progresso falsa) */}
         {marcosBatidos.length > 0 && (

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { exigirAdminAuditado } from '../../../lib/admin'
 import { flagSoGlobal } from '../../../lib/featureFlags'
 
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
     }
     const { error } = await admin.from('feature_flags').delete().eq('cidade_slug', cidade_slug).eq('flag', flag)
     if (error) return NextResponse.json({ error: 'Falha ao salvar.' }, { status: 500 })
+    revalidatePath('/', 'layout')
     return NextResponse.json({ ok: true, cidade_slug, flag, ativo: null })
   }
 
@@ -39,5 +41,9 @@ export async function POST(request: NextRequest) {
     .upsert({ cidade_slug, flag, ativo, updated_at: new Date().toISOString() }, { onConflict: 'cidade_slug,flag' })
     .select('ativo').single()
   if (error || !data) return NextResponse.json({ error: 'Falha ao salvar.' }, { status: 500 })
+  // Páginas públicas em cache voltam a ler a chave na próxima visita, sem esperar
+  // o `revalidate` delas: sem isto, o primeiro visitante depois da virada veria a
+  // página antiga, por mais tempo que tivesse passado.
+  revalidatePath('/', 'layout')
   return NextResponse.json({ ok: true, cidade_slug, flag, ativo: data.ativo })
 }

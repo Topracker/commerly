@@ -4,6 +4,7 @@ import { X, Plus, Minus, ShoppingBag, MapPin, Check, CreditCard, Banknote, Spark
 import type { ItemPedidoCliente } from '../lib/pedidosClientes'
 import { distanciaKm, taxaEntregaPorDistancia, taxaComPico, ehHorarioPico, formatarDistancia } from '../lib/geo'
 import { descontoDePontos, maxPontosResgataveis } from '../lib/fidelidade'
+import { useFlags } from '../lib/useFlags'
 import { aplicarFator } from '../lib/precoDinamico'
 import { MapaConfirmar } from './MapaConfirmar'
 import { lojaAberta, msgLojaFechada } from '../lib/horario'
@@ -37,6 +38,7 @@ type Props = {
 // endereço de entrega e observação. Insere em `pedidos_clientes`.
 export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSucesso, onErro }: Props) {
   const [qtds, setQtds] = useState<Record<string, number>>({})
+  const { ativa } = useFlags()
   const [endereco, setEndereco] = useState('')
   const [observacao, setObservacao] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -177,7 +179,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   const taxaEntrega = coord ? taxaComPico(taxaEntregaPorDistancia(distancia), pico) : null
   // Pontos resgatáveis dependem do subtotal atual (não descontam mais que ele).
   const pontosResgataveis = useMemo(() => maxPontosResgataveis(saldoPontos, subtotal), [saldoPontos, subtotal])
-  const podeResgatar = pontosResgataveis >= 100
+  const podeResgatar = pontosResgataveis >= 100 && ativa('cashback')
   const pontosUsados = usarPontos && podeResgatar ? pontosResgataveis : 0
   const desconto = descontoDePontos(pontosUsados)
   const total = Math.max(subtotal - desconto, 0) + (taxaEntrega ?? 0)

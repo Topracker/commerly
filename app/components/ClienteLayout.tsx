@@ -53,8 +53,13 @@ export function ClienteLayout({
   // Chave `cliente` desligada: some também "Buscar lojas" (pedidos em
   // andamento, notificações e mensagens continuam no menu).
   const clienteLigado = ativa('cliente')
-  const menu = MENU.filter(i =>
-    (festaLigada || i.path !== '/cliente/festa') && (clienteLigado || i.path !== '/cliente/buscar'))
+  const menu = MENU.filter(i => {
+    if (i.path === '/cliente/festa') return festaLigada && ativa('delivery')
+    if (i.path === '/cliente/clube') return clienteLigado && ativa('cashback')
+    if (i.path === '/cliente/ranking') return clienteLigado && ativa('gamificacao')
+    if (['/cliente/feed', '/cliente/buscar', '/cliente/favoritas', '/cliente/dashboard'].includes(i.path)) return clienteLigado
+    return true
+  })
 
   useEffect(() => {
     if (!cliente?.id) return

@@ -25,9 +25,9 @@ type Etapa = 'verificando' | 'sem-sessao' | 'carregando' | 'pronto' | 'enviando'
 
 const LOGINS = [
   { href: '/login', label: 'Comerciante' },
-  { href: '/cliente/login', label: 'Cliente' },
-  { href: '/entregador-delivery/login', label: 'Entregador' },
-  { href: '/fornecedor/login', label: 'Fornecedor' },
+  { href: '/cliente/login?continuar=1', label: 'Cliente' },
+  { href: '/entregador-delivery/login?continuar=1', label: 'Entregador' },
+  { href: '/fornecedor/login?continuar=1', label: 'Fornecedor' },
 ]
 
 export default function ExcluirContaPage() {

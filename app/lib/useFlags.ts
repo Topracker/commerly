@@ -50,10 +50,14 @@ export function useFlags() {
     buscar().then(aplicar)
     const aoVoltar = () => { if (document.visibilityState === 'visible' && !fresco()) buscar() }
     document.addEventListener('visibilitychange', aoVoltar)
+    // Aba aberta e parada também acompanha a chave em até 1 minuto. Só com a aba
+    // visível: aba em segundo plano não gasta requisição.
+    const relogio = setInterval(aoVoltar, TTL_MS)
     return () => {
       vivo = false
       ouvintes.delete(aplicar)
       document.removeEventListener('visibilitychange', aoVoltar)
+      clearInterval(relogio)
     }
   }, [])
 

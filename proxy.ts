@@ -2,7 +2,54 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { situacaoPlano } from './app/lib/plano'
 import { ehAdmin, ehRotaAdmin } from './app/lib/adminIdentidade'
-import { modulosQueIniciam } from './app/lib/pausa'
+import {
+  LOGINS_MODULO, MSG_MODULO_INDISPONIVEL, TEXTO_PAUSA, chaveDesligada, modulosDaApi, modulosDaPagina,
+  type LinhaFlag, type ModuloPausavel,
+} from './app/lib/pausa'
+
+// ----------------------------------------------------------------------------
+// CHAVES DE MÓDULO. A leitura fica em memória por 20s: o proxy roda em toda rota
+// protegida e não pode ir ao banco a cada clique, e a virada no admin precisa valer
+// em menos de 1 minuto. FALHA ABERTA: erro de leitura mantém a última resposta boa
+// (ou libera), porque a trava de verdade continua nas rotas e no banco.
+// Lê com service role porque a sessão não enxerga feature_flags; a chave nunca sai
+// do servidor.
+// ----------------------------------------------------------------------------
+const TTL_FLAGS_MS = 20_000
+let flagsEmCache: { em: number; linhas: LinhaFlag[] } | null = null
+let leituraFlags: Promise<LinhaFlag[]> | null = null
+
+async function lerFlags(): Promise<LinhaFlag[]> {
+  if (flagsEmCache && Date.now() - flagsEmCache.em < TTL_FLAGS_MS) return flagsEmCache.linhas
+  if (!leituraFlags) {
+    const chave = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+    leituraFlags = fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/feature_flags?select=flag,cidade_slug,ativo`, {
+      headers: { apikey: chave, Authorization: `Bearer ${chave}` },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(1500),
+    })
+      .then(async r => {
+        if (!r.ok) throw new Error(`feature_flags ${r.status}`)
+        const linhas = (await r.json()) as LinhaFlag[]
+        flagsEmCache = { em: Date.now(), linhas }
+        return linhas
+      })
+      .catch(e => {
+        console.error('[proxy] leitura das chaves falhou; segue aberto:', e instanceof Error ? e.message : e)
+        return flagsEmCache?.linhas ?? []
+      })
+      .finally(() => { leituraFlags = null })
+  }
+  return leituraFlags
+}
+
+function respostaApiPausada(modulo: ModuloPausavel) {
+  const mensagem = `${MSG_MODULO_INDISPONIVEL}. ${TEXTO_PAUSA[modulo].titulo}.`
+  return NextResponse.json(
+    { error: mensagem, erro: mensagem, modulo_pausado: modulo },
+    { status: 503, headers: { 'Cache-Control': 'no-store' } },
+  )
+}
 
 // ============================================================================
 // PAYWALL DO LADO DO SERVIDOR (auditoria 2026-07-22)
@@ -162,13 +209,34 @@ export async function proxy(request: NextRequest) {
   }
   const ehAreaPapel = loginPapel !== null
 
-  // Página que INICIA algo num módulo pausável (onboarding, buscar, festa,
-  // /fornecedores — lista em app/lib/pausa.ts)?
-  const modulosIniciados = modulosQueIniciam(pathname)
+  // ── CHAVES DE MÓDULO ────────────────────────────────────────────────────
+  // Antes do login de propósito: vale com ou sem sessão, e não adianta mandar
+  // entrar para começar algo que está pausado. O painel master não passa aqui.
+  const moduloDoLogin = LOGINS_MODULO[pathname] as ModuloPausavel | undefined
+  const ehApiDeModulo = pathname.startsWith('/api/')
+  const modulosDaRota = ehAdminRota ? [] : ehApiDeModulo ? modulosDaApi(pathname) : modulosDaPagina(pathname)
+  if (modulosDaRota.length > 0 || moduloDoLogin) {
+    const linhas = await lerFlags()
+    const desligado = modulosDaRota.find(m => chaveDesligada(linhas, m))
+    if (desligado) {
+      if (ehApiDeModulo) return respostaApiPausada(desligado)
+      return NextResponse.redirect(new URL(`/pausado?modulo=${desligado}`, request.url))
+    }
+    // Login de módulo desligado: só para quem tem o que terminar (ver pausa.ts).
+    if (moduloDoLogin && chaveDesligada(linhas, moduloDoLogin) && request.nextUrl.searchParams.get('continuar') !== '1') {
+      const cliente = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { cookies: { getAll() { return request.cookies.getAll() }, setAll() {} } },
+      )
+      const { data: { user: logado } } = await cliente.auth.getUser()
+      if (!logado) return NextResponse.redirect(new URL(`/pausado?modulo=${moduloDoLogin}`, request.url))
+    }
+  }
 
   // Nada a proteger nesta rota (ex.: perfil público, home): segue direto e evita
   // um getUser() de rede à toa.
-  if (!ehAdminRota && !ehApi && !ehPagina && !ehAutenticada && !ehOnboarding && !ehAreaPapel && modulosIniciados.length === 0) return response
+  if (!ehAdminRota && !ehApi && !ehPagina && !ehAutenticada && !ehOnboarding && !ehAreaPapel) return response
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -186,22 +254,6 @@ export async function proxy(request: NextRequest) {
       },
     }
   )
-
-  // ── CHAVES DE MÓDULO (passo 4) ──────────────────────────────────────────
-  // Chave desligada -> /pausado, para qualquer um (logado ou não), antes até do
-  // login: não adianta mandar entrar para começar algo que está pausado. Só
-  // páginas que INICIAM algo; login, pedidos em andamento, notificações e
-  // confirmação de entrega nunca passam por aqui. A resposta vem da RPC
-  // `modulo_ativo()` (SECURITY DEFINER — a sessão não lê feature_flags).
-  // FALHA ABERTA: erro de rede ou resposta nula deixa a página abrir; a trava
-  // de verdade continua nas rotas de API e no banco.
-  if (modulosIniciados.length > 0) {
-    const respostas = await Promise.all(
-      modulosIniciados.map(m => supabase.rpc('modulo_ativo', { p_flag: m }).then(r => ({ m, ativo: r.data }))),
-    )
-    const pausado = respostas.find(r => r.ativo === false)
-    if (pausado) return NextResponse.redirect(new URL(`/pausado?modulo=${pausado.m}`, request.url))
-  }
 
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -222,7 +274,9 @@ export async function proxy(request: NextRequest) {
   if (!user) {
     // API responde 401 em JSON; página vai para o login apropriado.
     if (ehApi) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-    if (ehAreaPapel) return NextResponse.redirect(new URL(loginPapel!, request.url))
+    // `continuar`: quem chega aqui anônimo veio terminar algo. Com a chave do módulo
+    // desligada, o login sem isso voltaria para /pausado e prenderia a pessoa.
+    if (ehAreaPapel) return NextResponse.redirect(new URL(`${loginPapel!}?continuar=1`, request.url))
     if (ehPagina || ehOnboarding || ehAutenticada) return NextResponse.redirect(new URL('/login', request.url))
     return response
   }
@@ -292,5 +346,13 @@ export const config = {
     '/api/vision/:path*', '/api/nutri/:path*', '/api/tendencias/:path*',
     '/api/loja/:path*', '/api/ads/:path*', '/api/entrega/buscar-entregador',
     '/api/maquininha/:path*',
+    // Chaves de módulo (lista completa em app/lib/pausa.ts): rota nova de um módulo
+    // entra lá E aqui, senão o proxy nem roda nela.
+    '/para-clientes', '/para-entregadores', '/entregador/:path*', '/expansao/:path*',
+    '/medalhas/:path*', '/ranking', '/hall-da-fama', '/kit', '/loja',
+    '/fundadores', '/embaixadores', '/convite/:path*',
+    '/api/cliente/:path*', '/api/entregador/:path*', '/api/fornecedor/:path*', '/api/b2b/:path*',
+    '/api/expansao/:path*', '/api/festa/:path*', '/api/cardapio/:path*', '/api/onboarding-ia',
+    '/api/gamificacao/:path*', '/api/ranking', '/api/kit/:path*', '/api/planos/vagas', '/api/indicacao/:path*',
   ],
 }

@@ -6,7 +6,7 @@ import { Check, Snowflake } from 'lucide-react'
 import { moduloAtivo } from '../lib/featureFlags'
 
 // Relê a chave `entregador` a cada 60s: desligada, o CTA vira aviso de pausa.
-export const revalidate = 60
+export const revalidate = 30
 
 export const metadata: Metadata = {
   title: 'Kit Oficial do Entregador',

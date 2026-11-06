@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { ChevronDown, Sparkles } from 'lucide-react'
 import { carregarPerfil } from '../lib/perfilGamificacao'
+import { useFlags } from '../lib/useFlags'
 
 const ABERTO_KEY = 'commerly:dash:progresso'
 
@@ -23,6 +24,7 @@ const ABERTO_KEY = 'commerly:dash:progresso'
 export function BlocoProgresso({ children }: { children: React.ReactNode }) {
   const [aberto, setAberto] = useState(false)
   const [p, setP] = useState<any>(null)
+  const { ativa } = useFlags()
 
   // Preferência do comerciante: se ele abriu o bloco, continua aberto.
   // Fechado é o padrão — inclusive na primeira visita.
@@ -50,6 +52,10 @@ export function BlocoProgresso({ children }: { children: React.ReactNode }) {
   if (typeof p?.xp === 'number') partes.push(`${p.xp} XP`)
   if (p?.streak?.dias > 0) partes.push(`${p.streak.dias} ${p.streak.dias === 1 ? 'dia seguido' : 'dias seguidos'}`)
   const resumo = partes.length ? partes.join(' · ') : 'Nível, XP, medalhas, missões e indicação'
+
+  // Gamificação desligada: sai o bloco, mas os filhos seguem montados (ver o topo).
+  // O convite de indicação tem chave própria e aparece sozinho, se estiver ligado.
+  if (!ativa('gamificacao')) return <div className="mb-6 flex flex-col gap-4 empty:hidden">{children}</div>
 
   return (
     <div className="rounded-2xl border border-borda bg-card overflow-hidden mb-6">

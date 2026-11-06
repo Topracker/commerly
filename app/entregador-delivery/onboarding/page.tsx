@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { diaLoja } from '../../lib/datas'
+import { SoComModulo } from '../../components/SoComModulo'
 import { createClient } from '../../supabase'
 import { useRouter } from 'next/navigation'
 import {
@@ -365,10 +366,10 @@ export default function EntregadorOnboarding() {
                     Você pode concluir o cadastro agora, mas precisa de uma bolsa térmica para manter a
                     qualidade do pedido — comida chega quente, bebida chega gelada. Serve a de qualquer marca.
                   </p>
-                  <a href={LINK_BOLSA} target="_blank" rel="noopener noreferrer"
+                  <SoComModulo modulo="kit"><a href={LINK_BOLSA} target="_blank" rel="noopener noreferrer"
                     className="text-amber-200 text-xs font-semibold underline underline-offset-2 mt-2 inline-block">
                     Onde comprar uma bolsa térmica →
-                  </a>
+                  </a></SoComModulo>
                 </div>
               </div>
             )}

@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react'
 import { Loader2, Salad, Zap } from 'lucide-react'
+import { useFlags } from '../lib/useFlags'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { FATOR_PICO, FATOR_DEMANDA, LIMIAR_DEMANDA } from '../lib/precoDinamico'
 import { DRONE_RAIO_MAX_KM, DRONE_PESO_MAX_KG, DRONE_HORA_INICIO, DRONE_HORA_FIM } from '../lib/drone'
@@ -45,6 +46,7 @@ function Alternador({ ligado, onMudar, titulo, children }: {
 }
 
 export function ConfigDelivery({ supabase, lojaId, onToast }: Props) {
+  const { ativa } = useFlags()
   const [precoDinamico, setPrecoDinamico] = useState(false)
   const [aceitaDrone, setAceitaDrone] = useState(false)
   const [aceitaCupom, setAceitaCupom] = useState(false)
@@ -160,7 +162,8 @@ export function ConfigDelivery({ supabase, lojaId, onToast }: Props) {
         </p>
       </Alternador>
 
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+      {/* A classificação usa IA: some com a chave desligada. */}
+      {ativa('ia') && <div className="rounded-xl border border-white/10 bg-white/5 p-4">
         <p className="flex items-center gap-2 text-sm font-medium text-white">
           <Salad className="h-4 w-4" /> Classificação nutricional
         </p>
@@ -185,7 +188,7 @@ export function ConfigDelivery({ supabase, lojaId, onToast }: Props) {
             {restantes === 0 ? 'Todos os produtos estão classificados.' : `${restantes} produtos ainda sem classificação.`}
           </p>
         )}
-      </div>
+      </div>}
     </div>
   )
 }

@@ -6,6 +6,8 @@ import { createServerClient } from '@supabase/ssr'
 import { Store, User, Truck, Bike, ArrowRight } from 'lucide-react'
 import { papeisDaConta } from '../lib/papeis'
 import { situacaoPlano } from '../lib/plano'
+import { flagsPublicas } from '../lib/featureFlags'
+import type { ModuloPausavel } from '../lib/pausa'
 
 // ============================================================================
 // /entrar — porta de entrada do app instalado (start_url do manifest / TWA).
@@ -33,10 +35,10 @@ const DESTINO = {
 
 const PORTAS = [
   { href: '/login', titulo: 'Sou Comerciante', sub: 'Gerenciar minha loja', Icone: Store, classes: 'bg-azul hover:brightness-110', subCor: 'text-white/70' },
-  { href: '/cliente/login', titulo: 'Sou Cliente', sub: 'Descobrir comércios locais', Icone: User, classes: 'bg-acento hover:bg-acento-forte', subCor: 'text-black/55' },
-  { href: '/fornecedor/login', titulo: 'Sou Fornecedor', sub: 'Oferecer produtos e serviços', Icone: Truck, classes: 'bg-purple-600 hover:bg-purple-700', subCor: 'text-white/70' },
-  { href: '/entregador-delivery/login', titulo: 'Sou Entregador', sub: 'Fazer entregas e ganhar por corrida', Icone: Bike, classes: 'bg-elevado hover:bg-borda border border-borda', subCor: 'text-gray-400' },
-] as const
+  { modulo: 'cliente', href: '/cliente/login', titulo: 'Sou Cliente', sub: 'Descobrir comércios locais', Icone: User, classes: 'bg-acento hover:bg-acento-forte', subCor: 'text-black/55' },
+  { modulo: 'fornecedor', href: '/fornecedor/login', titulo: 'Sou Fornecedor', sub: 'Oferecer produtos e serviços', Icone: Truck, classes: 'bg-purple-600 hover:bg-purple-700', subCor: 'text-white/70' },
+  { modulo: 'entregador', href: '/entregador-delivery/login', titulo: 'Sou Entregador', sub: 'Fazer entregas e ganhar por corrida', Icone: Bike, classes: 'bg-elevado hover:bg-borda border border-borda', subCor: 'text-gray-400' },
+] as ({ modulo?: ModuloPausavel; href: string; titulo: string; sub: string; Icone: typeof Store; classes: string; subCor: string })[]
 
 export default async function Entrar() {
   const cookieStore = await cookies()
@@ -46,6 +48,7 @@ export default async function Entrar() {
     { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } },
   )
   const { data: { user } } = await supabase.auth.getUser()
+  const flags = await flagsPublicas()
 
   if (user) {
     const [papel] = await papeisDaConta(supabase, user.id)
@@ -54,6 +57,8 @@ export default async function Entrar() {
         .from('lojas').select('plano, trial_expira_em').eq('user_id', user.id).maybeSingle()
       redirect(situacaoPlano(loja).liberada ? '/dashboard' : '/planos')
     }
+    // Com a área do cliente pausada, o app abre nos pedidos, que continuam de pé.
+    if (papel === 'cliente' && !flags.cliente) redirect('/cliente/pedidos')
     if (papel) redirect(DESTINO[papel])
     // Sessão sem perfil (OAuth recém-criado, cadastro abandonado): /login
     // mostra a tela 'sem-loja' com as opções certas.
@@ -66,7 +71,7 @@ export default async function Entrar() {
         <h1 className="text-2xl font-bold text-white">Entrar na Commerly</h1>
         <p className="text-gray-400 text-sm mt-1 mb-6">Escolha a sua área.</p>
         <div className="flex flex-col gap-3">
-          {PORTAS.map(({ href, titulo, sub, Icone, classes, subCor }) => (
+          {PORTAS.filter(p => !p.modulo || flags[p.modulo]).map(({ href, titulo, sub, Icone, classes, subCor }) => (
             <Link key={href} href={href} className={`${classes} text-white font-semibold rounded-2xl px-5 py-4 flex items-center gap-4 transition`}>
               <span className="w-10 h-10 rounded-xl bg-black/15 flex items-center justify-center shrink-0">
                 <Icone size={20} />

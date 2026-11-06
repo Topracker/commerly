@@ -1,6 +1,7 @@
 'use client'
 import { Suspense, useEffect, useState } from 'react'
 import { formatarData as formatarDataLoja } from '../lib/datas'
+import { useFlags } from '../lib/useFlags'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../supabase'
 import { CheckCircle, Clock, Zap } from 'lucide-react'
@@ -25,6 +26,7 @@ function PlanosConteudo() {
   const [desconto, setDesconto] = useState<{ confirmadas: number; pct: number; preco: number; proxima: { pct: number; preco: number } | null } | null>(null)
 
   const status = params.get('status')
+  const { ativa } = useFlags()
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -74,7 +76,8 @@ function PlanosConteudo() {
   // 1ª assinatura. "Disponível" = ainda vai usar; "vigente" = já está usando.
   // Não acumula com indicação: nesses meses vale o fundador; depois, o normal
   // com o desconto por indicação (que vem do servidor).
-  const promoDisponivel = promoFundadorDisponivel(loja)
+  // Chave desligada: não abre preço novo. Quem já assinou com ele segue até o fim (fimPromo).
+  const promoDisponivel = promoFundadorDisponivel(loja) && ativa('fundadores')
   const fimPromo = emPromoFundador(loja) ? fimPromoFundador(loja) : null
   const precoFundadorAgora = promoDisponivel || !!fimPromo
   const pctIndic = desconto?.pct ?? 0
@@ -87,7 +90,7 @@ function PlanosConteudo() {
     'Controle de vendas, estoque e produtos',
     'Integração MercadoPago automática',
     'Fiado, gastos e histórico',
-    'Assistente IA',
+    ...(ativa('ia') ? ['Assistente IA'] : []),
     'Novas funcionalidades em primeira mão',
   ]
 
@@ -234,7 +237,7 @@ function PlanosConteudo() {
         </div>
 
         {/* Desconto por indicação — 10% a cada indicação que ASSINA, até 40%. */}
-        {loja && (
+        {loja && ativa('embaixadores') && (
           <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
             <div className="flex items-center justify-between gap-2 mb-1">
               <p className="text-white font-bold text-sm">Indique e pague menos</p>

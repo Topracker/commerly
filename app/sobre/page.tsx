@@ -2,36 +2,48 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { PaginaLegal, Secao, Lista } from '../components/PaginaLegal'
 import { CONTATO, EMPRESA, PRODUTO, cnpjTexto } from '../lib/legal'
+import { flagsPublicas } from '../lib/featureFlags'
+import type { ModuloPausavel } from '../lib/pausa'
+
+// Relê as chaves de módulo a cada 30s. A virada no admin também invalida na hora.
+export const revalidate = 30
 
 export const metadata: Metadata = {
   title: 'Sobre',
   description: `Conheça a ${PRODUTO.nome} e a ${EMPRESA.nome}.`,
 }
 
-const PILARES = [
+const PILARES: { emoji: string; titulo: string; texto: string; modulo?: ModuloPausavel }[] = [
   {
     emoji: '🏪',
     titulo: 'Para o comerciante',
     texto: 'Vendas, estoque, gastos, fiado, agenda e clientes num painel só. Sem planilha, sem caderno.',
   },
   {
+    modulo: 'entregador',
     emoji: '🛵',
     titulo: 'Para o entregador',
     texto: 'Corridas das lojas parceiras, rota na mão e pagamento direto na conta.',
   },
   {
+    modulo: 'cliente',
     emoji: '🛒',
     titulo: 'Para o cliente',
     texto: 'Comprar do comércio do bairro com a facilidade dos grandes aplicativos — e acumulando pontos que valem em qualquer loja.',
   },
   {
+    modulo: 'fornecedor',
     emoji: '📦',
     titulo: 'Para o fornecedor',
     texto: 'Um canal direto com os comerciantes da região, com comparação de preços transparente.',
   },
 ]
 
-export default function Sobre() {
+export default async function Sobre() {
+  const flags = await flagsPublicas()
+  // "Gestão, delivery, pagamentos, fidelidade e inteligência artificial", só o que está ligado.
+  const recursos = ['Gestão', flags.delivery && 'delivery', 'pagamentos', flags.cashback && 'fidelidade', flags.ia && 'inteligência artificial']
+    .filter(Boolean) as string[]
   return (
     <PaginaLegal titulo={`Sobre a ${PRODUTO.nome}`}>
       <Secao titulo="O que é a Commerly">
@@ -41,15 +53,14 @@ export default function Sobre() {
         </p>
         <p>
           A ideia é simples: o comerciante de bairro merece as mesmas ferramentas que as grandes
-          redes têm, sem precisar de time de TI nem de contrato caro. Gestão, delivery,
-          pagamentos, fidelidade e inteligência artificial no mesmo lugar, por uma mensalidade
-          que cabe no caixa.
+          redes têm, sem precisar de time de TI nem de contrato caro. {recursos.slice(0, -1).join(', ')} e{' '}
+          {recursos[recursos.length - 1]} no mesmo lugar, por uma mensalidade que cabe no caixa.
         </p>
       </Secao>
 
       <Secao titulo="Quem atendemos">
         <div className="grid sm:grid-cols-2 gap-3 mt-1">
-          {PILARES.map(p => (
+          {PILARES.filter(p => !p.modulo || flags[p.modulo]).map(p => (
             <div key={p.titulo} className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
               <span className="text-2xl">{p.emoji}</span>
               <p className="text-white font-semibold text-sm mt-1.5">{p.titulo}</p>
@@ -75,7 +86,7 @@ export default function Sobre() {
         <Lista itens={[
           <><strong className="text-gray-300">O dado é do comerciante.</strong> Ele leva sua base de clientes, produtos e histórico para onde quiser.</>,
           <><strong className="text-gray-300">Preço claro.</strong> Uma mensalidade, sem taxa escondida por pedido. As comissões, quando existem, estão nos Termos.</>,
-          <><strong className="text-gray-300">O pequeno junto é grande.</strong> Os pontos do Clube valem em qualquer loja da rede — o cliente de uma vira cliente de todas.</>,
+          ...(flags.cashback && flags.cliente ? [<><strong className="text-gray-300">O pequeno junto é grande.</strong> Os pontos do Clube valem em qualquer loja da rede — o cliente de uma vira cliente de todas.</>] : []),
         ]} />
       </Secao>
 

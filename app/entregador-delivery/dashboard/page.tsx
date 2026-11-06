@@ -1218,7 +1218,7 @@ function EntregadorDashboard() {
       )}
 
       {/* 9. BADGES / CONQUISTAS */}
-      <section className="bg-card border border-borda rounded-2xl p-4 mb-4">
+      {ativa('gamificacao') && <section className="bg-card border border-borda rounded-2xl p-4 mb-4">
         <div className="flex items-center justify-between gap-2 mb-3">
           <h2 className="text-white font-semibold text-sm flex items-center gap-2"><Award size={16} className="text-acento" /> Conquistas</h2>
           <span className="text-gray-500 text-xs">{badgesConquistadas}/{badges.length}</span>
@@ -1233,10 +1233,10 @@ function EntregadorDashboard() {
             </div>
           ))}
         </div>
-      </section>
+      </section>}
 
       {/* RANKING SEMANAL DE ENTREGADORES */}
-      {rankingOrdenado.length > 0 && (
+      {ativa('gamificacao') && rankingOrdenado.length > 0 && (
         <section className="bg-card border border-borda rounded-2xl p-4 mb-4">
           <div className="flex items-center justify-between gap-2 mb-3">
             <h2 className="text-white font-semibold text-sm flex items-center gap-2"><Trophy size={16} className="text-amber-300" /> Ranking da semana</h2>
@@ -1279,7 +1279,7 @@ function EntregadorDashboard() {
           A condição lê `kit_comprado`, coluna LEGADA que nada escreve — o estado
           real do kit vive em `kit_pedidos`. Na prática o convite aparece para
           todos; trocar para o estado real exige carregar o kit aqui. */}
-      {entregador.kit_comprado === false && (
+      {entregador.kit_comprado === false && ativa('kit') && (
         <Link href="/kit" className="block mb-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3">
           <p className="text-amber-200 font-semibold text-sm">🎒 Kit Oficial do entregador</p>
           <p className="text-amber-200/70 text-xs mt-0.5">Bolsa, adesivo e o QR do seu perfil — sua vitrine ambulante. Toque para ver o kit e o desconto do seu nível.</p>

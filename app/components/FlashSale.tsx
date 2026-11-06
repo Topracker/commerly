@@ -37,7 +37,8 @@ export function FlashSaleBanner() {
 
   useEffect(() => {
     fetch('/api/flash-sale')
-      .then(r => r.json())
+      // Chave desligada responde 503: sem promoção, o banner não aparece.
+      .then(r => (r.ok ? r.json() : { promocoes: [] }))
       .then(d => setPromocoes(d.promocoes ?? []))
       .catch(() => {})
   }, [])

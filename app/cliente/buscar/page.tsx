@@ -7,6 +7,7 @@ import { getRatingsPorLoja } from '../../lib/avaliacoes'
 import { MapaLojas } from '../../components/MapaLojas'
 import { distanciaKm, formatarDistancia } from '../../lib/geo'
 import { VisionPrato } from '../../components/VisionPrato'
+import { SoComModulo } from '../../components/SoComModulo'
 import { FlashSaleBanner } from '../../components/FlashSale'
 import { TAGS_NUTRI, ROTULO_TAG, AVISO_NUTRI, type TagNutri } from '../../lib/nutri'
 import AvisoCobertura from '../../components/AvisoCobertura'
@@ -207,7 +208,7 @@ export default function ClienteBuscar() {
       </form>
 
       <div className="mb-4">
-        <VisionPrato userPos={userPos} />
+        <SoComModulo modulo="ia"><VisionPrato userPos={userPos} /></SoComModulo>
       </div>
 
       <div className="mb-4">

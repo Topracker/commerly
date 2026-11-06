@@ -2,6 +2,9 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { MarketingShell } from '../components/MarketingShell'
 import { Play, Store, User, Bike } from 'lucide-react'
+import { flagsPublicas } from '../lib/featureFlags'
+
+export const revalidate = 30
 
 export const metadata: Metadata = {
   title: 'Demonstração da Commerly',
@@ -9,12 +12,18 @@ export const metadata: Metadata = {
   alternates: { canonical: '/demo' },
 }
 
-export default function Demo() {
+export default async function Demo() {
+  const flags = await flagsPublicas()
+  const cards = [
+    { Icone: Store, t: 'Comerciante', d: 'Gerencia tudo: vendas, estoque, financeiro e delivery.', href: '/para-comerciantes' },
+    ...(flags.cliente ? [{ Icone: User, t: 'Cliente', d: flags.cashback ? 'Descobre lojas locais, pede e ganha cashback.' : 'Descobre lojas locais e pede.', href: '/para-clientes' }] : []),
+    ...(flags.entregador ? [{ Icone: Bike, t: 'Entregador', d: 'Ganha por corrida, com liberdade e recompensas.', href: '/para-entregadores' }] : []),
+  ]
   return (
     <MarketingShell
       eyebrow="Demonstração"
       titulo="A Commerly em 60 segundos"
-      subtitulo="Uma plataforma. Três papéis. Um ecossistema."
+      subtitulo={cards.length === 3 ? 'Uma plataforma. Três papéis. Um ecossistema.' : 'Uma plataforma. Um ecossistema.'}
     >
       {/* Vídeo de demonstração (placeholder com thumbnail) */}
       <div className="relative rounded-2xl overflow-hidden border border-borda bg-gradient-to-br from-azul/25 via-elevado to-acento/15 aspect-video flex items-center justify-center mb-8">
@@ -25,11 +34,7 @@ export default function Demo() {
       </div>
 
       <div className="grid sm:grid-cols-3 gap-3">
-        {[
-          { Icone: Store, t: 'Comerciante', d: 'Gerencia tudo: vendas, estoque, financeiro e delivery.', href: '/para-comerciantes' },
-          { Icone: User, t: 'Cliente', d: 'Descobre lojas locais, pede e ganha cashback.', href: '/para-clientes' },
-          { Icone: Bike, t: 'Entregador', d: 'Ganha por corrida, com liberdade e recompensas.', href: '/para-entregadores' },
-        ].map(p => (
+        {cards.map(p => (
           <Link key={p.t} href={p.href} className="grupo bg-card border border-borda rounded-2xl p-5 hover:border-acento/40 transition">
             <p.Icone size={20} className="text-acento mb-2 grupo-icone" />
             <p className="text-white font-semibold">{p.t}</p>

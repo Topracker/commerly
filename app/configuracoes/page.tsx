@@ -11,6 +11,7 @@ import { EnderecoAutocomplete } from '../components/EnderecoAutocomplete'
 import { FachadaUpload, type FachadaItem } from '../components/FachadaUpload'
 import { CardapioQR } from '../components/CardapioQR'
 import { CardapioIA } from '../components/CardapioIA'
+import { useFlags } from '../lib/useFlags'
 import { ConfigDelivery } from '../components/ConfigDelivery'
 import { ConfigVale } from '../components/ConfigVale'
 import { uploadFachada, removerFachada } from '../lib/fachada'
@@ -131,6 +132,7 @@ function parseHorario(horario: string): [string, string] {
 }
 
 export default function Configuracoes() {
+  const { ativa } = useFlags()
   const { user, loja, setLoja, loading, supabase, sair } = useAuth()
   const { toast, mostrarToast } = useToast()
 
@@ -492,7 +494,7 @@ export default function Configuracoes() {
               <p className="text-white font-semibold text-sm">Personalize seu painel</p>
             </div>
             <p className="text-gray-400 text-xs">
-              Conta com suas palavras o que o seu negócio faz, que eu sugiro os módulos certos pro seu dashboard.
+              {ativa('ia') ? 'Conta com suas palavras o que o seu negócio faz, que eu sugiro os módulos certos pro seu dashboard.' : 'Conta com suas palavras o que o seu negócio faz.'}
             </p>
             <textarea
               value={iaDescricao}
@@ -502,14 +504,14 @@ export default function Configuracoes() {
               maxLength={1000}
               className={`${inputClass} resize-none text-sm`}
             />
-            <button
+            {ativa('ia') && <button
               type="button"
               onClick={consultarIA}
               disabled={iaLoading}
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition text-sm"
             >
               {iaLoading ? 'Pensando...' : iaResumo ? 'Gerar de novo' : 'Sugerir módulos'}
-            </button>
+            </button>}
             {iaErro && <p className="text-red-400 text-sm">{iaErro}</p>}
 
             {(iaResumo || modulosSel.length > 0) && (
@@ -746,7 +748,7 @@ export default function Configuracoes() {
         )}
 
         {/* Cardápio por IA (#2 foto, #3 texto) */}
-        {loja?.id && <CardapioIA onPublicado={() => mostrarToast('Produtos publicados! Entraram com estoque 100 e custo em branco — ajuste em Produtos se precisar.', 'sucesso')} />}
+        {loja?.id && ativa('ia') && <CardapioIA onPublicado={() => mostrarToast('Produtos publicados! Entraram com estoque 100 e custo em branco — ajuste em Produtos se precisar.', 'sucesso')} />}
 
         {/* Preço dinâmico (#5), drone (#14) e classificação nutricional (#9) */}
         {isDelivery(tipo) && loja?.id && (

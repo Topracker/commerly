@@ -10,6 +10,7 @@ import { diaLoja, diaSemanaLoja, somarDias } from '../../../lib/datas'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { carregarCooldowns, emCooldown, disparar, brl } from '../../../lib/retencao'
 import { chamarGemini, textoDaResposta } from '../../../lib/gemini'
+import { flagAtiva } from '../../../lib/featureFlags'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -108,7 +109,8 @@ export async function GET(req: NextRequest) {
 
     // IA só nas lojas com movimento e até um teto por execução (protege o tempo
     // do cron); as demais recebem o resumo por template, como antes.
-    let orcamentoIA = 25
+    // Chave `ia` desligada: o relatório sai só pelo template.
+    let orcamentoIA = (await flagAtiva('ia', null, admin)) ? 25 : 0
     for (const l of lojas || []) {
       const a = ag.get(l.id) || { atual: 0, ant: 0, pedidos: 0 }
       if (emCooldown(cooldowns, l.user_id, 'semanal', 6)) continue

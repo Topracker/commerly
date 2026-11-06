@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createAdminClient } from '../../lib/supabase-admin'
 import { PARAM_REF, CHAVE_INDICACAO, normalizarCodigo } from '../../lib/convite'
+import { flagsPublicas } from '../../lib/featureFlags'
 import { Store, User, Bike, Truck, Gift } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -29,6 +30,11 @@ export default async function Convite({ params }: { params: Promise<{ codigo: st
   const admin = createAdminClient()
   const { data } = await admin.from('codigos_indicacao').select('papel').eq('codigo', cod).maybeSingle()
   const valido = !!data
+  const flags = await flagsPublicas(admin)
+  const portas = PORTAS.filter(p =>
+    (p.href !== '/cliente/login' || flags.cliente)
+    && (p.href !== '/entregador-delivery/login' || flags.entregador)
+    && (p.href !== '/fornecedor/login' || flags.fornecedor))
 
   return (
     <main data-theme="dark" className="min-h-screen bg-fundo font-body flex items-center justify-center px-6 py-16">
@@ -53,7 +59,7 @@ export default async function Convite({ params }: { params: Promise<{ codigo: st
             parâmetro, o <IndicacaoClaim/> recaptura o código na tela de login e
             o campo de convite do cadastro já nasce preenchido.
           */}
-          {PORTAS.map(p => (
+          {portas.map(p => (
             <Link key={p.href} href={`${p.href}?${PARAM_REF}=${cod}`} className="grupo bg-card border border-borda hover:border-acento/40 rounded-2xl p-4 transition flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-elevado flex items-center justify-center shrink-0"><p.Icone size={19} className="text-acento grupo-icone" /></span>
               <span className="min-w-0">
