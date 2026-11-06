@@ -5,12 +5,14 @@ import QRCode from 'qrcode'
 import { createClient } from '../supabase'
 import { perfilSlug } from '../lib/crescimento'
 import { gerarStickerStory, gerarCardConquista, baixarDataUrl } from '../lib/cardImagem'
+import { useFlags } from '../lib/useFlags'
 import { QRGerador, type DestinoQR } from '../components/QRGerador'
 import {
   ArrowLeft, Sparkles, ImageIcon, Download, Loader2, Copy, Check, QrCode, Sticker, BadgeCheck,
 } from 'lucide-react'
 
 export default function Marketing() {
+  const { ativa } = useFlags()
   const [loja, setLoja] = useState<any>(null)
   const [semLoja, setSemLoja] = useState(false)
   const [base, setBase] = useState('')
@@ -65,7 +67,7 @@ export default function Marketing() {
       <header className="border-b border-borda bg-card/60 backdrop-blur sticky top-0 z-20">
         <div className="max-w-3xl mx-auto px-6 py-3 flex items-center gap-3">
           <Link href="/dashboard" className="text-gray-400 hover:text-white flex items-center gap-1.5 text-sm"><ArrowLeft size={16} /> Painel</Link>
-          <Link href="/commerly-ai" className="ml-auto text-gray-400 hover:text-white text-sm flex items-center gap-1"><Sparkles size={14} /> Commerly AI</Link>
+          {ativa('ia') && <Link href="/commerly-ai" className="ml-auto text-gray-400 hover:text-white text-sm flex items-center gap-1"><Sparkles size={14} /> Commerly AI</Link>}
         </div>
       </header>
 
@@ -85,7 +87,7 @@ export default function Marketing() {
             </div>
           )}
           <div className="flex gap-2">
-            <button onClick={gerarPost} disabled={gerandoPost} className="flex items-center gap-1.5 bg-acento hover:bg-acento-forte text-white text-sm font-semibold px-4 py-2 rounded-xl">{gerandoPost ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {post ? 'Gerar outro' : 'Gerar post'}</button>
+            <button onClick={gerarPost} disabled={gerandoPost || !ativa('ia')} className="flex items-center gap-1.5 disabled:opacity-50 bg-acento hover:bg-acento-forte text-white text-sm font-semibold px-4 py-2 rounded-xl">{gerandoPost ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {post ? 'Gerar outro' : 'Gerar post'}</button>
             {post && <button onClick={() => { navigator.clipboard?.writeText(post); setCopiado(true); setTimeout(() => setCopiado(false), 1500) }} className="flex items-center gap-1.5 bg-elevado border border-borda text-white text-sm px-4 py-2 rounded-xl">{copiado ? <Check size={14} className="text-green-400" /> : <Copy size={14} />} Copiar</button>}
           </div>
         </section>

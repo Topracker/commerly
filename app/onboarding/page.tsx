@@ -4,6 +4,7 @@ import { createClient } from '../supabase'
 import { useRouter } from 'next/navigation'
 import { salvarNichoCustom } from '../lib/nicheStore'
 import { MODULOS, type ModuloKey } from '../lib/nichos'
+import { useFlags } from '../lib/useFlags'
 import { EnderecoAutocomplete } from '../components/EnderecoAutocomplete'
 import { FachadaUpload, type FachadaItem } from '../components/FachadaUpload'
 import { uploadFachada } from '../lib/fachada'
@@ -42,6 +43,7 @@ function erroInstagram(valor: string): string {
 }
 
 export default function Onboarding() {
+  const { ativa } = useFlags()
   const [nome, setNome] = useState('')
   const [tipo, setTipo] = useState('')
   const [documento, setDocumento] = useState('')
@@ -325,7 +327,7 @@ export default function Onboarding() {
                 <p className="text-white font-semibold text-sm">Vamos montar seu painel</p>
               </div>
               <p className="text-gray-400 text-xs">
-                Conta com suas palavras o que o seu negócio faz, que eu sugiro os módulos certos pro seu dashboard.
+                {ativa('ia') ? 'Conta com suas palavras o que o seu negócio faz, que eu sugiro os módulos certos pro seu dashboard.' : 'Conta com suas palavras o que o seu negócio faz.'}
               </p>
               <textarea
                 value={iaDescricao}
@@ -335,14 +337,14 @@ export default function Onboarding() {
                 maxLength={1000}
                 className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
               />
-              <button
+              {ativa('ia') && <button
                 type="button"
                 onClick={consultarIA}
                 disabled={iaLoading}
                 className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition text-sm"
               >
                 {iaLoading ? 'Pensando...' : iaResumo ? 'Gerar de novo' : 'Sugerir módulos'}
-              </button>
+              </button>}
               {iaErro && <p className="text-red-400 text-sm">{iaErro}</p>}
 
               {iaResumo && (

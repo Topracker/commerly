@@ -9,11 +9,13 @@ import {
 import BotaoSair from '../../components/BotaoSair'
 import { outroPapel, msgCadastroOutroPapel } from '../../lib/papeis'
 import FornecedorIaOutro from '../../components/FornecedorIaOutro'
+import { useFlags } from '../../lib/useFlags'
 import { EnderecoAutocomplete } from '../../components/EnderecoAutocomplete'
 
 const CATEGORIAS = ['Alimentos e bebidas', 'Limpeza e higiene', 'Eletrônicos', 'Roupas e acessórios', 'Papelaria', 'Construção', 'Serviços', 'Tecnologia', 'Outro']
 
 export default function FornecedorOnboarding() {
+  const { ativa } = useFlags()
   const [nome, setNome] = useState('')
   const [categoria, setCategoria] = useState('')
   const [cnpj, setCnpj] = useState('')
@@ -141,7 +143,7 @@ export default function FornecedorOnboarding() {
           </select>
 
           {/* IA de onboarding — aparece quando o fornecedor escolhe "Outro" */}
-          {categoria === 'Outro' && (
+          {categoria === 'Outro' && ativa('ia') && (
             <FornecedorIaOutro
               descricao={descricao} onDescricao={setDescricao}
               categoria={categoriaCustom} onCategoria={setCategoriaCustom}

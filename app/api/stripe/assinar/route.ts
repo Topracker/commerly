@@ -7,6 +7,7 @@ import { createAdminClient } from '../../../lib/supabase-admin'
 import { precoMensalidade, garantirCupom, garantirCupomFundador } from '../../../lib/stripeMensalidade'
 import { descontoDeBoasVindas } from '../../../lib/indicacaoDesconto'
 import { promoFundadorDisponivel } from '../../../lib/precos'
+import { flagAtiva } from '../../../lib/featureFlags'
 
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies()
@@ -66,7 +67,8 @@ export async function GET(request: NextRequest) {
   // Fundador que ainda não usou os 2 meses: cupom `repeating` que já embute o
   // maior entre o preço fundador e o convite (não acumulam). O uso é marcado
   // pelo webhook ao concluir o checkout (`fundador_promo` no metadata).
-  const promoFundador = promoFundadorDisponivel(loja)
+  // Chave `fundadores` desligada: não abre preço novo de fundador.
+  const promoFundador = promoFundadorDisponivel(loja) && await flagAtiva('fundadores')
   let cupom: string | null = null
   try {
     if (promoFundador) cupom = await garantirCupomFundador(stripe, pctConvite)

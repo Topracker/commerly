@@ -31,7 +31,9 @@ export function PainelGamificacao({ papel }: { papel?: string }) {
       if (vivo && d && !d.error) setP(d)
       // Comerciante: sincroniza os descontos na Stripe (nível, faturamento e
       // indicações confirmadas). No-op se não houver assinatura ativa.
-      if (d?.papel === 'comerciante') {
+      // A prop cobre a gamificação desligada: o sync responde 503, mas o desconto de
+      // nível e indicação da mensalidade precisa continuar sendo aplicado.
+      if (d?.papel === 'comerciante' || papel === 'comerciante') {
         fetch('/api/stripe/aplicar-desconto', { method: 'POST' }).catch(() => {})
       }
     }

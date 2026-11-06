@@ -6,6 +6,7 @@ import { Toast } from '../../components/Toast'
 import { ClienteLayout } from '../../components/ClienteLayout'
 import { CardIndicacao } from '../../components/CardIndicacao'
 import { PainelGamificacao } from '../../components/PainelGamificacao'
+import { SoComModulo } from '../../components/SoComModulo'
 import { PerfilPrivacidadeCard } from '../../components/PerfilPrivacidadeCard'
 import { ExcluirContaCard } from '../../components/ExcluirContaCard'
 import { nivelDoCliente } from '../../lib/fidelidade'
@@ -91,7 +92,7 @@ export default function ClienteDashboard() {
         <CardIndicacao />
 
         {/* Programa de fidelidade */}
-        <div className="rounded-2xl p-6 border border-gray-800 bg-gradient-to-br from-gray-900 to-gray-900/40">
+        <SoComModulo modulo="cashback"><div className="rounded-2xl p-6 border border-gray-800 bg-gradient-to-br from-gray-900 to-gray-900/40">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
               <div
@@ -144,7 +145,7 @@ export default function ClienteDashboard() {
               Faça pedidos nas lojas de delivery e ganhe <span className="text-gray-300">1 ponto por R$ 1</span>. Junte 100 pontos e troque por R$ 5 de desconto.
             </p>
           )}
-        </div>
+        </div></SoComModulo>
 
         <div className="bg-gray-900 rounded-2xl p-6 flex flex-col gap-4">
           <h2 className="text-white font-semibold text-lg">Meu perfil</h2>

@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
   // Gating por cidade: se o admin desligou 'delivery' na cidade da loja, recusa
   // ANTES de cobrar (o trigger do banco também barra, mas aqui evita a cobrança).
   if (!(await flagAtiva('delivery', loja.cidade_slug, admin))) {
-    return NextResponse.json({ error: 'Delivery indisponível nesta cidade no momento.' }, { status: 409 })
+    return respostaModuloPausado('delivery')
   }
   // Chave `cliente` desligada: não abre cobrança nova. Sessão da Stripe aberta
   // antes de desligar ainda vira pedido pelo webhook (que não checa a chave).
@@ -158,6 +158,8 @@ export async function POST(request: NextRequest) {
   let desconto = 0
   const pontosPedidos = Math.max(0, Math.floor(Number(pontos_resgatar) || 0))
   if (pontosPedidos > 0) {
+    // Chave `cashback` desligada: não resgata ponto novo. Antes de cobrar.
+    if (!(await flagAtiva('cashback', loja.cidade_slug, admin))) return respostaModuloPausado('cashback')
     const { data: saldoRow } = await admin
       .from('clube_saldo').select('saldo').eq('cliente_id', cliente.id).maybeSingle()
     const saldo = Number(saldoRow?.saldo) || 0

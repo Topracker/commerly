@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { createAdminClient } from './supabase-admin'
 import { FEATURE_FLAGS } from './crescimento'
+import { MSG_MODULO_INDISPONIVEL, TEXTO_PAUSA, mapaPublico, type LinhaFlag, type ModuloPausavel } from './pausa'
 
 export type Flags = Record<string, boolean>
 
@@ -83,9 +84,22 @@ export const MSG_PAUSA: Record<ModuloGlobal, string> = {
  * Resposta padrão de rota que INICIA algo num módulo desligado. 503 (pausa
  * temporária, não falta de permissão) com `modulo_pausado` para a tela tratar.
  * Rota que TERMINA algo (confirmar, cancelar, estornar, webhook) nunca usa isto.
+ * O proxy responde no mesmo formato, para quem chega nele antes da rota.
  */
-export function respostaModuloPausado(modulo: ModuloGlobal) {
-  return NextResponse.json({ error: MSG_PAUSA[modulo], modulo_pausado: modulo }, { status: 503 })
+export function respostaModuloPausado(modulo: ModuloPausavel) {
+  const detalhe = (MSG_PAUSA as Partial<Record<ModuloPausavel, string>>)[modulo] ?? TEXTO_PAUSA[modulo].titulo
+  return NextResponse.json({
+    error: `${MSG_MODULO_INDISPONIVEL}. ${detalhe}`,
+    erro: `${MSG_MODULO_INDISPONIVEL}. ${detalhe}`,
+    modulo_pausado: modulo,
+  }, { status: 503 })
+}
+
+/** Chaves como as telas públicas veem: sem cidade, delivery ligado se houver alguma cidade. */
+export async function flagsPublicas(client?: SupabaseClient): Promise<Record<ModuloPausavel, boolean>> {
+  const admin = client ?? createAdminClient()
+  const { data } = await admin.from('feature_flags').select('flag, cidade_slug, ativo')
+  return mapaPublico((data || []) as LinhaFlag[])
 }
 
 /** Uma flag específica (padrão true se desconhecida). */
@@ -109,5 +123,9 @@ export async function cidadeSlugDoUsuario(userId: string, client?: SupabaseClien
 export async function flagsDoUsuario(userId: string | null | undefined, client?: SupabaseClient): Promise<Flags> {
   const admin = client ?? createAdminClient()
   const cidade = userId ? await cidadeSlugDoUsuario(userId, admin) : null
-  return getFlags(cidade, admin)
+  const flags = await getFlags(cidade, admin)
+  // Sem cidade (visitante, cliente, entregador): com global OFF e Goiânia ON, o
+  // módulo existe. Sem isto, a tela escondia de quem não tem loja o que está aberto.
+  if (cidade) return flags
+  return { ...flags, ...(await flagsPublicas(admin)) }
 }

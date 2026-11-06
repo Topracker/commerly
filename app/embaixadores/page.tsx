@@ -3,6 +3,9 @@ import Link from 'next/link'
 import { MarketingShell, MCard } from '../components/MarketingShell'
 import { Check } from 'lucide-react'
 import { NIVEIS_EMBAIXADOR } from '../lib/crescimento'
+import { flagsPublicas } from '../lib/featureFlags'
+
+export const revalidate = 30
 
 export const metadata: Metadata = {
   title: 'Programa de Embaixadores Commerly',
@@ -10,13 +13,15 @@ export const metadata: Metadata = {
   alternates: { canonical: '/embaixadores' },
 }
 
-export default function Embaixadores() {
+export default async function Embaixadores() {
+  const flags = await flagsPublicas()
+  const recompensas = [flags.cashback && 'cashback', 'desconto na mensalidade', flags.kit && 'desconto no kit', 'a jaqueta Commerly'].filter(Boolean) as string[]
   return (
     <MarketingShell
       eyebrow="Programa de embaixadores"
       titulo="Leve a Commerly para a sua cidade"
       subtitulo="Qualquer pessoa pode ser embaixador. Convide comerciantes, clientes e entregadores com o seu código exclusivo, some pontos e suba de nível."
-      cta={{ href: '/expansao', label: 'Ver a corrida das cidades' }}
+      cta={flags.delivery ? { href: '/expansao', label: 'Ver a corrida das cidades' } : undefined}
     >
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
         {NIVEIS_EMBAIXADOR.map(n => (
@@ -37,10 +42,10 @@ export default function Embaixadores() {
         <ul className="text-gray-300 text-sm flex flex-col gap-2">
           <li className="flex items-start gap-2"><Check size={16} className="text-acento shrink-0 mt-0.5" /> Você recebe um código exclusivo rastreável.</li>
           <li className="flex items-start gap-2"><Check size={16} className="text-acento shrink-0 mt-0.5" /> Cada cadastro pelo seu código gera pontos para você e para a sua cidade.</li>
-          <li className="flex items-start gap-2"><Check size={16} className="text-acento shrink-0 mt-0.5" /> Suba de nível e desbloqueie cashback, desconto na mensalidade, desconto no kit e a jaqueta Commerly.</li>
+          <li className="flex items-start gap-2"><Check size={16} className="text-acento shrink-0 mt-0.5" /> Suba de nível e desbloqueie {recompensas.slice(0, -1).join(', ')} e {recompensas[recompensas.length - 1]}.</li>
           <li className="flex items-start gap-2"><Check size={16} className="text-acento shrink-0 mt-0.5" /> Ganhe um certificado digital de embaixador para compartilhar.</li>
         </ul>
-        <p className="text-gray-500 text-sm mt-4">Já tem conta? O seu código de indicação aparece no seu painel. Veja o <Link href="/hall-da-fama" className="text-acento">Hall da Fama</Link> dos que mais indicam.</p>
+        <p className="text-gray-500 text-sm mt-4">Já tem conta? O seu código de indicação aparece no seu painel.{flags.gamificacao && <> Veja o <Link href="/hall-da-fama" className="text-acento">Hall da Fama</Link> dos que mais indicam.</>}</p>
       </MCard>
     </MarketingShell>
   )

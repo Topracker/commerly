@@ -35,12 +35,12 @@ export async function GET() {
   const global = linhaGlobal ? !!linhaGlobal.ativo : true
 
   if (global) return NextResponse.json({ global: true, cidades: [] },
-    { headers: { 'Cache-Control': 'public, max-age=300, s-maxage=300' } })
+    { headers: { 'Cache-Control': 'public, max-age=30, s-maxage=30' } })
 
   const slugs = linhas.filter(f => f.cidade_slug !== GLOBAL && f.ativo).map(f => f.cidade_slug as string)
   if (slugs.length === 0) {
     return NextResponse.json({ global: false, cidades: [] },
-      { headers: { 'Cache-Control': 'public, max-age=300, s-maxage=300' } })
+      { headers: { 'Cache-Control': 'public, max-age=30, s-maxage=30' } })
   }
 
   // Nome bonito vem de cidades_expansao; se a cidade não estiver lá, o slug
@@ -59,5 +59,5 @@ export async function GET() {
         uf: c?.uf || null,
       }
     }),
-  }, { headers: { 'Cache-Control': 'public, max-age=300, s-maxage=300' } })
+  }, { headers: { 'Cache-Control': 'public, max-age=30, s-maxage=30' } })
 }

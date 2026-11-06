@@ -2,10 +2,10 @@ import type { Metadata } from 'next'
 import { MarketingShell, MCard } from '../components/MarketingShell'
 import { Zap, Tag, Store, Check } from 'lucide-react'
 import { NIVEIS_CLIENTE } from '../lib/crescimento'
-import { moduloAtivo } from '../lib/featureFlags'
+import { flagsPublicas } from '../lib/featureFlags'
 
-// Relê a chave `cliente` a cada 60s: desligada, o CTA vira aviso de pausa.
-export const revalidate = 60
+// Relê as chaves a cada 30s. Com `cliente` desligada o proxy nem abre esta página.
+export const revalidate = 30
 
 export const metadata: Metadata = {
   title: 'Para Clientes — peça do comércio local com desconto',
@@ -14,22 +14,23 @@ export const metadata: Metadata = {
 }
 
 export default async function ParaClientes() {
-  const ativo = await moduloAtivo('cliente')
+  const flags = await flagsPublicas()
+  const ativo = flags.cliente
   return (
     <MarketingShell
       eyebrow="Para clientes"
       titulo="O melhor do seu bairro, na palma da mão"
-      subtitulo="Peça dos comércios locais, ganhe cashback e desbloqueie benefícios conforme você pede."
+      subtitulo={flags.cashback ? 'Peça dos comércios locais, ganhe cashback e desbloqueie benefícios conforme você pede.' : 'Peça dos comércios locais e acompanhe tudo pelo app.'}
       cta={ativo ? { href: '/cliente/login', label: 'Descobrir comércios' } : undefined}
       aviso="Pedidos novos estão pausados no momento. Volte em breve."
     >
       <div className="grid sm:grid-cols-3 gap-3 mb-8">
         <MCard><Zap size={20} className="text-acento mb-2" /><p className="text-white font-semibold">Praticidade</p><p className="text-gray-400 text-sm mt-1">Peça em segundos e acompanhe a entrega ao vivo no mapa.</p></MCard>
-        <MCard><Tag size={20} className="text-acento mb-2" /><p className="text-white font-semibold">Desconto</p><p className="text-gray-400 text-sm mt-1">Cashback no Clube Commerly e promoções das lojas por perto.</p></MCard>
+        <MCard><Tag size={20} className="text-acento mb-2" /><p className="text-white font-semibold">Desconto</p><p className="text-gray-400 text-sm mt-1">{flags.cashback ? 'Cashback no Clube Commerly e promoções das lojas por perto.' : 'Promoções das lojas por perto.'}</p></MCard>
         <MCard><Store size={20} className="text-acento mb-2" /><p className="text-white font-semibold">Variedade local</p><p className="text-gray-400 text-sm mt-1">Hamburguerias, mercados, farmácias, pet shops e muito mais.</p></MCard>
       </div>
 
-      <MCard>
+      {flags.cashback && <MCard>
         <p className="text-white font-semibold mb-3">Clube Commerly — quanto mais você pede, mais ganha</p>
         <div className="grid sm:grid-cols-2 gap-2">
           {NIVEIS_CLIENTE.map(n => (
@@ -43,7 +44,7 @@ export default async function ParaClientes() {
             </div>
           ))}
         </div>
-      </MCard>
+      </MCard>}
     </MarketingShell>
   )
 }

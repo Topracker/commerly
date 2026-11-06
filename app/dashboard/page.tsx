@@ -15,6 +15,7 @@ import { AvisoCidadeLoja } from '../components/AvisoCidadeLoja'
 import { SeloFundador } from '../components/SeloFundador'
 import { ordemFundadorPagante } from '../lib/fundadorPagante'
 import { useFlags } from '../lib/useFlags'
+import { SoComModulo } from '../components/SoComModulo'
 import { isDelivery } from '../lib/pedidosClientes'
 import { carregarAgendamentosProximos, minutosAteAgendamento, type Agendamento } from '../lib/nicheStore'
 import { calcularCommerlyScore, type CommerlyScore } from '../lib/commerlyScore'
@@ -294,7 +295,7 @@ export default function Dashboard() {
     const fatMedalha = somaVendasParaMedalha(vendasMesRes.data || []) + fatPedidosMes
 
     for (const badge of BADGES) {
-      if (fatMedalha >= badge.threshold && !conquistasExistentes.includes(badge.tipo)) {
+      if (flagAtiva('gamificacao') && fatMedalha >= badge.threshold && !conquistasExistentes.includes(badge.tipo)) {
         const { error } = await supabase
           .from('conquistas')
           .insert({ loja_id: loja.id, tipo: badge.tipo })
@@ -443,7 +444,7 @@ export default function Dashboard() {
               }`}>
                 {loja.plano === 'ativo' ? 'PLANO ATIVO' : loja.plano === 'trial' ? 'TESTE' : 'INATIVO'}
               </span>
-              {ordemFundador ? (
+              {ordemFundador && flagAtiva('fundadores') ? (
                 <SeloFundador ordem={ordemFundador} compact />
               ) : loja.fundador && flagAtiva('fundadores') && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/40">
@@ -714,7 +715,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <CopilotCard />
+      <SoComModulo modulo="ia"><CopilotCard /></SoComModulo>
 
       {/* ── 5. ATALHOS DO NEGÓCIO ──────────────────────────────────────────── */}
 
@@ -739,11 +740,11 @@ export default function Dashboard() {
 
       {/* Commerly AI + Kit de marketing */}
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <a href="/commerly-ai" className="bg-gray-900 border border-gray-800 hover:border-acento/40 rounded-2xl p-4 transition">
+        <SoComModulo modulo="ia"><a href="/commerly-ai" className="block bg-gray-900 border border-gray-800 hover:border-acento/40 rounded-2xl p-4 transition">
           <Sparkles size={18} className="text-acento mb-2" />
           <p className="text-white font-bold text-sm">Commerly AI</p>
           <p className="text-gray-400 text-xs">Posts e relatórios com IA.</p>
-        </a>
+        </a></SoComModulo>
         <a href="/marketing" className="bg-gray-900 border border-gray-800 hover:border-acento/40 rounded-2xl p-4 transition">
           <ImageIcon size={18} className="text-acento mb-2" />
           <p className="text-white font-bold text-sm">Kit de marketing</p>
@@ -921,7 +922,7 @@ export default function Dashboard() {
         </div>
 
         {/* Conquistas por faturamento (Ascensão / Elite) */}
-        <div className="grid grid-cols-2 gap-3">
+        <SoComModulo modulo="gamificacao"><div className="grid grid-cols-2 gap-3">
           {BADGES.map(badge => {
             const earned = conquistas.includes(badge.tipo)
             const isNew = novosBadges.includes(badge.tipo)
@@ -947,7 +948,7 @@ export default function Dashboard() {
               </div>
             )
           })}
-        </div>
+        </div></SoComModulo>
       </BlocoProgresso>
     </AppLayout>
   )

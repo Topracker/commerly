@@ -6,37 +6,64 @@ import {
 import AnimatedBackground from './components/AnimatedBackground'
 import HomeCrescimento from './components/HomeCrescimento'
 import AvisoCobertura from './components/AvisoCobertura'
+import { flagsPublicas } from './lib/featureFlags'
+import { listaPapeis, type ModuloPausavel } from './lib/pausa'
 
-const PORTAS = [
+// Relê as chaves de módulo a cada 30s. A virada no admin também invalida na hora.
+export const revalidate = 30
+
+type Modulo = { modulo?: ModuloPausavel }
+
+const PORTAS: ({ href: string; titulo: string; sub: string; Icone: typeof Store; classes: string; subCor: string } & Modulo)[] = [
   {
     href: '/login', titulo: 'Sou Comerciante', sub: 'Gerenciar minha loja', Icone: Store,
     classes: 'bg-azul hover:brightness-110', subCor: 'text-white/70',
   },
   {
     // Verde aqui é cor de PAPEL, não de CTA — por isso não virou azul.
-    href: '/cliente/login', titulo: 'Sou Cliente', sub: 'Descobrir comércios locais', Icone: User,
+    modulo: 'cliente', href: '/cliente/login', titulo: 'Sou Cliente', sub: 'Descobrir comércios locais', Icone: User,
     classes: 'bg-acento hover:bg-acento-forte', subCor: 'text-black/55',
   },
   {
-    href: '/fornecedor/login', titulo: 'Sou Fornecedor', sub: 'Oferecer produtos e serviços', Icone: Truck,
+    modulo: 'fornecedor', href: '/fornecedor/login', titulo: 'Sou Fornecedor', sub: 'Oferecer produtos e serviços', Icone: Truck,
     classes: 'bg-purple-600 hover:bg-purple-700', subCor: 'text-white/70',
   },
   {
-    href: '/entregador-delivery/login', titulo: 'Sou Entregador', sub: 'Fazer entregas e ganhar por corrida', Icone: Bike,
+    modulo: 'entregador', href: '/entregador-delivery/login', titulo: 'Sou Entregador', sub: 'Fazer entregas e ganhar por corrida', Icone: Bike,
     classes: 'bg-elevado hover:bg-borda border border-borda', subCor: 'text-gray-400',
   },
-] as const
+]
 
-const FEATURES = [
+const FEATURES: ({ Icone: typeof Gauge; titulo: string; texto: string } & Modulo)[] = [
   { Icone: Gauge, titulo: 'Commerly Score', texto: 'A saúde do seu negócio em 4 pilares, com a próxima ação sugerida.' },
-  { Icone: Bot, titulo: 'Copilot de IA', texto: 'Insights semanais sobre o que vender, quando e para quem.' },
+  { modulo: 'ia', Icone: Bot, titulo: 'Copilot de IA', texto: 'Insights semanais sobre o que vender, quando e para quem.' },
   { Icone: Rss, titulo: 'Feed Social', texto: 'Posts e stories da sua loja no feed dos clientes por perto.' },
   { Icone: Wallet, titulo: 'Financeiro real', texto: 'Fluxo de caixa, lucro de verdade e o DAS do MEI calculado.' },
-  { Icone: MapPin, titulo: 'Delivery próprio', texto: 'Entregadores parceiros, GPS ao vivo e taxa por distância.' },
+  { modulo: 'delivery', Icone: MapPin, titulo: 'Delivery próprio', texto: 'Entregadores parceiros, GPS ao vivo e taxa por distância.' },
   { Icone: GraduationCap, titulo: 'Academy', texto: 'Aulas curtas para vender mais, escritas para quem tem o dia cheio.' },
-] as const
+]
 
-export default function Home() {
+const LINKS: ({ href: string; t: string } & Modulo)[] = [
+  { href: '/para-comerciantes', t: 'Para comerciantes' },
+  { modulo: 'entregador', href: '/para-entregadores', t: 'Para entregadores' },
+  { modulo: 'cliente', href: '/para-clientes', t: 'Para clientes' },
+  { modulo: 'delivery', href: '/expansao', t: '🗺️ Expansão por cidades' },
+  { modulo: 'fundadores', href: '/fundadores', t: '🏅 Programa Fundadores' },
+  { modulo: 'embaixadores', href: '/embaixadores', t: '🎖️ Embaixadores' },
+  { modulo: 'gamificacao', href: '/hall-da-fama', t: '🏆 Hall da Fama' },
+  { modulo: 'gamificacao', href: '/ranking', t: '📊 Rankings' },
+  { modulo: 'gamificacao', href: '/medalhas', t: '🏅 Medalhas' },
+  { href: '/timeline', t: '📜 Nossa história' },
+  { href: '/parceiros', t: 'Parceiros' },
+  { href: '/blog', t: '📰 Blog' },
+  { href: '/investidores', t: 'Investidores' },
+  { href: '/sobre', t: 'Sobre a Commerly' },
+  { modulo: 'kit', href: '/loja', t: '🛍️ Loja oficial' },
+]
+
+export default async function Home() {
+  const flags = await flagsPublicas()
+  const ligado = ({ modulo }: Modulo) => !modulo || flags[modulo]
   return (
     <main data-theme="dark" className="relative min-h-screen bg-fundo overflow-hidden">
       <AnimatedBackground />
@@ -69,8 +96,9 @@ export default function Home() {
           className="anima-subir font-body text-gray-400 text-base sm:text-lg mt-3 max-w-xl leading-relaxed"
           style={{ '--atraso': '200ms' } as React.CSSProperties}
         >
-          A plataforma que conecta comerciantes, clientes e entregadores em um único
-          ecossistema. O delivery é só uma das peças.
+          {listaPapeis(flags) === 'comerciantes'
+            ? 'A plataforma feita para o comerciante gerenciar e fazer crescer o seu negócio.'
+            : <>A plataforma que conecta {listaPapeis(flags)} em um único ecossistema.{flags.delivery && ' O delivery é só uma das peças.'}</>}
         </p>
 
         {/* Onde o delivery já roda. Fica abaixo do texto do herói e acima das
@@ -82,7 +110,7 @@ export default function Home() {
 
         {/* Portas de entrada por papel */}
         <div className="w-full max-w-sm flex flex-col gap-3 mt-10">
-          {PORTAS.map(({ href, titulo, sub, Icone, classes, subCor }, i) => (
+          {PORTAS.filter(ligado).map(({ href, titulo, sub, Icone, classes, subCor }, i) => (
             <Link
               key={href}
               href={href}
@@ -103,7 +131,7 @@ export default function Home() {
       </section>
 
       {/* CRESCIMENTO — contadores ao vivo, feed de conquistas, marcos, cidades */}
-      <HomeCrescimento />
+      <HomeCrescimento flags={flags} />
 
       {/* FEATURES */}
       <section className="relative z-10 px-6 pb-20">
@@ -119,7 +147,7 @@ export default function Home() {
           </p>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {FEATURES.map(({ Icone, titulo, texto }, i) => (
+            {FEATURES.filter(ligado).map(({ Icone, titulo, texto }, i) => (
               <div
                 key={titulo}
                 className="anima-subir grupo bg-card border border-borda rounded-2xl p-5 hover:border-acento/40 transition"
@@ -140,23 +168,7 @@ export default function Home() {
       <section className="relative z-10 px-6 pb-24">
         <div className="max-w-4xl mx-auto">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {[
-              { href: '/para-comerciantes', t: 'Para comerciantes' },
-              { href: '/para-entregadores', t: 'Para entregadores' },
-              { href: '/para-clientes', t: 'Para clientes' },
-              { href: '/expansao', t: '🗺️ Expansão por cidades' },
-              { href: '/fundadores', t: '🏅 Programa Fundadores' },
-              { href: '/embaixadores', t: '🎖️ Embaixadores' },
-              { href: '/hall-da-fama', t: '🏆 Hall da Fama' },
-              { href: '/ranking', t: '📊 Rankings' },
-              { href: '/medalhas', t: '🏅 Medalhas' },
-              { href: '/timeline', t: '📜 Nossa história' },
-              { href: '/parceiros', t: 'Parceiros' },
-              { href: '/blog', t: '📰 Blog' },
-              { href: '/investidores', t: 'Investidores' },
-              { href: '/sobre', t: 'Sobre a Commerly' },
-              { href: '/loja', t: '🛍️ Loja oficial' },
-            ].map(l => (
+            {LINKS.filter(ligado).map(l => (
               <Link
                 key={l.href}
                 href={l.href}

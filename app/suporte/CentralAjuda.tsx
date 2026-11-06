@@ -1,9 +1,10 @@
 'use client'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useFlags } from '../lib/useFlags'
 import Link from 'next/link'
 import { Search, X, ChevronDown, ArrowRight, Link2, Check } from 'lucide-react'
 import {
-  CATEGORIAS_FAQ, PERGUNTAS_FAQ, PUBLICOS, buscarFaq,
+  CATEGORIAS_FAQ, MODULO_DO_FAQ, PERGUNTAS_FAQ, PUBLICOS, RESPOSTA_CUSTO_SEM_FUNDADORES, buscarFaq,
   type Publico, type PerguntaComCategoria,
 } from '../lib/faq'
 
@@ -39,6 +40,7 @@ function useEstadoInicialDaUrl(): { q: string; hash: string | null } {
 }
 
 export default function CentralAjuda() {
+  const { ativa, flags } = useFlags()
   const inicial = useEstadoInicialDaUrl()
   // `null` = o usuário ainda não mexeu; vale o que veio da URL.
   const [termoEditado, setTermoEditado] = useState<string | null>(null)
@@ -62,10 +64,16 @@ export default function CentralAjuda() {
 
   const resultados = useMemo(() => {
     let itens: PerguntaComCategoria[] = PERGUNTAS_FAQ
+      .filter(p => {
+        const modulo = MODULO_DO_FAQ[p.id] ?? MODULO_DO_FAQ[p.categoria]
+        return !modulo || ativa(modulo)
+      })
+      .map(p => (p.id === 'quanto-custa' && !ativa('fundadores') ? { ...p, resposta: RESPOSTA_CUSTO_SEM_FUNDADORES } : p))
     if (publico) itens = itens.filter(p => p.publico.includes(publico))
     if (categoria !== TODAS) itens = itens.filter(p => p.categoria === categoria)
     return buscando ? buscarFaq(termo, itens) : itens
-  }, [termo, categoria, publico, buscando])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `ativa` muda só quando `flags` muda
+  }, [termo, categoria, publico, buscando, flags])
 
   // Quando há busca, a lista vem ranqueada e plana; sem busca, agrupada por
   // categoria para o visitante "passear" pelo conteúdo.

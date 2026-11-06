@@ -11,6 +11,7 @@
 // ============================================================================
 
 import { PRECO_NORMAL, PRECO_FUNDADOR, MESES_FUNDADOR, VAGAS_FUNDADOR, DESCONTO_MAX, brl } from './precos'
+import type { ModuloPausavel } from './pausa'
 import { RAIO_BUSCA_KM, TEMPO_RESPOSTA_CORRIDA_S } from './entregadores'
 import { PONTOS_POR_REAL, PONTOS_POR_BLOCO, DESCONTO_POR_BLOCO } from './fidelidade'
 import { TOLERANCIA_MIN, DESCONTO_PCT, VALIDADE_DIAS } from './garantia'
@@ -652,6 +653,18 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
 ]
 
 /** Todas as perguntas, achatadas, com a categoria de cada uma. */
+/** Categoria inteira ou pergunta que pertence a uma chave de módulo. */
+export const MODULO_DO_FAQ: Record<string, ModuloPausavel> = {
+  delivery: 'delivery', entregadores: 'entregador', clube: 'cashback', fornecedores: 'fornecedor',
+  'modo-festa': 'modo_festa', 'cupom-modo-festa-loja': 'modo_festa',
+  'assistente-ia': 'ia', 'desconto-indicacao': 'embaixadores',
+  'acompanhar-pedido': 'delivery', 'codigo-de-entrega': 'delivery', 'pedido-atrasado': 'delivery',
+}
+
+/** "Quanto custa" sem citar o preço de fundador, com a chave desligada. */
+export const RESPOSTA_CUSTO_SEM_FUNDADORES =
+  `A assinatura do comerciante custa ${brl(PRECO_NORMAL)} por mês, sem fidelidade.\n\nPara clientes e entregadores o uso é gratuito. Fornecedores também não pagam mensalidade.`
+
 export const PERGUNTAS_FAQ = CATEGORIAS_FAQ.flatMap(c =>
   c.perguntas.map(p => ({ ...p, categoria: c.id, categoriaNome: c.nome })),
 )

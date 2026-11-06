@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { AVISO_VERIFICACAO } from '../../lib/validacoes'
 import { outroPapel, msgLoginOutroPapel } from '../../lib/papeis'
 import BotaoGoogle from '../../components/BotaoGoogle'
+import { SoComModulo, SoSemModulo } from '../../components/SoComModulo'
 import CampoSenha, { senhaValida } from '../../components/CampoSenha'
 import CampoConvite from '../../components/CampoConvite'
 import { enviarCodigoEmail } from '../../lib/codigoEmail'
@@ -154,14 +155,15 @@ export default function EntregadorLogin() {
         <h1 className="text-2xl font-bold text-white mb-6">Commerly</h1>
 
         {erro && <p className="text-red-400 text-sm mb-4">{erro}</p>}
+        <SoSemModulo modulo="entregador"><p className="text-amber-300 text-sm mb-4">Novos cadastros estão pausados. Se você já é entregador, entre para terminar suas corridas.</p></SoSemModulo>
 
         {tela === 'escolha' && (
           <div className="flex flex-col gap-3">
-            <button onClick={() => { setTela('cadastro-senha'); setErro('') }}
-              className="bg-azul hover:brightness-110 text-white py-4 rounded-xl transition text-left px-5">
+            <SoComModulo modulo="entregador"><button onClick={() => { setTela('cadastro-senha'); setErro('') }}
+              className="bg-azul hover:brightness-110 text-white py-4 rounded-xl transition text-left px-5 w-full">
               <p className="font-bold">Quero ser entregador</p>
               <p className="text-orange-200 text-sm">Faça entregas e ganhe por corrida</p>
-            </button>
+            </button></SoComModulo>
             <button onClick={() => { setTela('login-senha'); setErro('') }}
               className="bg-elevado border border-borda hover:bg-borda text-white py-4 rounded-xl transition text-left px-5">
               <p className="font-bold">Fazer login</p>

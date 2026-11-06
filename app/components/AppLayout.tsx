@@ -41,9 +41,15 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
   const delivery = isDelivery(loja?.tipo)
   const temAgenda = modulos.some(m => m.key === 'agenda')
 
-  // Chave `fornecedor` desligada: some o item Fornecedores (a página vai para /pausado).
+  // Chave desligada: some o item do menu (a página vai para /pausado). "Pedidos
+  // online" só some sem pedido aberto: quem tem pedido precisa conseguir terminar.
   const { ativa } = useFlags()
-  const secoes = montarMenu({ delivery, modulos, ocultarRotas: ativa('fornecedor') ? [] : ['/fornecedores'] })
+  const ocultarRotas = [
+    ...(ativa('fornecedor') ? [] : ['/fornecedores']),
+    ...(ativa('ia') ? [] : ['/assistente']),
+    ...(ativa('delivery') || pedidosNovos > 0 ? [] : ['/pedidos']),
+  ]
+  const secoes = montarMenu({ delivery, modulos, ocultarRotas })
   const secaoAtiva = secaoDaRota(secoes, pathname)
 
   const contadores: Record<BadgeKey, number> = {

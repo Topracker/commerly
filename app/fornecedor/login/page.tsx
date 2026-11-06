@@ -9,6 +9,7 @@ import {
 import { outroPapel, msgLoginOutroPapel, msgCadastroOutroPapel } from '../../lib/papeis'
 import FornecedorIaOutro from '../../components/FornecedorIaOutro'
 import BotaoGoogle from '../../components/BotaoGoogle'
+import { SoComModulo, SoSemModulo } from '../../components/SoComModulo'
 import CampoSenha, { senhaValida } from '../../components/CampoSenha'
 import CampoConvite from '../../components/CampoConvite'
 import { enviarCodigoEmail } from '../../lib/codigoEmail'
@@ -260,14 +261,15 @@ export default function FornecedorLogin() {
         <h1 className="text-2xl font-bold text-white mb-6">Commerly</h1>
 
         {erro && <p className="text-red-400 text-sm mb-4">{erro}</p>}
+        <SoSemModulo modulo="fornecedor"><p className="text-amber-300 text-sm mb-4">Novos cadastros estão pausados. Se você já é fornecedor, entre para terminar seus pedidos.</p></SoSemModulo>
 
         {tela === 'escolha' && (
           <div className="flex flex-col gap-3">
-            <button onClick={() => { setTela('cadastro-senha'); setUsarOtp(false); setErro('') }}
-              className="bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-xl transition text-left px-5">
+            <SoComModulo modulo="fornecedor"><button onClick={() => { setTela('cadastro-senha'); setUsarOtp(false); setErro('') }}
+              className="bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-xl transition text-left px-5 w-full">
               <p className="font-bold">Criar conta</p>
               <p className="text-purple-200 text-sm">Alcance mais comércios</p>
-            </button>
+            </button></SoComModulo>
             <button onClick={() => { setTela('login-senha'); setErro('') }}
               className="bg-gray-800 hover:bg-gray-700 text-white py-4 rounded-xl transition text-left px-5">
               <p className="font-bold">Fazer login</p>

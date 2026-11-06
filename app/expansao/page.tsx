@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ArrowLeft, MapPin, Trophy, Loader2 } from 'lucide-react'
 import { LEGENDA_PONTOS } from '../lib/crescimento'
 import FormularioInteresseCidade from '../components/FormularioInteresseCidade'
+import { SoComModulo } from '../components/SoComModulo'
 
 type Cidade = { nome: string; uf: string; slug: string; pontos: number; meta_pontos: number; status: string }
 
@@ -26,7 +27,7 @@ export default function Expansao() {
           <Link href="/" className="text-gray-400 hover:text-white flex items-center gap-1.5 text-sm"><ArrowLeft size={16} /> Commerly</Link>
           <div className="ml-auto flex items-center gap-4 text-sm">
             <Link href="/expansao/dashboard" className="text-gray-400 hover:text-white">Dashboard</Link>
-            <Link href="/fundadores" className="text-gray-400 hover:text-white">Fundadores</Link>
+            <SoComModulo modulo="fundadores"><Link href="/fundadores" className="text-gray-400 hover:text-white">Fundadores</Link></SoComModulo>
           </div>
         </div>
       </header>

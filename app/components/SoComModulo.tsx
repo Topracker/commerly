@@ -9,3 +9,9 @@ export function SoComModulo({ modulo, children }: { modulo: string; children: Re
   const { ativa } = useFlags()
   return ativa(modulo) ? <>{children}</> : null
 }
+
+/** O contrário: aviso que só aparece com a chave desligada. */
+export function SoSemModulo({ modulo, children }: { modulo: string; children: React.ReactNode }) {
+  const { ativa } = useFlags()
+  return ativa(modulo) ? null : <>{children}</>
+}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PRECO_FUNDADOR, PRECO_NORMAL, promoFundadorDisponivel } from '../../../lib/precos'
+import { flagAtiva } from '../../../lib/featureFlags'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { rateLimit } from '../../../lib/rate-limit'
@@ -39,7 +40,8 @@ export async function GET(request: NextRequest) {
 
   // Fundador que ainda não usou os 2 meses começa no promocional; o webhook
   // marca o uso no 1º pagamento e sobe para PRECO_NORMAL no 2º ciclo.
-  const preco = promoFundadorDisponivel(loja) ? PRECO_FUNDADOR : PRECO_NORMAL
+  // Chave `fundadores` desligada: não abre preço novo de fundador.
+  const preco = promoFundadorDisponivel(loja) && await flagAtiva('fundadores') ? PRECO_FUNDADOR : PRECO_NORMAL
 
   // Em ambiente de teste (token TEST-...), o MP recusa pagamento quando o
   // payer_email é o mesmo da conta dona do token ("pagar para si mesmo").

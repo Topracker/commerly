@@ -4,6 +4,7 @@ import { ArrowLeft, Star, Store, Package, Lock, ExternalLink, Snowflake } from '
 import { StreakCalendario } from './StreakCalendario'
 import { SeloFundador } from './SeloFundador'
 import { medalhaPorSlug } from '../lib/crescimento'
+import { SoComModulo } from './SoComModulo'
 import { tempoNaPlataforma, type PerfilPublico } from '../lib/perfilPublico'
 
 const PAPEL_LABEL: Record<string, string> = { comerciante: 'Comerciante', entregador: 'Entregador', cliente: 'Cliente' }
@@ -14,7 +15,7 @@ export function PerfilPublicoView({ p }: { p: PerfilPublico }) {
       <header className="border-b border-borda bg-card/60 backdrop-blur sticky top-0 z-20">
         <div className="max-w-2xl mx-auto px-6 py-3 flex items-center gap-3">
           <Link href="/" className="text-gray-400 hover:text-white flex items-center gap-1.5 text-sm"><ArrowLeft size={16} /> Commerly</Link>
-          <Link href="/hall-da-fama" className="ml-auto text-gray-400 hover:text-white text-sm">Hall da Fama</Link>
+          <SoComModulo modulo="gamificacao"><Link href="/hall-da-fama" className="ml-auto text-gray-400 hover:text-white text-sm">Hall da Fama</Link></SoComModulo>
         </div>
       </header>
 
@@ -68,15 +69,15 @@ export function PerfilPublicoView({ p }: { p: PerfilPublico }) {
                 </p>
                 <p className="text-gray-500 text-xs">{p.aval.total} avaliações</p>
               </div>
-              <div className="bg-card border border-borda rounded-2xl p-4 text-center">
+              <SoComModulo modulo="gamificacao"><div className="bg-card border border-borda rounded-2xl p-4 text-center">
                 <p className="text-white font-bold text-2xl tabular-nums">{p.medalhas.length}</p>
                 <p className="text-gray-500 text-xs">medalhas</p>
-              </div>
+              </div></SoComModulo>
             </div>
 
             {/* Medalhas */}
             {p.medalhas.length > 0 && (
-              <div className="bg-card border border-borda rounded-2xl p-5">
+              <SoComModulo modulo="gamificacao"><div className="bg-card border border-borda rounded-2xl p-5">
                 <p className="text-white text-sm font-semibold mb-3">Medalhas</p>
                 <div className="flex flex-wrap gap-2">
                   {p.medalhas.map(slug => {
@@ -88,7 +89,7 @@ export function PerfilPublicoView({ p }: { p: PerfilPublico }) {
                     )
                   })}
                 </div>
-              </div>
+              </div></SoComModulo>
             )}
 
             {/* Streak */}

@@ -1,4 +1,5 @@
 'use client'
+import { useFlags } from '../lib/useFlags'
 import { useEffect, useState } from 'react'
 import { Gift, Copy, Check, MessageCircle } from 'lucide-react'
 
@@ -14,12 +15,15 @@ type Desconto = {
 // link de convite, botão de copiar e compartilhar no WhatsApp, e quantas
 // pessoas ele já trouxe. Busca (ou cria) o código em /api/indicacao/codigo.
 export function CardIndicacao() {
+  const { ativa } = useFlags()
   const [codigo, setCodigo] = useState<string | null>(null)
   const [usos, setUsos] = useState(0)
   const [copiado, setCopiado] = useState(false)
   const [desconto, setDesconto] = useState<Desconto | null>(null)
 
+  const ligado = ativa('embaixadores')
   useEffect(() => {
+    if (!ligado) return
     fetch('/api/indicacao/codigo')
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (d?.codigo) { setCodigo(d.codigo); setUsos(d.usos || 0) } })
@@ -32,7 +36,7 @@ export function CardIndicacao() {
       .catch(() => {})
   }, [])
 
-  if (!codigo) return null
+  if (!codigo || !ligado) return null
   // Leva o código também no `?ref=`: é o que sobrevive quando o convidado abre
   // o link num aparelho diferente, ou quando o localStorage não está disponível.
   const link = linkConvite(codigo)

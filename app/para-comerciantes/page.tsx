@@ -1,6 +1,10 @@
 import type { Metadata } from 'next'
 import { MarketingShell, MCard } from '../components/MarketingShell'
 import { Clock, LineChart, DollarSign, Check } from 'lucide-react'
+import { flagsPublicas } from '../lib/featureFlags'
+import type { ModuloPausavel } from '../lib/pausa'
+
+export const revalidate = 30
 
 export const metadata: Metadata = {
   title: 'Para Comerciantes — sistema de gestão e delivery próprio',
@@ -14,21 +18,22 @@ const DORES = [
   { Icone: DollarSign, dor: 'Caro demais', txt: 'Marketplaces cobram 20-30% de comissão sobre cada venda.', sol: 'Mensalidade fixa, sem comissão sobre o que você vende.' },
 ]
 
-const BENEFICIOS = [
-  'Delivery próprio com entregadores parceiros e GPS ao vivo',
-  'Cardápio digital com QR Code para a mesa',
-  'Financeiro real: fluxo de caixa, lucro e o DAS do MEI',
-  'Feed social para aparecer para clientes por perto',
-  'Programa de fidelidade e cashback (Clube Commerly)',
-  'Copilot de IA com insights de venda toda semana',
+const BENEFICIOS: { t: string; modulo?: ModuloPausavel }[] = [
+  { t: 'Delivery próprio com entregadores parceiros e GPS ao vivo', modulo: 'delivery' },
+  { t: 'Cardápio digital com QR Code para a mesa' },
+  { t: 'Financeiro real: fluxo de caixa, lucro e o DAS do MEI' },
+  { t: 'Feed social para aparecer para clientes por perto', modulo: 'cliente' },
+  { t: 'Programa de fidelidade e cashback (Clube Commerly)', modulo: 'cashback' },
+  { t: 'Copilot de IA com insights de venda toda semana', modulo: 'ia' },
 ]
 
-export default function ParaComerciantes() {
+export default async function ParaComerciantes() {
+  const flags = await flagsPublicas()
   return (
     <MarketingShell
       eyebrow="Para comerciantes"
       titulo="A sua loja inteira num app só"
-      subtitulo="Do balcão ao delivery, do estoque ao financeiro. Sem comissão sobre cada venda — só uma mensalidade justa."
+      subtitulo={flags.delivery ? 'Do balcão ao delivery, do estoque ao financeiro. Sem comissão sobre cada venda — só uma mensalidade justa.' : 'Do balcão ao estoque e ao financeiro. Sem comissão sobre cada venda — só uma mensalidade justa.'}
       cta={{ href: '/login', label: 'Começar agora' }}
     >
       <div className="grid sm:grid-cols-3 gap-3 mb-8">
@@ -45,9 +50,9 @@ export default function ParaComerciantes() {
       <MCard>
         <p className="text-white font-semibold mb-3">Tudo o que você desbloqueia</p>
         <ul className="grid sm:grid-cols-2 gap-2">
-          {BENEFICIOS.map(b => (
-            <li key={b} className="text-gray-300 text-sm flex items-start gap-2">
-              <Check size={16} className="text-acento shrink-0 mt-0.5" /> {b}
+          {BENEFICIOS.filter(b => !b.modulo || flags[b.modulo]).map(b => (
+            <li key={b.t} className="text-gray-300 text-sm flex items-start gap-2">
+              <Check size={16} className="text-acento shrink-0 mt-0.5" /> {b.t}
             </li>
           ))}
         </ul>
