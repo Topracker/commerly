@@ -5,7 +5,7 @@ import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
-import { Landmark, TrendingUp, TrendingDown, Wallet, AlertTriangle, Receipt, Banknote, WalletCards } from 'lucide-react'
+import { Landmark, TrendingUp, TrendingDown, Wallet, AlertTriangle, Receipt, Banknote, WalletCards, CreditCard } from 'lucide-react'
 import { situacaoAcerto, type AcertoComConfirmacoes } from '../lib/acertos'
 import { diaLoja, formatarData, inicioDiaLoja } from '../lib/datas'
 import { FORMA_VALE_CAIXA, ORDEM_FORMAS, formaDaVenda, formaDoPedido, type FormaResumo } from '../lib/vale'
@@ -37,6 +37,7 @@ export default function Financeiro() {
   const [acertos, setAcertos] = useState<AcertoComConfirmacoes[]>([])
   // Entradas do mês atual por forma de pagamento (vale separado — lib/vale.ts).
   const [porForma, setPorForma] = useState<{ forma: FormaResumo; valor: number }[]>([])
+  const [maquininha, setMaquininha] = useState({ bruto: 0, taxa: 0, liquido: 0, qtd: 0 })
 
   useEffect(() => {
     if (!loja) return
@@ -56,7 +57,8 @@ export default function Financeiro() {
     const desde = new Date(Math.min(seisMeses.getTime(), inicioAno.getTime())).toISOString()
 
     const [vendasRes, pedidosRes, gastosRes, produtosRes] = await Promise.all([
-      supabase.from('vendas').select('valor_total, lucro, forma_pagamento, created_at').eq('loja_id', loja.id).gte('created_at', desde),
+      // `*`: taxa e valor_liquido só existem depois da migração da maquininha.
+      supabase.from('vendas').select('*').eq('loja_id', loja.id).gte('created_at', desde),
       // `*` e não lista: forma_pagamento só existe depois da migração do vale,
       // e uma coluna inexistente na lista derrubaria o financeiro inteiro.
       supabase.from('pedidos_clientes').select('*')
@@ -93,9 +95,19 @@ export default function Financeiro() {
     const mesCorrente = diaLoja().slice(0, 7)
     const soma = new Map<FormaResumo, number>()
     const somar = (f: FormaResumo, v: number) => soma.set(f, (soma.get(f) || 0) + v)
+    const maq = { bruto: 0, taxa: 0, liquido: 0, qtd: 0 }
     for (const v of vendasRes.data || []) {
-      if (diaLoja(v.created_at as string).slice(0, 7) === mesCorrente) somar(formaDaVenda(v.forma_pagamento), Number(v.valor_total) || 0)
+      if (diaLoja(v.created_at as string).slice(0, 7) !== mesCorrente) continue
+      const forma = formaDaVenda(v.forma_pagamento, v.origem)
+      somar(forma, Number(v.valor_total) || 0)
+      if (forma === 'Maquininha') {
+        maq.qtd++
+        maq.bruto += Number(v.valor_total) || 0
+        maq.taxa += Number(v.taxa) || 0
+        maq.liquido += v.valor_liquido == null ? Number(v.valor_total) || 0 : Number(v.valor_liquido)
+      }
     }
+    setMaquininha(maq)
     for (const p of pedidosRes.data || []) {
       if (diaLoja(p.created_at as string).slice(0, 7) === mesCorrente) {
         somar(formaDoPedido(p), Math.max(0, (Number(p.total) || 0) - (Number(p.taxa_entrega) || 0)))
@@ -205,6 +217,29 @@ export default function Financeiro() {
               </p>
             </div>
           )}
+
+          {/* Maquininha física: sincronizada ou importada */}
+          <div className="bg-gray-900 rounded-2xl p-5 mb-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <p className="text-white font-semibold text-sm flex items-center gap-2"><CreditCard size={15} className="text-acento" /> Maquininha neste mês</p>
+              <a href="/financeiro/importar-maquininha" className="text-acento hover:underline text-xs font-semibold shrink-0">Importar vendas</a>
+            </div>
+            {maquininha.qtd > 0 ? (
+              <>
+                <div className="flex flex-col gap-2 text-sm">
+                  <div className="flex justify-between"><span className="text-gray-400">Vendas</span><span className="text-white">{maquininha.qtd}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-400">Valor bruto</span><span className="text-green-400">{reais(maquininha.bruto)}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-400">− Taxas da maquininha</span><span className="text-amber-300">{reais(maquininha.taxa)}</span></div>
+                  <div className="flex justify-between border-t border-gray-800 pt-2 mt-1 font-bold"><span className="text-white">= Líquido</span><span className="text-white">{reais(maquininha.liquido)}</span></div>
+                </div>
+                <p className="text-gray-500 text-xs mt-3">
+                  O valor bruto entra nas Entradas. O extrato não diz o custo do que foi vendido, então essas vendas não aumentam o lucro real.
+                </p>
+              </>
+            ) : (
+              <p className="text-gray-500 text-xs">Nenhuma venda de maquininha neste mês.</p>
+            )}
+          </div>
 
           {(aReceber.nEntregadores > 0 || aReceber.nCommerly > 0 || aReceber.nVale > 0) && (
             <div className="bg-gray-900 rounded-2xl p-5 mb-4">

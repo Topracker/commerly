@@ -167,7 +167,7 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
         id: 'plano-vencido',
         pergunta: 'O que acontece quando o plano vence?',
         resposta:
-          'O painel fica bloqueado até você assinar de novo, e a loja deixa de aparecer para os clientes na busca e no cardápio online. As integrações (Mercado Pago, PagBank, IA, Ads) ficam pausadas, mas continuam conectadas.\n\nNada é apagado. Assim que a assinatura volta, tudo reaparece.',
+          'O painel fica bloqueado até você assinar de novo, e a loja deixa de aparecer para os clientes na busca e no cardápio online. As integrações (Mercado Pago, IA, Ads) ficam pausadas, mas continuam conectadas.\n\nNada é apagado. Assim que a assinatura volta, tudo reaparece.',
         tags: ['bloqueado', 'expirou', 'acesso negado', 'loja sumiu'],
         publico: ['comerciante'],
         link: { label: 'Regularizar', href: '/planos' },
@@ -334,9 +334,9 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
       },
       {
         id: 'mercado-pago-pagbank',
-        pergunta: 'Para que servem as integrações com Mercado Pago e PagBank?',
+        pergunta: 'Como trago as vendas da minha maquininha para o painel?',
         resposta:
-          'Para trazer as vendas da sua maquininha ou link de pagamento para o painel, sem digitar nada. Conecte em "Integrações"; as vendas sincronizadas entram no histórico e no Financeiro.',
+          'Com Mercado Pago, conecte a conta em "Integrações" e as vendas sincronizadas entram no histórico e no Financeiro. Com outra maquininha, baixe o extrato no app dela e suba em Financeiro → Importar vendas da maquininha. A conexão direta com o PagBank chega em breve; até lá, use a importação do extrato.',
         tags: ['maquininha', 'integrar', 'sincronizar vendas'],
         publico: ['comerciante'],
         link: { label: 'Abrir Integrações', href: '/integracoes' },

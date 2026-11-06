@@ -3,6 +3,7 @@ import { createAdminClient } from '../../../../lib/supabase-admin'
 import { rateLimit } from '../../../../lib/rate-limit'
 import { integracoesAtivas } from '../../../../lib/plano'
 import { tokenDaLoja } from '../../../../lib/pagbank'
+import { PAGBANK_LIBERADO } from '../../../../lib/pagbankStatus'
 import {
   decodificarResposta,
   formaPagamentoPagBank,
@@ -34,6 +35,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ loja_id: string }> }
 ) {
+  // 200 para o PagBank não ficar reenviando um aviso que não será processado.
+  if (!PAGBANK_LIBERADO) return NextResponse.json({ ok: true, indisponivel: true })
+
   const { loja_id } = await params
 
   // Rejeita loja_id malformado antes de qualquer trabalho
