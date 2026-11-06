@@ -9,7 +9,7 @@ import ExcelJS from 'exceljs'
 import { jsPDF } from 'jspdf'
 import {
   interpretarTabela, interpretarTextoPdf, linhaVendaImportada, origemDaMaquininha, parseData, parseValor,
-  somaVendasParaDesconto,
+  somaVendasParaDesconto, somaVendasParaMedalha,
 } from '../../app/lib/maquininhaImport.ts'
 import { lerArquivo, lerCsv } from '../../app/lib/maquininhaArquivo.ts'
 import { ehPagamentoPoint, linhaVendaMP, sincronizarLojaMP, taxaDoPagamento } from '../../app/lib/mercadopago-sync.ts'
@@ -173,6 +173,16 @@ test('desconto da mensalidade: maquininha não soma, o resto soma', () => {
     { valor_total: 9000, origem: 'maquininha_outra' },
     { valor_total: 10 },
   ]), 160.5)
+})
+
+test('medalha: importada por arquivo não soma, Point sincronizada soma', () => {
+  assert.equal(somaVendasParaMedalha([
+    { valor_total: 100, origem: 'manual', mp_payment_id: null },
+    { valor_total: 50, origem: 'mercadopago', mp_payment_id: '1' },
+    { valor_total: 30, origem: 'maquininha_mp', mp_payment_id: '2' },
+    { valor_total: 9000, origem: 'maquininha_mp', mp_payment_id: null },
+    { valor_total: 9000, origem: 'maquininha_pagbank', mp_payment_id: null },
+  ]), 180)
 })
 
 test('linha importada separa origem e mantém o bruto em valor_total', () => {
