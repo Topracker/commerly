@@ -695,8 +695,8 @@ fornecedor vai para `/pausado`, cujo botão leva a quem tem conta ao login, sem
 
 > **Registro do teste automatizado — 2026-11-06 (produção):** as 12 chaves desligadas
 > e religadas, uma por vez, conferindo tela, URL e API, com e sem login; chaves
-> devolvidas à foto. Banco: `sql/2026-11-06-chaves-modulo-banco.sql` testado só em
-> Postgres descartável enquanto não for aplicado.
+> devolvidas à foto. Banco: `sql/2026-11-06-chaves-modulo-banco.sql` aplicado e testado
+> com sessão real (`flash_sale`, `entregador`) e em transação desfeita (demais).
 >
 > **Registro do teste automatizado — 2026-10-30 (produção, contas de teste):**
 > 69/69 checagens de API/banco + 8 de tela (Playwright), tudo revertido no fim.
