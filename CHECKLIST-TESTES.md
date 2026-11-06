@@ -632,12 +632,21 @@ no Modo Festa"** (desligado por padrão).
       e conferir que confirmar a primeira **não** fecha a segunda por engano.
 - [ ] Conferir que o ganho do entregador soma as **duas** corridas.
 
-### 7.3 Chaves de módulo (pausar cliente / entregador / fornecedor / festa)
+### 7.3 Chaves de módulo (as 12 de Cidades & Flags)
 
-No painel master → **Cidades & Flags** há 4 chaves globais: `cliente`,
-`entregador`, `fornecedor` e `modo_festa`. Regra de ouro: **desligar impede
-COMEÇAR, nunca TERMINAR.** Peça para alguém da equipe desligar UMA chave por
-vez e religar no fim. **Sempre deixe todas LIGADAS ao terminar.**
+No painel master → **Cidades & Flags** há 12 chaves. Regra de ouro: **desligar
+impede COMEÇAR, nunca TERMINAR.** Peça para alguém da equipe desligar UMA chave
+por vez e, ao terminar, **deixe cada chave como estava antes do teste**.
+
+Para qualquer chave desligada, em até 1 minuto:
+- [ ] O que é do módulo some da página inicial e das telas logadas. Numa tela
+      logada, o item pode aparecer por até 4 segundos enquanto a página carrega.
+- [ ] Digitar a rota do módulo leva para `/pausado`, inclusive sub-rotas.
+- [ ] A API do módulo responde **503 "Módulo indisponível"**, com ou sem login.
+
+Rotas de cada chave: `app/lib/pausa.ts`. O login de cliente, entregador e
+fornecedor vai para `/pausado`, cujo botão leva a quem tem conta ao login, sem
+"Criar conta".
 
 **`cliente` desligada**
 - [ ] Cliente: "Buscar lojas" some do menu; abrir `/cliente/buscar` leva para a
@@ -647,7 +656,7 @@ vez e religar no fim. **Sempre deixe todas LIGADAS ao terminar.**
 - [ ] Cliente: **"Meus pedidos"**, notificações e o login continuam abrindo.
 - [ ] Comerciante: um pedido que já estava aberto avança normalmente até
       **"Entregue"**.
-- [ ] `/para-clientes`: o botão vira o aviso de pausa (pode levar até 1 min).
+- [ ] `/para-clientes` e `/cliente/login` levam para `/pausado`; "Sou Cliente" some.
 
 **`fornecedor` desligada**
 - [ ] Comerciante: o item **Fornecedores** some do menu e do atalho do dashboard;
@@ -676,13 +685,19 @@ vez e religar no fim. **Sempre deixe todas LIGADAS ao terminar.**
       repetidos** de "nenhum entregador" (sem loop de ofertas).
 - [ ] Festa fechada com a rede pausada: mensagem "as lojas vão entregar por conta
       própria", sem botão "Buscar entregador".
-- [ ] `/para-entregadores` e `/kit`: o botão de cadastro vira aviso de pausa.
+- [ ] `/para-entregadores` e `/entregador-delivery/login` levam para `/pausado`;
+      "Sou Entregador" some da página inicial. `/kit`: o botão de cadastro vira aviso.
 
 **Ficar offline com corrida aceita (chave ligada)**
 - [ ] Entregador aceita uma corrida e, antes de coletar, toca em **ficar
       offline**: a loja recebe "Entregador ficou offline" com o resultado da nova
       busca, e o pedido é oferecido a **outro** entregador na hora.
 
+> **Registro do teste automatizado — 2026-11-06 (produção):** as 12 chaves desligadas
+> e religadas, uma por vez, conferindo tela, URL e API, com e sem login; chaves
+> devolvidas à foto. Banco: `sql/2026-11-06-chaves-modulo-banco.sql` testado só em
+> Postgres descartável enquanto não for aplicado.
+>
 > **Registro do teste automatizado — 2026-10-30 (produção, contas de teste):**
 > 69/69 checagens de API/banco + 8 de tela (Playwright), tudo revertido no fim.
 > Cobriu: travas do banco (insert direto bloqueado; pedido pago do webhook
