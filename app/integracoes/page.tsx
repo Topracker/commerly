@@ -4,14 +4,11 @@ import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
+import { PAGBANK_LIBERADO } from '../lib/pagbankStatus'
 
 // Endereço antigo e estável: leva ao login e, depois, a
 // minhaconta.pagbank.com.br/venda-online/integracoes/configuracoes.
 const PAGBANK_INTEGRACOES_URL = 'https://pagbank.com.br/preferencias/integracoes.jhtml'
-
-// Integração pronta no código, mas fora do ar até o PagBank liberar a
-// Commerly. Enquanto false, o card mostra "em breve" e nada do PagBank roda.
-const PAGBANK_LIBERADO = false
 
 function ListaPassos({ passos }: { passos: { emoji: string; texto: string }[] }) {
   return (
@@ -321,12 +318,11 @@ export default function Integracoes() {
       {/* PagBank */}
       {!PAGBANK_LIBERADO ? (
         <div className="bg-gray-900 rounded-2xl p-6">
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-green-600/40 flex items-center justify-center text-white font-bold text-xs">PB</div>
             <h2 className="text-white font-semibold">PagBank</h2>
-            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-800 text-gray-300">em breve</span>
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-800 text-gray-300">Em breve</span>
           </div>
-          <p className="text-gray-400 text-sm">Estamos finalizando a integração com o PagBank. Por enquanto, conecte o Mercado Pago.</p>
         </div>
       ) : (
       <div className="bg-gray-900 rounded-2xl p-6">
@@ -422,6 +418,12 @@ export default function Integracoes() {
         )}
       </div>
       )}
+
+      {/* Qualquer maquininha, por arquivo */}
+      <a href="/financeiro/importar-maquininha" className="block bg-gray-900 hover:bg-gray-800 rounded-2xl p-6 mt-6 transition">
+        <h2 className="text-white font-semibold">Importar vendas da maquininha</h2>
+        <p className="text-gray-400 text-sm mt-1">Usa outra maquininha? Suba o extrato e as vendas entram no seu faturamento.</p>
+      </a>
 
       {/* Stripe — pagamento online dos pedidos de delivery */}
       <div className="bg-gray-900 rounded-2xl p-6 mt-6">
