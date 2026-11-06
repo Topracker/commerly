@@ -75,7 +75,8 @@ export default function ImportarMaquininha() {
       const d = await res.json().catch(() => ({}))
       if (!res.ok || d.ok === false) {
         setPrevia(null)
-        setErro(d.erro || 'Não foi possível ler o arquivo. Tente de novo.')
+        // `error` é o formato do proxy (ex.: 402 de plano vencido).
+        setErro(d.erro || d.error || 'Não foi possível ler o arquivo. Tente de novo.')
         setColunas(Array.isArray(d.colunas) ? d.colunas : [])
       } else if (confirmar) {
         setPrevia(null)

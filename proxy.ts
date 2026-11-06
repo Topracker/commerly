@@ -291,5 +291,6 @@ export const config = {
     '/api/campanha-retorno/:path*', '/api/promocoes/:path*', '/api/flash-sale/:path*',
     '/api/vision/:path*', '/api/nutri/:path*', '/api/tendencias/:path*',
     '/api/loja/:path*', '/api/ads/:path*', '/api/entrega/buscar-entregador',
+    '/api/maquininha/:path*',
   ],
 }
