@@ -1,7 +1,7 @@
 -- 2026-11-06 — Chaves de módulo no banco: o que faltava além do proxy e das rotas.
 --
--- ESTADO: NÃO APLICADO em produção. O site funciona sem este arquivo; ele fecha a
--- gravação direta pelo REST (chave anon + sessão), que não passa pelo proxy.
+-- ESTADO: APLICADO em produção em 2026-11-06. Fecha a gravação direta pelo REST
+-- (chave anon + sessão), que não passa pelo proxy.
 --
 -- Regra central: desligar impede COMEÇAR, nunca TERMINAR. Os triggers são só BEFORE
 -- INSERT em tabelas de início, nunca em UPDATE de pedido, festa ou corrida já aberta.
