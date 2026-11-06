@@ -37,6 +37,16 @@ export function somaVendasParaDesconto(vendas: { valor_total: unknown; origem?: 
   return vendas.reduce((s, v) => (ehVendaMaquininha(v.origem) ? s : s + (Number(v.valor_total) || 0)), 0)
 }
 
+/**
+ * Vendas que valem para as medalhas de faturamento. Só a venda IMPORTADA por
+ * arquivo fica de fora; a da Point que veio do sync conta, porque o dado vem do
+ * Mercado Pago. O extrato do MP importado também tem origem 'maquininha_mp', e o
+ * que separa os dois é o `mp_payment_id`, que só o sync e o webhook preenchem.
+ */
+export function somaVendasParaMedalha(vendas: { valor_total: unknown; origem?: string | null; mp_payment_id?: string | null }[]): number {
+  return vendas.reduce((s, v) => (ehVendaMaquininha(v.origem) && !v.mp_payment_id ? s : s + (Number(v.valor_total) || 0)), 0)
+}
+
 type Campo = 'id' | 'data' | 'bruto' | 'liquido' | 'taxa' | 'bandeira' | 'forma' | 'status'
 
 const COMUNS: Record<Campo, string[]> = {

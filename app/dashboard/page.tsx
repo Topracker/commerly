@@ -20,7 +20,7 @@ import { carregarAgendamentosProximos, minutosAteAgendamento, type Agendamento }
 import { calcularCommerlyScore, type CommerlyScore } from '../lib/commerlyScore'
 import { VIEW_AVAL_LOJAS } from '../lib/avaliacoes'
 import { diaLoja, formatarData, inicioDiaLoja, inicioMesLoja, inicioPeriodo, paraDate, somarDias } from '../lib/datas'
-import { somaVendasParaDesconto } from '../lib/maquininhaImport'
+import { somaVendasParaDesconto, somaVendasParaMedalha } from '../lib/maquininhaImport'
 import { TendenciasCard } from '../components/TendenciasCard'
 import {
   ShoppingBag, ChevronRight, Clock, Gauge, Package, Lightbulb, ArrowRight, Trophy, Moon, Rss,
@@ -194,7 +194,7 @@ export default function Dashboard() {
       // Tendência: 14 dias de vendas (o gráfico usa só os últimos 7).
       supabase.from('vendas').select('valor_total, created_at').eq('loja_id', loja.id).gte('created_at', quatorzeAtras.toISOString()),
       // Meta mensal + resultado do mês para o Score (lucro do mês).
-      supabase.from('vendas').select('valor_total, lucro, origem').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()),
+      supabase.from('vendas').select('valor_total, lucro, origem, mp_payment_id').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()),
       // Gastos do mês para o resultado líquido do Score.
       supabase.from('gastos').select('valor').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()),
       supabase.from('conquistas').select('tipo').eq('loja_id', loja.id),
@@ -290,9 +290,11 @@ export default function Dashboard() {
     const conquistasExistentes = (conquistasRes.data || []).map((c: any) => c.tipo)
     const meta = Number(loja.meta_mensal) || 5000
     const novos: string[] = []
+    // Medalha não conta venda importada por arquivo; a meta e o Score contam.
+    const fatMedalha = somaVendasParaMedalha(vendasMesRes.data || []) + fatPedidosMes
 
     for (const badge of BADGES) {
-      if (fatMes >= badge.threshold && !conquistasExistentes.includes(badge.tipo)) {
+      if (fatMedalha >= badge.threshold && !conquistasExistentes.includes(badge.tipo)) {
         const { error } = await supabase
           .from('conquistas')
           .insert({ loja_id: loja.id, tipo: badge.tipo })
