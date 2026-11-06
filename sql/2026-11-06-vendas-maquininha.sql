@@ -1,6 +1,6 @@
 -- 2026-11-06 — Vendas da maquininha física no faturamento.
 --
--- ESTADO: NÃO APLICADO em produção. Rodar ANTES de publicar o código.
+-- ESTADO: APLICADO em produção em 2026-11-06, antes do deploy do código.
 --
 -- As vendas entram em `vendas` (não em tabela nova) para somar sozinhas no
 -- dashboard, no financeiro, na meta e no Score. Nenhuma view depende de `vendas`

@@ -20,6 +20,7 @@ import { carregarAgendamentosProximos, minutosAteAgendamento, type Agendamento }
 import { calcularCommerlyScore, type CommerlyScore } from '../lib/commerlyScore'
 import { VIEW_AVAL_LOJAS } from '../lib/avaliacoes'
 import { diaLoja, formatarData, inicioDiaLoja, inicioMesLoja, inicioPeriodo, paraDate, somarDias } from '../lib/datas'
+import { somaVendasParaDesconto } from '../lib/maquininhaImport'
 import { TendenciasCard } from '../components/TendenciasCard'
 import {
   ShoppingBag, ChevronRight, Clock, Gauge, Package, Lightbulb, ArrowRight, Trophy, Moon, Rss,
@@ -97,6 +98,7 @@ export default function Dashboard() {
 
   // Metas e conquistas
   const [faturamentoMes, setFaturamentoMes] = useState(0)
+  const [faturamentoDesconto, setFaturamentoDesconto] = useState(0)
   const [metaMensal, setMetaMensal] = useState(5000)
   const [conquistas, setConquistas] = useState<string[]>([])
   const [novosBadges, setNovosBadges] = useState<string[]>([])
@@ -192,7 +194,7 @@ export default function Dashboard() {
       // Tendência: 14 dias de vendas (o gráfico usa só os últimos 7).
       supabase.from('vendas').select('valor_total, created_at').eq('loja_id', loja.id).gte('created_at', quatorzeAtras.toISOString()),
       // Meta mensal + resultado do mês para o Score (lucro do mês).
-      supabase.from('vendas').select('valor_total, lucro').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()),
+      supabase.from('vendas').select('valor_total, lucro, origem').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()),
       // Gastos do mês para o resultado líquido do Score.
       supabase.from('gastos').select('valor').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()),
       supabase.from('conquistas').select('tipo').eq('loja_id', loja.id),
@@ -281,6 +283,8 @@ export default function Dashboard() {
     // Progresso da meta mensal — soma vendas + pedidos online do mês.
     const fatMes = (vendasMesRes.data || []).reduce((a: number, v: any) => a + v.valor_total, 0) + fatPedidosMes
     setFaturamentoMes(fatMes)
+    // Mesma conta de /api/stripe/aplicar-desconto: sem a maquininha.
+    setFaturamentoDesconto(somaVendasParaDesconto(vendasMesRes.data || []) + fatPedidosMes)
 
     // Conquistas
     const conquistasExistentes = (conquistasRes.data || []).map((c: any) => c.tipo)
@@ -378,11 +382,11 @@ export default function Dashboard() {
   // R$5.000 e 15% a partir de R$10.000 de faturamento no mês).
   const reais = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
   const descontoFidelidade =
-    faturamentoMes >= 10000
+    faturamentoDesconto >= 10000
       ? { texto: '🎉 Você garantiu 15% de desconto na próxima mensalidade!', cor: 'text-green-400' }
-      : faturamentoMes >= 5000
-        ? { texto: `🎉 10% de desconto garantido! Faltam ${reais(10000 - faturamentoMes)} para 15% off`, cor: 'text-green-400' }
-        : { texto: `Faltam ${reais(5000 - faturamentoMes)} para 10% de desconto na mensalidade`, cor: 'text-gray-400' }
+      : faturamentoDesconto >= 5000
+        ? { texto: `🎉 10% de desconto garantido! Faltam ${reais(10000 - faturamentoDesconto)} para 15% off`, cor: 'text-green-400' }
+        : { texto: `Faltam ${reais(5000 - faturamentoDesconto)} para 10% de desconto na mensalidade`, cor: 'text-gray-400' }
 
   // Ação recomendada do Score leva à tela do pilar mais fraco.
   const ROTA_PILAR: Record<string, string> = {
@@ -793,7 +797,10 @@ export default function Dashboard() {
             <p className="text-gray-600 text-xs mt-2">Conta todas as vendas do mês (manuais + integrações + pedidos online)</p>
             <div className="border-t border-gray-800 mt-3 pt-3 flex items-center gap-2">
               <span className="text-base">🏷️</span>
-              <p className={`text-xs font-medium ${descontoFidelidade.cor}`}>{descontoFidelidade.texto}</p>
+              <div>
+                <p className={`text-xs font-medium ${descontoFidelidade.cor}`}>{descontoFidelidade.texto}</p>
+                <p className="text-gray-600 text-xs mt-0.5">Vendas da maquininha não contam para este desconto.</p>
+              </div>
             </div>
           </div>
 

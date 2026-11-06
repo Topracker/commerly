@@ -1,6 +1,6 @@
 -- 2026-11-06 — PagBank indisponível: fecha a gravação direta pelo REST.
 --
--- ESTADO: NÃO APLICADO em produção.
+-- ESTADO: APLICADO em produção em 2026-11-06.
 --
 -- O PAGBANK_LIBERADO=false só escondia o card. As policies abaixo permitiam ao
 -- lojista gravar a própria conexão com a chave anon + JWT, sem passar pelas

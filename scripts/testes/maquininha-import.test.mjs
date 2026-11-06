@@ -9,6 +9,7 @@ import ExcelJS from 'exceljs'
 import { jsPDF } from 'jspdf'
 import {
   interpretarTabela, interpretarTextoPdf, linhaVendaImportada, origemDaMaquininha, parseData, parseValor,
+  somaVendasParaDesconto,
 } from '../../app/lib/maquininhaImport.ts'
 import { lerArquivo, lerCsv } from '../../app/lib/maquininhaArquivo.ts'
 import { ehPagamentoPoint, linhaVendaMP, sincronizarLojaMP, taxaDoPagamento } from '../../app/lib/mercadopago-sync.ts'
@@ -161,6 +162,17 @@ test('arquivo renomeado é recusado antes do parser', async () => {
   await assert.rejects(lerArquivo(new Uint8Array(Buffer.from('nao sou excel')), 'a.xlsx'), /Excel/)
   await assert.rejects(lerArquivo(new Uint8Array(Buffer.from('nao sou pdf!')), 'a.pdf'), /PDF/)
   await assert.rejects(lerArquivo(new Uint8Array(Buffer.from('x')), 'a.exe'), /CSV, XLSX ou PDF/)
+})
+
+test('desconto da mensalidade: maquininha não soma, o resto soma', () => {
+  assert.equal(somaVendasParaDesconto([
+    { valor_total: 100, origem: 'manual' },
+    { valor_total: '50.5', origem: 'mercadopago' },
+    { valor_total: 9000, origem: 'maquininha_pagbank' },
+    { valor_total: 9000, origem: 'maquininha_mp' },
+    { valor_total: 9000, origem: 'maquininha_outra' },
+    { valor_total: 10 },
+  ]), 160.5)
 })
 
 test('linha importada separa origem e mantém o bruto em valor_total', () => {

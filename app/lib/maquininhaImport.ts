@@ -23,6 +23,20 @@ export function origemDaMaquininha(m: Maquininha): string {
   return m === 'mercadopago' ? 'maquininha_mp' : `maquininha_${m}`
 }
 
+export function ehVendaMaquininha(origem: string | null | undefined): boolean {
+  return !!origem?.startsWith('maquininha_')
+}
+
+/**
+ * Vendas que valem para as faixas de desconto da mensalidade (10% e 15%). Venda
+ * de maquininha fica de fora: o extrato é arquivo enviado pelo próprio lojista, e
+ * só venda feita dentro da Commerly conta. A regra é só do desconto: meta, Score
+ * e financeiro seguem somando a maquininha.
+ */
+export function somaVendasParaDesconto(vendas: { valor_total: unknown; origem?: string | null }[]): number {
+  return vendas.reduce((s, v) => (ehVendaMaquininha(v.origem) ? s : s + (Number(v.valor_total) || 0)), 0)
+}
+
 type Campo = 'id' | 'data' | 'bruto' | 'liquido' | 'taxa' | 'bandeira' | 'forma' | 'status'
 
 const COMUNS: Record<Campo, string[]> = {

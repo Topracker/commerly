@@ -7,6 +7,7 @@ import { createAdminClient } from '../../../lib/supabase-admin'
 import { descontoMensalidade } from '../../../lib/gamificacaoServer'
 import { descontoDoIndicador } from '../../../lib/indicacaoDesconto'
 import { aplicarDescontoAssinatura } from '../../../lib/stripeMensalidade'
+import { somaVendasParaDesconto } from '../../../lib/maquininhaImport'
 
 // Aplica, na próxima cobrança do comerciante, o MELHOR desconto entre:
 //  - faixa por faturamento do mês (fidelidade)
@@ -47,13 +48,13 @@ export async function POST(request: NextRequest) {
   const agora = new Date()
   const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1)
   const [{ data: vendas }, { data: pedidos }, { count: pedidosTotal }] = await Promise.all([
-    supabase.from('vendas').select('valor_total').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()),
+    supabase.from('vendas').select('valor_total, origem').eq('loja_id', loja.id).gte('created_at', inicioMes.toISOString()),
     supabase.from('pedidos_clientes').select('total').eq('loja_id', loja.id).neq('status', 'cancelado').gte('created_at', inicioMes.toISOString()),
     supabase.from('pedidos_clientes').select('id', { count: 'exact', head: true }).eq('loja_id', loja.id).neq('status', 'cancelado'),
   ])
 
   const faturamento =
-    (vendas || []).reduce((a, v: any) => a + (v.valor_total || 0), 0) +
+    somaVendasParaDesconto(vendas || []) +
     (pedidos || []).reduce((a, p: any) => a + (Number(p.total) || 0), 0)
   const faixaPct = FAIXAS.find(f => faturamento >= f.meta)?.pct ?? 0
   const nivelPct = descontoMensalidade(pedidosTotal || 0)
