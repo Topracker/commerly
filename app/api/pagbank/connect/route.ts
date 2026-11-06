@@ -4,7 +4,6 @@ import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
 import { urlConsultaNotificacao } from '../../../lib/pagbankNotificacao'
-import { PAGBANK_LIBERADO } from '../../../lib/pagbankStatus'
 
 function getPagBankBaseUrl(ambiente: string): string {
   return ambiente === 'sandbox'
@@ -27,10 +26,6 @@ async function tokenValido(ambiente: 'sandbox' | 'producao', token: string): Pro
 }
 
 export async function POST(request: NextRequest) {
-  if (!PAGBANK_LIBERADO) {
-    return NextResponse.json({ error: 'A integração com o PagBank estará disponível em breve.' }, { status: 503 })
-  }
-
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

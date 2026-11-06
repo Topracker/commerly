@@ -3,7 +3,6 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { oauthConfigurado, tokenDaLoja, urlApi } from '../../../lib/pagbank'
-import { PAGBANK_LIBERADO } from '../../../lib/pagbankStatus'
 
 /**
  * Estado da conexão PagBank da loja.
@@ -14,10 +13,6 @@ import { PAGBANK_LIBERADO } from '../../../lib/pagbankStatus'
  * data, então é o jeito confiável de saber se as credenciais ainda funcionam.
  */
 export async function GET() {
-  if (!PAGBANK_LIBERADO) {
-    return NextResponse.json({ conectado: false, oauth_disponivel: false, indisponivel: true })
-  }
-
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

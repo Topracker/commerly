@@ -3,17 +3,12 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { rateLimit } from '../../../lib/rate-limit'
 import { COOKIE_STATE, SCOPES, oauthConfigurado, urlAutorizacao, type Ambiente } from '../../../lib/pagbank'
-import { PAGBANK_LIBERADO } from '../../../lib/pagbankStatus'
 
 /**
  * Inicia o Connect do PagBank (OAuth2), igual ao fluxo do Mercado Pago.
  * O `state` vai num cookie httpOnly e é conferido no callback (anti-CSRF).
  */
 export async function GET(request: NextRequest) {
-  if (!PAGBANK_LIBERADO) {
-    return NextResponse.redirect(new URL('/integracoes?pagbank=indisponivel', request.url))
-  }
-
   const cookieStore = await cookies()
   const origin = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin
 

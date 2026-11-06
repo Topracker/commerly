@@ -3,7 +3,6 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { COOKIE_STATE, oauthConfigurado, salvarConexao, trocarCodePorToken, type Ambiente } from '../../../lib/pagbank'
-import { PAGBANK_LIBERADO } from '../../../lib/pagbankStatus'
 
 /**
  * Callback do Connect do PagBank: troca o `code` por access_token/refresh_token
@@ -17,7 +16,6 @@ export async function GET(request: NextRequest) {
   const erroRedirect = (motivo: string) =>
     NextResponse.redirect(new URL(`/integracoes?pagbank=${motivo}`, request.url))
 
-  if (!PAGBANK_LIBERADO) return erroRedirect('indisponivel')
   if (!oauthConfigurado()) return erroRedirect('oauth_indisponivel')
 
   const supabase = createServerClient(
