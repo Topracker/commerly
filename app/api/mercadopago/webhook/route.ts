@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'crypto'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { integracoesAtivas } from '../../../lib/plano'
+import { linhaVendaMP } from '../../../lib/mercadopago-sync'
 
 export async function POST(request: NextRequest) {
   const rawBody = await request.text()
@@ -129,19 +130,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  const formaPagamento = resolverFormaPagamento(pag.payment_type_id)
+  // A venda da maquininha pode já ter entrado pelo extrato importado.
+  const { data: importada, error: erroImportada } = await supabase
+    .from('vendas')
+    .select('id')
+    .eq('loja_id', conexao.loja_id)
+    .eq('adquirente', 'mercadopago')
+    .eq('id_externo', paymentId)
+    .maybeSingle()
+  if (erroImportada) {
+    console.error('[MP webhook] erro ao conferir venda importada:', erroImportada)
+    return NextResponse.json({ error: 'Failed to check sale' }, { status: 500 })
+  }
+  if (importada) return NextResponse.json({ ok: true })
 
-  const { error } = await supabase.from('vendas').insert({
-    loja_id: conexao.loja_id,
-    produto_id: null,
-    descricao: formaPagamento,
-    quantidade: 1,
-    valor_total: pag.transaction_amount,
-    lucro: 0,
-    forma_pagamento: formaPagamento,
-    origem: 'mercadopago',
-    mp_payment_id: paymentId,
-  })
+  // Mesma linha do sync: a venda da Point sai como 'maquininha_mp' pelos dois
+  // caminhos. Se o webhook gravasse 'mercadopago', o sync a veria como já
+  // existente e ela nunca seria separada como Maquininha.
+  const { error } = await supabase.from('vendas').insert(linhaVendaMP(pag, conexao.loja_id))
 
   if (error) {
     console.error('[MP webhook] erro ao salvar venda:', error)
@@ -176,16 +182,5 @@ function verificarAssinatura(
     return timingSafeEqual(Buffer.from(computed), Buffer.from(v1))
   } catch {
     return false
-  }
-}
-
-function resolverFormaPagamento(type: string): string {
-  switch (type) {
-    case 'credit_card': return 'Cartão de crédito'
-    case 'debit_card': return 'Cartão de débito'
-    case 'bank_transfer': return 'Pix'
-    case 'account_money': return 'Carteira MP'
-    case 'ticket': return 'Boleto'
-    default: return 'Maquininha'
   }
 }

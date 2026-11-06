@@ -39,7 +39,8 @@ const PASSOS: { path: string; texto: string }[] = [
   { path: '/gastos', texto: 'Registrar gasto: menu Financeiro → Gastos → botão "Novo gasto", com descrição e valor.' },
   { path: '/historico', texto: 'Ver vendas antigas: menu Produtos e Vendas → Histórico.' },
   { path: '/produtos', texto: 'Cadastrar produto ou preço: menu Produtos e Vendas → Produtos. Todo produto cadastrado entra no cardápio digital.' },
-  { path: '/integracoes', texto: 'Conectar Mercado Pago ou PagBank: menu Configurações → Integrações.' },
+  { path: '/integracoes', texto: 'Conectar Mercado Pago: menu Configurações → Integrações. PagBank: em breve.' },
+  { path: '/financeiro/importar-maquininha', texto: 'Importar vendas de qualquer maquininha (extrato em CSV, XLSX ou PDF): Financeiro → Importar vendas da maquininha.' },
   { path: '/planos', texto: 'Ver ou pagar a assinatura: menu Configurações → Meu Plano.' },
   { path: '/pedidos', texto: 'Pedidos de delivery: menu Principal → Pedidos online. Área de entrega, tempo de preparo e WhatsApp ficam em Configurações.' },
 ]

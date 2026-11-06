@@ -50,6 +50,7 @@ const APIS_COMERCIANTE = [
   '/api/assistente', '/api/copilot', '/api/commerly-ai', '/api/campanha-retorno',
   '/api/promocoes', '/api/flash-sale', '/api/vision', '/api/nutri',
   '/api/tendencias', '/api/loja', '/api/ads', '/api/entrega/buscar-entregador',
+  '/api/maquininha',
 ]
 
 // APIs do comerciante que são CADASTRO ou OBRIGAÇÃO, não feature: exigem

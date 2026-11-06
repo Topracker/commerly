@@ -77,10 +77,11 @@ export function resumoCobrancaVale(p: { total: number; taxa_entrega: number; val
 // Resumo por forma de pagamento (financeiro)
 // ---------------------------------------------------------------------------
 
-export type FormaResumo = 'Dinheiro' | 'Pix' | 'Cartão' | typeof FORMA_VALE_CAIXA | 'Online (app)' | 'Na entrega (dinheiro/Pix)' | 'Outras'
+export type FormaResumo = 'Dinheiro' | 'Pix' | 'Cartão' | typeof FORMA_VALE_CAIXA | 'Maquininha' | 'Online (app)' | 'Na entrega (dinheiro/Pix)' | 'Outras'
 
-/** Venda do caixa/integração → forma do resumo. */
-export function formaDaVenda(forma: string | null | undefined): FormaResumo {
+/** Venda do caixa/integração → forma do resumo. A maquininha vem separada, seja crédito, débito ou Pix. */
+export function formaDaVenda(forma: string | null | undefined, origem?: string | null): FormaResumo {
+  if (origem?.startsWith('maquininha_')) return 'Maquininha'
   const f = (forma || '').trim().toLowerCase()
   if (!f) return 'Outras'
   if (f.startsWith('vale')) return FORMA_VALE_CAIXA
@@ -98,4 +99,4 @@ export function formaDoPedido(p: { pagamento_metodo?: string | null; forma_pagam
 }
 
 /** Ordem fixa de exibição; o vale vem destacado por último entre as do balcão. */
-export const ORDEM_FORMAS: FormaResumo[] = ['Dinheiro', 'Pix', 'Cartão', FORMA_VALE_CAIXA, 'Na entrega (dinheiro/Pix)', 'Online (app)', 'Outras']
+export const ORDEM_FORMAS: FormaResumo[] = ['Dinheiro', 'Pix', 'Cartão', FORMA_VALE_CAIXA, 'Maquininha', 'Na entrega (dinheiro/Pix)', 'Online (app)', 'Outras']

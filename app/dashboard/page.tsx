@@ -104,6 +104,7 @@ export default function Dashboard() {
   // Prêmio Fundador nº 1..3 (tabela `fundadores`). Antes do SQL de
   // 2026-10-25 não há policy de leitura: volta null e nada aparece.
   const [ordemFundador, setOrdemFundador] = useState<number | null>(null)
+  const [semVendaMaquininha, setSemVendaMaquininha] = useState(false)
   useEffect(() => {
     if (!loja) return
     ordemFundadorPagante(supabase, loja.id).then(setOrdemFundador).catch(() => setOrdemFundador(null))
@@ -119,6 +120,13 @@ export default function Dashboard() {
         .eq('loja_id', loja.id)
         .maybeSingle()
         .then(({ data }) => setMpConectado(!!data))
+      supabase
+        .from('vendas')
+        .select('id', { count: 'exact', head: true })
+        .eq('loja_id', loja.id)
+        .like('origem', 'maquininha_%')
+        .gte('created_at', inicioDiaLoja(somarDias(diaLoja(), -6)).toISOString())
+        .then(({ count, error }) => setSemVendaMaquininha(!error && count === 0))
       if (isDelivery(loja.tipo)) {
         supabase
           .from('pedidos_clientes')
@@ -800,6 +808,15 @@ export default function Dashboard() {
                 <p className="text-blue-400 text-xs">Pagamentos registrados automaticamente</p>
               </div>
               <span className="ml-auto w-2 h-2 rounded-full bg-green-400" />
+            </div>
+          )}
+
+          {semVendaMaquininha && (
+            <div className="flex flex-wrap items-center gap-3 bg-gray-900 rounded-2xl p-4 mb-3">
+              <p className="text-white font-semibold text-sm flex-1 min-w-48">Vendeu na maquininha? Importe o extrato</p>
+              <a href="/financeiro/importar-maquininha" className="bg-acento text-white font-semibold text-sm px-4 py-2 rounded-xl hover:opacity-90 transition">
+                Importar extrato
+              </a>
             </div>
           )}
 
