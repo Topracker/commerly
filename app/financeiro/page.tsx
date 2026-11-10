@@ -6,6 +6,7 @@ import { AppLayout } from '../components/AppLayout'
 import { Toast } from '../components/Toast'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
 import { Landmark, TrendingUp, TrendingDown, Wallet, AlertTriangle, Receipt, Banknote, WalletCards, CreditCard } from 'lucide-react'
+import { CardPagbankEdi } from '../components/CardPagbankEdi'
 import { situacaoAcerto, type AcertoComConfirmacoes } from '../lib/acertos'
 import { diaLoja, formatarData, inicioDiaLoja } from '../lib/datas'
 import { FORMA_VALE_CAIXA, ORDEM_FORMAS, formaDaVenda, formaDoPedido, type FormaResumo } from '../lib/vale'
@@ -217,6 +218,9 @@ export default function Financeiro() {
               </p>
             </div>
           )}
+
+          {/* Maquininha PagBank automática (Extrato EDI): só para quem cadastrou o token */}
+          {loja?.id && <CardPagbankEdi supabase={supabase} lojaId={loja.id} onToast={mostrarToast} onSincronizou={carregar} />}
 
           {/* Maquininha física: sincronizada ou importada */}
           <div className="bg-gray-900 rounded-2xl p-5 mb-4">
