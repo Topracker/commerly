@@ -14,6 +14,7 @@ import { CardapioIA } from '../components/CardapioIA'
 import { useFlags } from '../lib/useFlags'
 import { ConfigDelivery } from '../components/ConfigDelivery'
 import { ConfigVale } from '../components/ConfigVale'
+import { ConfigPagbankEdi } from '../components/ConfigPagbankEdi'
 import { uploadFachada, removerFachada } from '../lib/fachada'
 import { isDelivery } from '../lib/pedidosClientes'
 import { normalizarWebsite, erroWebsite, checarDuplicidade, MSG_DOCUMENTO_EM_OUTRA_LOJA, erroDocumentoDuplicado } from '../lib/validacoes'
@@ -768,6 +769,9 @@ export default function Configuracoes() {
           {salvando ? 'Salvando...' : 'Salvar alterações'}
         </button>
       </div>
+
+      {/* Maquininha PagBank automática (Extrato EDI) — separada da integração PagBank "Em breve" */}
+      {loja?.id && <ConfigPagbankEdi supabase={supabase} lojaId={loja.id} onToast={mostrarToast} />}
 
       {/* Minha loja pública */}
       <div className="bg-gray-900 rounded-2xl p-6 mb-6">

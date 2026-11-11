@@ -17,6 +17,14 @@
       "schedule": "0 6 * * *"
     },
     {
+      "path": "/api/maquininha/pagbank-edi/cron",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/maquininha/pagbank-edi/cron?passada=2",
+      "schedule": "0 15 * * *"
+    },
+    {
       "path": "/api/conta/purgar-cron",
       "schedule": "0 5 * * *"
     }

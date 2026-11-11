@@ -22,6 +22,7 @@ import { calcularCommerlyScore, type CommerlyScore } from '../lib/commerlyScore'
 import { VIEW_AVAL_LOJAS } from '../lib/avaliacoes'
 import { diaLoja, formatarData, inicioDiaLoja, inicioMesLoja, inicioPeriodo, paraDate, somarDias } from '../lib/datas'
 import { somaVendasParaDesconto, somaVendasParaMedalha } from '../lib/maquininhaImport'
+import { CardPagbankEdi } from '../components/CardPagbankEdi'
 import { TendenciasCard } from '../components/TendenciasCard'
 import {
   ShoppingBag, ChevronRight, Clock, Gauge, Package, Lightbulb, ArrowRight, Trophy, Moon, Rss,
@@ -820,6 +821,8 @@ export default function Dashboard() {
               <span className="ml-auto w-2 h-2 rounded-full bg-green-400" />
             </div>
           )}
+
+          {loja?.id && <CardPagbankEdi supabase={supabase} lojaId={loja.id} onToast={mostrarToast} onSincronizou={carregarDados} compacto />}
 
           {semVendaMaquininha && (
             <div className="flex flex-wrap items-center gap-3 bg-gray-900 rounded-2xl p-4 mb-3">
