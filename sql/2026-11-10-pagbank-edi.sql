@@ -1,6 +1,8 @@
 -- 2026-11-10 — Maquininha PagBank automática (API do Extrato EDI).
 --
--- ESTADO: NÃO APLICADO. Aplicar ANTES do deploy do código.
+-- ESTADO: APLICADO em produção em 2026-11-10 (MCP), antes do deploy do código.
+-- Conferido: coluna + CHECK, RLS nas 3 tabelas, 2 policies, segredos sem grant,
+-- authenticated só com SELECT; anon recebe 401 nas 3 pelo REST.
 --
 -- Separado da integração PagBank por token/OAuth (que segue "Em breve" e
 -- bloqueada por sql/2026-11-06-pagbank-indisponivel.sql). Nada aqui religa ela.
@@ -94,6 +96,9 @@ revoke insert, update, delete on public.pagbank_edi_conexoes       from anon, au
 revoke insert, update, delete on public.pagbank_edi_sincronizacoes from anon, authenticated;
 revoke all on public.pagbank_edi_conexoes       from anon;
 revoke all on public.pagbank_edi_sincronizacoes from anon;
+-- O Supabase dá TRUNCATE/REFERENCES/TRIGGER por padrão: fica só o SELECT.
+revoke truncate, references, trigger on public.pagbank_edi_conexoes       from anon, authenticated;
+revoke truncate, references, trigger on public.pagbank_edi_sincronizacoes from anon, authenticated;
 grant select on public.pagbank_edi_conexoes       to authenticated;
 grant select on public.pagbank_edi_sincronizacoes to authenticated;
 
@@ -115,3 +120,4 @@ create policy "dono le sincronizacoes edi" on public.pagbank_edi_sincronizacoes
 --   select tablename, policyname from pg_policies where tablename like 'pagbank_edi_%'; -- 2 policies
 --   select grantee, privilege_type from information_schema.role_table_grants
 --    where table_name='pagbank_edi_segredos' and grantee in ('anon','authenticated'); -- 0 linhas
+--   -- e em conexoes/sincronizacoes: só SELECT para authenticated, nada para anon
