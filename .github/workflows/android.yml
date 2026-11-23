@@ -105,3 +105,23 @@ jobs:
             --prerelease --target "${{ github.sha }}" \
             --title "App Android — build ${{ github.run_number }}" \
             --notes "AAB gerado pelo workflow android.yml (commit ${{ github.sha }})."
+
+      # Guarda o último AAB no branch android-builds: chega no PC com um simples
+      # git fetch (Git GUI → Remote → Fetch), sem baixar nada pelo navegador.
+      - name: Guardar AAB no branch android-builds
+        working-directory: .
+        run: |
+          set -e
+          mkdir -p "$RUNNER_TEMP/aab" && cp saida/*.aab "$RUNNER_TEMP/aab/commerly-ultimo.aab"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth 1 origin android-builds 2>/dev/null; then
+            git switch -c android-builds FETCH_HEAD
+          else
+            git switch --orphan android-builds
+          fi
+          cp "$RUNNER_TEMP/aab/commerly-ultimo.aab" commerly-ultimo.aab
+          echo "build ${{ github.run_number }} — commit ${{ github.sha }}" > LEIA-ME.txt
+          git add -f commerly-ultimo.aab LEIA-ME.txt
+          git commit -m "AAB do build ${{ github.run_number }}"
+          git push origin android-builds
