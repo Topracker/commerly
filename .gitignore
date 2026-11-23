@@ -57,3 +57,12 @@ claude
 # arquivos espurios criados por comandos digitados errado no terminal
 /cd
 /node
+
+# chave de assinatura do app Android (NUNCA commitar)
+/.android-keys/
+*.jks
+*.keystore
+
+# app Android (Capacitor): gerado no CI
+/mobile/node_modules/
+/mobile/android/

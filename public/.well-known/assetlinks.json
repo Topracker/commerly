@@ -3,9 +3,9 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "br.com.commerly.twa",
+      "package_name": "br.com.commerly.app",
       "sha256_cert_fingerprints": [
-        "SUBSTITUA_PELA_SHA256_DO_PLAY_APP_SIGNING:VEJA_docs/twa-assetlinks.md"
+        "30:0D:99:3F:98:99:D3:19:D3:95:5B:4D:4A:80:8F:14:10:E6:18:53:B2:A6:3B:11:46:1E:B5:E1:DA:CA:33:26"
       ]
     }
   }

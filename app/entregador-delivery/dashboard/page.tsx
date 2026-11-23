@@ -17,6 +17,7 @@ import {
 import { tocarAlertaCorrida } from '../../lib/notificacoes'
 import { uploadFotoAvaliacao, VIEW_AVAL_ENTREGADORES } from '../../lib/avaliacoes'
 import { distanciaKm, formatarDistancia } from '../../lib/geo'
+import { pluginNativo } from '../../lib/nativo'
 import { MAX_ENTREGAS_SIMULTANEAS, podemSerAgrupados, type PedidoRota } from '../../lib/rota'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { PainelGamificacao } from '../../components/PainelGamificacao'
@@ -176,7 +177,27 @@ function EntregadorDashboard() {
   }, [online, minhaPos, entregador, supabase])
 
   // Geolocalização contínua para o mapa e o cálculo de distância até a retirada.
+  // No app Android nativo usa o GPS nativo com serviço em primeiro plano: a
+  // posição continua chegando com a tela apagada ou o app em segundo plano
+  // (o Android mostra a notificação "Localização da entrega" enquanto isso).
   useEffect(() => {
+    const bg = pluginNativo('BackgroundGeolocation')
+    if (bg?.start) {
+      Promise.resolve(bg.start(
+        {
+          backgroundTitle: 'Commerly — você está online',
+          backgroundMessage: 'Compartilhando sua localização para receber corridas.',
+          requestPermissions: true,
+          stale: false,
+          distanceFilter: 15,
+        },
+        (loc?: { latitude: number; longitude: number }, erro?: { code?: string }) => {
+          if (erro || !loc) return
+          setMinhaPos({ lat: loc.latitude, lng: loc.longitude })
+        },
+      )).catch(() => {})
+      return () => { Promise.resolve(bg.stop?.()).catch(() => {}) }
+    }
     if (typeof navigator === 'undefined' || !navigator.geolocation) return
     const id = navigator.geolocation.watchPosition(
       pos => setMinhaPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }),

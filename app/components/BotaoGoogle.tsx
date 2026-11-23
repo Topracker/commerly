@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { createClient } from '../supabase'
+import { ehAppNativo, pluginNativo } from '../lib/nativo'
 
 // Botão "Entrar com Google" compartilhado pelas 4 áreas de login. Após o
 // consentimento, o Google devolve em /auth/callback?next=<voltar>, que troca o
@@ -20,10 +21,22 @@ export default function BotaoGoogle({
     setLoading(true)
     onErro?.('')
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(voltar)}`
-    const { error } = await supabase.auth.signInWithOAuth({
+    // No app Android nativo o Google recusa login dentro do WebView: abrimos
+    // no navegador do sistema e o NativeBridge traz o /auth/callback de volta.
+    const nativo = ehAppNativo()
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo },
+      options: { redirectTo, skipBrowserRedirect: nativo },
     })
+    if (!error && nativo && data?.url) {
+      try {
+        await pluginNativo('Browser')?.open?.({ url: data.url })
+      } catch {
+        onErro?.('Não foi possível abrir o login do Google. Tente novamente.')
+      }
+      setLoading(false)
+      return
+    }
     // Em caso de sucesso o navegador já foi redirecionado ao Google.
     if (error) {
       onErro?.('Não foi possível entrar com o Google. Tente novamente.')

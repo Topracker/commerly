@@ -1,0 +1,32 @@
+{
+  "appId": "br.com.commerly.app",
+  "appName": "Commerly",
+  "webDir": "www",
+  "appendUserAgent": "CommerlyApp/1.0",
+  "backgroundColor": "#0a0f1a",
+  "server": {
+    "url": "https://commerly.com.br/entrar?source=app",
+    "cleartext": false,
+    "errorPath": "offline.html",
+    "allowNavigation": [
+      "commerly.com.br",
+      "*.commerly.com.br",
+      "*.supabase.co",
+      "*.stripe.com",
+      "*.mercadopago.com",
+      "*.mercadopago.com.br",
+      "*.mercadolivre.com",
+      "*.pagbank.com.br",
+      "*.pagseguro.com",
+      "*.pagseguro.uol.com.br"
+    ]
+  },
+  "android": {
+    "useLegacyBridge": true,
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SystemBars": { "insetsHandling": "css", "style": "DARK", "hidden": false }
+  }
+}
