@@ -19,6 +19,9 @@ on:
     branches: [main]
     paths: ['mobile/**', '.github/workflows/android.yml']
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -91,3 +94,14 @@ jobs:
           name: commerly-android-${{ github.run_number }}
           path: saida/*.aab
           if-no-files-found: error
+
+      # Também publica como pré-release (download sem login no GitHub).
+      - name: Publicar AAB como pré-release
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "android-build-${{ github.run_number }}" saida/*.aab \
+            --prerelease --target "${{ github.sha }}" \
+            --title "App Android — build ${{ github.run_number }}" \
+            --notes "AAB gerado pelo workflow android.yml (commit ${{ github.sha }})."
