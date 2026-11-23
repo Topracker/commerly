@@ -2,7 +2,7 @@ name: App Android (AAB assinado)
 
 # Gera o .aab do app nativo da Commerly (Capacitor, pasta mobile/) pronto para
 # subir no Play Console. Roda manualmente (aba Actions → "App Android" → Run
-# workflow) ou ao criar uma tag android-v*.
+# workflow) ou a cada push na main que mexa em mobile/ ou neste arquivo.
 #
 # Secrets necessários (Settings → Secrets and variables → Actions):
 #   ANDROID_KEYSTORE_BASE64   conteúdo de .android-keys/commerly-upload.jks.base64
@@ -16,7 +16,8 @@ on:
         description: 'versionName (ex.: 1.0.0). Em branco = 1.0.<número do build>'
         required: false
   push:
-    tags: ['android-v*']
+    branches: [main]
+    paths: ['mobile/**', '.github/workflows/android.yml']
 
 jobs:
   build:
