@@ -9,6 +9,7 @@ import { PainelGamificacao } from '../../components/PainelGamificacao'
 import { SoComModulo } from '../../components/SoComModulo'
 import { PerfilPrivacidadeCard } from '../../components/PerfilPrivacidadeCard'
 import { ExcluirContaCard } from '../../components/ExcluirContaCard'
+import BloqueadosCard from '../../components/BloqueadosCard'
 import { nivelDoCliente } from '../../lib/fidelidade'
 import { Sparkles } from 'lucide-react'
 
@@ -184,6 +185,7 @@ export default function ClienteDashboard() {
         </div>
 
         {/* Exclusão de conta (exigência da Google Play; fluxo em /conta/excluir) */}
+        <BloqueadosCard />
         <ExcluirContaCard />
       </div>
     </ClienteLayout>

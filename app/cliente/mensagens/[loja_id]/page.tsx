@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useCliente } from '../../../hooks/useCliente'
 import { ClienteLayout } from '../../../components/ClienteLayout'
 import { Send, ArrowLeft } from 'lucide-react'
+import { MenuDenuncia } from '../../../components/MenuDenuncia'
 
 export default function ChatCliente_Loja() {
   const { loja_id } = useParams<{ loja_id: string }>()
@@ -99,6 +100,11 @@ export default function ChatCliente_Loja() {
         <div>
           <p className="text-white font-bold">{loja?.nome}</p>
           <p className="text-xs text-green-400">{loja?.tipo}</p>
+        </div>
+        <div className="ml-auto">
+          <MenuDenuncia tipo="loja" alvoId={String(loja_id)} alvoNome={loja?.nome}
+            bloqueio={{ tipo: 'loja', id: String(loja_id), nome: loja?.nome }}
+            onBloqueado={() => router.back()} />
         </div>
       </header>
 

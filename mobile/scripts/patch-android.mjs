@@ -3,8 +3,9 @@
 // e também localmente, de dentro de mobile/:  node scripts/patch-android.mjs
 //
 // O que faz:
-//  1. Permissões: GPS (entregador), serviço em primeiro plano de localização,
-//     notificações (Android 13+) e câmera (fotos de produto/entrega).
+//  1. Permissões: GPS com o app aberto (busca de lojas, entregador) e câmera.
+//     Sem serviço em primeiro plano: GPS em segundo plano exige declaração com
+//     vídeo na Play e o delivery ainda não está ativo. Volta quando ativar.
 //  2. App Link verificado para https://commerly.com.br/auth/callback — é por
 //     onde o login com Google volta do navegador do sistema para dentro do app.
 //  3. Ícones (adaptativo + legado) e splash a partir de mobile/assets/.
@@ -38,9 +39,6 @@ editar(manifest, xml => {
   const permissoes = [
     'android.permission.ACCESS_COARSE_LOCATION',
     'android.permission.ACCESS_FINE_LOCATION',
-    'android.permission.FOREGROUND_SERVICE',
-    'android.permission.FOREGROUND_SERVICE_LOCATION',
-    'android.permission.POST_NOTIFICATIONS',
     'android.permission.CAMERA',
   ].filter(p => !xml.includes(`"${p}"`))
   if (permissoes.length) {

@@ -16,6 +16,7 @@ import {
   type LojaDoFeed, type Post, type ProdutoMarcado, type Story,
 } from '../../lib/feed'
 import { SoComModulo } from '../../components/SoComModulo'
+import { bloqueados, aoMudarBloqueados } from '../../lib/moderacao'
 
 export default function ClienteFeed() {
   const { cliente, loading, supabase, sair } = useCliente()
@@ -39,6 +40,9 @@ export default function ClienteFeed() {
   const [ativoId, setAtivoId] = useState<string | null>(null)
   const [som, setSom] = useState(false)
   const [comentariosDe, setComentariosDe] = useState<string | null>(null)
+  // Bloqueios (MenuDenuncia) ficam no aparelho; o contador força o refiltro.
+  const [versaoBloqueio, setVersaoBloqueio] = useState(0)
+  useEffect(() => aoMudarBloqueados(() => setVersaoBloqueio(v => v + 1)), [])
 
   const containerRef = useRef<HTMLDivElement>(null)
   // Métricas que só valem uma vez por post nesta sessão. Ficam em ref para não
@@ -119,12 +123,18 @@ export default function ClienteFeed() {
     setCarregando(false)
   }
 
+  const lojasBloqueadas = useMemo(() => bloqueados('loja'), [versaoBloqueio])
+  const clientesBloqueados = useMemo(() => bloqueados('cliente'), [versaoBloqueio])
+
   const feed = useMemo(
-    () => ordenarFeed(posts, lojas, { seguindo, posCliente }),
-    [posts, lojas, seguindo, posCliente],
+    () => ordenarFeed(posts.filter(p => !lojasBloqueadas.has(p.loja_id)), lojas, { seguindo, posCliente }),
+    [posts, lojas, seguindo, posCliente, lojasBloqueadas],
   )
 
-  const gruposStories = useMemo(() => agruparStories(stories), [stories])
+  const gruposStories = useMemo(
+    () => agruparStories(stories.filter(s => !lojasBloqueadas.has(s.loja_id))),
+    [stories, lojasBloqueadas],
+  )
 
   // Um observer só para todos os reels: vence quem tem a maior fração visível.
   // Parado, o snap garante que isso é sempre um post inteiro; durante a rolagem
@@ -393,7 +403,7 @@ export default function ClienteFeed() {
 
       <ComentariosPainel
         aberto={!!postAberto}
-        comentarios={postAberto ? comentarios[postAberto.id] || [] : []}
+        comentarios={postAberto ? (comentarios[postAberto.id] || []).filter(c => !clientesBloqueados.has(c.cliente_id)) : []}
         onFechar={() => setComentariosDe(null)}
         onEnviar={texto => comentar(comentariosDe!, texto)}
       />

@@ -23,6 +23,7 @@ import { TAXA_ENTREGA, SURGE_PICO } from '../lib/geo'
 import { JANELA_PICO } from '../lib/precoDinamico'
 import { Eye, EyeOff, Store, Copy, ExternalLink, FileText, Download } from 'lucide-react'
 import { ExcluirContaCard } from '../components/ExcluirContaCard'
+import BloqueadosCard from '../components/BloqueadosCard'
 
 type Fatura = {
   id: string
@@ -875,6 +876,7 @@ export default function Configuracoes() {
 
       {/* Exclusão de conta (exigência da Google Play; fluxo em /conta/excluir) */}
       <div className="mt-6">
+        <BloqueadosCard />
         <ExcluirContaCard />
       </div>
     </AppLayout>

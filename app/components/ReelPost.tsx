@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { formatarDistancia } from '../lib/geo'
 import { contadorCurto, tempoDoPost, type Post, type LojaDoFeed, type ProdutoMarcado } from '../lib/feed'
+import { MenuDenuncia } from './MenuDenuncia'
 
 export type Comentario = {
   id: string
@@ -38,12 +39,14 @@ type Props = {
   onComentarios: () => void
   onCompartilhar: () => void
   onPedir: () => void
+  /** Chamado depois que o usuário bloqueia a loja deste post. */
+  onBloqueado?: () => void
 }
 
 export function ReelPost({
   post, loja, produto, distancia, curtido, likes, comentarios, compartilhamentos,
   seguindo, ativo, som, onAlternarSom, onCurtir, onSeguir, onComentarios,
-  onCompartilhar, onPedir,
+  onCompartilhar, onPedir, onBloqueado,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [pausado, setPausado] = useState(false)
@@ -187,6 +190,16 @@ export function ReelPost({
         <AcaoLateral onClick={onCompartilhar} rotulo={contadorCurto(compartilhamentos)} aria="Compartilhar">
           <Share2 size={27} className="text-white" />
         </AcaoLateral>
+
+        <MenuDenuncia
+          tipo="post"
+          alvoId={post.id}
+          alvoNome={loja?.nome}
+          trecho={post.legenda}
+          bloqueio={{ tipo: 'loja', id: post.loja_id, nome: loja?.nome }}
+          onBloqueado={onBloqueado}
+          className="grid h-10 w-10 place-items-center rounded-full text-white drop-shadow hover:bg-white/10"
+        />
 
         <button
           onClick={onPedir}

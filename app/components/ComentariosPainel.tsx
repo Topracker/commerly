@@ -3,12 +3,15 @@ import { useEffect, useRef, useState } from 'react'
 import { X, Send, MessageCircle } from 'lucide-react'
 import { tempoDoPost, contadorCurto } from '../lib/feed'
 import type { Comentario } from './ReelPost'
+import { MenuDenuncia } from './MenuDenuncia'
 
 type Props = {
   aberto: boolean
   comentarios: Comentario[]
   onFechar: () => void
   onEnviar: (texto: string) => Promise<void>
+  /** Depois de bloquear o autor de um comentário (para o feed refiltrar). */
+  onBloqueado?: () => void
 }
 
 /**
@@ -16,7 +19,7 @@ type Props = {
  * animação de entrada/saída existir — fechado ele é `translate-y-full` e não
  * recebe cliques.
  */
-export function ComentariosPainel({ aberto, comentarios, onFechar, onEnviar }: Props) {
+export function ComentariosPainel({ aberto, comentarios, onFechar, onEnviar, onBloqueado }: Props) {
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
   const fimDaLista = useRef<HTMLDivElement>(null)
@@ -92,6 +95,15 @@ export function ComentariosPainel({ aberto, comentarios, onFechar, onEnviar }: P
                     </p>
                     <p className="whitespace-pre-wrap break-words text-sm text-gray-200">{c.texto}</p>
                   </div>
+                  <MenuDenuncia
+                    tipo="comentario"
+                    alvoId={c.id}
+                    alvoNome={c.cliente_nome}
+                    trecho={c.texto}
+                    bloqueio={{ tipo: 'cliente', id: c.cliente_id, nome: c.cliente_nome }}
+                    onBloqueado={onBloqueado}
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-gray-500 hover:bg-white/10 hover:text-gray-300"
+                  />
                 </div>
               ))}
             </div>

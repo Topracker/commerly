@@ -4,6 +4,7 @@ import { formatarHora } from '../../../lib/datas'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '../../../hooks/useAuth'
 import { Send, ArrowLeft } from 'lucide-react'
+import { MenuDenuncia } from '../../../components/MenuDenuncia'
 
 export default function ChatComerciante_Cliente() {
   const { cliente_id } = useParams<{ cliente_id: string }>()
@@ -99,6 +100,11 @@ export default function ChatComerciante_Cliente() {
         <div>
           <p className="text-white font-bold">{cliente.nome}</p>
           <p className="text-xs text-green-400">Cliente</p>
+        </div>
+        <div className="ml-auto">
+          <MenuDenuncia tipo="cliente" alvoId={String(cliente_id)} alvoNome={cliente.nome}
+            bloqueio={{ tipo: 'cliente', id: String(cliente_id), nome: cliente.nome }}
+            onBloqueado={() => router.back()} />
         </div>
       </header>
 

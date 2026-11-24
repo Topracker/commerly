@@ -11,6 +11,7 @@ interface CapacitorGlobal {
   isNativePlatform?: () => boolean
   Plugins?: Record<string, PluginNativo | undefined>
   registerPlugin?: (nome: string) => PluginNativo
+  isPluginAvailable?: (nome: string) => boolean
 }
 
 function cap(): CapacitorGlobal | undefined {
@@ -27,5 +28,8 @@ export function ehAppNativo(): boolean {
 export function pluginNativo(nome: string): PluginNativo | null {
   if (!ehAppNativo()) return null
   const c = cap()!
+  // Só devolve plugins que existem neste build do app: um proxy de plugin
+  // ausente rejeita toda chamada e quebraria o fallback web.
+  if (c.isPluginAvailable && !c.isPluginAvailable(nome)) return null
   return c.Plugins?.[nome] ?? c.registerPlugin?.(nome) ?? null
 }

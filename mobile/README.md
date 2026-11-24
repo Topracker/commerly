@@ -6,7 +6,7 @@ endereço — e acrescenta recursos nativos:
 
 | Recurso | Como |
 |---|---|
-| GPS do entregador com tela apagada / app em segundo plano | `@capgo/background-geolocation` (serviço em primeiro plano + notificação "Localização da entrega"). Ligado em `app/entregador-delivery/dashboard/page.tsx`. |
+| GPS do entregador em segundo plano | **Desligado na v1** (delivery ainda não está ativo; a Play exige declaração com vídeo). O código em `app/entregador-delivery/dashboard/page.tsx` já usa `@capgo/background-geolocation` se o plugin voltar ao `mobile/package.json`. |
 | Login com Google | O Google bloqueia login dentro de WebView. O botão abre no navegador do sistema (`@capacitor/browser`) e o App Link `https://commerly.com.br/auth/callback` traz de volta ao app (`app/components/NativeBridge.tsx`). |
 | Câmera nos campos de foto | permissão `CAMERA` (os `<input capture>` já existentes funcionam). |
 | Tela sem internet | `www/offline.html`. |
