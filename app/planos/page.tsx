@@ -5,6 +5,7 @@ import { useFlags } from '../lib/useFlags'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../supabase'
 import { CheckCircle, Clock, Zap } from 'lucide-react'
+import { ehAppNativo } from '../lib/nativo'
 
 import {
   MESES_FUNDADOR, PRECO_FUNDADOR, PRECO_NORMAL, brl, emPromoFundador, fimPromoFundador,
@@ -20,6 +21,8 @@ function PlanosConteudo() {
   const [loja, setLoja] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [assinando, setAssinando] = useState(false)
+  const [noApp, setNoApp] = useState(false)
+  useEffect(() => { setNoApp(ehAppNativo()) }, [])
   const [cancelando, setCancelando] = useState(false)
   const [cancelInfo, setCancelInfo] = useState<{ cancelAtPeriodEnd: boolean; validoAte: string | null } | null>(null)
   const [erroCancelamento, setErroCancelamento] = useState<string | null>(null)
@@ -223,7 +226,10 @@ function PlanosConteudo() {
                 )}
               </div>
             ) : (
-              <button
+              noApp ? (
+<p className="text-gray-400 text-xs text-center">A assinatura do plano é gerenciada na conta da sua loja.</p>
+) : (
+<button
                 onClick={() => { setAssinando(true); window.location.href = '/api/stripe/assinar' }}
                 disabled={assinando}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl transition text-sm"
@@ -232,6 +238,7 @@ function PlanosConteudo() {
                   ? 'Redirecionando...'
                   : `Assinar por ${precoAtual}/mês${promoDisponivel ? ` (${MESES_FUNDADOR} primeiros meses)` : ''} via Stripe`}
               </button>
+)
             )
           )}
         </div>
