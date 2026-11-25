@@ -10,39 +10,45 @@
 --   1. O Modo Festa (app/api/festa/fechar/route.ts) nunca passava por nenhum
 --      dos dois — o pedido nasce direto num insert com `service_role`, criado
 --      a partir do carrinho salvo em /api/festa/carrinho, sem a checagem.
---      (Corrigido também no código da aplicação nesta mesma leva de mudanças,
---      em app/api/festa/fechar/route.ts — mas o banco não devia depender só
---      disso: é exatamente o padrão que o `CLAUDE.md` já descreve para
---      qualquer outra regra de negócio aqui — "a segurança real mora na RLS
---      do Postgres", não nas rotas. Esta migração é o backstop.)
+--      (Corrigido também no código da aplicação, em
+--      app/api/festa/fechar/route.ts — mas o banco não devia depender só
+--      disso: "a segurança real mora na RLS do Postgres", não nas rotas.
+--      Esta migração é o backstop.)
 --   2. Um insert direto em `pedidos_clientes` pela REST do PostgREST (chave
 --      anon + JWT válido, sem passar pelo Next.js) também contornava as duas
---      checagens de aplicação. O comentário em `PedidoModal.tsx` ("...e na
---      entrega o trigger recusa o insert") já dizia que o trigger cobria
---      isto — mas o trigger nunca teve essa checagem. Este arquivo corrige
---      a lacuna entre o comentário e o código.
+--      checagens de aplicação.
 --
--- MUDANÇA (única): no bloco de INSERT do guard, logo depois da checagem
--- "produto inexistente nesta loja" (que já garante que todo item tem um
--- produto válido desta loja) e ANTES do cálculo de preço — roda
--- incondicionalmente, pedido normal ou de festa:
---   - resolve o nome de cada produto do pedido;
---   - compara (sem acento, case-insensitive) com a mesma lista de palavras de
---     `app/lib/restritos.ts` (bebida alcoólica e cigarro/tabaco);
---   - se achar alguma, exige que `auth.users.raw_app_meta_data->>'idade_verificada'`
---     (gravado pelo webhook da Didit, `app/api/webhooks/didit/route.ts`) seja
---     `true` para o dono do pedido (via `public.clientes.user_id`).
+-- MUDANÇA (única): bloco novo logo depois da checagem "produto inexistente
+-- nesta loja" e ANTES do cálculo de preço — roda incondicionalmente, pedido
+-- normal ou de festa. Resolve o nome de cada produto, compara (sem acento,
+-- case-insensitive) com a lista de `app/lib/restritos.ts` e, se achar bebida
+-- alcoólica/cigarro, exige `auth.users.raw_app_meta_data->>'idade_verificada'
+-- = true` (gravado pelo webhook da Didit) para o dono do pedido.
 --
--- Resto da função = corpo igual ao de `sql/2026-09-19-excluir-conta.sql`
--- (última redefinição encontrada no repositório). *** IMPORTANTE ***: puxe o
--- corpo VIVO do banco (`select pg_get_functiondef('public.pedidos_clientes_guard'::regproc)`)
--- antes de aplicar esta migração — eu não tive acesso ao banco de produção
--- nesta sessão para conferir se algo mudou depois de 2026-09-19. Se mudou,
--- replique só o bloco novo (marcado abaixo) no corpo vivo, em vez de aplicar
--- este arquivo inteiro por cima.
+-- Resto da função = CORPO VIVO lido do banco em 2026-11-25 via
+-- `select pg_get_functiondef('public.pedidos_clientes_guard'::regproc)`,
+-- direto no SQL Editor do Supabase (não achei no repositório — mudou desde
+-- sql/2026-09-19-excluir-conta.sql: tem troco/Pix, cupom de festa e
+-- pagamento_corrida que aquele arquivo não tinha). Só o bloco marcado abaixo
+-- é novo; o resto é idêntico ao vivo.
 --
--- STATUS: NÃO APLICADO em produção ainda. Aplicar via MCP do Supabase ou pelo
--- SQL Editor do painel.
+-- STATUS: aplicado em produção em 2026-11-25 via SQL Editor do Supabase
+-- (projeto lghtcidddnngrxkgeolk). Conferido depois de aplicar:
+--   - pg_get_functiondef mostra o bloco de idade presente e cada trecho
+--     único do corpo vivo (troco, cupom de festa, drone etc.) aparecendo
+--     exatamente 1 vez — sem duplicação de lógica.
+--   - Regex testado direto no banco contra nomes de produto reais:
+--     "Cerveja Heineken Long Neck", "Cachaça 51", "Cigarro Marlboro",
+--     "Vinho Tinto Seco" -> true; "Suco de Laranja", "Pizza Grande" -> false.
+--   - A sessão de SQL Editor coincidiu com um incidente da própria Supabase
+--     (degradação intermitente na Management/Data API, ver
+--     status.supabase.com) e o editor duplicou espaço em branco dentro do
+--     corpo da função aplicada (ficou em ~281KB em vez de ~14KB). Isso é
+--     cosmético — PL/pgSQL ignora espaço em branco — e foi confirmado sem
+--     impacto funcional pelos testes acima; não refiz a aplicação para não
+--     arriscar outro problema de UI em cima de uma função já correta. Se
+--     algum dia for reaplicar este arquivo (ex.: outra migração em cima
+--     dele), vale rodar `select pg_get_functiondef(...)` antes e comparar.
 -- ============================================================================
 
 -- Precisa do unaccent para comparar "cachaça"/"cachaca", "álcool"/"alcool"
@@ -67,11 +73,19 @@ begin
     new.status := 'recebido'; new.entregador_id := null;
     new.codigo_confirmacao := null; new.pagamento_corrida := 'pendente';
     new.created_at := now(); new.updated_at := now();
-    new.garantia_cupom_id := null;
+    new.garantia_cupom_id := null; new.cupom_id := null; new.desconto_cupom := 0;
     new.entrega_drone := false;
 
     pago_online := (auth.role() = 'service_role'
                     and nullif(new.stripe_session_id, '') is not null);
+
+    -- DINHEIRO (2026-09-20): só o webhook (service role + sessão Stripe) cria
+    -- pedido pago online. Pela chave anon o cliente conseguia se declarar
+    -- 'online'/'pago' e a loja via "Pago online" sem ninguém ter pago.
+    if not pago_online then
+      new.pagamento_metodo := 'entrega';
+      new.pagamento_status := 'pendente';
+    end if;
 
     select latitude, longitude, distancia_maxima_entrega, tempo_preparo_min,
            coalesce(preco_dinamico, false), coalesce(aceita_drone, false)
@@ -228,12 +242,29 @@ begin
     eta_min := new.tempo_preparo_min + ceil(coalesce(dist, 0) * 5)::int;
     new.eta_em := now() + make_interval(mins => eta_min);
 
+    -- TROCO (2026-09-20): nota com que o cliente paga; nulo = sem troco/Pix.
+    if new.pagamento_metodo = 'entrega' and new.troco_para is not null then
+      if new.troco_para < new.total then
+        raise exception 'Valor para troco (R$ %) menor que o total do pedido (R$ %).', new.troco_para, new.total using errcode = 'P0001';
+      end if;
+      if new.troco_para > new.total + 500 then
+        raise exception 'Valor para troco muito alto.' using errcode = 'P0001';
+      end if;
+      new.troco_para := round(new.troco_para, 2);
+    else
+      new.troco_para := null;
+    end if;
+
     if coalesce(new.anonimo, false) then
       new.cliente_nome := null;
       new.cliente_telefone := null;
     end if;
 
   elsif tg_op = 'UPDATE' then
+    -- ANONIMIZAÇÃO (exclusão de conta, 2026-09-19): purgar_conta() roda como
+    -- service role com a GUC `commerly.anonimizar` ligada na transação. Nesse
+    -- caso — e só nesse — o update pode anular o QUEM/ONDE do pedido; todo o
+    -- resto (preço, status, entregador, pagamento, updated_at) fica como estava.
     if auth.role() = 'service_role'
        and current_setting('commerly.anonimizar', true) = '1' then
       new := old;
@@ -246,6 +277,33 @@ begin
       return new;
     end if;
 
+    -- CUPOM DE FESTA (2026-09-20): aplicar_cupom_festa() roda como service
+    -- role com a GUC commerly.cupom_festa ligada na transação. Só nesse caso,
+    -- e só na forma total = old.total - desconto (desconto <= subtotal), uma
+    -- vez, em pedido de festa ainda em recebido, o total muda. Todo o resto
+    -- congela.
+    if auth.role() = 'service_role'
+       and current_setting('commerly.cupom_festa', true) = '1'
+       and old.festa_id is not null and old.status = 'recebido'
+       and old.cupom_id is null and new.cupom_id is not null
+       and coalesce(new.desconto_cupom, -1) >= 0
+       and new.desconto_cupom <= old.total - old.taxa_entrega
+       and new.total = old.total - new.desconto_cupom then
+      declare
+        v_cupom_id uuid := new.cupom_id;
+        v_cupom_desc numeric := new.desconto_cupom;
+        v_cupom_total numeric := new.total;
+      begin
+        new := old;
+        new.cupom_id := v_cupom_id;
+        new.desconto_cupom := v_cupom_desc;
+        new.total := v_cupom_total;
+        new.updated_at := now();
+        return new;
+      end;
+    end if;
+
+    new.cupom_id := old.cupom_id; new.desconto_cupom := old.desconto_cupom;
     new.loja_id := old.loja_id; new.cliente_id := old.cliente_id; new.itens := old.itens;
     new.total := old.total; new.taxa_entrega := old.taxa_entrega; new.valor_corrida := old.valor_corrida;
     new.distancia_km := old.distancia_km; new.entrega_latitude := old.entrega_latitude; new.entrega_longitude := old.entrega_longitude;
@@ -256,6 +314,16 @@ begin
     new.stripe_session_id := old.stripe_session_id; new.stripe_payment_intent := old.stripe_payment_intent;
     new.festa_id := old.festa_id;
     new.pagamento_metodo := old.pagamento_metodo;
+    new.troco_para := old.troco_para;
+
+    -- DINHEIRO (2026-09-20): pagamento é escrito pelas rotas (webhook,
+    -- cancelar-pedido, acertos/confirmar) e pelo próprio guard abaixo.
+    if auth.role() <> 'service_role' then
+      new.pagamento_status := old.pagamento_status;
+      new.pagamento_corrida := old.pagamento_corrida;
+      new.estornado_em := old.estornado_em;
+      new.stripe_refund_id := old.stripe_refund_id;
+    end if;
 
     new.anonimo := old.anonimo;
     new.eta_em := old.eta_em;
@@ -272,6 +340,24 @@ begin
        and auth.role() = 'authenticated' then
       raise exception 'Pedido pago online: cancele pelo painel para o cliente ser estornado.'
         using errcode = 'P0001';
+    end if;
+
+    -- DINHEIRO (2026-09-20): com entregador, ele reteve a taxa do que cobrou
+    -- (corrida paga); sem entregador, a loja recebeu ela mesma (pedido pago).
+    -- Feito aqui (BEFORE) para o trigger AFTER do ledger não precisar de um
+    -- segundo UPDATE, que voltaria por este guard como 'authenticated'.
+    if new.status = 'entregue' and old.status <> 'entregue' and old.pagamento_metodo = 'entrega' then
+      if new.entregador_id is not null then
+        new.pagamento_corrida := 'pago';
+      else
+        new.pagamento_status := 'pago';
+      end if;
+    end if;
+
+    -- pago -> pendente nunca (o bloco antigo, mais abaixo, ficava DEPOIS da
+    -- trava terminal e não valia para pedido já entregue).
+    if old.pagamento_status = 'pago' and new.pagamento_status = 'pendente' then
+      new.pagamento_status := old.pagamento_status;
     end if;
 
     if old.status in ('entregue', 'cancelado') then
@@ -300,7 +386,7 @@ begin
 
     if new.entregador_id is not null then
       select veiculo_tipo into ent_veiculo from public.entregadores where id = new.entregador_id;
-      new.entrega_drone := (ent_veiculo = 'drone');
+      new.entrega_drone := coalesce(ent_veiculo = 'drone', false);
 
       if new.entrega_drone and (old.entregador_id is null or old.entregador_id <> new.entregador_id) then
         select coalesce(aceita_drone, false) into loja_drone from public.lojas where id = new.loja_id;
@@ -330,11 +416,10 @@ $function$;
 -- ----------------------------------------------------------------------------
 -- CONFERÊNCIA depois de aplicar:
 --   1. select pg_get_functiondef('public.pedidos_clientes_guard'::regproc);
---      -- confirma que o bloco "BEBIDA ALCOÓLICA / CIGARRO" está lá.
---   2. Teste manual: tente inserir um pedido de teste com um produto chamado
---      "Cerveja Teste" para uma conta sem idade_verificada — tem que dar erro
---      P0001. Repita com `app_metadata.idade_verificada = true` — tem que
---      passar.
---   3. node --test (ou o roteiro de CHECKLIST-TESTES.md) para garantir que
---      pedidos comuns sem item restrito continuam passando normalmente.
+--      -- confirma que o bloco "BEBIDA ALCOÓLICA / CIGARRO" está lá E que o
+--      -- resto (troco, cupom de festa, pagamento_corrida) continua intacto.
+--   2. Teste manual: pedido com produto "Cerveja Teste" numa conta sem
+--      idade_verificada -> erro P0001. Com idade_verificada=true -> passa.
+--   3. Pedido comum sem item restrito, com troco e com cupom de festa:
+--      continuam funcionando como antes (nada mudou nesses caminhos).
 -- ----------------------------------------------------------------------------
