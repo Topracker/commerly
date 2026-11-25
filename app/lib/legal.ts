@@ -28,6 +28,13 @@ export function cnpjTexto(): string {
   return EMPRESA.cnpj ? `CNPJ ${EMPRESA.cnpj}` : 'CNPJ em processo de regularização'
 }
 
+/**
+ * Direito de arrependimento (CDC, art. 49): compra feita fora do
+ * estabelecimento físico (o pedido pelo app conta como isso) pode ser
+ * desistida em até 7 dias corridos da contratação ou do recebimento.
+ */
+export const LOJA_ARREPENDIMENTO_DIAS = 7
+
 export const PRODUTO = {
   nome: 'Commerly',
   descricao: 'plataforma de gestão de comércio, delivery e pagamentos',
@@ -35,8 +42,17 @@ export const PRODUTO = {
 
 export const CONTATO = {
   email: 'suporte@commerly.com.br',
-  /** Encarregado pelo tratamento de dados (DPO), art. 41 da LGPD. */
+  /** Encarregado pelo tratamento de dados (DPO), art. 41 da LGPD — nome + canal. */
+  encarregadoNome: 'Ediones Cesar dos Santos',
   encarregado: 'suporte@commerly.com.br',
+  /**
+   * Canal de denúncia (ética, abuso, fraude, violação destes Termos por
+   * terceiro). USA A MESMA CAIXA do suporte de propósito: criar
+   * denuncia@commerly.com.br exigiria configurar mais uma caixa/alias de
+   * e-mail (DNS, Resend etc.) que ninguém testou ainda. Se um dia a Commerly
+   * tiver uma caixa própria e monitorada para isso, troque só esta linha.
+   */
+  denuncia: 'suporte@commerly.com.br',
 } as const
 
 /** Data da última revisão dos documentos legais (formato exibido ao usuário). */

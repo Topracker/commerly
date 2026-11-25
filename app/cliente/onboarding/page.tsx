@@ -10,7 +10,7 @@ import {
 import BotaoSair from '../../components/BotaoSair'
 import { outroPapel, msgCadastroOutroPapel } from '../../lib/papeis'
 import CampoNascimentoTermos from '../../components/CampoNascimentoTermos'
-import { erroIdadeTermos, registrarIdadeTermos } from '../../lib/idade'
+import { erroIdadeTermos, idadeDe, IDADE_MAIORIDADE, registrarIdadeTermos } from '../../lib/idade'
 
 export default function ClienteOnboarding() {
   const [nascimento, setNascimento] = useState('')
@@ -72,11 +72,18 @@ export default function ClienteOnboarding() {
     const lim = await checarLimiteCadastroIp('cliente')
     if (!lim.ok) { setErro(lim.erro!); setLoading(false); return }
 
+    // Privacidade máxima por padrão para menor de 18 (perfil público nasce
+    // PRIVADO; o adulto decide depois, em Minha conta, se quer abrir). Conta
+    // adulta continua nascendo pública, como sempre.
+    const idadeCliente = idadeDe(nascimento)
+    const perfilPrivadoInicial = idadeCliente !== null && idadeCliente < IDADE_MAIORIDADE
+
     const { error } = await supabase.from('clientes').insert({
       user_id: user!.id,
       nome: nome.trim(),
       ...(cpfDigits.length === 11 ? { cpf } : {}),
       ...(telefone ? { telefone } : {}),
+      perfil_privado: perfilPrivadoInicial,
     })
     if (error) { setErro('Erro ao salvar. Tente novamente.'); setLoading(false); return }
     await registrarCadastroIp('cliente')

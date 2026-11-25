@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { CONTATO, EMPRESA, LINKS_RODAPE, PRODUTO } from '../lib/legal'
+import { CONTATO, EMPRESA, LINKS_RODAPE, PRODUTO, cnpjTexto } from '../lib/legal'
 
 /**
  * Rodapé global (montado no layout raiz, aparece em todas as páginas).
@@ -17,6 +17,10 @@ export function Footer() {
             <p className="text-gray-300 text-sm font-semibold">{PRODUTO.nome}</p>
             <p className="text-gray-600 text-xs mt-0.5">
               © {ano} {EMPRESA.nome}. Todos os direitos reservados.
+            </p>
+            {/* CNPJ e endereço à vista no site (dado institucional exigido ao consumidor). */}
+            <p className="text-gray-700 text-xs mt-0.5">
+              {EMPRESA.razaoSocial} — {cnpjTexto()} — {EMPRESA.endereco}
             </p>
           </div>
 

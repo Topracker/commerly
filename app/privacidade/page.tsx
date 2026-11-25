@@ -19,7 +19,7 @@ export default function Privacidade() {
           O controlador é {EMPRESA.razaoSocial}, {cnpjTexto()}, com sede em {EMPRESA.endereco}.
         </p>
         <p>
-          Encarregado pelo tratamento de dados pessoais (DPO):{' '}
+          Encarregado pelo tratamento de dados pessoais (DPO): {CONTATO.encarregadoNome}, contato{' '}
           <a href={`mailto:${CONTATO.encarregado}`} className="text-blue-400 hover:text-blue-300 underline">
             {CONTATO.encarregado}
           </a>

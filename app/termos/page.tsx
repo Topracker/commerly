@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { PaginaLegal, Secao, Lista } from '../components/PaginaLegal'
-import { CONTATO, EMPRESA, PRODUTO, cnpjTexto } from '../lib/legal'
+import { CONTATO, EMPRESA, LOJA_ARREPENDIMENTO_DIAS, PRODUTO, cnpjTexto } from '../lib/legal'
 import { COMISSAO_PCT } from '../lib/b2b'
 
 export const metadata: Metadata = {
@@ -33,6 +33,7 @@ export default function Termos() {
           <>O perfil de <strong className="text-gray-300">Cliente</strong> pode ser usado por maiores de 18 anos e, <strong className="text-gray-300">entre 12 e 17 anos, somente com o conhecimento e a autorização do pai, da mãe ou do responsável legal</strong>, que responde pela conta, pelos pedidos e pelos pagamentos feitos por ele.</>,
           <>Menores de 12 anos não podem criar conta.</>,
           <>Menores não podem comprar bebidas alcoólicas, cigarros ou qualquer produto cuja venda a menores seja proibida. A loja deve recusar a venda e o responsável responde por pedidos feitos em desacordo.</>,
+          <>A loja é responsável por ter a licença, o alvará ou a autorização exigidos por lei para vender bebida alcoólica, cigarro ou qualquer produto de venda restrita, e por cumprir as regras de horário e local de venda desses itens no seu município. A {PRODUTO.nome} não concede, verifica nem substitui essa licença.</>,
           <>Podemos suspender ou encerrar contas criadas em desacordo com esta cláusula. O responsável legal pode pedir o acesso, a correção ou a exclusão dos dados do menor pelo e-mail {CONTATO.email}.</>,
         ]} />
         <p>
@@ -91,7 +92,28 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="7. Entregas">
+      <Secao titulo="7. Direito de arrependimento">
+        <p>
+          Nas compras feitas pelo app (fora de um estabelecimento físico), o Código de Defesa do
+          Consumidor (art. 49) garante o direito de desistir em até {LOJA_ARREPENDIMENTO_DIAS} dias
+          corridos, contados da compra ou do recebimento do produto, o que for mais favorável a
+          você.
+        </p>
+        <Lista itens={[
+          <>Em produtos (pedido a uma loja ou a um fornecedor): peça a desistência à própria loja
+            ou ao fornecedor, ou escreva para {CONTATO.email} se não conseguir contato direto.
+            Produtos perecíveis já consumidos ou abertos (comida pronta, por exemplo) podem não
+            admitir devolução física, mas o valor pago é reembolsado.</>,
+          <>Na assinatura do painel do comerciante: se você é um novo assinante e desiste dentro
+            do prazo, devolvemos o valor pago, desde que o Commerly Ads ou outro recurso pago à
+            parte não tenha sido efetivamente usado para gerar resultado (ex.: destaque já
+            exibido).</>,
+          <>Fora desse prazo, aplicam-se as regras de cancelamento normais desta seção e da
+            seção 13 (Encerramento e exclusão da conta).</>,
+        ]} />
+      </Secao>
+
+      <Secao titulo="8. Entregas">
         <p>
           Entregadores atuam de forma autônoma e independente. Não há vínculo empregatício entre
           a {EMPRESA.nome} e os entregadores, nem entre a {EMPRESA.nome} e os comerciantes.
@@ -102,7 +124,7 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="8. Programa de pontos (Clube Commerly)">
+      <Secao titulo="9. Programa de pontos (Clube Commerly)">
         <Lista itens={[
           <>Clientes acumulam 1 ponto por real gasto em produtos. A taxa de entrega não pontua.</>,
           <>Os pontos valem em qualquer loja da plataforma e são resgatados em múltiplos de 100.</>,
@@ -111,7 +133,7 @@ export default function Termos() {
         ]} />
       </Secao>
 
-      <Secao titulo="9. Conduta proibida">
+      <Secao titulo="10. Conduta proibida">
         <p>É vedado usar a plataforma para:</p>
         <Lista itens={[
           'Anunciar produtos ilícitos, falsificados ou cuja venda dependa de licença que você não tenha.',
@@ -125,7 +147,7 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="10. Conteúdo do usuário">
+      <Secao titulo="11. Conteúdo do usuário">
         <p>
           Fotos, descrições, avaliações e demais conteúdos que você publica continuam seus. Você
           nos concede licença não exclusiva e gratuita para exibi-los na plataforma e em materiais
@@ -134,7 +156,7 @@ export default function Termos() {
         <p>Você garante ter os direitos sobre o que publica.</p>
       </Secao>
 
-      <Secao titulo="11. Disponibilidade e limitação de responsabilidade">
+      <Secao titulo="12. Disponibilidade e limitação de responsabilidade">
         <p>
           A plataforma é fornecida &quot;no estado em que se encontra&quot;. Não garantimos
           funcionamento ininterrupto nem ausência de erros, e podemos realizar manutenções.
@@ -146,7 +168,7 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="12. Encerramento e exclusão da conta">
+      <Secao titulo="13. Encerramento e exclusão da conta">
         <p>
           Você pode excluir sua conta a qualquer momento, dentro do app (Configurações → Excluir
           minha conta) ou pela página{' '}
@@ -168,7 +190,7 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="13. Alterações destes Termos">
+      <Secao titulo="14. Alterações destes Termos">
         <p>
           Podemos alterar estes Termos. Mudanças relevantes serão avisadas com 30 dias de
           antecedência. Continuar usando a plataforma após a vigência significa concordar com a
@@ -176,19 +198,27 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="14. Lei aplicável e foro">
+      <Secao titulo="15. Lei aplicável e foro">
         <p>
           Estes Termos são regidos pelas leis brasileiras. Fica eleito o foro do domicílio do
           consumidor para dirimir controvérsias, conforme o Código de Defesa do Consumidor.
         </p>
       </Secao>
 
-      <Secao titulo="15. Contato">
+      <Secao titulo="16. Contato e canal de denúncia">
         <p>
           Dúvidas sobre estes Termos:{' '}
           <a href={`mailto:${CONTATO.email}`} className="text-blue-400 hover:text-blue-300 underline">
             {CONTATO.email}
           </a>
+        </p>
+        <p>
+          Para denunciar uma loja, um comerciante, um entregador, um fornecedor ou qualquer uso da
+          plataforma que viole estes Termos (venda a menor, produto ilícito, fraude, assédio etc.),
+          escreva para{' '}
+          <a href={`mailto:${CONTATO.denuncia}`} className="text-blue-400 hover:text-blue-300 underline">
+            {CONTATO.denuncia}
+          </a>. Analisamos toda denúncia e podemos suspender a conta denunciada enquanto apuramos.
         </p>
       </Secao>
     </PaginaLegal>

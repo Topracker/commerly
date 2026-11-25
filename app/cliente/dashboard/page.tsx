@@ -8,6 +8,7 @@ import { CardIndicacao } from '../../components/CardIndicacao'
 import { PainelGamificacao } from '../../components/PainelGamificacao'
 import { SoComModulo } from '../../components/SoComModulo'
 import { PerfilPrivacidadeCard } from '../../components/PerfilPrivacidadeCard'
+import { VerificarIdadeCard } from '../../components/VerificarIdadeCard'
 import { ExcluirContaCard } from '../../components/ExcluirContaCard'
 import BloqueadosCard from '../../components/BloqueadosCard'
 import { nivelDoCliente } from '../../lib/fidelidade'
@@ -88,6 +89,9 @@ export default function ClienteDashboard() {
 
         {/* Privacidade do perfil público */}
         <PerfilPrivacidadeCard />
+
+        {/* Verificação de idade (bebida alcoólica e cigarro) */}
+        <VerificarIdadeCard />
 
         {/* Indique e ganhe (código de indicação + link de convite) */}
         <CardIndicacao />

@@ -5,6 +5,7 @@ import { distanciaKm, taxaEntregaPorDistancia } from '../../../lib/geo'
 import { taxaPorPessoa, valorCorridaFesta, lojaForaDoRaio, FESTA_BONUS_PCT } from '../../../lib/festas'
 import { ofertarFesta } from '../../../lib/festaDispatch'
 import type { CupomAplicado, CupomPrevia } from '../../../lib/cupons'
+import { itensRestritos } from '../../../lib/restritos'
 
 // Fecha a festa (só o criador). Aqui mora a matemática do dinheiro:
 //
@@ -99,8 +100,30 @@ export async function POST(request: NextRequest) {
   // Dados do cliente de cada participante (nome/telefone no pedido).
   const clienteIds = comItens.map((p: any) => p.cliente_id)
   const { data: clientesRows } = await admin
-    .from('clientes').select('id, nome, telefone').in('id', clienteIds)
+    .from('clientes').select('id, nome, telefone, user_id').in('id', clienteIds)
   const clientesMap = new Map((clientesRows || []).map((c: any) => [c.id, c]))
+
+  // Bebida alcoólica / cigarro: só para participante com idade verificada.
+  // O Modo Festa não passava pelo checkout nem pelo PedidoModal (onde esta
+  // checagem já existia) — cada participante monta o carrinho em /carrinho e
+  // o pedido nasce direto aqui, então a trava tinha que ser repetida neste
+  // ponto também, senão bastava fechar a festa para contornar a verificação.
+  for (const p of comItens) {
+    const itens = p.itens as any[]
+    const restritos = itensRestritos(itens.map(i => i.nome))
+    if (restritos.length === 0) continue
+    const c: any = clientesMap.get(p.cliente_id)
+    const { data: userRow } = c?.user_id
+      ? await admin.auth.admin.getUserById(c.user_id)
+      : { data: null as any }
+    const verificado = userRow?.user?.app_metadata?.idade_verificada === true
+    if (!verificado) {
+      const nomeParticipante = c?.nome || 'Um participante'
+      return NextResponse.json({
+        error: `${nomeParticipante} tem produto de venda proibida para menores no carrinho (${restritos.slice(0, 3).join(', ')}) e ainda não verificou a idade. Peça para fazer a verificação em commerly.com.br/cliente/verificar-idade ou tirar o item antes de fechar a festa.`,
+      }, { status: 403 })
+    }
+  }
 
   // Cria um pedido por participante. Cada carrinho já é de uma loja só (o guard
   // de /carrinho garante isso), então loja_id é a loja dos itens.
