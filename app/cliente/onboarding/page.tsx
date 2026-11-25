@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react'
 import { createClient } from '../../supabase'
 import { useRouter } from 'next/navigation'
 import {
-  soDigitos, validarCPF, formatarCPF, formatarTelefone,
+  validarCPF, formatarCPF, formatarTelefone,
   erroTelefone, checarDuplicidade, MSG_DUPLICADO,
   checarLimiteCadastroIp, registrarCadastroIp, AVISO_VERIFICACAO,
+  erroCpfClienteDuplicado, MSG_CPF_EM_OUTRA_CONTA,
 } from '../../lib/validacoes'
 import BotaoSair from '../../components/BotaoSair'
 import { outroPapel, msgCadastroOutroPapel } from '../../lib/papeis'
@@ -45,8 +46,10 @@ export default function ClienteOnboarding() {
     if (!nome.trim()) { setErro('Informe seu nome!'); return }
     const erroIdade = erroIdadeTermos('cliente', { nascimento, aceitouTermos, responsavelAutorizou: responsavelOk })
     if (erroIdade) { setErro(erroIdade); return }
-    const cpfDigits = soDigitos(cpf)
-    if (cpfDigits.length > 0 && !validarCPF(cpf)) { setErro('CPF inválido. Verifique o número digitado.'); return }
+    // CPF obrigatório (sql/2026-11-25-cpf-cliente-obrigatorio.sql): sem isso,
+    // nada amarra "1 pessoa = 1 conta" — inclusive menor de idade, cuja
+    // autorização do responsável é só uma checkbox autodeclarada.
+    if (!validarCPF(cpf)) { setErro('Informe um CPF válido.'); return }
     if (telefone && erroTelefone(telefone)) { setErro('Telefone inválido. Use um número válido com DDD.'); return }
     setLoading(true)
     setErro('')
@@ -62,7 +65,7 @@ export default function ClienteOnboarding() {
 
     // CPF e telefone não podem se repetir em outra conta do Commerly.
     const dup = await checarDuplicidade({
-      ...(cpfDigits.length === 11 ? { cpf } : {}),
+      cpf,
       ...(telefone ? { telefone } : {}),
     })
     if (dup.erro) { setErro(dup.erro); setLoading(false); return }
@@ -81,11 +84,16 @@ export default function ClienteOnboarding() {
     const { error } = await supabase.from('clientes').insert({
       user_id: user!.id,
       nome: nome.trim(),
-      ...(cpfDigits.length === 11 ? { cpf } : {}),
+      cpf,
       ...(telefone ? { telefone } : {}),
       perfil_privado: perfilPrivadoInicial,
     })
-    if (error) { setErro('Erro ao salvar. Tente novamente.'); setLoading(false); return }
+    if (error) {
+      // Barreira real contra o TOCTOU do checarDuplicidade acima: índice
+      // único clientes_cpf_uidx.
+      setErro(erroCpfClienteDuplicado(error) ? MSG_CPF_EM_OUTRA_CONTA : 'Erro ao salvar. Tente novamente.')
+      setLoading(false); return
+    }
     await registrarCadastroIp('cliente')
     router.push('/cliente/buscar')
   }
@@ -121,7 +129,7 @@ export default function ClienteOnboarding() {
             type="text"
             autoComplete="off"
             inputMode="numeric"
-            placeholder="CPF (opcional)"
+            placeholder="CPF *"
             value={cpf}
             onChange={e => setCpf(formatarCPF(e.target.value))}
             onKeyDown={e => e.key === 'Enter' && salvar()}

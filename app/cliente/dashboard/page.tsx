@@ -12,6 +12,7 @@ import { VerificarIdadeCard } from '../../components/VerificarIdadeCard'
 import { ExcluirContaCard } from '../../components/ExcluirContaCard'
 import BloqueadosCard from '../../components/BloqueadosCard'
 import { nivelDoCliente } from '../../lib/fidelidade'
+import { validarCPF, formatarCPF, erroCpfClienteDuplicado, MSG_CPF_EM_OUTRA_CONTA } from '../../lib/validacoes'
 import { Sparkles } from 'lucide-react'
 
 type PontoLoja = { loja_id: string; pontos: number; nome: string }
@@ -61,12 +62,15 @@ export default function ClienteDashboard() {
 
   async function salvarPerfil() {
     if (!nome.trim()) { mostrarToast('Nome é obrigatório', 'erro'); return }
+    // CPF obrigatório (sql/2026-11-25-cpf-cliente-obrigatorio.sql): não dá
+    // pra salvar o perfil sem CPF nem apagar um já cadastrado por aqui.
+    if (!validarCPF(cpf)) { mostrarToast('Informe um CPF válido', 'erro'); return }
     setSalvandoPerfil(true)
     const { error } = await supabase
       .from('clientes')
-      .update({ nome: nome.trim(), cpf: cpf.trim() || null })
+      .update({ nome: nome.trim(), cpf })
       .eq('id', cliente.id)
-    if (error) mostrarToast('Erro ao salvar perfil', 'erro')
+    if (error) mostrarToast(erroCpfClienteDuplicado(error) ? MSG_CPF_EM_OUTRA_CONTA : 'Erro ao salvar perfil', 'erro')
     else mostrarToast('Perfil atualizado!', 'sucesso')
     setSalvandoPerfil(false)
   }
@@ -163,10 +167,11 @@ export default function ClienteDashboard() {
             />
           </div>
           <div>
-            <label className="text-gray-400 text-sm block mb-1">CPF</label>
+            <label className="text-gray-400 text-sm block mb-1">CPF *</label>
             <input
               value={cpf}
-              onChange={e => setCpf(e.target.value)}
+              onChange={e => setCpf(formatarCPF(e.target.value))}
+              inputMode="numeric"
               placeholder="000.000.000-00"
               className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
             />

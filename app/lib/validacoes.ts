@@ -228,6 +228,18 @@ export function erroDocumentoDuplicado(error: { code?: string; message?: string;
   return `${error.message ?? ''} ${error.details ?? ''}`.includes('lojas_documento_uidx')
 }
 
+// Mesma barreira, mas pro CPF do cliente: índice único `clientes_cpf_uidx`
+// (sql/2026-11-25-cpf-cliente-obrigatorio.sql). Sem isso, CPF sendo opcional
+// deixava qualquer pessoa — inclusive menor com autorização do responsável,
+// que é só uma checkbox autodeclarada — criar quantas contas quisesse com
+// e-mails diferentes, já que nada amarrava "1 pessoa = 1 conta".
+export const MSG_CPF_EM_OUTRA_CONTA = 'Este CPF já está cadastrado em outra conta do Commerly.'
+
+export function erroCpfClienteDuplicado(error: { code?: string; message?: string; details?: string } | null | undefined): boolean {
+  if (!error || error.code !== '23505') return false
+  return `${error.message ?? ''} ${error.details ?? ''}`.includes('clientes_cpf_uidx')
+}
+
 // Consulta a rota server-side (que usa service role pra contornar a RLS) e
 // devolve qual campo está duplicado, se houver. Em caso de erro de rede
 // retorna { erro } — o chamador decide se bloqueia ou segue.
