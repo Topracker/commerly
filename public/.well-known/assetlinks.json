@@ -5,7 +5,8 @@
       "namespace": "android_app",
       "package_name": "br.com.commerly.app",
       "sha256_cert_fingerprints": [
-        "30:0D:99:3F:98:99:D3:19:D3:95:5B:4D:4A:80:8F:14:10:E6:18:53:B2:A6:3B:11:46:1E:B5:E1:DA:CA:33:26"
+        "30:0D:99:3F:98:99:D3:19:D3:95:5B:4D:4A:80:8F:14:10:E6:18:53:B2:A6:3B:11:46:1E:B5:E1:DA:CA:33:26",
+        "C0:62:39:C8:95:A9:9A:75:39:74:8A:6C:4A:9D:73:30:D9:92:AD:27:BE:F5:9C:A5:57:F8:C5:17:F2:24:EF:84"
       ]
     }
   }
