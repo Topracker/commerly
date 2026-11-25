@@ -159,6 +159,7 @@ const PAGINAS_CLIENTE = [
   '/cliente/buscar', '/cliente/clube', '/cliente/dashboard', '/cliente/favoritas',
   '/cliente/feed', '/cliente/festa', '/cliente/loja', '/cliente/mensagens',
   '/cliente/notificacoes', '/cliente/pedidos', '/cliente/ranking', '/cliente/onboarding',
+  '/cliente/verificar-idade',
 ]
 const PAGINAS_ENTREGADOR = [
   '/entregador-delivery/dashboard', '/entregador-delivery/notificacoes',

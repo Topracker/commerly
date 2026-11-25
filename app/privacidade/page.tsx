@@ -158,6 +158,12 @@ export default function Privacidade() {
           direcionada.
         </p>
         <p>
+          Para vender bebida alcoólica e cigarro, confirmamos a maioridade por documento oficial e selfie, feita
+          pela empresa Didit, que atua como operadora dos dados em nosso nome. A foto do documento e a selfie são
+          dados biométricos, tratados só com o seu consentimento, apenas para essa conferência. Guardamos na sua
+          conta apenas o resultado (maior de 18 anos: sim ou não) e a data da verificação.
+        </p>
+        <p>
           O responsável legal pode pedir acesso, correção ou exclusão dos dados do menor a
           qualquer momento em{' '}
           <a href={`mailto:${CONTATO.encarregado}`} className="text-blue-400 hover:text-blue-300 underline">

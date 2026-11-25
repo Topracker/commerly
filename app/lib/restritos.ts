@@ -34,5 +34,5 @@ export function idadeVerificada(user: { app_metadata?: Record<string, unknown> }
 
 export function msgItemRestrito(itens: string[]): string {
   const lista = itens.slice(0, 3).join(', ')
-  return `Este pedido tem produto de venda proibida para menores (${lista}). Por lei, só vendemos a quem teve a idade verificada, e essa verificação ainda não está disponível. Tire o item do pedido para continuar.`
+  return `Este pedido tem produto de venda proibida para menores (${lista}). Por lei, só vendemos a quem teve a idade verificada. Faça a verificação em commerly.com.br/cliente/verificar-idade ou tire o item do pedido.`
 }
