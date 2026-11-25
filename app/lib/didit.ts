@@ -65,7 +65,10 @@ function iguais(a: string, b: string): boolean {
 
 /** Confere frescor (5 min) e assinatura (V2 ou bruta). */
 export function webhookValido(corpoBruto: string, h: Headers, segredo: string): boolean {
-  const ts = Number.parseInt(h.get('x-timestamp') || '', 10)
+  let ts = Number.parseInt(h.get('x-timestamp') || '', 10)
+  if (!Number.isFinite(ts)) {
+    try { ts = Number(JSON.parse(corpoBruto).timestamp) } catch { ts = NaN }
+  }
   if (!Number.isFinite(ts) || Math.abs(Math.floor(Date.now() / 1000) - ts) > 300) return false
   const v2 = h.get('x-signature-v2')
   const bruta = h.get('x-signature')
