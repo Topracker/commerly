@@ -40,7 +40,7 @@ export const CONTATO = {
 } as const
 
 /** Data da última revisão dos documentos legais (formato exibido ao usuário). */
-export const ATUALIZADO_EM = '19 de setembro de 2026'
+export const ATUALIZADO_EM = '25 de novembro de 2026'
 
 /** Links do rodapé, em ordem de exibição. */
 export const LINKS_RODAPE = [

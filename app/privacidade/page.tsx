@@ -148,8 +148,22 @@ export default function Privacidade() {
 
       <Secao titulo="10. Crianças e adolescentes">
         <p>
-          A plataforma não se destina a menores de 18 anos. Não coletamos intencionalmente dados
-          de crianças e adolescentes. Se identificarmos um cadastro assim, ele será removido.
+          Comerciantes, fornecedores e entregadores precisam ter 18 anos ou mais. Clientes de 12
+          a 17 anos só podem usar a plataforma com o conhecimento e a autorização do pai, da mãe
+          ou do responsável legal. Menores de 12 anos não podem criar conta.
+        </p>
+        <p>
+          Os dados de adolescentes são tratados no seu melhor interesse (LGPD, art. 14), apenas
+          no necessário para o uso da conta e dos pedidos. Não usamos esses dados para publicidade
+          direcionada.
+        </p>
+        <p>
+          O responsável legal pode pedir acesso, correção ou exclusão dos dados do menor a
+          qualquer momento em{' '}
+          <a href={`mailto:${CONTATO.encarregado}`} className="text-blue-400 hover:text-blue-300 underline">
+            {CONTATO.encarregado}
+          </a>. Se identificarmos uma conta de menor de 12 anos ou sem autorização, ela será
+          removida.
         </p>
       </Secao>
 

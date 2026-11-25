@@ -27,7 +27,21 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="2. Perfis de usuário">
+      <Secao titulo="2. Idade mínima e menores de idade">
+        <Lista itens={[
+          <>Os perfis de <strong className="text-gray-300">Comerciante, Fornecedor e Entregador</strong> são só para maiores de 18 anos (ou emancipados) com capacidade legal para contratar.</>,
+          <>O perfil de <strong className="text-gray-300">Cliente</strong> pode ser usado por maiores de 18 anos e, <strong className="text-gray-300">entre 12 e 17 anos, somente com o conhecimento e a autorização do pai, da mãe ou do responsável legal</strong>, que responde pela conta, pelos pedidos e pelos pagamentos feitos por ele.</>,
+          <>Menores de 12 anos não podem criar conta.</>,
+          <>Menores não podem comprar bebidas alcoólicas, cigarros ou qualquer produto cuja venda a menores seja proibida. A loja deve recusar a venda e o responsável responde por pedidos feitos em desacordo.</>,
+          <>Podemos suspender ou encerrar contas criadas em desacordo com esta cláusula. O responsável legal pode pedir o acesso, a correção ou a exclusão dos dados do menor pelo e-mail {CONTATO.email}.</>,
+        ]} />
+        <p>
+          Ao criar uma conta, você declara que as informações de idade e de autorização do
+          responsável são verdadeiras.
+        </p>
+      </Secao>
+
+      <Secao titulo="3. Perfis de usuário">
         <p>A plataforma atende quatro perfis, com direitos e deveres distintos:</p>
         <Lista itens={[
           <><strong className="text-gray-300">Comerciante</strong>: cadastra a loja, vende, gerencia estoque, pedidos e clientes.</>,
@@ -41,7 +55,7 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="3. A Commerly não é parte das transações">
+      <Secao titulo="4. A Commerly não é parte das transações">
         <p>
           A {PRODUTO.nome} é uma <strong className="text-gray-300">plataforma de intermediação
           tecnológica</strong>. Quando um cliente compra de uma loja, o contrato de compra e venda
@@ -55,7 +69,7 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="4. Assinatura e cobranças">
+      <Secao titulo="5. Assinatura e cobranças">
         <Lista itens={[
           <>O acesso ao painel do comerciante depende de assinatura mensal, cobrada por meio do processador de pagamentos, com renovação automática.</>,
           <>O <strong className="text-gray-300">Commerly Ads</strong> é uma assinatura opcional que destaca a loja na busca. Ao cancelar, o destaque vale até o fim do período já pago.</>,
@@ -65,7 +79,7 @@ export default function Termos() {
         ]} />
       </Secao>
 
-      <Secao titulo="5. Pagamentos">
+      <Secao titulo="6. Pagamentos">
         <p>
           Os pagamentos são processados por terceiros (como Stripe, Mercado Pago e PagBank).
           Não armazenamos dados completos de cartão. O uso desses serviços também se submete
@@ -77,7 +91,7 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="6. Entregas">
+      <Secao titulo="7. Entregas">
         <p>
           Entregadores atuam de forma autônoma e independente. Não há vínculo empregatício entre
           a {EMPRESA.nome} e os entregadores, nem entre a {EMPRESA.nome} e os comerciantes.
@@ -88,7 +102,7 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="7. Programa de pontos (Clube Commerly)">
+      <Secao titulo="8. Programa de pontos (Clube Commerly)">
         <Lista itens={[
           <>Clientes acumulam 1 ponto por real gasto em produtos. A taxa de entrega não pontua.</>,
           <>Os pontos valem em qualquer loja da plataforma e são resgatados em múltiplos de 100.</>,
@@ -97,7 +111,7 @@ export default function Termos() {
         ]} />
       </Secao>
 
-      <Secao titulo="8. Conduta proibida">
+      <Secao titulo="9. Conduta proibida">
         <p>É vedado usar a plataforma para:</p>
         <Lista itens={[
           'Anunciar produtos ilícitos, falsificados ou cuja venda dependa de licença que você não tenha.',
@@ -111,7 +125,7 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="9. Conteúdo do usuário">
+      <Secao titulo="10. Conteúdo do usuário">
         <p>
           Fotos, descrições, avaliações e demais conteúdos que você publica continuam seus. Você
           nos concede licença não exclusiva e gratuita para exibi-los na plataforma e em materiais
@@ -120,7 +134,7 @@ export default function Termos() {
         <p>Você garante ter os direitos sobre o que publica.</p>
       </Secao>
 
-      <Secao titulo="10. Disponibilidade e limitação de responsabilidade">
+      <Secao titulo="11. Disponibilidade e limitação de responsabilidade">
         <p>
           A plataforma é fornecida &quot;no estado em que se encontra&quot;. Não garantimos
           funcionamento ininterrupto nem ausência de erros, e podemos realizar manutenções.
@@ -132,7 +146,7 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="11. Encerramento e exclusão da conta">
+      <Secao titulo="12. Encerramento e exclusão da conta">
         <p>
           Você pode excluir sua conta a qualquer momento, dentro do app (Configurações → Excluir
           minha conta) ou pela página{' '}
@@ -154,7 +168,7 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="12. Alterações destes Termos">
+      <Secao titulo="13. Alterações destes Termos">
         <p>
           Podemos alterar estes Termos. Mudanças relevantes serão avisadas com 30 dias de
           antecedência. Continuar usando a plataforma após a vigência significa concordar com a
@@ -162,14 +176,14 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao titulo="13. Lei aplicável e foro">
+      <Secao titulo="14. Lei aplicável e foro">
         <p>
           Estes Termos são regidos pelas leis brasileiras. Fica eleito o foro do domicílio do
           consumidor para dirimir controvérsias, conforme o Código de Defesa do Consumidor.
         </p>
       </Secao>
 
-      <Secao titulo="14. Contato">
+      <Secao titulo="15. Contato">
         <p>
           Dúvidas sobre estes Termos:{' '}
           <a href={`mailto:${CONTATO.email}`} className="text-blue-400 hover:text-blue-300 underline">
