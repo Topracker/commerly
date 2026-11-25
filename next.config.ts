@@ -76,6 +76,11 @@ const nextConfig: NextConfig = {
       }] : []),
     ];
   },
+  experimental: {
+    // Mantém a app recebendo só patches de segurança automaticamente
+    // (next upgrade --agent=security), nunca upgrades de minor/major.
+    agentUpgrade: "security",
+  },
 };
 
 export default nextConfig;
