@@ -103,7 +103,9 @@ Senhas das contas de teste diferem por conta — estão na memória do projeto, 
 
 **Transversal:** notificações Realtime (tabela `notificacoes` + triggers) com badge/som/toast, Web Push nativo (`push_subscriptions`, VAPID), e-mail transacional Resend, admin master, feature flags, rate limit (`rate-limit.ts`), tema claro, menu em seções por nicho.
 
-**Pendências conhecidas (não são bugs de código):** SMTP do Supabase (Gmail) não envia OTP — cadastro/login por e-mail quebrado; provider Google não habilitado; `AVALIACOES_HMAC_SECRET` e mais 3 env vars faltam na Vercel; bucket `produtos` sem policy de storage; carência do paywall venceu em 28/07/2026; dados legais da empresa são placeholder; Stripe Connect (split do pedido) não testado em produção.
+**Pendências conhecidas (não são bugs de código):** dados legais da empresa são placeholder; Stripe Connect (split do pedido) não testado em produção; carência do paywall de lojas de teste antigas venceu em 28/07/2026 (não afeta loja nova — `trial_expira_em` é por loja).
+
+> Verificado em produção em 25/11/2026 que os itens abaixo, antes listados aqui, **já estão resolvidos** — não trate como pendência sem checar de novo: cadastro/login por e-mail (rota `/api/auth/enviar-codigo` manda o código pelo Resend, não depende mais do SMTP do Supabase — ver `app/lib/codigoEmail.ts`), provider Google no Supabase Auth (ENABLED, login testado ponta a ponta), `AVALIACOES_HMAC_SECRET` (presente na Vercel) e as policies do bucket `produtos` (insert/update/delete para `authenticated` já existem).
 
 ## Regras para futuras alterações
 
