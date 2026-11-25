@@ -9,8 +9,13 @@ import {
 } from '../../lib/validacoes'
 import BotaoSair from '../../components/BotaoSair'
 import { outroPapel, msgCadastroOutroPapel } from '../../lib/papeis'
+import CampoNascimentoTermos from '../../components/CampoNascimentoTermos'
+import { erroIdadeTermos, registrarIdadeTermos } from '../../lib/idade'
 
 export default function ClienteOnboarding() {
+  const [nascimento, setNascimento] = useState('')
+  const [aceitouTermos, setAceitouTermos] = useState(false)
+  const [responsavelOk, setResponsavelOk] = useState(false)
   const [nome, setNome] = useState('')
   const [cpf, setCpf] = useState('')
   const [telefone, setTelefone] = useState('')
@@ -38,12 +43,18 @@ export default function ClienteOnboarding() {
 
   async function salvar() {
     if (!nome.trim()) { setErro('Informe seu nome!'); return }
+    const erroIdade = erroIdadeTermos('cliente', { nascimento, aceitouTermos, responsavelAutorizou: responsavelOk })
+    if (erroIdade) { setErro(erroIdade); return }
     const cpfDigits = soDigitos(cpf)
     if (cpfDigits.length > 0 && !validarCPF(cpf)) { setErro('CPF inválido. Verifique o número digitado.'); return }
     if (telefone && erroTelefone(telefone)) { setErro('Telefone inválido. Use um número válido com DDD.'); return }
     setLoading(true)
     setErro('')
     const { data: { user } } = await supabase.auth.getUser()
+
+    if (!(await registrarIdadeTermos(supabase, { nascimento, aceitouTermos, responsavelAutorizou: responsavelOk }))) {
+      setErro('Erro ao salvar. Tente novamente.'); setLoading(false); return
+    }
 
     // Conta exclusiva: comerciante/fornecedor/entregador não viram cliente.
     const outro = await outroPapel(supabase, user!.id, 'cliente')
@@ -119,6 +130,8 @@ export default function ClienteOnboarding() {
             onKeyDown={e => e.key === 'Enter' && salvar()}
             className={inp}
           />
+          <CampoNascimentoTermos papel="cliente" nascimento={nascimento} setNascimento={setNascimento}
+            aceitou={aceitouTermos} setAceitou={setAceitouTermos} responsavel={responsavelOk} setResponsavel={setResponsavelOk} className={inp} />
           <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
           <button onClick={salvar} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50">
             {loading ? 'Salvando...' : 'Começar a explorar'}

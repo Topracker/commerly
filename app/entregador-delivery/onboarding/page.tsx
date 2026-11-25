@@ -11,6 +11,8 @@ import {
 } from '../../lib/validacoes'
 import BotaoSair from '../../components/BotaoSair'
 import { outroPapel, msgCadastroOutroPapel } from '../../lib/papeis'
+import CampoNascimentoTermos from '../../components/CampoNascimentoTermos'
+import { erroIdadeTermos, registrarIdadeTermos } from '../../lib/idade'
 import {
   uploadFotoEntregador, VEICULOS, CATEGORIAS_CNH, exigeCNH, exigeDocsDrone, idadeEmAnos,
   LINK_BOLSA, COMPROMISSO_BOLSA, type TipoVeiculo,
@@ -71,6 +73,8 @@ export default function EntregadorOnboarding() {
   const [bolsaFoto, setBolsaFoto] = useState<File | null>(null)
   const [bolsaPreview, setBolsaPreview] = useState('')
   const [bolsaCompromisso, setBolsaCompromisso] = useState(false)
+  const [aceitouTermos, setAceitouTermos] = useState(false)
+  const [responsavelOk, setResponsavelOk] = useState(false)
 
   const [erroCpfMsg, setErroCpfMsg] = useState('')
   const [erroTelMsg, setErroTelMsg] = useState('')
@@ -117,6 +121,7 @@ export default function EntregadorOnboarding() {
     if (!dataNascimento) { setErro('Informe sua data de nascimento.'); return }
     const idade = idadeEmAnos(dataNascimento)
     if (isNaN(idade) || idade < 18) { setErro('Você precisa ter 18 anos ou mais para ser entregador.'); return }
+    if (!aceitouTermos) { setErro('Aceite os Termos de Uso e a Política de Privacidade para continuar.'); return }
     if (idade > 100) { setErro('Data de nascimento inválida.'); return }
     if (!telefone || erroTelefone(telefone)) { setErro('Informe um telefone válido com DDD.'); return }
     if (!documentoTipo) { setErro('Escolha o tipo de documento de identidade (RG ou CNH).'); return }
@@ -146,6 +151,10 @@ export default function EntregadorOnboarding() {
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/entregador-delivery/login'); return }
+
+    if (!(await registrarIdadeTermos(supabase, { nascimento: dataNascimento, aceitouTermos, responsavelAutorizou: false }))) {
+      setErro('Erro ao salvar. Tente novamente.'); setLoading(false); return
+    }
 
     // Conta exclusiva: não pode já ser loja/cliente/fornecedor.
     const outro = await outroPapel(supabase, user.id, 'entregador')
@@ -427,6 +436,8 @@ export default function EntregadorOnboarding() {
             </div>
           )}
 
+          <CampoNascimentoTermos papel="entregador" semNascimento nascimento={dataNascimento} setNascimento={setDataNascimento}
+            aceitou={aceitouTermos} setAceitou={setAceitouTermos} responsavel={false} setResponsavel={() => {}} />
           <p className="text-gray-500 text-xs text-center mt-1">🔒 {AVISO_VERIFICACAO}</p>
           <button onClick={salvar} disabled={loading || !!erroCpfMsg || !!erroTelMsg}
             className="bg-azul hover:brightness-110 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50">

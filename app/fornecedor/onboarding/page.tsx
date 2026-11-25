@@ -8,6 +8,8 @@ import {
 } from '../../lib/validacoes'
 import BotaoSair from '../../components/BotaoSair'
 import { outroPapel, msgCadastroOutroPapel } from '../../lib/papeis'
+import CampoNascimentoTermos from '../../components/CampoNascimentoTermos'
+import { erroIdadeTermos, registrarIdadeTermos } from '../../lib/idade'
 import FornecedorIaOutro from '../../components/FornecedorIaOutro'
 import { useFlags } from '../../lib/useFlags'
 import { EnderecoAutocomplete } from '../../components/EnderecoAutocomplete'
@@ -16,6 +18,9 @@ const CATEGORIAS = ['Alimentos e bebidas', 'Limpeza e higiene', 'Eletrônicos', 
 
 export default function FornecedorOnboarding() {
   const { ativa } = useFlags()
+  const [nascimento, setNascimento] = useState('')
+  const [aceitouTermos, setAceitouTermos] = useState(false)
+  const [responsavelOk, setResponsavelOk] = useState(false)
   const [nome, setNome] = useState('')
   const [categoria, setCategoria] = useState('')
   const [cnpj, setCnpj] = useState('')
@@ -65,11 +70,17 @@ export default function FornecedorOnboarding() {
   async function salvar() {
     if (!nome.trim() || !categoria) { setErro('Nome e categoria são obrigatórios!'); return }
     if (!validarCNPJ(cnpj)) { setErro('Informe um CNPJ válido. O fornecedor é uma empresa.'); return }
+    const erroIdade = erroIdadeTermos('fornecedor', { nascimento, aceitouTermos, responsavelAutorizou: responsavelOk })
+    if (erroIdade) { setErro(erroIdade); return }
     if (telefone && erroTelefone(telefone)) { setErro('Telefone inválido. Use um número válido com DDD.'); return }
 
     setLoading(true)
     setErro('')
     const { data: { user } } = await supabase.auth.getUser()
+
+    if (!(await registrarIdadeTermos(supabase, { nascimento, aceitouTermos, responsavelAutorizou: responsavelOk }))) {
+      setErro('Erro ao salvar. Tente novamente.'); setLoading(false); return
+    }
 
     // Conta exclusiva: comerciante/cliente/entregador não viram fornecedor.
     const outro = await outroPapel(supabase, user!.id, 'fornecedor')
@@ -201,6 +212,8 @@ export default function FornecedorOnboarding() {
             onChange={e => setInstagram(e.target.value)}
             className={inp}
           />
+          <CampoNascimentoTermos papel="fornecedor" nascimento={nascimento} setNascimento={setNascimento}
+            aceitou={aceitouTermos} setAceitou={setAceitouTermos} responsavel={responsavelOk} setResponsavel={setResponsavelOk} className={inp} />
           <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
           <button
             onClick={salvar}

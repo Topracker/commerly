@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../supabase'
 import { useRouter } from 'next/navigation'
 import { salvarNichoCustom } from '../lib/nicheStore'
+import CampoNascimentoTermos from '../components/CampoNascimentoTermos'
+import { erroIdadeTermos, registrarIdadeTermos } from '../lib/idade'
 import { MODULOS, type ModuloKey } from '../lib/nichos'
 import { useFlags } from '../lib/useFlags'
 import { EnderecoAutocomplete } from '../components/EnderecoAutocomplete'
@@ -44,6 +46,9 @@ function erroInstagram(valor: string): string {
 
 export default function Onboarding() {
   const { ativa } = useFlags()
+  const [nascimento, setNascimento] = useState('')
+  const [aceitouTermos, setAceitouTermos] = useState(false)
+  const [responsavelOk, setResponsavelOk] = useState(false)
   const [nome, setNome] = useState('')
   const [tipo, setTipo] = useState('')
   const [documento, setDocumento] = useState('')
@@ -154,6 +159,8 @@ export default function Onboarding() {
 
   async function salvar() {
     if (!nome || !tipo) return mostrarToast('Preencha o nome e tipo da loja!', 'erro')
+    const erroIdade = erroIdadeTermos('comerciante', { nascimento, aceitouTermos, responsavelAutorizou: responsavelOk })
+    if (erroIdade) return mostrarToast(erroIdade, 'erro')
     const nums = documento.replace(/\D/g, '')
     if (!nums) return mostrarToast('Informe seu CPF ou CNPJ!', 'erro')
     if (nums.length === 11 && !validarCPF(nums)) return mostrarToast('CPF inválido!', 'erro')
@@ -181,6 +188,10 @@ export default function Onboarding() {
     // Conta exclusiva: cliente/fornecedor/entregador não viram comerciante.
     const outro = await outroPapel(supabase, user!.id, 'comerciante')
     if (outro) { mostrarToast(msgCadastroOutroPapel(outro), 'erro'); setLoading(false); return }
+
+    if (!(await registrarIdadeTermos(supabase, { nascimento, aceitouTermos, responsavelAutorizou: responsavelOk }))) {
+      mostrarToast('Não foi possível salvar seu cadastro. Tente novamente.', 'erro'); setLoading(false); return
+    }
 
     // CPF/CNPJ e telefone não podem se repetir em outra conta do Commerly.
     const dup = await checarDuplicidade({
@@ -467,6 +478,9 @@ export default function Onboarding() {
             </p>
           </div>
 
+          <CampoNascimentoTermos papel="comerciante" nascimento={nascimento} setNascimento={setNascimento}
+            aceitou={aceitouTermos} setAceitou={setAceitouTermos} responsavel={responsavelOk} setResponsavel={setResponsavelOk}
+            className="bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
           <p className="text-gray-500 text-xs text-center">🔒 {AVISO_VERIFICACAO}</p>
           <button
             onClick={salvar}
