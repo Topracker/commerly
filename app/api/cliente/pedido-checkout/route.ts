@@ -10,6 +10,7 @@ import { flagAtiva, moduloAtivo, respostaModuloPausado } from '../../../lib/feat
 import { descontoDePontos, maxPontosResgataveis } from '../../../lib/fidelidade'
 import { calcularFator, aplicarFator, emJanelaDePico } from '../../../lib/precoDinamico'
 import { lojaAberta, msgLojaFechada } from '../../../lib/horario'
+import { itensRestritos, idadeVerificada, msgItemRestrito } from '../../../lib/restritos'
 
 // Inicia o pagamento ONLINE de um pedido de delivery via Stripe Checkout.
 //
@@ -130,6 +131,12 @@ export async function POST(request: NextRequest) {
     subtotal += preco * qtd
   }
   if (itensLimpos.length === 0) return NextResponse.json({ error: 'Nenhum produto válido no pedido.' }, { status: 400 })
+
+  // Bebida alcoólica / cigarro: só para conta com idade verificada (recusa ANTES de cobrar).
+  const restritos = itensRestritos(itensLimpos.map(i => i.nome))
+  if (restritos.length > 0 && !idadeVerificada(user)) {
+    return NextResponse.json({ error: msgItemRestrito(restritos) }, { status: 403 })
+  }
 
   // Distância loja->entrega e taxa (mesma fórmula do trigger calcular_taxa_entrega).
   const dist = distanciaKm(

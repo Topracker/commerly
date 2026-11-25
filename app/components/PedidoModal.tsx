@@ -8,6 +8,7 @@ import { useFlags } from '../lib/useFlags'
 import { aplicarFator } from '../lib/precoDinamico'
 import { MapaConfirmar } from './MapaConfirmar'
 import { lojaAberta, msgLojaFechada } from '../lib/horario'
+import { itensRestritos, idadeVerificada, msgItemRestrito } from '../lib/restritos'
 import { TEXTO_PAGAR_NA_ENTREGA, sugestoesTroco, validarTroco, trocoDevido, reais } from '../lib/acertos'
 import { AVISO_MAQUININHA, ROTULO_BANDEIRA, bandeirasValidas, type BandeiraVale } from '../lib/vale'
 
@@ -198,6 +199,12 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
     // loja_aberta()). Vale para os dois caminhos — online é recusado no
     // checkout antes de cobrar, e na entrega o trigger recusa o insert.
     if (!lojaAberta(loja.horario)) { onErro(msgLojaFechada(loja.horario)); return }
+    // Bebida alcoólica / cigarro: só para conta com idade verificada.
+    const restritos = itensRestritos(itens.map(i => i.nome))
+    if (restritos.length > 0) {
+      const { data: { user: contaAtual } } = await supabase.auth.getUser()
+      if (!idadeVerificada(contaAtual)) { onErro(msgItemRestrito(restritos)); return }
+    }
     const trocoNum = pagamento === 'entrega' && precisaTroco && trocoPara.trim() !== ''
       ? Number(trocoPara.replace(',', '.'))
       : null
