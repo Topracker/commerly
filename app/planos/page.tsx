@@ -36,7 +36,7 @@ function PlanosConteudo() {
       if (!user) { setLoading(false); return }
       const { data } = await supabase
         .from('lojas')
-        .select('id, nome, plano, fundador, fundador_promo_em, stripe_subscription_id, trial_expira_em')
+        .select('id, nome, plano, fundador, fundador_promo_em, stripe_subscription_id, mp_assinatura_id, trial_expira_em')
         .eq('user_id', user.id)
         .maybeSingle()
       setLoja(data)
@@ -68,7 +68,11 @@ function PlanosConteudo() {
   const formatarData = (iso: string | null) =>
     iso ? formatarDataLoja(iso) : null
 
-  const temAssinatura = !!loja?.stripe_subscription_id
+  // Assinatura "ativa" não é só Stripe — uma loja pode ter vindo pelo Mercado
+  // Pago (mp_assinatura_id) e plano='ativo' sem nunca ter stripe_subscription_id.
+  // Antes esta tela só olhava pra Stripe e mostrava "assinar" de novo pra quem
+  // já pagava via MP.
+  const temAssinatura = !!loja?.stripe_subscription_id || !!loja?.mp_assinatura_id
   // Regra única (lib/plano): assinante OU em teste = liberada. Antes só
   // `plano === 'ativo'` contava, e a loja em trial ficava presa aqui sem
   // botão de voltar.
@@ -195,14 +199,30 @@ function PlanosConteudo() {
                 {!cancelInfo?.cancelAtPeriodEnd && (
                   <button
                     onClick={async () => {
-                      if (!confirm('Tem certeza que deseja cancelar a assinatura? Você manterá acesso até o fim do período já pago.')) return
+                      // Mercado Pago cancela na hora (sem manter acesso até o fim do
+                      // período); Stripe agenda o cancelamento pro fim do ciclo. O
+                      // aviso muda conforme o provedor pra não prometer o que não vai
+                      // acontecer.
+                      const viaMp = !loja?.stripe_subscription_id && !!loja?.mp_assinatura_id
+                      const aviso = viaMp
+                        ? 'Tem certeza que deseja cancelar a assinatura? O acesso será encerrado imediatamente.'
+                        : 'Tem certeza que deseja cancelar a assinatura? Você manterá acesso até o fim do período já pago.'
+                      if (!confirm(aviso)) return
                       setCancelando(true)
                       setErroCancelamento(null)
                       try {
-                        const res = await fetch('/api/stripe/cancelar-assinatura', { method: 'POST' })
+                        const res = await fetch(
+                          viaMp ? '/api/mercadopago/cancelar-assinatura' : '/api/stripe/cancelar-assinatura',
+                          { method: 'POST' }
+                        )
                         const data = await res.json()
                         if (!res.ok) {
                           setErroCancelamento(data?.error || 'Erro ao cancelar')
+                        } else if (viaMp) {
+                          // Já foi desativada no servidor — reflete isso aqui sem
+                          // esperar reload, senão a tela continua dizendo "ativa".
+                          setLoja((l: typeof loja) => (l ? { ...l, plano: 'inativo', mp_assinatura_id: null } : l))
+                          setCancelInfo(null)
                         } else {
                           setCancelInfo({
                             cancelAtPeriodEnd: true,
@@ -229,6 +249,7 @@ function PlanosConteudo() {
               noApp ? (
 <p className="text-gray-400 text-xs text-center">A assinatura do plano é gerenciada na conta da sua loja.</p>
 ) : (
+<div className="flex flex-col gap-2">
 <button
                 onClick={() => { setAssinando(true); window.location.href = '/api/stripe/assinar' }}
                 disabled={assinando}
@@ -238,6 +259,14 @@ function PlanosConteudo() {
                   ? 'Redirecionando...'
                   : `Assinar por ${precoAtual}/mês${promoDisponivel ? ` (${MESES_FUNDADOR} primeiros meses)` : ''} via Stripe`}
               </button>
+<button
+                onClick={() => { setAssinando(true); window.location.href = '/api/mercadopago/assinar' }}
+                disabled={assinando}
+                className="w-full bg-transparent border border-sky-800 hover:bg-sky-950 disabled:opacity-60 text-sky-300 font-bold py-3 rounded-xl transition text-sm"
+              >
+                {assinando ? 'Redirecionando...' : 'Assinar via Mercado Pago'}
+              </button>
+</div>
 )
             )
           )}
