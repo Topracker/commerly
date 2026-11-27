@@ -299,12 +299,16 @@ export default function ClienteLoja() {
               )}
             </button>
 
-            {/* MUTEX do delivery: some o botão quando a loja pausou os pedidos
-                ou quando a feature flag `delivery` está desligada na cidade
-                dela. O trigger do banco recusaria o pedido de qualquer jeito —
-                aqui o cliente descobre antes de montar o carrinho. */}
+            {/* MUTEX do delivery: some o botão quando a loja pausou os pedidos,
+                quando o módulo `cliente` está pausado, ou quando a feature flag
+                `delivery` está desligada na cidade dela. Antes só checava
+                `delivery_liberado`/`cliente` — com `delivery` desligado na
+                cidade (ex.: time de entregador ainda não recrutado) o botão
+                continuava aparecendo e o cliente só descobria no checkout
+                (`/api/cliente/pedido-checkout` já recusa via `flagAtiva('delivery', ...)`,
+                mas isso é defesa de servidor, não UX). */}
             {isDelivery(loja.tipo) && produtos.length > 0 && (
-              loja.delivery_liberado === false || !ativa('cliente') ? (
+              loja.delivery_liberado === false || !ativa('cliente') || !ativa('delivery') ? (
                 <p className="mt-2.5 w-full rounded-xl border border-borda bg-elevado py-3 text-center text-sm text-gray-400">
                   Pedidos indisponíveis nesta loja no momento.
                 </p>
