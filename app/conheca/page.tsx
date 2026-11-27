@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { PRECO_FUNDADOR, PRECO_NORMAL, MESES_FUNDADOR, VAGAS_FUNDADOR } from '../lib/precos'
 import { CATEGORIAS_FAQ } from '../lib/faq'
@@ -37,7 +38,9 @@ export default function Conheca() {
 
   return (
     <div className="min-h-screen bg-fundo text-white">
-      <RegistrarOrigem />
+      {/* useSearchParams() exige Suspense na página estática — sem isto o
+          build falha no prerender ("missing-suspense-with-csr-bailout"). */}
+      <Suspense fallback={null}><RegistrarOrigem /></Suspense>
 
       <section className="max-w-xl mx-auto px-5 pt-14 pb-10 text-center">
         <h1 className="font-display text-3xl font-bold leading-tight">
