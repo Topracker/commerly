@@ -4,7 +4,14 @@ import { PRECO_FUNDADOR, PRECO_NORMAL, MESES_FUNDADOR, VAGAS_FUNDADOR } from '..
 import { CATEGORIAS_FAQ } from '../lib/faq'
 import ChatIA from './ChatIA'
 import RegistrarOrigem from './RegistrarOrigem'
-import { ArrowRight, Store, ShoppingBag, Truck } from 'lucide-react'
+import { ArrowRight, Store, ShoppingBag, Truck, X, Check } from 'lucide-react'
+
+const COMPARACAO = [
+  'Saber quanto tem de fiado sem abrir o caderno',
+  'Ver o lucro do dia na hora, sem fazer conta',
+  'Vender online e receber o pedido no celular',
+  'Lembrete automático de quem deve e desde quando',
+]
 
 const PASSOS = [
   { icone: Store, titulo: 'Cria sua loja', texto: 'Cadastro simples, nichos prontos (lanchonete, salão, mercadinho e mais).' },
@@ -60,6 +67,34 @@ export default function Conheca() {
           R$ {PRECO_FUNDADOR.toFixed(2).replace('.', ',')}/mês nos primeiros {MESES_FUNDADOR} meses —
           oferta de fundador para as primeiras {VAGAS_FUNDADOR} lojas. Depois, R$ {PRECO_NORMAL.toFixed(2).replace('.', ',')}/mês.
         </p>
+      </section>
+
+      <section className="max-w-xl mx-auto px-5 pb-10">
+        <h2 className="font-display font-semibold text-lg mb-4 text-center">Caderno x Commerly</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-card border border-borda rounded-2xl p-4">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">No caderno</p>
+            <div className="flex flex-col gap-3">
+              {COMPARACAO.map(item => (
+                <div key={item} className="flex items-start gap-2">
+                  <X size={15} className="shrink-0 mt-0.5 text-red-400" />
+                  <span className="text-xs text-gray-400 leading-snug">{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="bg-card border border-acento/40 rounded-2xl p-4">
+            <p className="text-xs font-bold text-acento uppercase tracking-wide mb-3">Na Commerly</p>
+            <div className="flex flex-col gap-3">
+              {COMPARACAO.map(item => (
+                <div key={item} className="flex items-start gap-2">
+                  <Check size={15} className="shrink-0 mt-0.5 text-acento" />
+                  <span className="text-xs text-gray-200 leading-snug">{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </section>
 
       <section className="max-w-xl mx-auto px-5 pb-10">
