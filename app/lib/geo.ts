@@ -56,25 +56,40 @@ export function formatarDistancia(km: number | null): string {
 }
 
 /**
- * Taxa de entrega por km, em R$ — é também o VALOR DA CORRIDA do entregador
- * (o guard grava valor_corrida = taxa_entrega; 100% dele). Desde 2026-11-26:
- *   taxa = base até `raioKm`; acima disso + porKm por km extra; teto `max`.
- *   base = R$ 9,00 até 2,5 km | R$ 3,00 por km depois | máximo R$ 45,00
- * Ex.: 1 km → 9,00 | 4 km → 13,50 | 8 km → 25,50. Sem distância (null) → R$ 9,00.
- * (Referência: iFood/99 pagam ~R$ 7,50 até 4 km + R$ 1,50/km.)
+ * Desde 2026-11-26 o CLIENTE e o ENTREGADOR têm preços diferentes e a Commerly
+ * cobre a diferença (sql/2026-11-26-separa-taxa-cliente-corrida-entregador.sql):
+ *
+ *   TAXA_ENTREGA       → o que o cliente paga (preço de mercado, iFood/99):
+ *                        R$ 4,00 + R$ 1,50/km, mínimo R$ 4,00, máximo R$ 25,00
+ *                        1 km → 5,50 | 4 km → 10,00 | 8 km → 16,00
+ *   CORRIDA_ENTREGADOR → o que o entregador recebe (valor_corrida):
+ *                        R$ 9,00 até 2,5 km + R$ 3,00/km depois, máximo R$ 45,00
+ *                        1 km → 9,00 | 4 km → 13,50 | 8 km → 25,50
+ *
+ * Pico (+30%) vale para os dois.
  *
  * ATENÇÃO: isto é apenas para EXIBIR a prévia ao cliente. O valor gravado é
  * recalculado no servidor (trigger `pedidos_clientes_guard` /
- * `calcular_taxa_entrega` em sql/2026-11-26-corrida-nova-formula.sql). O banco tem
+ * `calcular_taxa_entrega` + `calcular_valor_corrida`). O banco tem
  * uma CÓPIA destes números: mexer em TAXA_ENTREGA exige mexer lá também. O
  * texto da taxa em /configuracoes é montado a partir de TAXA_ENTREGA.
  */
-export const TAXA_ENTREGA = { base: 9, raioKm: 2.5, porKm: 3, min: 9, max: 45 } as const
+export const TAXA_ENTREGA = { base: 4, porKm: 1.5, min: 4, max: 25 } as const
 
+/** O que o CLIENTE paga de entrega (espelho de calcular_taxa_entrega). */
 export function taxaEntregaPorDistancia(km: number | null): number {
-  const { base, raioKm, porKm, max } = TAXA_ENTREGA
-  const taxa = base + porKm * Math.max(0, (km ?? 0) - raioKm)
-  return Math.min(max, Math.round(taxa * 100) / 100)
+  const { base, porKm, min, max } = TAXA_ENTREGA
+  const taxa = base + porKm * (km ?? 0)
+  return Math.min(max, Math.max(min, Math.round(taxa * 100) / 100))
+}
+
+export const CORRIDA_ENTREGADOR = { base: 9, raioKm: 2.5, porKm: 3, max: 45 } as const
+
+/** O que o ENTREGADOR recebe (espelho de calcular_valor_corrida). Commerly cobre a diferença. */
+export function valorCorridaPorDistancia(km: number | null): number {
+  const { base, raioKm, porKm, max } = CORRIDA_ENTREGADOR
+  const v = base + porKm * Math.max(0, (km ?? 0) - raioKm)
+  return Math.min(max, Math.round(v * 100) / 100)
 }
 
 /** Multiplicador da taxa em horário de pico (surge). */

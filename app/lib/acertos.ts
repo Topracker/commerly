@@ -21,7 +21,7 @@ import { reais } from './moeda'
 export type PapelAcerto = 'cliente' | 'entregador' | 'loja' | 'commerly'
 // repasse_entregador: no VALE (lib/vale.ts) o dinheiro cai na maquininha da
 // loja, então é ela quem deve a corrida ao entregador.
-export type TipoAcerto = 'cobranca' | 'repasse_loja' | 'repasse_entregador' | 'bonus_festa' | 'cupom_garantia' | 'estorno'
+export type TipoAcerto = 'cobranca' | 'repasse_loja' | 'repasse_entregador' | 'bonus_festa' | 'complemento_corrida' | 'cupom_garantia' | 'estorno'
 export type PapelConfirmacao = 'loja' | 'entregador' | 'commerly'
 
 export type Acerto = {
@@ -67,6 +67,8 @@ export const TIPO_LABEL: Record<TipoAcerto, string> = {
   repasse_loja: 'Repasse à loja',
   repasse_entregador: 'Corrida paga pela loja (vale)',
   bonus_festa: 'Bônus do Modo Festa',
+  // Corrida do entregador > taxa do cliente: a Commerly paga a diferença.
+  complemento_corrida: 'Complemento da corrida (Commerly)',
   cupom_garantia: 'Cupom da Commerly Garantia',
   estorno: 'Estorno',
 }
@@ -79,7 +81,8 @@ export const REGRA_DINHEIRO =
   'O cliente paga o total ao entregador na porta. O entregador fica com a taxa de entrega (a corrida dele) ' +
   'e repassa o restante — o valor dos produtos — para a loja. A loja confirma o recebimento no painel; ' +
   'só então o pedido aparece como pago. A Commerly não intermedia esse dinheiro, apenas registra o acerto ' +
-  'para os dois lados verem a mesma conta.'
+  'para os dois lados verem a mesma conta. Quando a corrida do entregador é maior que a taxa paga pelo cliente, ' +
+  'a Commerly paga a diferença ao entregador (complemento da corrida).'
 
 export { reais }
 

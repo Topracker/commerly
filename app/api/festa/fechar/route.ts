@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { autenticarCliente, bodyDe } from '../_lib'
 import { rateLimit } from '../../../lib/rate-limit'
-import { distanciaKm, taxaEntregaPorDistancia } from '../../../lib/geo'
+import { distanciaKm, taxaEntregaPorDistancia, valorCorridaPorDistancia } from '../../../lib/geo'
 import { taxaPorPessoa, valorCorridaFesta, lojaForaDoRaio, FESTA_BONUS_PCT } from '../../../lib/festas'
 import { ofertarFesta } from '../../../lib/festaDispatch'
 import type { CupomAplicado, CupomPrevia } from '../../../lib/cupons'
@@ -83,6 +83,8 @@ export async function POST(request: NextRequest) {
 
   // Taxa da viagem = soma das pernas loja→endereço.
   let taxaTotal = 0
+  // O entregador recebe pela fórmula DELE (maior); a Commerly cobre a diferença.
+  let corridaTotal = 0
   for (const lid of lojasComPedido) {
     const l: any = lojaCoord.get(lid)
     const d = l ? distanciaKm(
@@ -90,12 +92,18 @@ export async function POST(request: NextRequest) {
       { latitude: festa.entrega_latitude, longitude: festa.entrega_longitude },
     ) : null
     taxaTotal += taxaEntregaPorDistancia(d)
+    corridaTotal += valorCorridaPorDistancia(d)
   }
   taxaTotal = Math.round(taxaTotal * 100) / 100
 
   const nPart = comItens.length
   const rateio = taxaPorPessoa(taxaTotal, nPart)
-  const valorCorrida = valorCorridaFesta(rateio, FESTA_BONUS_PCT)
+  // Por pedido: o maior entre o bônus da festa sobre o rateio e a fórmula do
+  // entregador dividida pelos participantes (arredonda para cima, em centavos).
+  const valorCorrida = Math.max(
+    valorCorridaFesta(rateio, FESTA_BONUS_PCT),
+    Math.ceil((corridaTotal * 100) / Math.max(1, nPart)) / 100,
+  )
 
   // Dados do cliente de cada participante (nome/telefone no pedido).
   const clienteIds = comItens.map((p: any) => p.cliente_id)

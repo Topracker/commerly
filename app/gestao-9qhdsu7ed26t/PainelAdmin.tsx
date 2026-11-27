@@ -410,7 +410,7 @@ function Acertos() {
 
   const nomeLoja = (id: string) => dados.nomes?.lojas?.[id] || id.slice(0, 8)
   const nomeEnt = (id: string | null) => (id && dados.nomes?.entregadores?.[id]) || '—'
-  const TIPO: Record<string, string> = { cupom_garantia: 'Cupom Garantia → loja', bonus_festa: 'Bônus festa → entregador', repasse_loja: 'Repasse entregador → loja', cobranca: 'Cobrança' }
+  const TIPO: Record<string, string> = { cupom_garantia: 'Cupom Garantia → loja', bonus_festa: 'Bônus festa → entregador', complemento_corrida: 'Complemento da corrida → entregador', repasse_loja: 'Repasse entregador → loja', cobranca: 'Cobrança' }
   const pendentes = (dados.devidos || []).filter(a => a.situacao !== 'confirmado')
   const liquidados = (dados.devidos || []).filter(a => a.situacao === 'confirmado')
 

@@ -362,7 +362,7 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
         id: 'taxa-entrega',
         pergunta: 'Como a taxa de entrega é calculada?',
         resposta:
-          'Pela distância em linha reta entre a loja e o endereço do cliente: R$ 9,00 fixos até 2,5 km + R$ 3,00 por km depois disso, com máximo de R$ 45,00. Nas noites de sexta, sábado e domingo (18h às 22h) há um acréscimo de 30%.\n\nA taxa vai integralmente para o entregador: via Stripe quando o pedido é pago online, ou retida do que ele cobra na porta quando é pago em dinheiro. A gorjeta (opcional, no pagamento online) também é 100% dele.',
+          'Pela distância em linha reta entre a loja e o endereço do cliente: R$ 4,00 + R$ 1,50 por km, com mínimo de R$ 4,00 e máximo de R$ 25,00. Nas noites de sexta, sábado e domingo (18h às 22h) há um acréscimo de 30%.\n\nO entregador recebe MAIS do que a taxa: R$ 9,00 até 2,5 km + R$ 3,00 por km depois (máximo R$ 45,00), e a Commerly paga a diferença do próprio bolso — nem o cliente nem a loja pagam a mais. A gorjeta (opcional, no pagamento online) também é 100% dele.',
         tags: ['frete', 'valor da entrega', 'quanto custa entrega', 'pico'],
         publico: ['cliente', 'comerciante', 'entregador'],
       },
