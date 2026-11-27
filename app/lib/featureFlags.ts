@@ -26,23 +26,80 @@ function padrao(): Flags {
 
 /**
  * Flags efetivas para uma cidade: começa nos padrões globais e aplica os
- * overrides específicos da cidade por cima. Sem cidade → só o global.
+ * overrides específicos da cidade por cima e, por último, o do BAIRRO (só a
+ * flag `delivery` em Goiânia tem bairro — CHECK no banco). Sem cidade → só o
+ * global. Espelho de delivery_ativo_em() no SQL (sql/2026-11-26-flag-delivery-por-bairro.sql).
  */
-export async function getFlags(cidadeSlug?: string | null, client?: SupabaseClient): Promise<Flags> {
+export async function getFlags(cidadeSlug?: string | null, client?: SupabaseClient, bairroSlug?: string | null): Promise<Flags> {
   const admin = client ?? createAdminClient()
   const alvos = cidadeSlug ? [GLOBAL, cidadeSlug] : [GLOBAL]
-  const { data } = await admin.from('feature_flags').select('cidade_slug, flag, ativo').in('cidade_slug', alvos)
+  const { data } = await admin.from('feature_flags').select('cidade_slug, flag, ativo, bairro').in('cidade_slug', alvos)
+  const linhas = (data || []) as { cidade_slug: string; flag: string; ativo: boolean; bairro: string | null }[]
   const flags = padrao()
   // Aplica global primeiro, depois cidade (ordem importa).
   for (const scope of alvos) {
-    for (const row of data || []) {
-      if (row.cidade_slug !== scope) continue
+    for (const row of linhas) {
+      if (row.cidade_slug !== scope || row.bairro) continue
       // Chave de módulo não tem override por cidade — mesma regra do SQL.
       if (scope !== GLOBAL && FLAGS_GLOBAIS.has(row.flag)) continue
       flags[row.flag] = !!row.ativo
     }
   }
+  // Bairro por cima de tudo (recorte A MAIS dentro da cidade).
+  if (cidadeSlug && bairroSlug) {
+    for (const row of linhas) {
+      if (row.cidade_slug === cidadeSlug && row.bairro === bairroSlug) flags[row.flag] = !!row.ativo
+    }
+  }
   return flags
+}
+
+type LinhaDelivery = { cidade_slug: string; bairro: string | null; ativo: boolean }
+
+/** Regra pura bairro > cidade > global > ligado. Mesma de delivery_ativo_em() no SQL. */
+export function deliveryAtivoEm(linhas: LinhaDelivery[], cidade: string | null | undefined, bairro: string | null | undefined): boolean {
+  const achar = (c: string, b: string | null) => linhas.find(l => l.cidade_slug === c && (l.bairro ?? null) === b)
+  const doBairro = cidade && bairro ? achar(cidade, bairro) : undefined
+  if (doBairro) return !!doBairro.ativo
+  const daCidade = cidade ? achar(cidade, null) : undefined
+  if (daCidade) return !!daCidade.ativo
+  const global = achar(GLOBAL, null)
+  return global ? !!global.ativo : true
+}
+
+/** Delivery aberto no bairro/cidade da LOJA (o recorte por bairro é sempre o da loja). */
+export async function deliveryDaLoja(
+  loja: { cidade_slug?: string | null; bairro_slug?: string | null },
+  client?: SupabaseClient,
+): Promise<boolean> {
+  const flags = await getFlags(loja.cidade_slug ?? null, client, loja.bairro_slug ?? null)
+  return flags.delivery ?? true
+}
+
+/**
+ * O delivery está mesmo aberto nestas lojas? Duas chaves independentes, ambas
+ * precisam estar ligadas:
+ *   1. `lojas.delivery_ativo`  -> o comerciante pausou os pedidos
+ *   2. flag `delivery`         -> bairro da loja > cidade da loja > global
+ * Usado pela vitrine do cliente e pelo cardápio público. O bloqueio de verdade
+ * é o trigger bloquear_pedido_delivery_desligado (mesma regra).
+ */
+export async function deliveryLiberadoLojas(lojaIds: string[], client?: SupabaseClient): Promise<Map<string, boolean>> {
+  const admin = client ?? createAdminClient()
+  const mapa = new Map<string, boolean>()
+  if (lojaIds.length === 0) return mapa
+  const { data: brutas } = await admin
+    .from('lojas').select('id, cidade_slug, bairro_slug, delivery_ativo').in('id', lojaIds)
+  const lojas = (brutas || []) as { id: string; cidade_slug: string | null; bairro_slug: string | null; delivery_ativo: boolean | null }[]
+  const cidades = [...new Set(lojas.map(l => l.cidade_slug).filter(Boolean))] as string[]
+  const { data: flags } = await admin
+    .from('feature_flags').select('cidade_slug, bairro, ativo')
+    .eq('flag', 'delivery').in('cidade_slug', [GLOBAL, ...cidades])
+  const linhas = (flags || []) as LinhaDelivery[]
+  for (const l of lojas) {
+    mapa.set(l.id, l.delivery_ativo !== false && deliveryAtivoEm(linhas, l.cidade_slug, l.bairro_slug))
+  }
+  return mapa
 }
 
 /**
@@ -53,7 +110,7 @@ export async function getFlags(cidadeSlug?: string | null, client?: SupabaseClie
 export async function moduloAtivo(modulo: ModuloGlobal, client?: SupabaseClient): Promise<boolean> {
   const admin = client ?? createAdminClient()
   const { data } = await admin.from('feature_flags').select('ativo')
-    .eq('cidade_slug', GLOBAL).eq('flag', modulo).maybeSingle()
+    .eq('cidade_slug', GLOBAL).eq('flag', modulo).is('bairro', null).maybeSingle()
   return data ? !!data.ativo : true
 }
 
@@ -64,10 +121,10 @@ export async function moduloAtivo(modulo: ModuloGlobal, client?: SupabaseClient)
  * as duas flags soltas. Com `entregador` desligado o pedido continua entrando
  * (a loja entrega por conta própria) — quem barra pedido é só `delivery`.
  */
-export async function despachoLiberado(cidadeSlug: string | null | undefined, client?: SupabaseClient): Promise<boolean> {
+export async function despachoLiberado(cidadeSlug: string | null | undefined, client?: SupabaseClient, bairroSlug?: string | null): Promise<boolean> {
   const admin = client ?? createAdminClient()
   const [delivery, entregador] = await Promise.all([
-    flagAtiva('delivery', cidadeSlug, admin),
+    flagAtiva('delivery', cidadeSlug, admin, bairroSlug),
     moduloAtivo('entregador', admin),
   ])
   return delivery && entregador
@@ -103,8 +160,8 @@ export async function flagsPublicas(client?: SupabaseClient): Promise<Record<Mod
 }
 
 /** Uma flag específica (padrão true se desconhecida). */
-export async function flagAtiva(flag: string, cidadeSlug?: string | null, client?: SupabaseClient): Promise<boolean> {
-  const flags = await getFlags(cidadeSlug, client)
+export async function flagAtiva(flag: string, cidadeSlug?: string | null, client?: SupabaseClient, bairroSlug?: string | null): Promise<boolean> {
+  const flags = await getFlags(cidadeSlug, client, bairroSlug)
   return flags[flag] ?? true
 }
 
@@ -114,16 +171,21 @@ export async function flagAtiva(flag: string, cidadeSlug?: string | null, client
  * valem principalmente para comerciantes; os demais caem no escopo global.
  */
 export async function cidadeSlugDoUsuario(userId: string, client?: SupabaseClient): Promise<string | null> {
+  return (await areaDoUsuario(userId, client)).cidade
+}
+
+/** Cidade + bairro da loja do usuário (o bairro só pesa na flag `delivery`). */
+export async function areaDoUsuario(userId: string, client?: SupabaseClient): Promise<{ cidade: string | null; bairro: string | null }> {
   const admin = client ?? createAdminClient()
-  const { data } = await admin.from('lojas').select('cidade_slug').eq('user_id', userId).maybeSingle()
-  return (data?.cidade_slug as string | null) ?? null
+  const { data } = await admin.from('lojas').select('cidade_slug, bairro_slug').eq('user_id', userId).maybeSingle()
+  return { cidade: (data?.cidade_slug as string | null) ?? null, bairro: (data?.bairro_slug as string | null) ?? null }
 }
 
 /** Flags efetivas para o usuário logado (global + overrides da cidade dele). */
 export async function flagsDoUsuario(userId: string | null | undefined, client?: SupabaseClient): Promise<Flags> {
   const admin = client ?? createAdminClient()
-  const cidade = userId ? await cidadeSlugDoUsuario(userId, admin) : null
-  const flags = await getFlags(cidade, admin)
+  const { cidade, bairro } = userId ? await areaDoUsuario(userId, admin) : { cidade: null, bairro: null }
+  const flags = await getFlags(cidade, admin, bairro)
   // Sem cidade (visitante, cliente, entregador): com global OFF e Goiânia ON, o
   // módulo existe. Sem isto, a tela escondia de quem não tem loja o que está aberto.
   if (cidade) return flags

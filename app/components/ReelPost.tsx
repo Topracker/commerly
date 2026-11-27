@@ -39,6 +39,8 @@ type Props = {
   onComentarios: () => void
   onCompartilhar: () => void
   onPedir: () => void
+  /** Rótulo do botão principal: "Pedir agora" só com delivery aberto (padrão). */
+  rotuloPedir?: string
   /** Chamado depois que o usuário bloqueia a loja deste post. */
   onBloqueado?: () => void
 }
@@ -46,7 +48,7 @@ type Props = {
 export function ReelPost({
   post, loja, produto, distancia, curtido, likes, comentarios, compartilhamentos,
   seguindo, ativo, som, onAlternarSom, onCurtir, onSeguir, onComentarios,
-  onCompartilhar, onPedir, onBloqueado,
+  onCompartilhar, onPedir, onBloqueado, rotuloPedir = 'Pedir agora',
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [pausado, setPausado] = useState(false)
@@ -204,12 +206,12 @@ export function ReelPost({
         <button
           onClick={onPedir}
           className="flex flex-col items-center gap-1"
-          aria-label="Pedir agora"
+          aria-label={rotuloPedir}
         >
           <span className="grid h-12 w-12 place-items-center rounded-full bg-azul shadow-lg shadow-azul/40 transition hover:brightness-110">
             <ShoppingBag size={22} className="text-white" />
           </span>
-          <span className="text-[10px] font-bold leading-tight text-white drop-shadow">Pedir agora</span>
+          <span className="text-[10px] font-bold leading-tight text-white drop-shadow">{rotuloPedir}</span>
         </button>
       </div>
 

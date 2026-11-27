@@ -353,7 +353,7 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
         id: 'cidades-com-delivery',
         pergunta: 'O delivery está disponível na minha cidade?',
         resposta:
-          'O delivery com entregadores da Commerly está sendo aberto cidade a cidade e hoje funciona em Goiânia (GO). Nas demais cidades o painel de gestão, o cardápio digital e o pedido pelo WhatsApp funcionam normalmente — só a entrega pela plataforma ainda não.\n\nQuando a sua cidade abrir, a loja recebe um aviso no painel.',
+          'O delivery com entregadores da Commerly está sendo aberto aos poucos, cidade a cidade (e, em Goiânia, bairro a bairro). Onde ainda não abriu, o painel de gestão, o cardápio digital e o pedido pelo WhatsApp funcionam normalmente — só a entrega pela plataforma ainda não.\n\nQuando a sua cidade abrir, a loja recebe um aviso no painel.',
         tags: ['cobertura', 'minha cidade', 'expansao', 'goiania', 'nao atende'],
         publico: ['comerciante', 'cliente', 'entregador'],
         link: { label: 'Ver expansão', href: '/expansao' },
@@ -362,7 +362,7 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
         id: 'taxa-entrega',
         pergunta: 'Como a taxa de entrega é calculada?',
         resposta:
-          'Pela distância em linha reta entre a loja e o endereço do cliente: R$ 3,00 fixos + R$ 1,00 por km, com mínimo de R$ 3,00 e máximo de R$ 25,00. Nas noites de sexta, sábado e domingo (18h às 22h) há um acréscimo de 30%.\n\nA taxa vai integralmente para o entregador: via Stripe quando o pedido é pago online, ou retida do que ele cobra na porta quando é pago em dinheiro.',
+          'Pela distância em linha reta entre a loja e o endereço do cliente: R$ 9,00 fixos até 2,5 km + R$ 3,00 por km depois disso, com máximo de R$ 45,00. Nas noites de sexta, sábado e domingo (18h às 22h) há um acréscimo de 30%.\n\nA taxa vai integralmente para o entregador: via Stripe quando o pedido é pago online, ou retida do que ele cobra na porta quando é pago em dinheiro. A gorjeta (opcional, no pagamento online) também é 100% dele.',
         tags: ['frete', 'valor da entrega', 'quanto custa entrega', 'pico'],
         publico: ['cliente', 'comerciante', 'entregador'],
       },

@@ -20,12 +20,14 @@ export default async function ParaClientes() {
     <MarketingShell
       eyebrow="Para clientes"
       titulo="O melhor do seu bairro, na palma da mão"
-      subtitulo={flags.cashback ? 'Peça dos comércios locais, ganhe cashback e desbloqueie benefícios conforme você pede.' : 'Peça dos comércios locais e acompanhe tudo pelo app.'}
+      subtitulo={!flags.delivery
+        ? 'Descubra os comércios do seu bairro, veja cardápios e fale direto com a loja. O pedido com entrega pela Commerly está abrindo bairro a bairro.'
+        : flags.cashback ? 'Peça dos comércios locais, ganhe cashback e desbloqueie benefícios conforme você pede.' : 'Peça dos comércios locais e acompanhe tudo pelo app.'}
       cta={ativo ? { href: '/cliente/login', label: 'Descobrir comércios' } : undefined}
       aviso="Pedidos novos estão pausados no momento. Volte em breve."
     >
       <div className="grid sm:grid-cols-3 gap-3 mb-8">
-        <MCard><Zap size={20} className="text-acento mb-2" /><p className="text-white font-semibold">Praticidade</p><p className="text-gray-400 text-sm mt-1">Peça em segundos e acompanhe a entrega ao vivo no mapa.</p></MCard>
+        <MCard><Zap size={20} className="text-acento mb-2" /><p className="text-white font-semibold">Praticidade</p><p className="text-gray-400 text-sm mt-1">{flags.delivery ? 'Peça em segundos e acompanhe a entrega ao vivo no mapa.' : 'Cardápio digital e pedido pelo WhatsApp da loja, sem instalar nada.'}</p></MCard>
         <MCard><Tag size={20} className="text-acento mb-2" /><p className="text-white font-semibold">Desconto</p><p className="text-gray-400 text-sm mt-1">{flags.cashback ? 'Cashback no Clube Commerly e promoções das lojas por perto.' : 'Promoções das lojas por perto.'}</p></MCard>
         <MCard><Store size={20} className="text-acento mb-2" /><p className="text-white font-semibold">Variedade local</p><p className="text-gray-400 text-sm mt-1">Hamburguerias, mercados, farmácias, pet shops e muito mais.</p></MCard>
       </div>

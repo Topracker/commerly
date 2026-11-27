@@ -80,6 +80,7 @@ type LojaWatchdog = {
   longitude: number | null
   delivery_ativo?: boolean | null
   cidade_slug?: string | null
+  bairro_slug?: string | null
 }
 
 /** Notificação de despacho para o dono da loja (silenciosa se algo falhar). */
@@ -125,7 +126,7 @@ async function processarPedido(
   // Despacho pausado: nem cadeia de ofertas, nem pool aberto, nem alertas de
   // demora — sem isto o watchdog avisaria "nenhum entregador aceitou" a cada
   // passada de um pedido que a loja vai entregar por conta própria.
-  if (!(await despachoLiberado(loja.cidade_slug ?? null, admin))) return ['despacho_pausado']
+  if (!(await despachoLiberado(loja.cidade_slug ?? null, admin, loja.bairro_slug ?? null))) return ['despacho_pausado']
 
   // ── 3. Esgotado há 5+ min -> devolve ao pool aberto ─────────────────────
   // Zerar o histórico de ofertas é o que "libera para o pool": todo mundo do
@@ -324,7 +325,7 @@ export async function rodarWatchdog(
 
   const lojaIds = [...new Set(alvos.map(p => p.loja_id))]
   const { data: lojas } = await admin
-    .from('lojas').select('id, user_id, nome, latitude, longitude, delivery_ativo, cidade_slug').in('id', lojaIds)
+    .from('lojas').select('id, user_id, nome, latitude, longitude, delivery_ativo, cidade_slug, bairro_slug').in('id', lojaIds)
   const mapaLojas = new Map((lojas || []).map((l: any) => [l.id, l as LojaWatchdog]))
 
   for (const pedido of alvos) {

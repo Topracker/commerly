@@ -106,8 +106,10 @@ const BADGE_DA_ROTA: Record<string, BadgeKey> = {
  * Módulos cujo `path` já aparece num item fixo são descartados: para uma
  * hamburgueria, o módulo `produtos` é o mesmo /produtos da seção fixa.
  */
-export function montarMenu({ delivery, modulos, ocultarRotas = [] }: {
+export function montarMenu({ delivery, modulos, ocultarRotas = [], deliveryPausado = false }: {
   delivery: boolean
+  // Flag `delivery` OFF no bairro/cidade da loja: o item fica, com o aviso no `sub`.
+  deliveryPausado?: boolean
   modulos: Modulo[]
   // Rotas que somem do menu (ex.: '/fornecedores' com a chave `fornecedor` OFF).
   ocultarRotas?: string[]
@@ -124,7 +126,7 @@ export function montarMenu({ delivery, modulos, ocultarRotas = [] }: {
 
   if (delivery) {
     secoes[0].itens.push({
-      label: 'Pedidos online', sub: 'Entregas dos clientes', path: '/pedidos', icon: ShoppingBag, badge: 'pedidos',
+      label: 'Pedidos online', sub: deliveryPausado ? 'Pausado na sua região' : 'Entregas dos clientes', path: '/pedidos', icon: ShoppingBag, badge: 'pedidos',
     })
   }
 

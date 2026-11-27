@@ -10,6 +10,7 @@ import {
   checarLimiteCadastroIp, registrarCadastroIp, AVISO_VERIFICACAO,
 } from '../../lib/validacoes'
 import BotaoSair from '../../components/BotaoSair'
+import { codigoDeConvite, CHAVE_INDICACAO } from '../../lib/convite'
 import { outroPapel, msgCadastroOutroPapel } from '../../lib/papeis'
 import CampoNascimentoTermos from '../../components/CampoNascimentoTermos'
 import { erroIdadeTermos, registrarIdadeTermos } from '../../lib/idade'
@@ -220,6 +221,18 @@ export default function EntregadorOnboarding() {
       setLoading(false); return
     }
     await registrarCadastroIp('entregador')
+    // Convite (?ref= / link /convite): agora que o perfil existe, a indicação
+    // nasce como ENTREGADOR (o IndicacaoClaim do login rodou antes do perfil e
+    // foi recusado de propósito). Best-effort: falha não trava o cadastro.
+    try {
+      const cod = codigoDeConvite()
+      if (cod) {
+        const r = await fetch('/api/indicacao/registrar', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo: cod }),
+        })
+        if (r.ok) localStorage.removeItem(CHAVE_INDICACAO)
+      }
+    } catch { /* o IndicacaoClaim tenta de novo na próxima carga */ }
     router.push('/entregador-delivery/dashboard')
   }
 

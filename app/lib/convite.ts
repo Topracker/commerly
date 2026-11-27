@@ -99,3 +99,10 @@ export function codigoDeConvite(): string {
   if (cod) guardarCodigo(cod)
   return cod
 }
+
+/**
+ * Indicação paga entre entregadores (sql/2026-11-26-indicacao-entregador.sql):
+ * R$30 ao indicador via Stripe Connect depois de 5 corridas ENTREGUES do
+ * indicado. Aqui (e não em lib/repasse.ts) porque a tela também lê.
+ */
+export const BONUS_INDICACAO_ENTREGADOR = { valor: 30, corridas: 5 } as const

@@ -5,7 +5,7 @@ import Stripe from 'stripe'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
 import { distanciaKm, taxaEntregaPorDistancia, taxaComPico } from '../../../lib/geo'
-import { isDelivery } from '../../../lib/pedidosClientes'
+import { isDelivery, GORJETA_MAX } from '../../../lib/pedidosClientes'
 import { flagAtiva, moduloAtivo, respostaModuloPausado } from '../../../lib/featureFlags'
 import { descontoDePontos, maxPontosResgataveis } from '../../../lib/fidelidade'
 import { calcularFator, aplicarFator, emJanelaDePico } from '../../../lib/precoDinamico'
@@ -39,7 +39,11 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const { loja_id, itens, endereco_entrega, entrega_latitude, entrega_longitude, observacao, pontos_resgatar, anonimo, fator_exibido } = body || {}
+  const { loja_id, itens, endereco_entrega, entrega_latitude, entrega_longitude, observacao, pontos_resgatar, anonimo, fator_exibido, gorjeta: gorjetaBruta } = body || {}
+  // Gorjeta do entregador: 0..GORJETA_MAX, em centavos inteiros. Fica FORA do
+  // `total` do pedido (a Stripe cobra total + gorjeta) e vai 100% ao entregador
+  // no confirmar-entrega. CHECK no banco repete o teto.
+  const gorjeta = Math.min(GORJETA_MAX, Math.max(0, Math.round((Number(gorjetaBruta) || 0) * 100) / 100))
   if (!loja_id || !Array.isArray(itens) || itens.length === 0 || !endereco_entrega?.trim()) {
     return NextResponse.json({ error: 'Dados do pedido incompletos.' }, { status: 400 })
   }
@@ -56,7 +60,7 @@ export async function POST(request: NextRequest) {
 
   // Loja: precisa ser delivery e estar apta a receber online (Connect concluído).
   const { data: loja } = await admin
-    .from('lojas').select('id, nome, tipo, horario, latitude, longitude, stripe_account_id, stripe_onboarded, distancia_maxima_entrega, cidade_slug, delivery_ativo').eq('id', loja_id).single()
+    .from('lojas').select('id, nome, tipo, horario, latitude, longitude, stripe_account_id, stripe_onboarded, distancia_maxima_entrega, cidade_slug, bairro_slug, delivery_ativo').eq('id', loja_id).single()
   if (!loja) return NextResponse.json({ error: 'Loja não encontrada.' }, { status: 404 })
   if (!isDelivery(loja.tipo)) return NextResponse.json({ error: 'Esta loja não aceita pedidos de delivery.' }, { status: 400 })
   // A loja pausou os pedidos: recusa ANTES de cobrar (o trigger do banco também
@@ -72,7 +76,7 @@ export async function POST(request: NextRequest) {
   }
   // Gating por cidade: se o admin desligou 'delivery' na cidade da loja, recusa
   // ANTES de cobrar (o trigger do banco também barra, mas aqui evita a cobrança).
-  if (!(await flagAtiva('delivery', loja.cidade_slug, admin))) {
+  if (!(await flagAtiva('delivery', loja.cidade_slug, admin, loja.bairro_slug))) {
     return respostaModuloPausado('delivery')
   }
   // Chave `cliente` desligada: não abre cobrança nova. Sessão da Stripe aberta
@@ -179,6 +183,7 @@ export async function POST(request: NextRequest) {
   const total = subtotalComDesconto + taxa
   const subtotalCents = Math.round(subtotalComDesconto * 100)
   const taxaCents = Math.round(taxa * 100)
+  const gorjetaCents = Math.round(gorjeta * 100)
   if (subtotalCents <= 0) return NextResponse.json({ error: 'Valor do pedido inválido.' }, { status: 400 })
 
   // Pedido PENDENTE (vira pedido real no webhook, após o pagamento).
@@ -192,7 +197,7 @@ export async function POST(request: NextRequest) {
     observacao: observacao?.trim() || null,
     cliente_nome: cliente.nome || null,
     cliente_telefone: cliente.telefone || null,
-    subtotal, taxa_entrega: taxa, total,
+    subtotal, taxa_entrega: taxa, total, gorjeta,
     pontos_usados: pontosUsados, desconto_pontos: desconto,
     // #6 O nome/telefone acima ficam no pendente (a loja não os lê); o guard
     // do banco é quem os anula ao materializar o pedido, no webhook.
@@ -236,10 +241,13 @@ export async function POST(request: NextRequest) {
         ...(taxaCents > 0
           ? [{ quantity: 1, price_data: { currency: 'brl' as const, unit_amount: taxaCents, product_data: { name: pico ? 'Taxa de entrega (horário de pico)' : 'Taxa de entrega' } } }]
           : []),
+        ...(gorjetaCents > 0
+          ? [{ quantity: 1, price_data: { currency: 'brl' as const, unit_amount: gorjetaCents, product_data: { name: 'Gorjeta do entregador (100% para ele)' } } }]
+          : []),
       ],
       payment_intent_data: {
-        // Destination charge: subtotal vai pra loja; a taxa fica na plataforma
-        // (para pagar o entregador no confirmar-entrega).
+        // Destination charge: subtotal vai pra loja; taxa + gorjeta ficam na
+        // plataforma (para pagar o entregador no confirmar-entrega).
         transfer_data: { destination: loja.stripe_account_id, amount: subtotalCents },
         metadata: meta,
       },

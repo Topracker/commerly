@@ -133,6 +133,59 @@ export async function resolverLocal(
   return cidadeDoEndereco(args.localizacao)
 }
 
+/**
+ * Bairro a partir do endereço em texto: no formato do autocomplete
+ * ("Rua X, Bairro, Cidade, UF") é o antepenúltimo pedaço. Só confia quando há
+ * os 4 pedaços e a UF fecha o texto — senão devolve null (melhor sem bairro do
+ * que num bairro errado: sem bairro, vale a regra da cidade).
+ */
+export function bairroDoEndereco(localizacao?: string | null): string | null {
+  const partes = (localizacao || '').split(',').map(p => p.trim()).filter(Boolean)
+  if (partes.length < 4 || !siglaUf(partes[partes.length - 1])) return null
+  const bairro = partes[partes.length - 3]
+  // "123" ou "45A" é número da casa, não bairro.
+  if (!bairro || /^\d+[a-z]?$/i.test(bairro)) return null
+  return bairro.slice(0, 80)
+}
+
+/** Reverso no nível de bairro (Nominatim zoom 16 → suburb/neighbourhood). */
+export async function bairroReverso(lat: number, lng: number): Promise<string | null> {
+  const url = new URL('https://nominatim.openstreetmap.org/reverse')
+  url.searchParams.set('format', 'json')
+  url.searchParams.set('zoom', '16')
+  url.searchParams.set('addressdetails', '1')
+  url.searchParams.set('lat', String(lat))
+  url.searchParams.set('lon', String(lng))
+  try {
+    const res = await fetch(url.toString(), {
+      headers: { 'User-Agent': USER_AGENT, Accept: 'application/json', 'Accept-Language': 'pt-BR' },
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) return null
+    const a = (await res.json())?.address || {}
+    const b = a.suburb || a.neighbourhood || a.quarter || a.city_district || ''
+    return b ? String(b).slice(0, 80) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Bairro da LOJA: o texto do endereço primeiro (é o que o comerciante escolheu
+ * no autocomplete), o reverso pelas coordenadas como plano B.
+ */
+export async function resolverBairro(
+  args: { latitude?: number | null; longitude?: number | null; localizacao?: string | null },
+): Promise<{ bairro: string; slug: string } | null> {
+  let nome = bairroDoEndereco(args.localizacao)
+  const { latitude: lat, longitude: lng } = args
+  if (!nome && typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng)) {
+    nome = await bairroReverso(lat, lng)
+  }
+  const slug = nome ? slugify(nome) : ''
+  return nome && slug ? { bairro: nome, slug } : null
+}
+
 const CONECTORES = new Set(['de', 'da', 'do', 'das', 'dos', 'e'])
 
 /**

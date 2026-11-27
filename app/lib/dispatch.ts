@@ -39,8 +39,8 @@ export async function ofertarProximoEntregador(
   // Antes de qualquer oferta: despacho liberado nesta cidade? Checado aqui (e
   // não só nas rotas) para valer em TODOS os caminhos — botão da loja,
   // watchdog, reoferta de desistência e liberação em rota.
-  const { data: lojaCidade } = await admin.from('lojas').select('cidade_slug').eq('id', loja.id).maybeSingle()
-  if (!(await despachoLiberado(lojaCidade?.cidade_slug ?? null, admin))) return { tipo: 'pausado' }
+  const { data: lojaCidade } = await admin.from('lojas').select('cidade_slug, bairro_slug').eq('id', loja.id).maybeSingle()
+  if (!(await despachoLiberado(lojaCidade?.cidade_slug ?? null, admin, lojaCidade?.bairro_slug ?? null))) return { tipo: 'pausado' }
 
   const agora = Date.now()
 

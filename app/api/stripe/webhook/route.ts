@@ -83,7 +83,8 @@ export async function POST(request: NextRequest) {
     // rastrear e SEGUIMOS: o cliente já pagou, e não criar o pedido seria pior
     // do que criá-lo com um centavo de diferença.
     const cobradoCents = session.amount_total ?? null
-    const pendenteCents = Math.round((Number(pend.total) || 0) * 100)
+    // A gorjeta é cobrada junto, mas fica fora de `total` (coluna própria).
+    const pendenteCents = Math.round(((Number(pend.total) || 0) + (Number(pend.gorjeta) || 0)) * 100)
     if (cobradoCents != null && cobradoCents !== pendenteCents) {
       console.error(
         '[stripe/webhook] divergência de valor no pedido pago:',
@@ -109,6 +110,9 @@ export async function POST(request: NextRequest) {
       itens: pend.itens,
       total: pend.total,
       taxa_entrega: pend.taxa_entrega,
+      // Gorjeta do entregador: o guard só a aceita no pedido pago online
+      // (service_role + stripe_session_id); fora disso zera.
+      gorjeta: Number(pend.gorjeta) || 0,
       endereco_entrega: pend.endereco_entrega,
       entrega_latitude: pend.entrega_latitude,
       entrega_longitude: pend.entrega_longitude,

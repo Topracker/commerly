@@ -56,23 +56,25 @@ export function formatarDistancia(km: number | null): string {
 }
 
 /**
- * Taxa de entrega DINÂMICA por km (modelo iFood), em R$:
- *   taxa = base + (preço_por_km * km), limitada entre mínimo e máximo.
- *   base = R$ 3,00 | R$ 1,00 por km | mínimo R$ 3,00 | máximo R$ 25,00
- * Ex.: 2,3 km → 5,30 | 8,7 km → 11,70. Sem distância (null) → base R$ 3,00.
+ * Taxa de entrega por km, em R$ — é também o VALOR DA CORRIDA do entregador
+ * (o guard grava valor_corrida = taxa_entrega; 100% dele). Desde 2026-11-26:
+ *   taxa = base até `raioKm`; acima disso + porKm por km extra; teto `max`.
+ *   base = R$ 9,00 até 2,5 km | R$ 3,00 por km depois | máximo R$ 45,00
+ * Ex.: 1 km → 9,00 | 4 km → 13,50 | 8 km → 25,50. Sem distância (null) → R$ 9,00.
+ * (Referência: iFood/99 pagam ~R$ 7,50 até 4 km + R$ 1,50/km.)
  *
  * ATENÇÃO: isto é apenas para EXIBIR a prévia ao cliente. O valor gravado é
  * recalculado no servidor (trigger `pedidos_clientes_guard` /
- * `calcular_taxa_entrega` em sql/2026-07-03-taxa-dinamica-km.sql). O banco tem
+ * `calcular_taxa_entrega` em sql/2026-11-26-corrida-nova-formula.sql). O banco tem
  * uma CÓPIA destes números: mexer em TAXA_ENTREGA exige mexer lá também. O
  * texto da taxa em /configuracoes é montado a partir de TAXA_ENTREGA.
  */
-export const TAXA_ENTREGA = { base: 3, porKm: 1, min: 3, max: 25 } as const
+export const TAXA_ENTREGA = { base: 9, raioKm: 2.5, porKm: 3, min: 9, max: 45 } as const
 
 export function taxaEntregaPorDistancia(km: number | null): number {
-  const { base, porKm, min, max } = TAXA_ENTREGA
-  const taxa = base + porKm * (km ?? 0)
-  return Math.min(max, Math.max(min, Math.round(taxa * 100) / 100))
+  const { base, raioKm, porKm, max } = TAXA_ENTREGA
+  const taxa = base + porKm * Math.max(0, (km ?? 0) - raioKm)
+  return Math.min(max, Math.round(taxa * 100) / 100)
 }
 
 /** Multiplicador da taxa em horário de pico (surge). */

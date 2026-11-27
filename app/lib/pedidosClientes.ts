@@ -47,6 +47,8 @@ export type PedidoCliente = {
   // Entrega por entregador parceiro (opcional).
   entregador_id: string | null
   valor_corrida: number
+  /** Gorjeta do entregador (só pedido pago online; 100% dele). Fora de `total`. */
+  gorjeta?: number
   codigo_confirmacao: string | null
   pagamento_corrida: 'pendente' | 'pago'
   // Foto do comprovante de entrega (tirada pelo entregador ao confirmar).
@@ -124,3 +126,7 @@ export function isDelivery(tipo?: string | null): boolean {
 export function pedidoEmAndamento(status: StatusPedidoCliente): boolean {
   return status !== 'entregue' && status !== 'cancelado'
 }
+
+/** Gorjeta do entregador: chips do checkout e teto (CHECK no banco: 0..200). */
+export const GORJETA_CHIPS = [0, 2, 5, 10] as const
+export const GORJETA_MAX = 200

@@ -19,9 +19,9 @@ import { MapPin, AlertTriangle, ChevronRight } from 'lucide-react'
 // pedidos, o aviso continua ali.
 
 type Estado = 'sem_cidade' | 'sem_delivery' | 'liberada'
-type Situacao = { estado: Estado; slug: string | null; cidade: string | null; uf: string | null }
+type Situacao = { estado: Estado; slug: string | null; cidade: string | null; uf: string | null; bairro?: string | null }
 
-export function AvisoCidadeLoja({ className = '' }: { className?: string }) {
+export function AvisoCidadeLoja({ className = '', contexto = 'dashboard' }: { className?: string; contexto?: 'dashboard' | 'pedidos' }) {
   const [sit, setSit] = useState<Situacao | null>(null)
 
   useEffect(() => {
@@ -66,10 +66,15 @@ export function AvisoCidadeLoja({ className = '' }: { className?: string }) {
         <MapPin size={20} className="text-acento" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-white font-semibold text-sm mb-1">Delivery ainda não abriu na sua cidade</p>
+        <p className="text-white font-semibold text-sm mb-1">
+          {contexto === 'pedidos' ? 'Pedidos online pausados na sua região' : sit.bairro ? 'Delivery ainda não abriu no seu bairro' : 'Delivery ainda não abriu na sua cidade'}
+        </p>
         <p className="text-gray-300 text-sm leading-relaxed">
-          Sua loja está em <strong className="text-white">{cidade}</strong>. O delivery ainda não abriu aí,
-          mas você já pode usar todo o resto do sistema.
+          Sua loja está em <strong className="text-white">{sit.bairro ? `${sit.bairro}, ${cidade}` : cidade}</strong>.
+          {' '}O delivery pela Commerly ainda não abriu aí{sit.bairro ? ' (estamos abrindo bairro a bairro)' : ''}, então
+          clientes não conseguem fazer pedido online agora. {contexto === 'pedidos'
+            ? 'Pedidos que já existiam continuam aparecendo aqui até terminar. Cardápio digital e pedido pelo WhatsApp seguem funcionando.'
+            : 'Você já pode usar todo o resto do sistema, e avisamos aqui quando abrir.'}
         </p>
       </div>
     </div>

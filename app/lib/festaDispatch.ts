@@ -48,7 +48,7 @@ export async function ofertarFesta(
   const lojaIds = (fl || []).map(r => r.loja_id as string)
   if (lojaIds.length === 0) return { tipo: 'sem_localizacao' }
   const { data: lojas } = await admin
-    .from('lojas').select('id, nome, latitude, longitude, cidade_slug').in('id', lojaIds)
+    .from('lojas').select('id, nome, latitude, longitude, cidade_slug, bairro_slug').in('id', lojaIds)
   const comCoord = (lojas || []).filter(l => l.latitude != null && l.longitude != null)
   if (comCoord.length === 0) return { tipo: 'sem_localizacao' }
 
@@ -63,7 +63,7 @@ export async function ofertarFesta(
 
   // As lojas da festa estão a até 2 km umas das outras: a cidade da âncora vale
   // para todas. Pausado -> nenhuma oferta nova.
-  if (!(await despachoLiberado(lojaAncora.cidade_slug ?? null, admin))) return { tipo: 'pausado' }
+  if (!(await despachoLiberado(lojaAncora.cidade_slug ?? null, admin, lojaAncora.bairro_slug ?? null))) return { tipo: 'pausado' }
 
   // Expira ofertas pendentes vencidas desta festa.
   await admin.from('corrida_ofertas').update({ status: 'expirada' })

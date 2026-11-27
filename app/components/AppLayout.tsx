@@ -41,15 +41,16 @@ export function AppLayout({ loja, sair, titulo, children, maxWidth = 'max-w-4xl'
   const delivery = isDelivery(loja?.tipo)
   const temAgenda = modulos.some(m => m.key === 'agenda')
 
-  // Chave desligada: some o item do menu (a página vai para /pausado). "Pedidos
-  // online" só some sem pedido aberto: quem tem pedido precisa conseguir terminar.
+  // Chave desligada: some o item do menu (a página vai para /pausado).
+  // "Pedidos online" NÃO some com o delivery pausado na região da loja: fica no
+  // menu marcado como pausado, e a página explica (AvisoCidadeLoja) — sumir em
+  // silêncio fazia o comerciante achar que perdeu a função.
   const { ativa } = useFlags()
   const ocultarRotas = [
     ...(ativa('fornecedor') ? [] : ['/fornecedores']),
     ...(ativa('ia') ? [] : ['/assistente']),
-    ...(ativa('delivery') || pedidosNovos > 0 ? [] : ['/pedidos']),
   ]
-  const secoes = montarMenu({ delivery, modulos, ocultarRotas })
+  const secoes = montarMenu({ delivery, modulos, ocultarRotas, deliveryPausado: !ativa('delivery') })
   const secaoAtiva = secaoDaRota(secoes, pathname)
 
   const contadores: Record<BadgeKey, number> = {

@@ -108,7 +108,9 @@ export const PAGINAS_MODULO: Regra[] = [
     rota: '/entregador-delivery', modulos: ['entregador'],
     excecoes: ['/entregador-delivery/dashboard', '/entregador-delivery/notificacoes', '/entregador-delivery/login'],
   },
-  { rota: '/entregador', modulos: ['entregador'] },
+  // /entregador/em-breve é a LISTA DE ESPERA: existe justamente enquanto a rede
+  // está pausada (não cria conta de entregador, só registra interesse).
+  { rota: '/entregador', modulos: ['entregador'], excecoes: ['/entregador/em-breve'] },
   { rota: '/para-entregadores', modulos: ['entregador'] },
 
   {

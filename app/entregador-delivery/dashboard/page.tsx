@@ -341,11 +341,13 @@ function EntregadorDashboard() {
   const emLote = ativas.filter(p => p.lote_entrega_id).length > 0
   const noLimite = ativas.length >= MAX_ENTREGAS_SIMULTANEAS
 
+  // Ganho do entregador = corrida + gorjeta (gorjeta só existe no pago online, 100% dele).
+  const ganhoDe = (p: PedidoCliente) => (Number(p.valor_corrida) || 0) + (Number(p.gorjeta) || 0)
   const historico = pedidos
     .filter(p => p.entregador_id === entregador?.id && p.status === 'entregue')
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
   const entregasFeitas = historico.length
-  const totalRecebido = historico.filter(p => p.pagamento_corrida === 'pago').reduce((s, p) => s + (Number(p.valor_corrida) || 0), 0)
+  const totalRecebido = historico.filter(p => p.pagamento_corrida === 'pago').reduce((s, p) => s + ganhoDe(p), 0)
   // Repasses em dinheiro que a loja ainda não confirmou (Caminho B).
   const repasses = acertos.filter(a => a.tipo === 'repasse_loja')
   const repassesPendentes = repasses.filter(a => situacaoAcerto(a) === 'pendente')
@@ -357,7 +359,7 @@ function EntregadorDashboard() {
   // Métricas de hoje.
   const hoje = hojeLocal()
   const entregasHoje = historico.filter(p => diaLocal(p.updated_at) === hoje).length
-  const ganhosHoje = historico.filter(p => diaLocal(p.updated_at) === hoje).reduce((s, p) => s + (Number(p.valor_corrida) || 0), 0)
+  const ganhosHoje = historico.filter(p => diaLocal(p.updated_at) === hoje).reduce((s, p) => s + ganhoDe(p), 0)
 
   // Avaliação média recebida.
   const mediaNota = avaliacoes.length ? avaliacoes.reduce((s, a) => s + a.nota, 0) / avaliacoes.length : 0
@@ -398,7 +400,7 @@ function EntregadorDashboard() {
     }
     for (const p of historico) {
       const k = diaLocal(p.updated_at)
-      if (dias[k]) dias[k].ganho += Number(p.valor_corrida) || 0
+      if (dias[k]) dias[k].ganho += ganhoDe(p)
     }
     return Object.values(dias)
   }, [historico])
@@ -412,7 +414,8 @@ function EntregadorDashboard() {
     else { lim.setDate(1); lim.setHours(0, 0, 0, 0) } // mês: desde o dia 1
     return historico.filter(p => new Date(p.updated_at) >= lim)
   }, [historico, periodo])
-  const totalGanhoPeriodo = historicoFiltrado.reduce((s, p) => s + (Number(p.valor_corrida) || 0), 0)
+  const totalGanhoPeriodo = historicoFiltrado.reduce((s, p) => s + ganhoDe(p), 0)
+  const gorjetasPeriodo = historicoFiltrado.reduce((s, p) => s + (Number(p.gorjeta) || 0), 0)
 
   // Distância do entregador até a loja (retirada) de um pedido disponível.
   function distAteRetirada(p: PedidoCliente): number | null {
@@ -893,7 +896,7 @@ function EntregadorDashboard() {
                       )}
                       <div className="flex items-center justify-between mt-2 pt-2 border-t border-borda">
                         <span className="text-gray-500 text-xs">Corrida</span>
-                        <span className="text-acento font-bold text-sm">{Number(p.valor_corrida) > 0 ? reais(Number(p.valor_corrida)) : 'A definir'}</span>
+                        <span className="text-acento font-bold text-sm">{Number(p.valor_corrida) > 0 ? reais(ganhoDe(p)) : 'A definir'}{Number(p.gorjeta) > 0 ? <span className="block text-[11px] font-medium text-green-300">+{reais(Number(p.gorjeta))} gorjeta</span> : null}</span>
                       </div>
                       {pedidoNoVale(p) ? (
                         <div className="mt-2 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/40 rounded-lg px-2.5 py-1.5">
@@ -1002,7 +1005,7 @@ function EntregadorDashboard() {
                     <div key={p.id} className="bg-card border border-borda rounded-2xl p-4">
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <p className="text-white font-semibold truncate">{nomeLoja(p.loja_id)}</p>
-                        <span className="text-acento font-bold text-sm shrink-0">{Number(p.valor_corrida) > 0 ? reais(Number(p.valor_corrida)) : 'A definir'}</span>
+                        <span className="text-acento font-bold text-sm shrink-0">{Number(p.valor_corrida) > 0 ? reais(ganhoDe(p)) : 'A definir'}{Number(p.gorjeta) > 0 ? <span className="block text-[11px] font-medium text-green-300">+{reais(Number(p.gorjeta))} gorjeta</span> : null}</span>
                       </div>
                       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                         <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${meta.classes}`}>{meta.emoji} {meta.label}</span>
@@ -1173,7 +1176,7 @@ function EntregadorDashboard() {
           <section>
             <div className="flex items-center justify-between mb-2 gap-2">
               <h2 className="text-white font-semibold flex items-center gap-2"><History size={16} className="text-acento" /> Histórico</h2>
-              <span className="text-acento font-bold text-sm">{reais(totalGanhoPeriodo)}</span>
+              <span className="text-acento font-bold text-sm">{reais(totalGanhoPeriodo)}{gorjetasPeriodo > 0 && <span className="text-green-300 text-xs font-medium"> · {reais(gorjetasPeriodo)} em gorjetas</span>}</span>
             </div>
             <div className="flex gap-1.5 mb-3">
               {([['hoje', 'Hoje'], ['semana', 'Semana'], ['mes', 'Mês'], ['tudo', 'Tudo']] as [Periodo, string][]).map(([val, label]) => (
@@ -1194,7 +1197,8 @@ function EntregadorDashboard() {
                       <p className="text-gray-500 text-xs">{new Date(p.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-acento font-bold text-sm">{Number(p.valor_corrida) > 0 ? reais(Number(p.valor_corrida)) : '—'}</p>
+                      <p className="text-acento font-bold text-sm">{ganhoDe(p) > 0 ? reais(ganhoDe(p)) : '—'}</p>
+                      {Number(p.gorjeta) > 0 && <p className="text-[11px] text-green-300">inclui {reais(Number(p.gorjeta))} de gorjeta</p>}
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${p.pagamento_corrida === 'pago' ? 'bg-green-500/15 text-green-300 border-green-500/40' : 'bg-amber-500/15 text-amber-300 border-amber-500/40'}`}>
                         {p.pagamento_corrida === 'pago' ? (p.pagamento_metodo === 'online' ? 'Pago' : pedidoNoVale(p) ? 'Paga pela loja' : 'Recebido na porta') : 'Pendente'}
                       </span>
@@ -1285,7 +1289,7 @@ function EntregadorDashboard() {
       {/* Gamificação + indicação */}
       <div className="grid gap-4 mb-4">
         <PainelGamificacao papel="entregador" />
-        <CardIndicacao />
+        <CardIndicacao papel="entregador" />
       </div>
 
       {/* Kit oficial — convite, NÃO requisito.

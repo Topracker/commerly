@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { supabaseDaRota, usuarioDaRota } from '../../../lib/rotaSupabase'
 import { normalizarCodigo } from '../../../lib/festas'
+import { BONUS_INDICACAO_ENTREGADOR } from '../../../lib/repasse'
 
 export const runtime = 'nodejs'
 
@@ -49,8 +50,27 @@ export async function POST(request: NextRequest) {
     admin.from('fornecedores').select('id, cnpj').eq('user_id', user.id).maybeSingle(),
     admin.from('clientes').select('id, cpf').eq('user_id', user.id).maybeSingle(),
   ])
+  // Sem NENHUM perfil ainda (acabou de criar o login e está no onboarding):
+  // não registra. Antes caía em 'cliente' e o entregador indicado virava
+  // "cliente" para sempre (idempotência por indicado). Responder não-ok faz o
+  // IndicacaoClaim GUARDAR o código e tentar de novo; o onboarding do
+  // entregador chama esta rota ao concluir.
+  if (!loja && !ent && !forn && !cli) {
+    return NextResponse.json({ ok: false, ignorado: 'sem_papel' }, { status: 409 })
+  }
   const papelIndicado = loja ? 'comerciante' : ent ? 'entregador' : forn ? 'fornecedor' : 'cliente'
-  const rec = RECOMPENSA[papelIndicado]
+
+  // Entregador indicado por ENTREGADOR: R$30 via Stripe Connect ao indicador,
+  // só depois de 5 corridas entregues do indicado (lib/repasse.ts). Nada é
+  // creditado agora. Indicador de outro papel segue com os créditos de antes.
+  let bonusEntregador = false
+  if (papelIndicado === 'entregador') {
+    const { data: entIndicador } = await admin.from('entregadores').select('id').eq('user_id', dono.user_id).maybeSingle()
+    bonusEntregador = !!entIndicador
+  }
+  const rec = bonusEntregador
+    ? { creditos: undefined, label: `R$ ${BONUS_INDICACAO_ENTREGADOR.valor} via Stripe após ${BONUS_INDICACAO_ENTREGADOR.corridas} corridas do indicado` }
+    : RECOMPENSA[papelIndicado]
 
   // Antifraude (exclusão de conta, 2026-09-19): apagar a conta e voltar com o
   // mesmo CPF/CNPJ usando o código de um amigo não rende indicação nem
@@ -66,8 +86,9 @@ export async function POST(request: NextRequest) {
   const { error: insErr } = await admin.from('indicacoes').insert({
     codigo, indicador_user_id: dono.user_id, indicado_user_id: user.id,
     papel_indicado: papelIndicado,
-    status: papelIndicado === 'comerciante' ? 'pendente' : 'recompensada',
+    status: papelIndicado === 'comerciante' || bonusEntregador ? 'pendente' : 'recompensada',
     recompensa: rec.label,
+    ...(bonusEntregador ? { bonus_valor: BONUS_INDICACAO_ENTREGADOR.valor, bonus_meta_corridas: BONUS_INDICACAO_ENTREGADOR.corridas } : {}),
   })
   if (insErr) {
     // 23505 = corrida: outra requisição já registrou.

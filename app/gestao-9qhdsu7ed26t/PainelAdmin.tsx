@@ -46,8 +46,15 @@ type Dados = {
   cidadesResumo: { slug: string; cidade: string; lojas: number; pedidos: number; gmv: number }[]
   flagsGlobais: Record<string, boolean> | null
   flagsEscopos?: EscopoFlags[]
+  flagsBairros?: BairroFlag[]
+  listaEspera?: { total: number; semLojaNoBairro: number }
+  repassesTravados?: RepasseTravado[]
+  bonusTravados?: { id: string; bonus_valor: number; bonus_tentativas: number; bonus_erro: string | null; created_at: string }[]
   emAndamento?: EmAndamento
 }
+// Delivery por bairro (só Goiânia): ativo null = herda a cidade.
+type BairroFlag = { cidade: string; bairro: string; nome: string; lojas: number; interessados: number; prontos: number; ativo: boolean | null }
+type RepasseTravado = { pedido_id: string; entregador: string; telefone: string | null; valor: number; tentativas: number; erro: string | null; desde: string }
 // Overrides crus de um escopo (__global__ ou slug da cidade); o efetivo é calculado na tela.
 type EscopoFlags = { escopo: string; nome: string; lojas: number; overrides: Record<string, boolean> }
 // O que está no meio do caminho — mostrado antes de desligar uma chave de módulo.
@@ -211,13 +218,13 @@ export default function Admin() {
 
         {tab === 'Faturamento' && <Faturamento banco={dados.faturamentoBanco} />}
 
-        {tab === 'Acertos' && <Acertos />}
+        {tab === 'Acertos' && <><RepassesTravados repasses={dados.repassesTravados || []} bonus={dados.bonusTravados || []} /><Acertos /></>}
 
         {tab === 'Feedback' && <Feedbacks itens={dados.listas.feedbacks || []} />}
 
         {tab === 'Aprovações' && <Aprovacoes pendentes={dados.listas.pendentes || []} onChange={carregar} />}
 
-        {tab === 'Cidades & Flags' && <CidadesFlags cidades={dados.cidades || []} emAndamento={dados.emAndamento} escopos={dados.flagsEscopos || [{ escopo: '__global__', nome: 'Global (todas as cidades)', lojas: 0, overrides: dados.flagsGlobais || {} }]} onChange={carregar} />}
+        {tab === 'Cidades & Flags' && <CidadesFlags cidades={dados.cidades || []} bairros={dados.flagsBairros || []} listaEspera={dados.listaEspera} emAndamento={dados.emAndamento} escopos={dados.flagsEscopos || [{ escopo: '__global__', nome: 'Global (todas as cidades)', lojas: 0, overrides: dados.flagsGlobais || {} }]} onChange={carregar} />}
       </div>
     </main>
   )
@@ -626,8 +633,48 @@ function avisoModulo(flag: string, ligar: boolean, a?: EmAndamento): string {
   return `Desligar "${flag}"? Continuar?`
 }
 
-function CidadesFlags({ cidades, escopos, emAndamento, onChange }: { cidades: Cidade[]; escopos: EscopoFlags[]; emAndamento?: EmAndamento; onChange: () => void }) {
+// Busca sem acento/caixa: "goiania" acha "Goiânia", "bueno" acha "Setor Bueno".
+const normalizar = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+function RepassesTravados({ repasses, bonus }: { repasses: RepasseTravado[]; bonus: NonNullable<Dados['bonusTravados']> }) {
+  if (repasses.length === 0 && bonus.length === 0) return null
+  return (
+    <div className="bg-card border border-amber-700/60 rounded-2xl p-5 mb-6">
+      <p className="text-amber-200 text-sm font-semibold mb-1 flex items-center gap-1.5"><AlertTriangle size={15} /> Repasses travados ({repasses.length + bonus.length})</p>
+      <p className="text-gray-400 text-xs mb-3">
+        O cron diário já tentou de novo. Quase sempre é entregador sem o onboarding do Stripe Connect concluído: peça para ele
+        terminar o cadastro de recebimentos no app; o próximo cron paga sozinho (a chave de idempotência impede pagar duas vezes).
+      </p>
+      <ul className="space-y-2">
+        {repasses.map(r => (
+          <li key={r.pedido_id} className="rounded-xl border border-borda bg-superficie p-3 text-sm">
+            <div className="flex flex-wrap justify-between gap-2">
+              <span className="text-white font-medium">{r.entregador}{r.telefone ? ` · ${r.telefone}` : ''}</span>
+              <span className="text-amber-300 font-semibold tabular-nums">R$ {r.valor.toFixed(2)}</span>
+            </div>
+            <p className="text-gray-500 text-xs mt-1">Pedido {r.pedido_id.slice(0, 8)} · {r.tentativas} tentativa(s) · desde {new Date(r.desde).toLocaleString('pt-BR')}</p>
+            {r.erro && <p className="text-red-300/90 text-xs mt-1">{r.erro}</p>}
+          </li>
+        ))}
+        {bonus.map(b => (
+          <li key={b.id} className="rounded-xl border border-borda bg-superficie p-3 text-sm">
+            <div className="flex flex-wrap justify-between gap-2">
+              <span className="text-white font-medium">Bônus de indicação de entregador</span>
+              <span className="text-amber-300 font-semibold tabular-nums">R$ {Number(b.bonus_valor).toFixed(2)}</span>
+            </div>
+            <p className="text-gray-500 text-xs mt-1">Indicação {b.id.slice(0, 8)} · {b.bonus_tentativas} tentativa(s)</p>
+            {b.bonus_erro && <p className="text-red-300/90 text-xs mt-1">{b.bonus_erro}</p>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function CidadesFlags({ cidades, escopos, bairros, listaEspera, emAndamento, onChange }: { cidades: Cidade[]; escopos: EscopoFlags[]; bairros: BairroFlag[]; listaEspera?: { total: number; semLojaNoBairro: number }; emAndamento?: EmAndamento; onChange: () => void }) {
   const [local, setLocal] = useState<EscopoFlags[]>(escopos)
+  const [locBairros, setLocBairros] = useState<BairroFlag[]>(bairros)
+  const [busca, setBusca] = useState('')
   const [flag, setFlag] = useState('delivery')
   const [salvando, setSalvando] = useState<string | null>(null)
   const [erro, setErro] = useState('')
@@ -639,7 +686,33 @@ function CidadesFlags({ cidades, escopos, emAndamento, onChange }: { cidades: Ci
   const rotulo = FEATURE_FLAGS.find(f => f.flag === flag)?.rotulo || flag
   // Chave de módulo: só o escopo global existe (a rota /flag recusa cidade).
   const soGlobal = !!FEATURE_FLAGS.find(f => f.flag === flag)?.global
-  const visiveis = soGlobal ? local.filter(e => e.escopo === '__global__') : local
+  const termo = normalizar(busca.trim())
+  const casa = (t: string) => !termo || normalizar(t).includes(termo)
+  // O global nunca some na busca: é a referência de tudo o que herda.
+  const visiveis = (soGlobal ? local.filter(e => e.escopo === '__global__') : local)
+    .filter(e => e.escopo === '__global__' || casa(`${e.nome} ${e.escopo}`))
+  const cidadeGoiania = local.find(e => e.escopo === 'goiania')
+  const efetivoGoiania = cidadeGoiania ? efetivo(cidadeGoiania) : doGlobal
+  const bairrosVisiveis = flag === 'delivery' ? locBairros.filter(b => casa(`${b.nome} ${b.bairro} goiania goiânia`)) : []
+
+  async function mudarBairro(b: BairroFlag, novo: EstadoFlag) {
+    if (salvando || b.ativo === novo) return
+    const depois = novo ?? efetivoGoiania
+    if (!window.confirm(`${novo === null ? 'Fazer' : novo ? 'Ligar o delivery em' : 'Desligar o delivery em'} ${b.nome} (Goiânia)${novo === null ? ' herdar a cidade' : ''}? ` +
+      `Resultado: pedidos ${depois ? 'LIBERADOS' : 'BLOQUEADOS'} nas ${b.lojas} loja(s) do bairro.` +
+      (depois && b.prontos === 0 ? ' ATENÇÃO: nenhum entregador com moto+CNH na lista de espera deste bairro.' : ''))) return
+    setErro('')
+    setSalvando(`bairro:${b.bairro}`)
+    const r = await fetch(`${ADMIN_API_BASE}/flag`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ flag: 'delivery', ativo: novo, cidade_slug: 'goiania', bairro: b.bairro }),
+    }).catch(() => null)
+    const j = r && r.ok ? await r.json().catch(() => null) : null
+    setSalvando(null)
+    if (!j || j.ativo !== novo) { setErro(`Não foi possível alterar o delivery em ${b.nome}. Nada foi alterado.`); return }
+    setLocBairros(ls => ls.map(x => x.bairro === b.bairro ? { ...x, ativo: novo } : x))
+    onChange()
+  }
 
   async function mudar(e: EscopoFlags, novo: EstadoFlag) {
     if (salvando || estado(e) === novo) return
@@ -696,6 +769,9 @@ function CidadesFlags({ cidades, escopos, emAndamento, onChange }: { cidades: Ci
             </button>
           ))}
         </div>
+        <input type="search" value={busca} onChange={e => setBusca(e.target.value)}
+          placeholder={flag === 'delivery' ? 'Buscar cidade ou bairro…' : 'Buscar cidade…'} aria-label="Buscar cidade ou bairro"
+          className="w-full mb-4 bg-superficie border border-borda rounded-xl px-3.5 py-2 text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-acento" />
         {erro && <p className="text-red-400 text-sm mb-3">{erro}</p>}
         {soGlobal && (
           <p className="text-gray-500 text-xs mb-3">
@@ -741,6 +817,59 @@ function CidadesFlags({ cidades, escopos, emAndamento, onChange }: { cidades: Ci
             )
           })}
         </ul>
+        {termo && visiveis.length <= 1 && bairrosVisiveis.length === 0 && (
+          <p className="text-gray-500 text-xs mt-3">Nenhuma cidade ou bairro com &quot;{busca}&quot;.</p>
+        )}
+
+        {flag === 'delivery' && (
+          <div className="mt-6">
+            <p className="text-white text-sm font-semibold mb-1">Bairros de Goiânia</p>
+            <p className="text-gray-500 text-xs mb-3">
+              Recorte dentro da cidade: o bairro da LOJA manda (bairro, depois cidade, depois global). Só aparecem bairros com pelo menos 1 loja
+              (ou que já têm ajuste). Cidade Goiânia hoje: <strong className={efetivoGoiania ? 'text-green-300' : 'text-red-300'}>{efetivoGoiania ? 'ligada' : 'desligada'}</strong>.
+              {listaEspera ? ` Lista de espera: ${listaEspera.total} entregador(es)${listaEspera.semLojaNoBairro ? `, ${listaEspera.semLojaNoBairro} em bairros ainda sem loja` : ''}.` : ''}
+            </p>
+            {bairrosVisiveis.length === 0 ? (
+              <p className="text-gray-500 text-xs">{locBairros.length === 0 ? 'Nenhuma loja de Goiânia com bairro identificado ainda.' : 'Nenhum bairro com esse nome.'}</p>
+            ) : (
+              <ul className="space-y-2">
+                {bairrosVisiveis.map(b => {
+                  const ef = b.ativo ?? efetivoGoiania
+                  return (
+                    <li key={b.bairro} data-bairro={b.bairro}
+                      className={`rounded-xl border border-borda bg-superficie p-3 ${salvando === `bairro:${b.bairro}` ? 'opacity-60' : ''}`}>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-white text-sm font-medium">{b.nome}</p>
+                          <p className="text-gray-500 text-xs">
+                            {b.lojas} loja(s) · {b.interessados} entregador(es) interessado(s){b.interessados ? ` (${b.prontos} com moto+CNH)` : ''}
+                            {b.ativo === null ? ' · herdando a cidade' : ''}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex rounded-lg border border-borda overflow-hidden" role="group" aria-label={`Delivery em ${b.nome}`}>
+                            {opcoes.map(o => (
+                              <button key={String(o.valor)} onClick={() => mudarBairro(b, o.valor)} disabled={salvando !== null}
+                                aria-pressed={b.ativo === o.valor}
+                                className={`text-xs px-2.5 py-1.5 transition disabled:cursor-not-allowed ${b.ativo === o.valor
+                                  ? (o.valor === false ? 'bg-red-500/20 text-red-300' : o.valor ? 'bg-green-500/20 text-green-300' : 'bg-elevado text-white')
+                                  : 'text-gray-400 hover:text-white'}`}>
+                                {o.texto}
+                              </button>
+                            ))}
+                          </div>
+                          <span className={`text-[11px] font-semibold px-2 py-1 rounded-full ${ef ? 'bg-green-500/15 text-green-300' : 'bg-red-500/15 text-red-300'}`}>
+                            Efetivo: {ef ? 'ligado' : 'desligado'}
+                          </span>
+                        </div>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="bg-card border border-borda rounded-2xl p-5">

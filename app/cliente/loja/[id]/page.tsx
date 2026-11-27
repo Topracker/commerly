@@ -310,7 +310,9 @@ export default function ClienteLoja() {
             {isDelivery(loja.tipo) && produtos.length > 0 && (
               loja.delivery_liberado === false || !ativa('cliente') || !ativa('delivery') ? (
                 <p className="mt-2.5 w-full rounded-xl border border-borda bg-elevado py-3 text-center text-sm text-gray-400">
-                  Pedidos indisponíveis nesta loja no momento.
+                  {loja.delivery_liberado === false || !ativa('delivery')
+                    ? 'Pedido online indisponível nesta loja agora: a loja pausou ou o delivery ainda não abriu na região dela.'
+                    : 'Pedidos indisponíveis nesta loja no momento.'}
                 </p>
               ) : (
                 <button

@@ -4,6 +4,7 @@ import { formatarDataHora } from '../lib/datas'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { AppLayout } from '../components/AppLayout'
+import { AvisoCidadeLoja } from '../components/AvisoCidadeLoja'
 import { useFlags } from '../lib/useFlags'
 import { Toast } from '../components/Toast'
 import { isDelivery, STATUS_META, FLUXO_STATUS, proximoStatus, pedidoEmAndamento, type PedidoCliente, type StatusPedidoCliente } from '../lib/pedidosClientes'
@@ -647,6 +648,8 @@ export default function PedidosComerciante() {
   return (
     <AppLayout loja={loja} sair={sair} titulo="Pedidos online">
       <Toast toast={toast} />
+      {/* Delivery pausado no bairro/cidade da loja: avisa em vez de só sumir. */}
+      <AvisoCidadeLoja className="mb-4" contexto="pedidos" />
 
       {/* Confirmação de liberação — tira a corrida de alguém, então pergunta antes. */}
       {liberando && (

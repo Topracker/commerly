@@ -9,7 +9,7 @@ import { emojiCategoria, corAcentoNicho } from '../../lib/temaLoja'
 import { linkWhatsApp, textoPedidoCardapio, whatsappDaLoja } from '../../lib/whatsapp'
 import { MapPin, Clock, Phone, ShoppingBag, UtensilsCrossed, MessageCircle } from 'lucide-react'
 import { SeloAberto } from '../../components/SeloAberto'
-import { moduloAtivo } from '../../lib/featureFlags'
+import { moduloAtivo, deliveryLiberadoLojas } from '../../lib/featureFlags'
 
 // Cardápio digital público — acessível sem login (ideal para QR code na mesa/
 // balcão). Mostra a loja e todos os produtos disponíveis agrupados por
@@ -127,7 +127,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function CardapioPublico({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const [dados, clienteAtivo] = await Promise.all([carregar(id), moduloAtivo('cliente')])
+  // "Fazer pedido" exige a área do cliente ligada E o delivery aberto no
+  // bairro/cidade DESTA loja (mesma regra do trigger que barra o pedido).
+  const [dados, clienteAtivo, liberadas] = await Promise.all([
+    carregar(id), moduloAtivo('cliente'), deliveryLiberadoLojas([id]),
+  ])
+  const pedidoPeloApp = clienteAtivo && liberadas.get(id) === true
   if (!dados) notFound()
 
   if ('indisponivel' in dados) return (
@@ -270,7 +275,7 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
         <div className="max-w-2xl mx-auto flex flex-col gap-2">
           {/* Chave `cliente` desligada: some o pedido pelo app (o WhatsApp é da
               loja, não passa pela Commerly, e continua). */}
-          {clienteAtivo && (
+          {pedidoPeloApp && (
             <Link
               href={`/cliente/loja/${loja.id}`}
               className="w-full bg-azul hover:brightness-110 text-white font-semibold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-black/40"
@@ -278,6 +283,11 @@ export default async function CardapioPublico({ params }: { params: Promise<{ id
               <ShoppingBag size={19} />
               Fazer pedido
             </Link>
+          )}
+          {!pedidoPeloApp && (
+            <p className="text-center text-gray-400 text-xs">
+              {whatsapp ? 'O pedido online pela Commerly ainda não abriu nesta região. Peça direto à loja pelo WhatsApp.' : 'O pedido online pela Commerly ainda não abriu nesta região. Fale com a loja.'}
+            </p>
           )}
           {whatsapp && (
             <a

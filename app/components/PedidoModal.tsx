@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { X, Plus, Minus, ShoppingBag, MapPin, Check, CreditCard, Banknote, Sparkles, WalletCards } from 'lucide-react'
-import type { ItemPedidoCliente } from '../lib/pedidosClientes'
+import { GORJETA_CHIPS, GORJETA_MAX, type ItemPedidoCliente } from '../lib/pedidosClientes'
 import { distanciaKm, taxaEntregaPorDistancia, taxaComPico, ehHorarioPico, formatarDistancia } from '../lib/geo'
 import { descontoDePontos, maxPontosResgataveis } from '../lib/fidelidade'
 import { useFlags } from '../lib/useFlags'
@@ -68,6 +68,10 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   // #6 Modo invisível: o nome e o telefone não chegam a ser gravados no pedido
   // (o guard do banco os anula). O histórico do cliente continua pelo cliente_id.
   const [anonimo, setAnonimo] = useState(false)
+  // Gorjeta do entregador (só no pagamento online — 100% dele, via Stripe). No
+  // dinheiro/vale o cliente dá na mão; o banco zera a gorjeta fora do online.
+  const [gorjetaChip, setGorjetaChip] = useState<number | 'outro'>(0)
+  const [gorjetaOutro, setGorjetaOutro] = useState('')
 
   // #5 Preço dinâmico: buscamos o fator vigente para exibir o preço certo.
   // Até responder, `1` (preço base) — nunca mostramos preço maior sem saber.
@@ -183,7 +187,11 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
   const podeResgatar = pontosResgataveis >= 100 && ativa('cashback')
   const pontosUsados = usarPontos && podeResgatar ? pontosResgataveis : 0
   const desconto = descontoDePontos(pontosUsados)
-  const total = Math.max(subtotal - desconto, 0) + (taxaEntrega ?? 0)
+  const gorjeta = pagamento !== 'online' ? 0
+    : gorjetaChip === 'outro'
+      ? Math.min(GORJETA_MAX, Math.max(0, Math.round((Number(gorjetaOutro.replace(',', '.')) || 0) * 100) / 100))
+      : gorjetaChip
+  const total = Math.max(subtotal - desconto, 0) + (taxaEntrega ?? 0) + gorjeta
   const totalItens = itens.reduce((s, i) => s + i.quantidade, 0)
 
   // Distância máxima da loja (km). Fora da área -> bloqueia o pedido.
@@ -233,6 +241,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
             pontos_resgatar: pontosUsados,
             anonimo,
             fator_exibido: fatorPreco,
+            gorjeta,
           }),
         })
         const d = await res.json().catch(() => ({}))
@@ -580,6 +589,31 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
               )}
             </div>
           </div>
+
+          {/* Gorjeta: só no online (no dinheiro/vale o cliente dá na mão). */}
+          {pagamento === 'online' && (
+            <div>
+              <p className="text-gray-300 text-sm font-medium mb-1">Gorjeta para o entregador</p>
+              <p className="text-gray-500 text-xs mb-2">Opcional. 100% vai para quem entrega.</p>
+              <div className="flex flex-wrap gap-2">
+                {GORJETA_CHIPS.map(v => (
+                  <button key={v} type="button" onClick={() => setGorjetaChip(v)} aria-pressed={gorjetaChip === v}
+                    className={`px-3.5 py-2 rounded-xl border text-sm font-medium transition ${gorjetaChip === v ? 'border-acento/60 bg-acento/10 text-acento' : 'border-borda bg-superficie text-gray-300 hover:border-[#2b3440]'}`}>
+                    {v === 0 ? 'Sem gorjeta' : reais(v)}
+                  </button>
+                ))}
+                <button type="button" onClick={() => setGorjetaChip('outro')} aria-pressed={gorjetaChip === 'outro'}
+                  className={`px-3.5 py-2 rounded-xl border text-sm font-medium transition ${gorjetaChip === 'outro' ? 'border-acento/60 bg-acento/10 text-acento' : 'border-borda bg-superficie text-gray-300 hover:border-[#2b3440]'}`}>
+                  Outro
+                </button>
+              </div>
+              {gorjetaChip === 'outro' && (
+                <input type="text" inputMode="decimal" value={gorjetaOutro} onChange={e => setGorjetaOutro(e.target.value)}
+                  placeholder={`R$ 0,00 (até ${reais(GORJETA_MAX)})`} aria-label="Valor da gorjeta"
+                  className="mt-2 w-40 bg-superficie border border-borda rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-acento" />
+              )}
+            </div>
+          )}
         </div>
 
         <div className="border-t border-borda px-5 py-4 shrink-0">
@@ -604,6 +638,12 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
                 <span>🔥 Horário de pico — taxa de entrega aumentada</span>
               </div>
             )}
+            {gorjeta > 0 && (
+              <div className="flex items-center justify-between text-gray-400">
+                <span>Gorjeta do entregador</span>
+                <span className="tabular-nums">{reais(gorjeta)}</span>
+              </div>
+            )}
             {desconto > 0 && (
               <div className="flex items-center justify-between text-[#F5C34B]">
                 <span className="flex items-center gap-1.5"><Sparkles size={13} /> Desconto ({pontosUsados} pontos)</span>
@@ -613,7 +653,7 @@ export function PedidoModal({ loja, cliente, produtos, supabase, onFechar, onSuc
             <div className="flex items-center justify-between border-t border-borda pt-1.5 mt-0.5">
               <span className="text-white font-medium">Total</span>
               <span className="font-display text-white font-bold text-lg tabular-nums">
-                {taxaEntrega == null ? `${reais(Math.max(subtotal - desconto, 0))} + taxa` : reais(total)}
+                {taxaEntrega == null ? `${reais(Math.max(subtotal - desconto, 0) + gorjeta)} + taxa` : reais(total)}
               </span>
             </div>
           </div>

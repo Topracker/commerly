@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { idsLojasOcultas, semOcultas } from '../../../lib/lojasOcultas'
-import { MSG_PAUSA, moduloAtivo } from '../../../lib/featureFlags'
+import { MSG_PAUSA, moduloAtivo, deliveryLiberadoLojas } from '../../../lib/featureFlags'
 
 // Lista/detalha as lojas públicas para o cliente (marketplace).
 //
@@ -18,40 +18,6 @@ import { MSG_PAUSA, moduloAtivo } from '../../../lib/featureFlags'
 //   GET /api/cliente/lojas?id=<uuid>  -> detalhe de uma loja
 const COLS =
   'id, nome, tipo, localizacao, telefone, instagram, horario, latitude, longitude, fotos_fachada, taxa_entrega, created_at, destaque, disponivel, aceita_cupom'
-
-/**
- * O delivery está mesmo aberto nesta loja? Duas chaves independentes, ambas
- * precisam estar ligadas — e a resposta viaja junto com a loja para que o app
- * do cliente esconda o botão "Fazer Pedido" em vez de deixá-lo tomar um erro
- * do trigger só depois de montar o carrinho.
- *
- *   1. `lojas.delivery_ativo`  -> o comerciante pausou os pedidos
- *   2. feature flag `delivery` -> global, com override da CIDADE da loja
- */
-async function deliveryLiberado(admin: any, lojaIds: string[]): Promise<Map<string, boolean>> {
-  const mapa = new Map<string, boolean>()
-  if (lojaIds.length === 0) return mapa
-
-  const { data: linhas } = await admin
-    .from('lojas').select('id, cidade_slug, delivery_ativo').in('id', lojaIds)
-  const lojas = (linhas || []) as { id: string; cidade_slug: string | null; delivery_ativo: boolean | null }[]
-
-  const cidades = [...new Set(lojas.map(l => l.cidade_slug).filter(Boolean))] as string[]
-  const { data: flags } = await admin
-    .from('feature_flags').select('cidade_slug, ativo')
-    .eq('flag', 'delivery').in('cidade_slug', ['__global__', ...cidades])
-
-  const porCidade = new Map((flags || []).map((f: any) => [f.cidade_slug as string, !!f.ativo]))
-  const global = porCidade.has('__global__') ? porCidade.get('__global__')! : true
-
-  for (const l of lojas) {
-    const daCidade = l.cidade_slug != null && porCidade.has(l.cidade_slug)
-      ? porCidade.get(l.cidade_slug)!
-      : global
-    mapa.set(l.id, l.delivery_ativo !== false && daCidade === true)
-  }
-  return mapa
-}
 
 /**
  * Lojas que aceitam vale (VA/VR) na maquininha — lib/vale.ts. Query à parte e
@@ -103,7 +69,7 @@ export async function GET(request: NextRequest) {
     if (!data.disponivel) {
       return NextResponse.json({ loja: null, indisponivel: true }, { status: 404 })
     }
-    const liberado = await deliveryLiberado(admin, [data.id])
+    const liberado = await deliveryLiberadoLojas([data.id], admin)
     return NextResponse.json({ loja: { ...data, delivery_liberado: liberado.get(data.id) !== false } })
   }
 
@@ -133,7 +99,7 @@ export async function GET(request: NextRequest) {
   // Lojas de teste ficam fora da LISTA; o ramo `?id=` acima continua abrindo.
   const data = semOcultas(bruto || [], ocultas, l => (l as { id: string }).id)
   console.log(`[cliente/lojas] ${data.length} lojas (tipo=${tipo || 'Todos'}, busca=${busca || ''})`)
-  const liberado = await deliveryLiberado(admin, data.map((l: any) => l.id))
+  const liberado = await deliveryLiberadoLojas(data.map((l: any) => l.id), admin)
   return NextResponse.json({
     lojas: data.map((l: any) => ({ ...l, delivery_liberado: liberado.get(l.id) !== false, aceita_vale: comVale.has(l.id) })),
   })

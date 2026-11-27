@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     admin.from('pedidos_clientes').select('taxa_entrega, valor_corrida').eq('status', 'entregue'),
     admin.from('produtos').select('loja_id'),
     admin.from('feedbacks').select('id, loja_id, tipo, mensagem, created_at').order('created_at', { ascending: false }).limit(200),
-    admin.from('feature_flags').select('cidade_slug, flag, ativo'),
+    admin.from('feature_flags').select('cidade_slug, flag, ativo, bairro'),
     // ── Em andamento (confirmação das chaves de módulo, 2026-10-25) ──────────
     // O admin vê o que está no meio do caminho ANTES de desligar cliente/
     // entregador/fornecedor. Desligar só impede começar; isto mostra o que
@@ -229,7 +229,8 @@ export async function GET(request: NextRequest) {
   // Só as linhas CRUAS (override ou ausência); o valor efetivo é calculado na
   // tela com a mesma regra de lib/featureFlags.ts: cidade ?? global ?? true.
   const overrides: Record<string, Record<string, boolean>> = { __global__: {} }
-  for (const f of flagsLinhas || []) (overrides[f.cidade_slug] ||= {})[f.flag] = !!f.ativo
+  // Linha de bairro NÃO é override da cidade (vai em flagsBairros, abaixo).
+  for (const f of flagsLinhas || []) if (!f.bairro) (overrides[f.cidade_slug] ||= {})[f.flag] = !!f.ativo
   const slugsComLoja = Object.keys(lojasPorCidade).filter(s => s !== 'sem-cidade')
   const flagsEscopos = [
     { escopo: '__global__', nome: 'Global (todas as cidades)', lojas: lojas.length, overrides: overrides.__global__ },
@@ -237,6 +238,63 @@ export async function GET(request: NextRequest) {
       .map(slug => ({ escopo: slug, nome: nomeDaCidade[slug] || slug, lojas: lojasPorCidade[slug] || 0, overrides: overrides[slug] || {} }))
       .sort((a, b) => b.lojas - a.lojas || a.nome.localeCompare(b.nome)),
   ]
+
+  // ── Delivery por BAIRRO (só Goiânia, 2026-11-26) ──────────────────────────
+  // Bairros com pelo menos 1 loja (ou que já têm linha de flag, para poder
+  // desligar), com a contagem de lojas e de entregadores na lista de espera.
+  const [{ data: lojasBairro }, { data: interessados }] = await Promise.all([
+    admin.from('lojas').select('bairro, bairro_slug').eq('cidade_slug', 'goiania').not('bairro_slug', 'is', null),
+    admin.from('entregadores_interessados').select('cidade_slug, bairro, bairro_slug, tem_moto, tem_cnh'),
+  ])
+  const bairros = new Map<string, { nome: string; lojas: number; interessados: number; prontos: number; ativo: boolean | null }>()
+  const pegar = (slug: string, nome: string) => {
+    let b = bairros.get(slug)
+    if (!b) { b = { nome, lojas: 0, interessados: 0, prontos: 0, ativo: null }; bairros.set(slug, b) }
+    return b
+  }
+  for (const l of lojasBairro || []) pegar(l.bairro_slug as string, (l.bairro as string) || (l.bairro_slug as string)).lojas++
+  for (const f of flagsLinhas || []) {
+    if (f.bairro && f.cidade_slug === 'goiania' && f.flag === 'delivery') pegar(f.bairro, f.bairro).ativo = !!f.ativo
+  }
+  let interessadosSemLoja = 0
+  for (const i of interessados || []) {
+    const b = i.cidade_slug === 'goiania' ? bairros.get(i.bairro_slug as string) : undefined
+    if (!b) { interessadosSemLoja++; continue }
+    b.interessados++
+    if (i.tem_moto && i.tem_cnh) b.prontos++
+  }
+  const flagsBairros = [...bairros.entries()]
+    .map(([slug, b]) => ({ cidade: 'goiania', bairro: slug, ...b }))
+    .sort((a, b) => b.lojas - a.lojas || b.interessados - a.interessados || a.nome.localeCompare(b.nome))
+  const listaEspera = { total: (interessados || []).length, semLojaNoBairro: interessadosSemLoja }
+
+  // ── Repasses travados (corrida + gorjeta e bônus de indicação) ────────────
+  // O cron diário (/api/entregador/repasse-cron) tenta de novo; o que segue
+  // pendente aparece aqui para alguém resolver (quase sempre: entregador sem
+  // onboarding do Stripe Connect concluído).
+  const [{ data: corridasTravadas }, { data: bonusTravados }] = await Promise.all([
+    admin.from('pedidos_clientes')
+      .select('id, entregador_id, valor_corrida, gorjeta, repasse_tentativas, repasse_tentado_em, repasse_erro, updated_at')
+      .eq('status', 'entregue').eq('pagamento_metodo', 'online').eq('pagamento_status', 'pago')
+      .eq('pagamento_corrida', 'pendente').order('updated_at', { ascending: true }).limit(100),
+    admin.from('indicacoes')
+      .select('id, indicador_user_id, indicado_user_id, bonus_valor, bonus_tentativas, bonus_erro, created_at')
+      .not('bonus_valor', 'is', null).is('bonus_pago_em', null).gt('bonus_tentativas', 0).limit(100),
+  ])
+  const idsEnt = [...new Set((corridasTravadas || []).map(p => p.entregador_id).filter(Boolean))] as string[]
+  const { data: entsTrav } = idsEnt.length
+    ? await admin.from('entregadores').select('id, nome, telefone, stripe_account_id, stripe_onboarded').in('id', idsEnt)
+    : { data: [] as { id: string; nome: string | null; telefone: string | null; stripe_account_id: string | null; stripe_onboarded: boolean | null }[] }
+  const entPorId = new Map((entsTrav || []).map(e => [e.id, e]))
+  const repassesTravados = (corridasTravadas || []).map(p => {
+    const e = p.entregador_id ? entPorId.get(p.entregador_id) : undefined
+    return {
+      pedido_id: p.id, entregador: e?.nome || '—', telefone: e?.telefone || null,
+      valor: Math.round(((Number(p.valor_corrida) || 0) + (Number(p.gorjeta) || 0)) * 100) / 100,
+      tentativas: p.repasse_tentativas || 0, erro: p.repasse_erro || (!e?.stripe_account_id || !e?.stripe_onboarded ? 'Entregador sem Stripe Connect concluído' : null),
+      desde: p.updated_at,
+    }
+  })
 
   // ── Funil de ativação ─────────────────────────────────────────────────────
   const lojasComProduto = new Set((produtosLojas || []).map((p: any) => p.loja_id))
@@ -295,7 +353,8 @@ export async function GET(request: NextRequest) {
       pendentes,
       feedbacks: feedbacksLista,
     },
-    cidades, cidadesResumo, flagsGlobais, flagsEscopos,
+    cidades, cidadesResumo, flagsGlobais, flagsEscopos, flagsBairros, listaEspera,
+    repassesTravados, bonusTravados: bonusTravados || [],
     emAndamento: {
       pedidosAbertos: pedidosAbertos || 0, corridasEmCurso: corridasEmCurso || 0,
       ofertasPendentes: ofertasPendentes || 0, festasAbertas: festasAbertas || 0,

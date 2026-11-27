@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import Stripe from 'stripe'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { rateLimit } from '../../../lib/rate-limit'
 import { dispatchPushPedido } from '../../../lib/pushDispatch'
+import { pagarCorrida, verificarBonusIndicacao } from '../../../lib/repasse'
 
 // Entregador digita o código de 4 dígitos do cliente para confirmar a entrega.
-// Confere o código, marca o pedido como 'entregue' e paga a corrida via
-// Stripe Connect (transfer para a conta do entregador) quando o pedido foi pago
-// online. Em DINHEIRO (Caminho B, lib/acertos.ts) não há transfer: o entregador
+// Confere o código, marca o pedido como 'entregue' e paga corrida + gorjeta via
+// Stripe Connect (transfer para a conta do entregador, lib/repasse.ts) quando o
+// pedido foi pago online. Em DINHEIRO (Caminho B, lib/acertos.ts) não há transfer: o entregador
 // já cobrou o total na porta e ficou com a taxa; o guard marca
 // `pagamento_corrida='pago'` e o trigger `acertos_gerar_na_entrega` registra o
 // que ele deve repassar à loja (`acertos_dinheiro`).
@@ -73,33 +73,27 @@ export async function POST(request: NextRequest) {
   // Push do "Pedido entregue" para o cliente (o trigger já gravou a notificação).
   await dispatchPushPedido(admin, pedido_id)
 
-  // Payout da corrida via Stripe Connect (best-effort — a entrega já foi
-  // confirmada; se o transfer falhar, pagamento_corrida fica 'pendente').
+  // Payout da corrida + gorjeta via Stripe Connect (lib/repasse.ts). Best-effort:
+  // a entrega já foi confirmada. Se o transfer falhar, fica
+  // pagamento_corrida='pendente' COM o erro gravado; o cron diário
+  // /api/repasse/cron tenta de novo e o admin vê em "Repasses travados".
   //
-  // Só transfere quando o pedido foi PAGO ONLINE: aí a plataforma reteve a taxa
-  // de entrega (destination charge com transfer_data.amount=subtotal) e tem saldo
-  // para repassar. Em pedidos "na entrega" (dinheiro/Pix) o entregador recebe a
-  // corrida direto do cliente — não há transfer via Stripe.
-  let pago = false
-  const valor = Number(pedido.valor_corrida) || 0
+  // Só transfere quando o pedido foi PAGO ONLINE: aí a plataforma reteve taxa +
+  // gorjeta (destination charge com transfer_data.amount=subtotal). Em pedidos
+  // "na entrega" o entregador recebe a corrida direto do cliente.
   const pagoOnline = pedido.pagamento_metodo === 'online' && pedido.pagamento_status === 'pago'
-  if (pagoOnline && process.env.STRIPE_SECRET_KEY && entregador.stripe_account_id && entregador.stripe_onboarded && valor > 0) {
-    try {
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-      await stripe.transfers.create({
-        amount: Math.round(valor * 100),
-        currency: 'brl',
-        destination: entregador.stripe_account_id,
-        metadata: { pedido_id, entregador_id: entregador.id },
-      })
-      pago = true
-      await admin.from('pedidos_clientes').update({ pagamento_corrida: 'pago' }).eq('id', pedido_id)
-    } catch (e) {
-      console.error('[entregador/confirmar-entrega] transfer falhou:', e)
-    }
+  const repasse = pagoOnline ? await pagarCorrida(admin, pedido_id) : null
+  const pago = !!repasse?.pago
+  const valor = repasse ? repasse.valor : Number(pedido.valor_corrida) || 0
+  const gorjeta = pagoOnline ? Number(pedido.gorjeta) || 0 : 0
+
+  // Indicação paga: se ESTE entregador foi indicado por outro, a 5ª entrega
+  // libera os R$30 do indicador (idempotente; o cron cobre falhas).
+  try { await verificarBonusIndicacao(admin, entregador.id) } catch (e) {
+    console.error('[entregador/confirmar-entrega] bônus de indicação falhou:', e)
   }
 
   const dinheiro = pedido.pagamento_metodo !== 'online'
   const repasseLoja = dinheiro ? Math.max(0, Math.round((Number(pedido.total) - Number(pedido.taxa_entrega)) * 100) / 100) : 0
-  return NextResponse.json({ ok: true, pago, valor, dinheiro, repasse_loja: repasseLoja })
+  return NextResponse.json({ ok: true, pago, valor, gorjeta, dinheiro, repasse_loja: repasseLoja, repasse_erro: repasse?.erro ?? null })
 }

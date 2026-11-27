@@ -20,7 +20,7 @@ export async function GET() {
   const admin = createAdminClient()
 
   const { data: flags, error } = await admin
-    .from('feature_flags').select('cidade_slug, ativo').eq('flag', 'delivery')
+    .from('feature_flags').select('cidade_slug, bairro, ativo').eq('flag', 'delivery')
 
   if (error) {
     // Falha de leitura não pode virar "estamos fechados": o banner some e o
@@ -31,13 +31,14 @@ export async function GET() {
   }
 
   const linhas = flags || []
-  const linhaGlobal = linhas.find(f => f.cidade_slug === GLOBAL)
+  const linhaGlobal = linhas.find(f => f.cidade_slug === GLOBAL && !f.bairro)
   const global = linhaGlobal ? !!linhaGlobal.ativo : true
 
   if (global) return NextResponse.json({ global: true, cidades: [] },
     { headers: { 'Cache-Control': 'public, max-age=30, s-maxage=30' } })
 
-  const slugs = linhas.filter(f => f.cidade_slug !== GLOBAL && f.ativo).map(f => f.cidade_slug as string)
+  // Linha de bairro ligada também põe a cidade no mapa (Goiânia abre por bairro).
+  const slugs = [...new Set(linhas.filter(f => f.cidade_slug !== GLOBAL && f.ativo).map(f => f.cidade_slug as string))]
   if (slugs.length === 0) {
     return NextResponse.json({ global: false, cidades: [] },
       { headers: { 'Cache-Control': 'public, max-age=30, s-maxage=30' } })

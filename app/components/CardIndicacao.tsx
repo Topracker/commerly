@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Gift, Copy, Check, MessageCircle } from 'lucide-react'
 
 import { brl } from '../lib/precos'
-import { linkConvite } from '../lib/convite'
+import { linkConvite, BONUS_INDICACAO_ENTREGADOR } from '../lib/convite'
 
 type Desconto = {
   confirmadas: number; pct: number; preco: number
@@ -14,7 +14,9 @@ type Desconto = {
 // Card de indicação reutilizável: mostra o código único do usuário logado, o
 // link de convite, botão de copiar e compartilhar no WhatsApp, e quantas
 // pessoas ele já trouxe. Busca (ou cria) o código em /api/indicacao/codigo.
-export function CardIndicacao() {
+export function CardIndicacao({ papel }: { papel?: 'entregador' } = {}) {
+  const entregador = papel === 'entregador'
+
   const { ativa } = useFlags()
   const [codigo, setCodigo] = useState<string | null>(null)
   const [usos, setUsos] = useState(0)
@@ -30,6 +32,7 @@ export function CardIndicacao() {
       .catch(() => {})
     // Só o comerciante tem mensalidade; para os outros papéis a rota devolve 0%
     // e o bloco de desconto simplesmente não aparece.
+    if (entregador) return
     fetch('/api/indicacao/desconto')
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (d && !d.error) setDesconto(d) })
@@ -56,10 +59,12 @@ export function CardIndicacao() {
         {usos > 0 && <span className="ml-auto text-xs text-acento font-semibold">{usos} {usos === 1 ? 'pessoa' : 'pessoas'} trazida{usos === 1 ? '' : 's'} 💛</span>}
       </div>
       <p className="text-gray-400 text-sm mb-3">
-        Cada indicação que assinar vale 10% de desconto na sua mensalidade — até 40%.
+        {entregador
+          ? `Indique outro entregador: você ganha R$ ${BONUS_INDICACAO_ENTREGADOR.valor} na sua conta quando ele completar ${BONUS_INDICACAO_ENTREGADOR.corridas} corridas entregues.`
+          : 'Cada indicação que assinar vale 10% de desconto na sua mensalidade — até 40%.'}
       </p>
 
-      {desconto && (
+      {desconto && !entregador && (
         <div className="rounded-xl border border-borda bg-superficie px-4 py-3 mb-2">
           <div className="flex items-baseline justify-between gap-2">
             <p className="text-gray-500 text-xs">

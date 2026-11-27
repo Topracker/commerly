@@ -16,11 +16,15 @@ import {
   type LojaDoFeed, type Post, type ProdutoMarcado, type Story,
 } from '../../lib/feed'
 import { SoComModulo } from '../../components/SoComModulo'
+import { useFlags } from '../../lib/useFlags'
 import { bloqueados, aoMudarBloqueados } from '../../lib/moderacao'
 
 export default function ClienteFeed() {
   const { cliente, loading, supabase, sair } = useCliente()
   const { toast, mostrarToast } = useToast()
+  // Delivery fechado em todo lugar: o botão vira "Ver loja" (a página da loja
+  // decide por loja/bairro se mostra "Fazer Pedido").
+  const { ativa } = useFlags()
   const router = useRouter()
 
   const [posts, setPosts] = useState<Post[]>([])
@@ -369,6 +373,7 @@ export default function ClienteFeed() {
                       onComentarios={() => setComentariosDe(post.id)}
                       onCompartilhar={() => compartilhar(post)}
                       onPedir={() => pedirAgora(post)}
+                      rotuloPedir={ativa('delivery') ? 'Pedir agora' : 'Ver loja'}
                     />
                   </div>
                 )

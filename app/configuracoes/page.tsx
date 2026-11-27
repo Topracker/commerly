@@ -740,8 +740,8 @@ export default function Configuracoes() {
             <label className="block text-gray-300 text-sm font-medium mb-1">🛵 Taxa de entrega automática</label>
             <p className="text-gray-500 text-xs">
               A taxa é calculada pela distância entre a sua loja e o endereço do cliente:{' '}
-              <strong className="text-gray-300">R$ {TAXA_ENTREGA.base} + R$ {TAXA_ENTREGA.porKm} por km</strong>,
-              mínimo R$ {TAXA_ENTREGA.min} e máximo R$ {TAXA_ENTREGA.max}. Sexta, sábado e domingo, das{' '}
+              <strong className="text-gray-300">R$ {TAXA_ENTREGA.base} até {String(TAXA_ENTREGA.raioKm).replace('.', ',')} km + R$ {TAXA_ENTREGA.porKm} por km depois</strong>,
+              máximo R$ {TAXA_ENTREGA.max}. Sexta, sábado e domingo, das{' '}
               {JANELA_PICO.inicio}h às {JANELA_PICO.fim}h, ela sobe {Math.round((SURGE_PICO - 1) * 100)}%. O valor
               vai integralmente ao entregador. Certifique-se de que o endereço/pino da sua loja esteja correto no
               mapa acima.

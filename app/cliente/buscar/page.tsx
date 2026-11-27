@@ -337,6 +337,14 @@ export default function ClienteBuscar() {
                     <Sparkles size={11} /> Destaque
                   </span>
                 )}
+                {/* delivery_liberado vem do servidor: loja pausada OU flag `delivery`
+                    OFF no bairro/cidade da loja. A loja aparece (cardápio, WhatsApp),
+                    mas o card não promete pedido. */}
+                {loja.delivery_liberado === false && (
+                  <span className="absolute bottom-2.5 left-2.5 text-[11px] bg-black/60 backdrop-blur text-gray-200 border border-white/15 px-2 py-0.5 rounded-full font-semibold">
+                    Sem pedido online por enquanto
+                  </span>
+                )}
                 {loja.totalAval > 0 && (
                   <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 text-[11px] bg-black/50 backdrop-blur text-yellow-300 border border-yellow-500/30 px-2 py-0.5 rounded-full font-semibold">
                     <Star size={11} className="fill-yellow-300 text-yellow-300" />

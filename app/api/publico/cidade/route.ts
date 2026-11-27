@@ -57,7 +57,15 @@ export async function GET(req: NextRequest) {
 
   const slug = slugify(local.cidade)
   const admin = createAdminClient()
-  const liberado = await flagAtiva('delivery', slug, admin)
+  // Cidade aberta por BAIRRO (Goiânia): a cidade em si pode estar OFF com
+  // bairros ON. Para o cliente, conta como coberta — a vitrine e o botão de
+  // pedido de cada loja decidem pelo bairro da loja (deliveryLiberadoLojas).
+  const [cidadeLiberada, { data: bairrosOn }] = await Promise.all([
+    flagAtiva('delivery', slug, admin),
+    admin.from('feature_flags').select('bairro').eq('flag', 'delivery')
+      .eq('cidade_slug', slug).not('bairro', 'is', null).eq('ativo', true).limit(1),
+  ])
+  const liberado = cidadeLiberada || (bairrosOn || []).length > 0
 
   // Posição no ranking de expansão — só faz sentido mostrar se já pontuou.
   let ranking: { posicao: number; pontos: number; meta_pontos: number } | null = null

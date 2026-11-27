@@ -49,7 +49,7 @@ export function OfertaCorridaModal({ oferta, pedido, nomeLoja, festa, respondend
   const segundos = Math.ceil(restanteMs / 1000)
   const pct = Math.max(0, Math.min(100, (restanteMs / totalMs) * 100))
   const dist = oferta.distancia_km != null ? Number(oferta.distancia_km) : null
-  const valor = ehFesta ? (festa?.valor_total ?? Number(oferta.valor_total) ?? 0) : (pedido ? Number(pedido.valor_corrida) : 0)
+  const valor = ehFesta ? (festa?.valor_total ?? Number(oferta.valor_total) ?? 0) : (pedido ? Number(pedido.valor_corrida) + (Number(pedido.gorjeta) || 0) : 0) // corrida + gorjeta (100% dele)
   // DINHEIRO (Caminho B, lib/acertos.ts): o entregador decide com a conta na
   // mão — quanto cobrar, quanto troco levar e quanto repassar à loja. Festa é
   // sempre na entrega; o total a cobrar vem somado pela rota festa-oferta.

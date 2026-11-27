@@ -16,7 +16,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '../../../lib/supabase-admin'
 import { supabaseDaRota, usuarioDaRota } from '../../../lib/rotaSupabase'
 import { flagAtiva } from '../../../lib/featureFlags'
-import { resolverLocal, nomeDoSlug, slugify } from '../../../lib/cidade'
+import { resolverLocal, resolverBairro, nomeDoSlug, slugify } from '../../../lib/cidade'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -29,6 +29,7 @@ type Resposta = {
   slug: string | null
   cidade: string | null
   uf: string | null
+  bairro: string | null
 }
 
 /** Nome bonito da cidade: o de `cidades_expansao` (com acento) ou o do slug. */
@@ -43,13 +44,15 @@ async function situacao(
   admin: ReturnType<typeof createAdminClient>,
   slug: string | null,
   uf: string | null,
+  bairro: { nome: string | null; slug: string | null } = { nome: null, slug: null },
 ): Promise<Resposta> {
-  if (!slug) return { estado: 'sem_cidade', slug: null, cidade: null, uf: null }
+  if (!slug) return { estado: 'sem_cidade', slug: null, cidade: null, uf: null, bairro: null }
+  // Bairro > cidade > global: em Goiânia o delivery abre bairro a bairro.
   const [{ nome, uf: ufFinal }, liberado] = await Promise.all([
     nomeDaCidade(admin, slug, uf),
-    flagAtiva('delivery', slug, admin),
+    flagAtiva('delivery', slug, admin, bairro.slug),
   ])
-  return { estado: liberado ? 'liberada' : 'sem_delivery', slug, cidade: nome, uf: ufFinal }
+  return { estado: liberado ? 'liberada' : 'sem_delivery', slug, cidade: nome, uf: ufFinal, bairro: bairro.nome }
 }
 
 async function lojaDaSessao() {
@@ -58,7 +61,7 @@ async function lojaDaSessao() {
   if (!user) return null
   const admin = createAdminClient()
   const { data } = await admin
-    .from('lojas').select('id, cidade_slug, uf, localizacao, latitude, longitude')
+    .from('lojas').select('id, cidade_slug, bairro, bairro_slug, uf, localizacao, latitude, longitude')
     .eq('user_id', user.id).maybeSingle()
   return data ? { admin, loja: data } : null
 }
@@ -67,7 +70,8 @@ export async function GET() {
   const ctx = await lojaDaSessao()
   if (!ctx) return NextResponse.json({ erro: 'Não autenticado.' }, { status: 401 })
   const { admin, loja } = ctx
-  return NextResponse.json(await situacao(admin, loja.cidade_slug ?? null, loja.uf ?? null))
+  return NextResponse.json(await situacao(admin, loja.cidade_slug ?? null, loja.uf ?? null,
+    { nome: loja.bairro ?? null, slug: loja.bairro_slug ?? null }))
 }
 
 export async function POST(req: NextRequest) {
@@ -89,20 +93,29 @@ export async function POST(req: NextRequest) {
     // Não resolveu: mantemos o que já estava (provedor fora do ar não pode
     // apagar a cidade de uma loja que já vendia) e reportamos a situação atual.
     console.warn('[loja/cidade] não resolveu a cidade da loja', loja.id, JSON.stringify({ localizacao, latitude, longitude }))
-    return NextResponse.json(await situacao(admin, loja.cidade_slug ?? null, loja.uf ?? null))
+    return NextResponse.json(await situacao(admin, loja.cidade_slug ?? null, loja.uf ?? null, { nome: loja.bairro ?? null, slug: loja.bairro_slug ?? null }))
   }
 
   const slug = slugify(local.cidade)
-  if (!slug) return NextResponse.json(await situacao(admin, loja.cidade_slug ?? null, loja.uf ?? null))
+  if (!slug) return NextResponse.json(await situacao(admin, loja.cidade_slug ?? null, loja.uf ?? null, { nome: loja.bairro ?? null, slug: loja.bairro_slug ?? null }))
 
-  if (slug !== loja.cidade_slug || (local.uf && local.uf !== loja.uf)) {
+  // Bairro (recorte da flag `delivery` dentro da cidade). Não resolveu =
+  // null: a loja segue a regra da cidade, nunca a de um bairro chutado.
+  const bairro = await resolverBairro({ localizacao, latitude, longitude })
+
+  if (slug !== loja.cidade_slug || (local.uf && local.uf !== loja.uf)
+    || (bairro?.slug ?? null) !== (loja.bairro_slug ?? null)) {
     const { error } = await admin
-      .from('lojas').update({ cidade_slug: slug, uf: local.uf ?? loja.uf ?? null }).eq('id', loja.id)
+      .from('lojas').update({
+        cidade_slug: slug, uf: local.uf ?? loja.uf ?? null,
+        bairro: bairro?.bairro ?? null, bairro_slug: bairro?.slug ?? null,
+      }).eq('id', loja.id)
     if (error) {
       console.error('[loja/cidade] falha ao gravar cidade_slug:', error.message)
       return NextResponse.json({ erro: 'Não foi possível salvar a cidade da loja.' }, { status: 500 })
     }
   }
 
-  return NextResponse.json(await situacao(admin, slug, local.uf ?? loja.uf ?? null))
+  return NextResponse.json(await situacao(admin, slug, local.uf ?? loja.uf ?? null,
+    { nome: bairro?.bairro ?? null, slug: bairro?.slug ?? null }))
 }
